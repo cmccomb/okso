@@ -1,0 +1,26 @@
+name: Installation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  installer:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck shfmt bats
+
+      - name: Lint installer
+        run: |
+          shfmt -d scripts/install tests/test_install.bats
+          shellcheck scripts/install tests/test_install.bats
+
+      - name: Run installer tests
+        run: bats tests/test_install.bats
