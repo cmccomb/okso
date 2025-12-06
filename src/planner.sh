@@ -96,7 +96,7 @@ heuristic_rank_tools() {
                         esac
                 fi
 
-                if [[ "${tool}" == "os_nav" && "${lower_query}" == *"list"* ]]; then
+                if [[ "${tool}" == "terminal" && "${lower_query}" == *"list"* ]]; then
                         if [[ "${lower_query}" == *"file"* || "${lower_query}" == *"dir"* || "${lower_query}" == *"directory"* ]]; then
                                 score=5
                         fi

@@ -71,7 +71,7 @@ CLI and config file are the primary configuration surfaces.
 
 The planner registers the following tools (each defined in `src/tools/<name>.sh`):
 
-- `os_nav`: persistent terminal session with a limited command set (pwd, ls,
+- `terminal`: persistent terminal session with a limited command set (pwd, ls,
   cd, cat, head, tail, find, grep, open on macOS).
 - `file_search`: search for files and contents using `fd`/`rg` fallbacks.
 - `notes_create`: create a new Apple Note (first line = title).
@@ -89,7 +89,7 @@ The planner registers the following tools (each defined in `src/tools/<name>.sh`
 - `mail_list_unread`: list unread Apple Mail inbox messages.
 - `applescript`: execute AppleScript snippets on macOS (no-op elsewhere).
 
-The `os_nav` tool keeps a per-query working directory and reuses it across
+The `terminal` tool keeps a per-query working directory and reuses it across
 invocations so agents can `cd` once and continue running commands from the same
 location. Supported commands include `status` (default, shows the current
 directory and a listing), `pwd`, `ls`, `cd`, `cat`, `head`, `tail`, `find`, and
@@ -121,7 +121,7 @@ and testing:
 - `src/cli.sh`: help/version output and argument parsing.
 - `src/config.sh`: configuration loading, normalization, and environment setup.
 - `src/tools.sh`: central registry that sources per-tool modules from `src/tools/`.
-- `src/tools/*.sh`: individual tool handlers (e.g., `os_nav`, `file_search`).
+- `src/tools/*.sh`: individual tool handlers (e.g., `terminal`, `file_search`).
 - `src/planner.sh`: ranking, planning, and execution flow.
 - `src/logging.sh`: structured logging helpers shared across modules.
 

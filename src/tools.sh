@@ -25,8 +25,8 @@ TOOLS_DIR="${BASH_SOURCE[0]%/tools.sh}/tools"
 source "${BASH_SOURCE[0]%/tools.sh}/logging.sh"
 # shellcheck source=./tools/registry.sh disable=SC1091
 source "${TOOLS_DIR}/registry.sh"
-# shellcheck source=./tools/os_nav.sh disable=SC1091
-source "${TOOLS_DIR}/os_nav.sh"
+# shellcheck source=./tools/terminal.sh disable=SC1091
+source "${TOOLS_DIR}/terminal.sh"
 # shellcheck source=./tools/file_search.sh disable=SC1091
 source "${TOOLS_DIR}/file_search.sh"
 # shellcheck source=./tools/notes/index.sh disable=SC1091
@@ -39,7 +39,7 @@ source "${TOOLS_DIR}/mail/index.sh"
 source "${TOOLS_DIR}/applescript.sh"
 
 initialize_tools() {
-        register_os_nav
+        register_terminal
         register_file_search
         register_notes_suite
         register_reminders_suite

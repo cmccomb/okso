@@ -28,7 +28,7 @@
 	run bash -lc 'source ./src/tools.sh; init_tool_registry; initialize_tools; printf "%s\n" "${TOOLS[@]}"'
 	[ "$status" -eq 0 ]
         [ "${#lines[@]}" -eq 16 ]
-        [ "${lines[0]}" = "os_nav" ]
+        [ "${lines[0]}" = "terminal" ]
         [ "${lines[1]}" = "file_search" ]
         [ "${lines[2]}" = "notes_create" ]
         [ "${lines[3]}" = "notes_append" ]

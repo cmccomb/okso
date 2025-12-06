@@ -28,4 +28,4 @@ if printf '%s' "${PROMPT}" | grep -q "Plan a concise sequence"; then
 fi
 
 printf 'tool=notes_create score=5 reason=stores reminders locally\n'
-printf 'tool=os_nav score=2 reason=basic filesystem context\n'
+printf 'tool=terminal score=2 reason=basic filesystem context\n'

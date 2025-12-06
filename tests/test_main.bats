@@ -35,8 +35,8 @@ EOF
 @test "prompts before executing when approval is required" {
 	run bash -lc "printf 'n\\n' | ./src/main.sh --config '${CONFIG_FILE}' -- 'list files'"
 	[ "$status" -eq 0 ]
-	[[ "$output" == *'Execute tool "os_nav"? [y/N]:'* ]]
-	[[ "$output" == *"[os_nav skipped]"* ]]
+        [[ "$output" == *'Execute tool "terminal"? [y/N]:'* ]]
+        [[ "$output" == *"[terminal skipped]"* ]]
 }
 
 @test "--yes bypasses prompts" {

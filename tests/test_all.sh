@@ -46,8 +46,8 @@ EOF
 @test "prompts in supervised mode and respects decline" {
 	run bash -lc "printf 'n\\n' | ./src/main.sh --config '${CONFIG_FILE}' --confirm -- 'list files'"
 	[ "$status" -eq 0 ]
-	[[ "$output" == *'Execute tool "os_nav"? [y/N]:'* ]]
-	[[ "$output" == *"[os_nav skipped]"* ]]
+        [[ "$output" == *'Execute tool "terminal"? [y/N]:'* ]]
+        [[ "$output" == *"[terminal skipped]"* ]]
 }
 
 @test "uses mock llama.cpp scoring to rank notes_create highest" {
