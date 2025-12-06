@@ -77,8 +77,12 @@ The planner registers the following tools:
 - `mail_stub`: capture a mail draft without sending.
 - `applescript`: execute AppleScript snippets on macOS (no-op elsewhere).
 
-Ranking prefers llama.cpp scoring when `LLAMA_BIN` is available; otherwise a
-heuristic keyword overlap is used.
+Ranking now builds a single compact prompt that lists every tool's name,
+description, safety note, and command. When `LLAMA_BIN` is available,
+`llama.cpp` returns the subset of tools to run (with scores and short
+justifications) in one call; otherwise a deterministic keyword heuristic is
+used. The resulting ranking is reused for the user-facing suggestion prompt and
+execution ordering.
 
 ## Usage examples
 

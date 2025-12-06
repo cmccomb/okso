@@ -311,71 +311,104 @@ initialize_tools() {
 		tool_applescript
 }
 
-build_scoring_prompt() {
-	local tool_name tool_desc user_query
-	tool_name="$1"
-	tool_desc="$2"
-	user_query="$3"
-	cat <<"PROMPT"
-You are ranking a tool for a request. Return a single integer from 0-5
-where 5 means the tool is ideal.
-PROMPT
-	printf 'Request: %s\nTool: %s\nDescription: %s\nScore: ' "${user_query}" "${tool_name}" "${tool_desc}"
+build_ranking_prompt() {
+	local user_query prompt tool
+	user_query="$1"
+	prompt="You are selecting tools to execute for a request. Respond with only the tools needed as lines in the format: tool=<name> score=<0-5> reason=<short justification>. Do not invent tools.\nRequest: ${user_query}\nAvailable tools:"
+
+	for tool in "${TOOLS[@]}"; do
+		prompt+=$(
+			printf '\n- name=%s desc=%s safety=%s command=%s' \
+				"${tool}" "${TOOL_DESCRIPTION[${tool}]}" "${TOOL_SAFETY[${tool}]}" "${TOOL_COMMAND[${tool}]}"
+		)
+	done
+
+	printf '%s\n' "${prompt}"
 }
 
-score_tool_with_model() {
-	local tool_name tool_desc user_query prompt score raw
-	tool_name="$1"
-	tool_desc="$2"
-	user_query="$3"
-	prompt="$(build_scoring_prompt "${tool_name}" "${tool_desc}" "${user_query}")"
+parse_llama_ranking() {
+	local raw_line tool score raw
+	raw="$1"
+	local results
+	declare -A best_scores=()
+	results=()
 
-	if [[ "${LLAMA_AVAILABLE}" == true ]]; then
-		raw="$(${LLAMA_BIN} -m "${MODEL_PATH}" -p "${prompt}" 2>/dev/null || true)"
-		score="$(printf '%s' "${raw}" | grep -Eo '[0-5]' | head -n1 || true)"
-	else
-		# Lightweight heuristic fallback: keyword overlap.
-		score=0
-		if [[ "${user_query}" == *"${tool_name}"* ]]; then
-			score=4
-		elif [[ "${tool_desc}" == *"${user_query}"* ]]; then
-			score=3
-		elif printf '%s' "${tool_desc}" | grep -iq "${user_query}"; then
-			score=2
+	while IFS= read -r raw_line; do
+		if [[ "${raw_line}" =~ tool[=:\ ]*([a-zA-Z0-9_-]+)[[:space:]]+score[=:\ ]*([0-5]) ]]; then
+			tool="${BASH_REMATCH[1]}"
+			score="${BASH_REMATCH[2]}"
+			if [[ -n "${TOOL_DESCRIPTION[${tool}]:-}" ]]; then
+				if [[ -z "${best_scores[${tool}]:-}" || ${score} -gt ${best_scores[${tool}]} ]]; then
+					best_scores[${tool}]="${score}"
+				fi
+			fi
 		fi
+	done <<<"${raw}"
+
+	for tool in "${!best_scores[@]}"; do
+		results+=("${best_scores[${tool}]}:${tool}")
+	done
+
+	if [[ ${#results[@]} -eq 0 ]]; then
+		return 1
 	fi
 
-	if [[ -z "${score}" ]]; then
-		score=1
-	fi
-
-	printf '%s' "${score}"
+	printf '%s\n' "${results[@]}" | sort -r -n -t ':' -k1,1 | head -n 3
 }
 
-rank_tools() {
-	local user_query tool score
+heuristic_rank_tools() {
+	local user_query tool desc score
 	user_query="$1"
 	local scores
 	scores=()
 
 	for tool in "${TOOLS[@]}"; do
-		score="$(score_tool_with_model "${tool}" "${TOOL_DESCRIPTION[${tool}]}" "${user_query}")"
+		desc="${TOOL_DESCRIPTION[${tool}]}"
+		score=1
+		if [[ "${user_query,,}" == *"${tool,,}"* ]]; then
+			score=5
+		elif [[ "${desc,,}" == *"${user_query,,}"* ]]; then
+			score=4
+		elif printf '%s' "${desc}" | grep -iq "${user_query}"; then
+			score=3
+		elif [[ "${TOOL_COMMAND[${tool}]}" == *"${user_query}"* ]]; then
+			score=2
+		fi
 		scores+=("${score}:${tool}")
 	done
 
 	printf '%s\n' "${scores[@]}" | sort -r -n -t ':' -k1,1 | head -n 3
 }
 
+rank_tools() {
+	local user_query prompt raw parsed
+	user_query="$1"
+	prompt="$(build_ranking_prompt "${user_query}")"
+
+	if [[ "${LLAMA_AVAILABLE}" == true ]]; then
+		raw="$(${LLAMA_BIN} -m "${MODEL_PATH}" -p "${prompt}" 2>/dev/null || true)"
+		parsed="$(parse_llama_ranking "${raw}" || true)"
+	fi
+
+	if [[ -z "${parsed:-""}" ]]; then
+		parsed="$(heuristic_rank_tools "${user_query}")"
+	fi
+
+	printf '%s\n' "${parsed}"
+}
+
 generate_tool_prompt() {
 	local user_query ranked entry score tool prompt
 	user_query="$1"
-	ranked="$(rank_tools "${user_query}")"
+	ranked="$2"
 	prompt="User request: ${user_query}. Suggested tools:"
 	while IFS= read -r entry; do
 		score="${entry%%:*}"
 		tool="${entry##*:}"
-		prompt+=$(printf ' %s(score=%s,desc=%s,safety=%s,cmd=%s),' \
-			"${tool}" "${score}" "${TOOL_DESCRIPTION[${tool}]}" "${TOOL_SAFETY[${tool}]}" "${TOOL_COMMAND[${tool}]}")
+		prompt+=$(
+			printf ' %s(score=%s,desc=%s,safety=%s,cmd=%s),' \
+				"${tool}" "${score}" "${TOOL_DESCRIPTION[${tool}]}" "${TOOL_SAFETY[${tool}]}" "${TOOL_COMMAND[${tool}]}"
+		)
 	done <<<"${ranked}"
 	printf '%s\n' "${prompt%,}"
 }
@@ -414,7 +447,7 @@ execute_tool() {
 
 collect_plan() {
 	local ranked plan_prompt raw_plan
-	ranked="$(rank_tools "${USER_QUERY}")"
+	ranked="$1"
 	plan_prompt="Plan a concise sequence of tool uses to satisfy: ${USER_QUERY}. Candidates: ${ranked}."
 	if [[ "${LLAMA_AVAILABLE}" == true ]]; then
 		raw_plan="$(${LLAMA_BIN} -m "${MODEL_PATH}" -p "${plan_prompt}" 2>/dev/null || true)"
@@ -426,8 +459,8 @@ collect_plan() {
 
 planner_executor_loop() {
 	local plan ranked entry tool summary
-	ranked="$(rank_tools "${USER_QUERY}")"
-	plan="$(collect_plan)"
+	ranked="$1"
+	plan="$(collect_plan "${ranked}")"
 	log "INFO" "Generated plan" "${plan}"
 
 	summary=""
@@ -445,12 +478,14 @@ planner_executor_loop() {
 }
 
 main() {
+	local ranked_tools
 	parse_args "$@"
 	init_environment
 	initialize_tools
 	log "DEBUG" "Starting tool selection" "${USER_QUERY}"
-	printf '%s\n' "$(generate_tool_prompt "${USER_QUERY}")"
-	planner_executor_loop
+	ranked_tools="$(rank_tools "${USER_QUERY}")"
+	printf '%s\n' "$(generate_tool_prompt "${USER_QUERY}" "${ranked_tools}")"
+	planner_executor_loop "${ranked_tools}"
 }
 
 main "$@"

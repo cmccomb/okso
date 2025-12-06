@@ -39,14 +39,19 @@ setup() {
 }
 
 @test "uses mock llama.cpp scoring to rank notes highest" {
+	local llama_log
+	llama_log="$(mktemp)"
 	run env DO_SUPERVISED=false \
 		DO_VERBOSITY=0 \
 		LLAMA_BIN="$(pwd)/tests/fixtures/mock_llama.sh" \
+		MOCK_LLAMA_LOG="${llama_log}" \
 		DO_MODEL_PATH="$(pwd)/tests/fixtures/mock-model.gguf" \
 		./src/main.sh -- "save reminder"
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"notes(score=5"* ]]
 	[[ "$output" == *"[notes executed]"* ]]
+	grep -q "Available tools:" "${llama_log}"
+	[[ "$(grep -c "Available tools:" "${llama_log}")" -eq 1 ]]
 }
 
 @test "warns when llama.cpp dependency is missing but continues" {

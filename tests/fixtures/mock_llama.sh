@@ -2,9 +2,10 @@
 # Mock llama.cpp binary for deterministic test scoring.
 # Arguments:
 #   -m <path> (string): model path (ignored)
-#   -p <prompt> (string): prompt containing tool name and description
+#   -p <prompt> (string): prompt containing the tool catalog or plan request
 set -euo pipefail
 PROMPT=""
+LOG_PATH="${MOCK_LLAMA_LOG:-}"
 while [[ $# -gt 0 ]]; do
 	case "$1" in
 	-p)
@@ -16,8 +17,15 @@ while [[ $# -gt 0 ]]; do
 		;;
 	esac
 done
-if printf '%s' "${PROMPT}" | grep -q "Tool: notes"; then
-	printf '5\n'
-else
-	printf '1\n'
+
+if [[ -n "${LOG_PATH}" ]]; then
+	printf '%s\n' "${PROMPT}" >>"${LOG_PATH}"
 fi
+
+if printf '%s' "${PROMPT}" | grep -q "Plan a concise sequence"; then
+	printf 'Use selected tools in ranked order.\n'
+	exit 0
+fi
+
+printf 'tool=notes score=5 reason=stores reminders locally\n'
+printf 'tool=os_nav score=2 reason=basic filesystem context\n'
