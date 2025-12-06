@@ -24,16 +24,17 @@ What the installer does:
 3. Copies the `src/` contents into `/usr/local/do` (override with `--prefix`),
    and symlinks `do` into your `PATH` (default: `/usr/local/bin`).
 4. Downloads a configurable Qwen3 GGUF for `llama.cpp` into `~/.do/models`
-   unless `DO_MODEL_PATH` already points to an existing file.
+   via llama.cpp's Hugging Face flags, reusing cached copies when present.
 5. Offers `--upgrade` (refresh files/model) and `--uninstall` flows, refusing
    to run on non-macOS hosts.
 
 Key environment variables:
 
-- `DO_MODEL_URL`: Override the default Qwen3 model URL
-  (`qwen3-1.5b-instruct-q4_k_m.gguf`).
-- `DO_MODEL_PATH`: Destination path for the GGUF (default:
-  `~/.do/models/qwen3-1.5b-instruct-q4_k_m.gguf`).
+- `DO_MODEL`: HF repo[:file] identifier for the model download (default:
+  `Qwen/Qwen3-1.5B-Instruct-GGUF:qwen3-1.5b-instruct-q4_k_m.gguf`).
+- `DO_MODEL_BRANCH`: Branch or tag to download from (default: `main`).
+- `DO_MODEL_CACHE`: Directory where downloaded GGUF files are stored (default:
+  `~/.do/models`).
 - `DO_LINK_DIR`: Directory for the CLI symlink (default: `/usr/local/bin`).
 - `DO_INSTALLER_ASSUME_OFFLINE=true`: Skip network calls; installation fails if
   downloads are required while offline.
@@ -47,7 +48,12 @@ For manual setups, ensure `bash` 5+, `llama.cpp` (optional for heuristic mode),
 Environment variables control runtime behavior and can be stored in an env file
 (such as `tests/fixtures/sample.env`):
 
-- `DO_MODEL_PATH`: Path to the llama.cpp model (default: `./models/llama.gguf`).
+- `DO_MODEL`: HF repo[:file] identifier for the llama.cpp model (default:
+  `Qwen/Qwen3-1.5B-Instruct-GGUF:qwen3-1.5b-instruct-q4_k_m.gguf`).
+- `DO_MODEL_BRANCH`: Optional branch or tag for the model download (default:
+  `main`).
+- `DO_MODEL_CACHE`: Cache directory holding downloaded GGUF files (default:
+  `~/.do/models`).
 - `DO_SUPERVISED`: `true`/`false` to toggle confirmation prompts (default:
   `true`).
 - `DO_VERBOSITY`: `0` (quiet), `1` (info), `2` (debug). Overrides `-v`/`-q`.
@@ -88,10 +94,10 @@ Supervised run (default):
 ./src/main.sh -- "inspect project layout and search notes"
 ```
 
-Unsupervised run with a specific model:
+Unsupervised run with a specific model selection:
 
 ```bash
-DO_SUPERVISED=false ./src/main.sh --model ./models/llama.gguf -- "save reminder"
+DO_SUPERVISED=false ./src/main.sh --model your-org/your-model:custom.gguf --model-cache ~/.do/models -- "save reminder"
 ```
 
 Using the sample configuration:

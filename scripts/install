@@ -7,10 +7,13 @@
 #   scripts/install [--prefix PATH] [--upgrade] [--uninstall] [--help]
 #
 # Environment variables:
-#   DO_MODEL_URL (string): llama.cpp GGUF URL to download. Defaults to a Qwen3
-#       Instruct Q4_K_M build suitable for laptops.
-#   DO_MODEL_PATH (string): Destination path for the GGUF. Defaults to
-#       "${HOME}/.do/models/qwen3-1.5b-instruct-q4_k_m.gguf".
+#   DO_MODEL (string): Hugging Face repo and file identifier for the model,
+#       formatted as "<repo>:<file>". Defaults to the Qwen3 1.5B Instruct
+#       Q4_K_M build.
+#   DO_MODEL_BRANCH (string): Hugging Face branch or tag for the model
+#       download. Defaults to "main".
+#   DO_MODEL_CACHE (string): Directory to store downloaded GGUF models;
+#       defaults to "${HOME}/.do/models".
 #   DO_LINK_DIR (string): Directory for the PATH symlink. Defaults to
 #       "/usr/local/bin".
 #   HF_TOKEN (string): Optional Hugging Face token for gated model downloads.
@@ -36,9 +39,11 @@ APP_NAME="do"
 DEFAULT_PREFIX="/usr/local/do"
 DO_LINK_DIR="${DO_LINK_DIR:-/usr/local/bin}"
 DEFAULT_LINK_PATH="${DO_LINK_DIR}/${APP_NAME}"
-DEFAULT_MODEL_DIR="${HOME}/.do/models"
-DEFAULT_MODEL_URL="${DO_MODEL_URL:-https://huggingface.co/Qwen/Qwen3-1.5B-Instruct-GGUF/resolve/main/qwen3-1.5b-instruct-q4_k_m.gguf}"
-DEFAULT_MODEL_PATH="${DO_MODEL_PATH:-${DEFAULT_MODEL_DIR}/qwen3-1.5b-instruct-q4_k_m.gguf}"
+DEFAULT_MODEL_CACHE="${DO_MODEL_CACHE:-${HOME}/.do/models}"
+DEFAULT_MODEL_FILE="qwen3-1.5b-instruct-q4_k_m.gguf"
+DEFAULT_MODEL_SPEC="${DO_MODEL:-Qwen/Qwen3-1.5B-Instruct-GGUF:${DEFAULT_MODEL_FILE}}"
+DEFAULT_MODEL_BRANCH="${DO_MODEL_BRANCH:-main}"
+LLAMA_BIN="${LLAMA_BIN:-llama}"
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 PROJECT_ROOT="${SCRIPT_DIR%/scripts}"
@@ -57,8 +62,26 @@ BREW_PACKAGES=(
 )
 
 log() {
-	# $1: level, $2: message
-	printf '[%s] %s\n' "$1" "$2"
+        # $1: level, $2: message
+        printf '[%s] %s\n' "$1" "$2"
+}
+
+parse_model_spec() {
+        # $1: model spec in repo[:file] form
+        # $2: default file name
+        local spec default_file repo file
+        spec="$1"
+        default_file="$2"
+
+        if [[ "${spec}" == *:* ]]; then
+                repo="${spec%%:*}"
+                file="${spec#*:}"
+        else
+                repo="${spec}"
+                file="${default_file}"
+        fi
+
+        printf '%s\n%s\n' "${repo}" "${file}"
 }
 
 usage() {
@@ -69,11 +92,16 @@ Options:
   --prefix PATH     Installation prefix (default: /usr/local/do)
   --upgrade         Reinstall project files and refresh the model download
   --uninstall       Remove installed files and symlink
+  --model VALUE     HF repo[:file] for llama.cpp download (default: Qwen/Qwen3-1.5B-Instruct-GGUF:qwen3-1.5b-instruct-q4_k_m.gguf)
+  --model-branch BRANCH
+                    HF branch or tag to download from (default: main)
+  --model-cache DIR Directory to store downloaded GGUF files (default: ~/.do/models)
   --help            Show this help message
 
 Environment variables:
-  DO_MODEL_URL               GGUF URL to download for llama.cpp
-  DO_MODEL_PATH              Destination path for the GGUF file
+  DO_MODEL                   HF repo[:file] identifier for the llama.cpp model
+  DO_MODEL_BRANCH            HF branch or tag for the model download
+  DO_MODEL_CACHE             Destination directory for the GGUF file
   DO_LINK_DIR                Directory for the CLI symlink
   HF_TOKEN                   Hugging Face token for gated downloads
   DO_INSTALLER_ASSUME_OFFLINE=true to prevent network access
@@ -92,10 +120,49 @@ require_macos() {
 }
 
 has_network() {
-	if [ "${DO_INSTALLER_ASSUME_OFFLINE:-false}" = "true" ]; then
-		return 1
-	fi
-	curl --head --silent --connect-timeout 3 --max-time 5 https://brew.sh >/dev/null 2>&1
+        if [ "${DO_INSTALLER_ASSUME_OFFLINE:-false}" = "true" ]; then
+                return 1
+        fi
+        curl --head --silent --connect-timeout 3 --max-time 5 https://brew.sh >/dev/null 2>&1
+}
+
+fetch_remote_metadata() {
+        # $1: HF repo, $2: file, $3: branch
+        local repo file branch url headers size checksum
+        repo="$1"
+        file="$2"
+        branch="$3"
+        url="https://huggingface.co/${repo}/resolve/${branch}/${file}"
+
+        headers=()
+        if [ -n "${HF_TOKEN:-}" ]; then
+                headers+=("-H" "Authorization: Bearer ${HF_TOKEN}")
+        fi
+
+        size=$(curl -sI "${headers[@]}" "${url}" | awk '/[Cc]ontent-[Ll]ength/ {print $2}' | tr -d '\r') || size=""
+
+        checksum=""
+        if curl -fsL "${headers[@]}" "${url}.sha256" >/tmp/do-model.sha256 2>/dev/null; then
+                checksum=$(cut -d' ' -f1 </tmp/do-model.sha256)
+        fi
+
+        rm -f /tmp/do-model.sha256
+
+        printf '%s\n%s\n' "${size}" "${checksum}"
+}
+
+compute_sha256() {
+        # $1: file path
+        local target
+        target="$1"
+        if command -v sha256sum >/dev/null 2>&1; then
+                sha256sum "${target}" | awk '{print $1}'
+        elif command -v shasum >/dev/null 2>&1; then
+                shasum -a 256 "${target}" | awk '{print $1}'
+        else
+                log "ERROR" "No SHA-256 utility found for checksum verification"
+                return 1
+        fi
 }
 
 ensure_homebrew() {
@@ -209,41 +276,84 @@ create_symlink() {
 }
 
 download_model() {
-	# $1: model_path, $2: model_url
-	local model_path="$1"
-	local model_url="$2"
-	local model_dir
-	model_dir="$(dirname "${model_path}")"
+        # $1: HF repo, $2: file, $3: branch, $4: cache dir, $5: force refresh (true/false)
+        local repo file branch cache_dir force_refresh model_path tmp_path meta size checksum llama_args actual_size actual_checksum
+        repo="$1"
+        file="$2"
+        branch="$3"
+        cache_dir="$4"
+        force_refresh="$5"
+        model_path="${cache_dir%/}/${file}"
+        tmp_path="${model_path}.download"
 
-	mkdir -p "${model_dir}"
-	if [ -f "${model_path}" ]; then
-		log "INFO" "Model already present at ${model_path}"
-		return 0
-	fi
+        mkdir -p "${cache_dir}"
 
-	if ! has_network; then
-		log "ERROR" "Network connectivity required to download model."
-		exit 4
-	fi
+        if [ -f "${model_path}" ] && [ "${force_refresh}" != "true" ]; then
+                log "INFO" "Model already present at ${model_path}"
+                return 0
+        fi
 
-	log "INFO" "Downloading model from ${model_url}"
-	local curl_args=(
-		"-L"
-		"--fail"
-		"--continue-at" "-"
-		"--output" "${model_path}"
-		"--connect-timeout" "10"
-		"--retry" "2"
-	)
-	if [ -n "${HF_TOKEN:-}" ]; then
-		curl_args+=("-H" "Authorization: Bearer ${HF_TOKEN}")
-	fi
-	curl_args+=("${model_url}")
+        if ! has_network; then
+                if [ -f "${model_path}" ]; then
+                        log "INFO" "Offline mode: skipping model refresh; existing file reused."
+                        return 0
+                fi
+                log "ERROR" "Network connectivity required to download model."
+                exit 4
+        fi
 
-	if ! curl "${curl_args[@]}"; then
-		log "ERROR" "Failed to download model to ${model_path}"
-		exit 4
-	fi
+        if ! command -v "${LLAMA_BIN}" >/dev/null 2>&1; then
+                log "ERROR" "llama.cpp binary not found at ${LLAMA_BIN}"
+                exit 2
+        fi
+
+        mapfile -t meta < <(fetch_remote_metadata "${repo}" "${file}" "${branch}")
+        size="${meta[0]}"
+        checksum="${meta[1]}"
+
+        log "INFO" "Downloading ${file} from ${repo}@${branch}"
+        llama_args=(
+                "--model" "${tmp_path}"
+                "--only-download"
+                "--hf-repo" "${repo}"
+                "--hf-file" "${file}"
+                "--hf-branch" "${branch}"
+        )
+        if [ -n "${HF_TOKEN:-}" ]; then
+                llama_args+=("--hf-token" "${HF_TOKEN}")
+        fi
+
+        if ! "${LLAMA_BIN}" "${llama_args[@]}"; then
+                log "ERROR" "llama.cpp failed to download the model"
+                exit 4
+        fi
+
+        if [ ! -f "${tmp_path}" ]; then
+                log "ERROR" "Download did not produce ${tmp_path}"
+                exit 4
+        fi
+
+        actual_size=$(wc -c <"${tmp_path}")
+        if [ -n "${size}" ] && [ "${actual_size}" -ne "${size}" ]; then
+                log "ERROR" "Downloaded size ${actual_size} does not match expected ${size}"
+                rm -f "${tmp_path}"
+                exit 4
+        fi
+
+        if [ -n "${checksum}" ]; then
+                if ! actual_checksum=$(compute_sha256 "${tmp_path}"); then
+                        rm -f "${tmp_path}"
+                        exit 4
+                fi
+                if [ "${actual_checksum}" != "${checksum}" ]; then
+                        log "ERROR" "Checksum mismatch for ${file}"
+                        rm -f "${tmp_path}"
+                        exit 4
+                fi
+        fi
+
+        mv -f "${tmp_path}" "${model_path}"
+        log "INFO" "Model ready at ${model_path}"
 }
 
 uninstall() {
@@ -276,55 +386,92 @@ uninstall() {
 }
 
 main() {
-	local prefix="${DEFAULT_PREFIX}"
-	local mode="install"
+        local prefix="${DEFAULT_PREFIX}"
+        local mode="install"
+        local model_spec="${DEFAULT_MODEL_SPEC}"
+        local model_branch="${DEFAULT_MODEL_BRANCH}"
+        local model_cache="${DEFAULT_MODEL_CACHE}"
+        local model_repo model_file model_parts refresh_model
 
-	while [ $# -gt 0 ]; do
-		case "$1" in
-		--prefix)
-			if [ $# -lt 2 ]; then
-				usage
-				exit 1
-			fi
-			prefix="$2"
-			shift 2
-			;;
-		--upgrade)
-			mode="upgrade"
-			shift
-			;;
-		--uninstall)
-			mode="uninstall"
-			shift
-			;;
-		--help | -h)
-			usage
-			exit 0
-			;;
-		*)
-			usage
-			exit 1
-			;;
-		esac
-	done
+        while [ $# -gt 0 ]; do
+                case "$1" in
+                --prefix)
+                        if [ $# -lt 2 ]; then
+                                usage
+                                exit 1
+                        fi
+                        prefix="$2"
+                        shift 2
+                        ;;
+                --upgrade)
+                        mode="upgrade"
+                        shift
+                        ;;
+                --uninstall)
+                        mode="uninstall"
+                        shift
+                        ;;
+                --model)
+                        if [ $# -lt 2 ]; then
+                                usage
+                                exit 1
+                        fi
+                        model_spec="$2"
+                        shift 2
+                        ;;
+                --model-branch)
+                        if [ $# -lt 2 ]; then
+                                usage
+                                exit 1
+                        fi
+                        model_branch="$2"
+                        shift 2
+                        ;;
+                --model-cache)
+                        if [ $# -lt 2 ]; then
+                                usage
+                                exit 1
+                        fi
+                        model_cache="$2"
+                        shift 2
+                        ;;
+                --help | -h)
+                        usage
+                        exit 0
+                        ;;
+                *)
+                        usage
+                        exit 1
+                        ;;
+                esac
+        done
 
-	if [ "${mode}" != "uninstall" ]; then
-		require_macos
-		ensure_homebrew
-		install_brew_packages
+        mapfile -t model_parts < <(parse_model_spec "${model_spec}" "${DEFAULT_MODEL_FILE}")
+        model_repo="${model_parts[0]}"
+        model_file="${model_parts[1]}"
+        refresh_model=false
+
+        if [ "${mode}" = "upgrade" ]; then
+                refresh_model=true
+        fi
+
+        if [ "${mode}" != "uninstall" ]; then
+                require_macos
+                ensure_homebrew
+                install_brew_packages
 	elif [ "$(uname -s)" != "Darwin" ]; then
 		log "ERROR" "Uninstall is only supported on macOS."
 		exit 3
 	fi
 
-	case "${mode}" in
-	install | upgrade)
-		copy_project_files "${prefix}"
-		create_symlink "${prefix}" "${DEFAULT_LINK_PATH}"
-		download_model "${DEFAULT_MODEL_PATH}" "${DEFAULT_MODEL_URL}"
-		;;
-	uninstall)
-		uninstall "${prefix}" "${DEFAULT_LINK_PATH}"
+        case "${mode}" in
+        install | upgrade)
+                copy_project_files "${prefix}"
+                create_symlink "${prefix}" "${DEFAULT_LINK_PATH}"
+                download_model "${model_repo}" "${model_file}" "${model_branch}" "${model_cache}" "${refresh_model}"
+                ;;
+        uninstall)
+                uninstall "${prefix}" "${DEFAULT_LINK_PATH}"
 		;;
 	esac
 

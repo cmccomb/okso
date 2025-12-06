@@ -1,8 +1,12 @@
 #!/usr/bin/env bats
 
 setup() {
-	export DO_VERBOSITY=0
-	export DO_SUPERVISED=false
+        export DO_VERBOSITY=0
+        export DO_SUPERVISED=false
+        export DO_MODEL="example/repo:demo.gguf"
+        export DO_MODEL_CACHE="${BATS_TMPDIR}/do-models"
+        mkdir -p "${DO_MODEL_CACHE}"
+        printf "stub-model-body" >"${DO_MODEL_CACHE}/demo.gguf"
 }
 
 @test "shows help text" {
