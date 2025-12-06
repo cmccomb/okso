@@ -406,7 +406,7 @@ execute_tool() {
 	fi
 
 	if ! confirm_tool "${tool_name}"; then
-		return 0
+		return 1
 	fi
 
 	TOOL_QUERY="${USER_QUERY}" ${handler}
