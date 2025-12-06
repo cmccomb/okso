@@ -1,0 +1,86 @@
+#!/usr/bin/env sh
+# shellcheck enable=all
+
+# Get the directory where this file is saved
+DIR=$(dirname -- "$0")
+echo "DIR: ${DIR}"
+
+# Keep track of packages to install
+brew_packages_to_install=""
+dependencies_to_check=$(
+	cat <<-EOF
+		llama-cli:llama.cpp
+		llama-tokenize:llama.cpp
+		tesseract:tesseract
+		pandoc:pandoc
+		pdftotext:poppler
+		yq:yq
+	EOF
+)
+
+# Check to see if the command line dependencies are installed and add them to the list if not
+while [ -n "${dependencies_to_check}" ]; do
+	# Get the first dependency in the list
+	dependency=$(echo "${dependencies_to_check}" | head -n 1)
+	dependencies_to_check=$(echo "${dependencies_to_check}" | tail -n +2)
+
+	# The dependency is in the format of "command:package"
+	command="${dependency%%:*}"
+	package="${dependency##*:}"
+
+	# Check to see if the command is installed
+	if ! command -v "${command}" >/dev/null 2>&1; then
+		brew_packages_to_install="${brew_packages_to_install}${package} "
+	fi
+done
+
+# Install the command line dependencies
+if [ -n "${brew_packages_to_install}" ]; then
+	# Check to see if homebrew is installed and install it if it is not
+	if ! command -v brew >/dev/null 2>&1; then
+		echo "Homebrew not found. Installing Homebrew..."
+		NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+		echo "Homebrew installation complete."
+	else
+		echo "Homebrew is already installed."
+	fi
+	echo "Installing command line dependencies..."
+	eval "brew install ${brew_packages_to_install}"
+	echo "Command line dependencies installed."
+else
+	echo "Command line dependencies are already installed."
+fi
+
+# Update all brew packages
+echo "Updating all brew packages..."
+brew update
+brew upgrade
+
+# Download the latest version of do
+echo "Downloading and installing the latest version of do..."
+
+# Install the side files
+sudo mkdir -p /usr/local/do
+
+# Check DIR to see if it ends with src
+case ${DIR} in
+*"scripts")
+	# Copy contents of src/ to do
+	sudo cp -r ${DIR}/../src/* /usr/local/do/
+	;;
+*)
+	# Download the whole project from git
+	sudo git clone https://github.com/cmccomb/do.git /tmp/do
+
+	# Copy contents of src/ to do
+	sudo cp -r /tmp/do/src/* /usr/local/do/
+
+	;;
+esac
+
+# Cleanup
+sudo rm -rf /tmp/do
+
+# Move main.sh to /usr/local/bin and make it executable
+sudo mv /usr/local/do/main.sh /usr/local/bin/do
+sudo chmod +x /usr/local/bin/do
