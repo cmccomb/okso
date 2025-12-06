@@ -81,13 +81,22 @@ The planner registers the following tools (each defined in `src/tools/<name>.sh`
 - `reminders_create`: create a new Apple Reminder (first line = title).
 - `reminders_list`: list incomplete Apple Reminders in the configured list.
 - `reminders_complete`: mark an Apple Reminder complete by title.
-- `mail_stub`: capture a mail draft without sending.
+- `mail_draft`: create a new Apple Mail draft (line 1: recipients, line 2: subject).
+- `mail_send`: compose and send an Apple Mail message immediately.
+- `mail_search`: search Apple Mail inbox messages by subject, sender, or body.
+- `mail_list_inbox`: list recent Apple Mail inbox messages.
+- `mail_list_unread`: list unread Apple Mail inbox messages.
 - `applescript`: execute AppleScript snippets on macOS (no-op elsewhere).
 
 Apple Notes tools expect the first line of `TOOL_QUERY` to be the note title and
 the remaining lines to form the body (where applicable). Set `NOTES_FOLDER` to
 point at a specific folder (default: `Notes`). On non-macOS hosts or when
 `osascript` is unavailable, the tools emit a warning and exit without changes.
+
+Apple Mail tools expect `TOOL_QUERY` lines to be structured as comma-separated
+recipients on the first line, a subject on the second, and the optional body on
+subsequent lines. The inbox listing tools respect `MAIL_INBOX_LIMIT` to cap
+results (default: 10).
 
 Ranking now builds a single compact prompt that lists every tool's name,
 description, safety note, and command. When `LLAMA_BIN` is available,
