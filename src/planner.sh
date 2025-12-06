@@ -72,22 +72,38 @@ parse_llama_ranking() {
 }
 
 heuristic_rank_tools() {
-	local user_query tool desc score
+	local user_query tool desc score lower_query is_note_intent
 	user_query="$1"
+	lower_query=${user_query,,}
+	is_note_intent=false
+	if [[ "${lower_query}" == *"note"* ]]; then
+		is_note_intent=true
+	fi
 	local scores
 	scores=()
 
 	for tool in "${TOOLS[@]}"; do
 		desc="${TOOL_DESCRIPTION[${tool}]}"
 		score=1
-		if [[ "${user_query,,}" == *"${tool,,}"* ]]; then
+		if [[ "${is_note_intent}" == true ]]; then
+			case "${tool}" in
+			notes_create)
+				score=5
+				;;
+			notes_append | notes_search | notes_read | notes_list)
+				score=4
+				;;
+			esac
+		fi
+
+		if [[ "${lower_query}" == *"${tool,,}"* ]]; then
 			score=5
-		elif [[ "${desc,,}" == *"${user_query,,}"* ]]; then
-			score=4
+		elif [[ "${desc,,}" == *"${lower_query}"* ]]; then
+			((score < 4)) && score=4
 		elif printf '%s' "${desc}" | grep -iq "${user_query}"; then
-			score=3
+			((score < 3)) && score=3
 		elif [[ "${TOOL_COMMAND[${tool}]}" == *"${user_query}"* ]]; then
-			score=2
+			((score < 2)) && score=2
 		fi
 		scores+=("${score}:${tool}")
 	done
@@ -200,7 +216,7 @@ execute_tool() {
 		return 0
 	fi
 
-        TOOL_QUERY="${USER_QUERY:-}" ${handler}
+	TOOL_QUERY="${USER_QUERY:-}" ${handler}
 }
 
 collect_plan() {

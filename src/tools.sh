@@ -7,7 +7,6 @@
 #   source "${BASH_SOURCE[0]%/tools.sh}/tools.sh"
 #
 # Environment variables:
-#   NOTES_DIR (string): location to store notes; defaults set by caller.
 #   TOOL_QUERY (string): populated before handler execution.
 #   IS_MACOS (bool): platform flag used by macOS-only tools.
 #
@@ -30,8 +29,8 @@ source "${TOOLS_DIR}/registry.sh"
 source "${TOOLS_DIR}/os_nav.sh"
 # shellcheck source=./tools/file_search.sh disable=SC1091
 source "${TOOLS_DIR}/file_search.sh"
-# shellcheck source=./tools/notes.sh disable=SC1091
-source "${TOOLS_DIR}/notes.sh"
+# shellcheck source=./tools/notes/index.sh disable=SC1091
+source "${TOOLS_DIR}/notes/index.sh"
 # shellcheck source=./tools/mail_stub.sh disable=SC1091
 source "${TOOLS_DIR}/mail_stub.sh"
 # shellcheck source=./tools/applescript.sh disable=SC1091
@@ -40,7 +39,7 @@ source "${TOOLS_DIR}/applescript.sh"
 initialize_tools() {
 	register_os_nav
 	register_file_search
-	register_notes
+	register_notes_suite
 	register_mail_stub
 	register_applescript
 }

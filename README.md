@@ -73,9 +73,18 @@ The planner registers the following tools (each defined in `src/tools/<name>.sh`
 
 - `os_nav`: inspect the working directory (read-only).
 - `file_search`: search for files and contents using `fd`/`rg` fallbacks.
-- `notes`: append reminders under `~/.do/notes.txt`.
+- `notes_create`: create a new Apple Note (first line = title).
+- `notes_append`: append text to an existing Apple Note by title.
+- `notes_list`: list note titles within the configured Apple Notes folder.
+- `notes_search`: search Apple Notes titles and bodies for a phrase.
+- `notes_read`: read an Apple Note's contents by title.
 - `mail_stub`: capture a mail draft without sending.
 - `applescript`: execute AppleScript snippets on macOS (no-op elsewhere).
+
+Apple Notes tools expect the first line of `TOOL_QUERY` to be the note title and
+the remaining lines to form the body (where applicable). Set `NOTES_FOLDER` to
+point at a specific folder (default: `Notes`). On non-macOS hosts or when
+`osascript` is unavailable, the tools emit a warning and exit without changes.
 
 Ranking now builds a single compact prompt that lists every tool's name,
 description, safety note, and command. When `LLAMA_BIN` is available,
@@ -119,9 +128,9 @@ Use `--help` to view all options. Pass `--verbose` for debug-level logs or
 Run the formatting and lint targets before executing the Bats suite:
 
 ```bash
-shfmt -w src/*.sh src/tools/*.sh tests/*.bats tests/test_all.sh scripts/install
-shellcheck src/*.sh src/tools/*.sh tests/*.bats tests/test_all.sh scripts/install
-bats tests/test_all.sh tests/test_install.bats tests/test_main.bats tests/test_modules.bats
+shfmt -w src/*.sh src/tools/*.sh src/tools/notes/*.sh tests/*.bats tests/test_all.sh tests/test_install.bats tests/test_main.bats tests/test_modules.bats tests/test_notes.bats scripts/install
+shellcheck src/*.sh src/tools/*.sh src/tools/notes/*.sh tests/*.bats tests/test_all.sh tests/test_install.bats tests/test_main.bats tests/test_modules.bats tests/test_notes.bats scripts/install
+bats tests/test_all.sh tests/test_install.bats tests/test_main.bats tests/test_modules.bats tests/test_notes.bats
 ```
 
 The Bats suite covers CLI help/version output, confirmation prompts, deterministic

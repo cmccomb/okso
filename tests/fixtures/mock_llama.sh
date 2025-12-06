@@ -27,5 +27,5 @@ if printf '%s' "${PROMPT}" | grep -q "Plan a concise sequence"; then
 	exit 0
 fi
 
-printf 'tool=notes score=5 reason=stores reminders locally\n'
+printf 'tool=notes_create score=5 reason=stores reminders locally\n'
 printf 'tool=os_nav score=2 reason=basic filesystem context\n'
