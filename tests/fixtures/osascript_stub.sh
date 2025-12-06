@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
-log_file="${NOTES_STUB_LOG:-}" 
+log_file="${NOTES_STUB_LOG:-${REMINDERS_STUB_LOG:-}}"
 if [[ -n "${log_file}" ]]; then
-        {
-                printf 'ARGS:'
-                printf ' %q' "$@"
-                printf '\nSCRIPT<<EOF\n'
-                cat
-                printf 'EOF\n'
-        } >>"${log_file}"
+	{
+		printf 'ARGS:'
+		printf ' %q' "$@"
+		printf '\nSCRIPT<<EOF\n'
+		cat
+		printf 'EOF\n'
+	} >>"${log_file}"
 else
-        cat >/dev/null
+	cat >/dev/null
 fi
 printf 'stubbed\n'

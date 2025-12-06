@@ -82,31 +82,37 @@ heuristic_rank_tools() {
 	local scores
 	scores=()
 
-	for tool in "${TOOLS[@]}"; do
-		desc="${TOOL_DESCRIPTION[${tool}]}"
-		score=1
-		if [[ "${is_note_intent}" == true ]]; then
-			case "${tool}" in
-			notes_create)
-				score=5
-				;;
-			notes_append | notes_search | notes_read | notes_list)
-				score=4
-				;;
-			esac
-		fi
+        for tool in "${TOOLS[@]}"; do
+                desc="${TOOL_DESCRIPTION[${tool}]}"
+                score=1
+                if [[ "${is_note_intent}" == true ]]; then
+                        case "${tool}" in
+                        notes_create)
+                                score=5
+                                ;;
+                        notes_append | notes_search | notes_read | notes_list)
+                                score=4
+                                ;;
+                        esac
+                fi
 
-		if [[ "${lower_query}" == *"${tool,,}"* ]]; then
-			score=5
-		elif [[ "${desc,,}" == *"${lower_query}"* ]]; then
-			((score < 4)) && score=4
-		elif printf '%s' "${desc}" | grep -iq "${user_query}"; then
-			((score < 3)) && score=3
-		elif [[ "${TOOL_COMMAND[${tool}]}" == *"${user_query}"* ]]; then
-			((score < 2)) && score=2
-		fi
-		scores+=("${score}:${tool}")
-	done
+                if [[ "${tool}" == "os_nav" && "${lower_query}" == *"list"* ]]; then
+                        if [[ "${lower_query}" == *"file"* || "${lower_query}" == *"dir"* || "${lower_query}" == *"directory"* ]]; then
+                                score=5
+                        fi
+                fi
+
+                if [[ "${lower_query}" == *"${tool,,}"* ]]; then
+                        score=5
+                elif [[ "${desc,,}" == *"${lower_query}"* ]]; then
+                        ((score < 4)) && score=4
+                elif printf '%s' "${desc}" | grep -iq "${user_query}"; then
+                        ((score < 3)) && score=3
+                elif [[ "${TOOL_COMMAND[${tool}]}" == *"${user_query}"* ]]; then
+                        ((score < 2)) && score=2
+                fi
+                scores+=("${score}:${tool}")
+        done
 
 	printf '%s\n' "${scores[@]}" | sort -r -n -t ':' -k1,1 | head -n 3
 }

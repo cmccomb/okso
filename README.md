@@ -78,6 +78,9 @@ The planner registers the following tools (each defined in `src/tools/<name>.sh`
 - `notes_list`: list note titles within the configured Apple Notes folder.
 - `notes_search`: search Apple Notes titles and bodies for a phrase.
 - `notes_read`: read an Apple Note's contents by title.
+- `reminders_create`: create a new Apple Reminder (first line = title).
+- `reminders_list`: list incomplete Apple Reminders in the configured list.
+- `reminders_complete`: mark an Apple Reminder complete by title.
 - `mail_stub`: capture a mail draft without sending.
 - `applescript`: execute AppleScript snippets on macOS (no-op elsewhere).
 
