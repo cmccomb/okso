@@ -27,12 +27,16 @@
 @test "initialize_tools registers each module" {
 	run bash -lc 'source ./src/tools.sh; init_tool_registry; initialize_tools; printf "%s\n" "${TOOLS[@]}"'
 	[ "$status" -eq 0 ]
-	[ "${#lines[@]}" -eq 5 ]
+	[ "${#lines[@]}" -eq 9 ]
 	[ "${lines[0]}" = "os_nav" ]
 	[ "${lines[1]}" = "file_search" ]
-	[ "${lines[2]}" = "notes" ]
-	[ "${lines[3]}" = "mail_stub" ]
-	[ "${lines[4]}" = "applescript" ]
+	[ "${lines[2]}" = "notes_create" ]
+	[ "${lines[3]}" = "notes_append" ]
+	[ "${lines[4]}" = "notes_list" ]
+	[ "${lines[5]}" = "notes_search" ]
+	[ "${lines[6]}" = "notes_read" ]
+	[ "${lines[7]}" = "mail_stub" ]
+	[ "${lines[8]}" = "applescript" ]
 }
 
 @test "json_escape preserves newlines and quotes" {

@@ -43,21 +43,21 @@ EOF
 	run ./src/main.sh --config "${CONFIG_FILE}" --yes -- "note something"
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"Suggested tools"* ]]
-	[[ "$output" == *"notes executed"* ]]
+	[[ "$output" == *"notes_create executed"* ]]
 }
 
 @test "--dry-run prints plan without execution" {
 	run ./src/main.sh --config "${CONFIG_FILE}" --dry-run --yes -- "note something"
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"Dry run: planned tool calls"* ]]
-	[[ "$output" != *"notes executed"* ]]
+	[[ "$output" != *"notes_create executed"* ]]
 }
 
 @test "--plan-only emits JSON plan" {
 	run ./src/main.sh --config "${CONFIG_FILE}" --plan-only -- "note something"
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"[{\"tool\""* ]]
-	[[ "$output" == *"notes"* ]]
+	[[ "$output" == *"notes_create"* ]]
 }
 
 @test "init writes configuration" {

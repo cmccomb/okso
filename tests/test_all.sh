@@ -50,7 +50,7 @@ EOF
 	[[ "$output" == *"[os_nav skipped]"* ]]
 }
 
-@test "uses mock llama.cpp scoring to rank notes highest" {
+@test "uses mock llama.cpp scoring to rank notes_create highest" {
 	local llama_log
 	llama_log="$(mktemp)"
 	run env LLAMA_BIN="$(pwd)/tests/fixtures/mock_llama.sh" \
@@ -58,8 +58,8 @@ EOF
 		DO_MODEL_PATH="$(pwd)/tests/fixtures/mock-model.gguf" \
 		./src/main.sh --config "${CONFIG_FILE}" --yes -- "save reminder"
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"notes(score=5"* ]]
-	[[ "$output" == *"[notes executed]"* ]]
+	[[ "$output" == *"notes_create(score=5"* ]]
+	[[ "$output" == *"[notes_create executed]"* ]]
 	grep -q "Available tools:" "${llama_log}"
 	[[ "$(grep -c "Available tools:" "${llama_log}")" -eq 1 ]]
 }
