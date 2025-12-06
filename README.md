@@ -6,20 +6,38 @@ confirmation) or unsupervised mode.
 
 ## Installation
 
-The project ships with a Homebrew-based installer that bootstraps dependencies
-and installs the CLI binary:
+The project ships with an idempotent macOS-only installer that bootstraps
+dependencies and installs the CLI binary without running global Homebrew
+upgrades:
 
 ```bash
-./scripts/install
+./scripts/install [--prefix /custom/path] [--upgrade | --uninstall]
 ```
 
-The installer will:
+What the installer does:
 
-1. Ensure Homebrew is available (installing it if missing).
-2. Install command-line dependencies (`llama.cpp`, `tesseract`, `pandoc`,
-   `poppler`, `yq`).
-3. Copy the `src/` contents into `/usr/local/do` and symlink the entrypoint to
-   `/usr/local/bin/do`.
+1. Verifies Homebrew is present (installing it if missing) without running
+   `brew upgrade`.
+2. Ensures pinned CLI dependencies: `llama.cpp` binaries, `llama-tokenize`,
+   `tesseract`, `pandoc`, `poppler` (`pdftotext`), `yq`, `bash`, `coreutils`,
+   and `jq`.
+3. Copies the `src/` contents into `/usr/local/do` (override with `--prefix`),
+   and symlinks `do` into your `PATH` (default: `/usr/local/bin`).
+4. Downloads a configurable Qwen3 GGUF for `llama.cpp` into `~/.do/models`
+   unless `DO_MODEL_PATH` already points to an existing file.
+5. Offers `--upgrade` (refresh files/model) and `--uninstall` flows, refusing
+   to run on non-macOS hosts.
+
+Key environment variables:
+
+- `DO_MODEL_URL`: Override the default Qwen3 model URL
+  (`qwen3-1.5b-instruct-q4_k_m.gguf`).
+- `DO_MODEL_PATH`: Destination path for the GGUF (default:
+  `~/.do/models/qwen3-1.5b-instruct-q4_k_m.gguf`).
+- `DO_LINK_DIR`: Directory for the CLI symlink (default: `/usr/local/bin`).
+- `DO_INSTALLER_ASSUME_OFFLINE=true`: Skip network calls; installation fails if
+  downloads are required while offline.
+- `HF_TOKEN`: Optional Hugging Face token for gated model downloads.
 
 For manual setups, ensure `bash` 5+, `llama.cpp` (optional for heuristic mode),
 `fd`, and `rg` are on your `PATH`, then run the script directly with `./src/main.sh`.
@@ -95,7 +113,9 @@ Run the formatting and lint targets before executing the Bats suite:
 ```bash
 shfmt -w src/main.sh tests/test_all.sh tests/test_main.bats
 shellcheck src/main.sh tests/test_all.sh tests/test_main.bats
-bats tests/test_all.sh
+shfmt -w scripts/install tests/test_install.bats
+shellcheck scripts/install tests/test_install.bats
+bats tests/test_all.sh tests/test_install.bats
 ```
 
 The Bats suite covers CLI help/version output, supervised prompts, deterministic

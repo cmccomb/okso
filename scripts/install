@@ -1,86 +1,334 @@
-#!/usr/bin/env sh
-# shellcheck enable=all
+#!/usr/bin/env bash
+# shellcheck shell=bash
+#
+# do installer: macOS-only bootstrapper for the do assistant.
+#
+# Usage:
+#   scripts/install [--prefix PATH] [--upgrade] [--uninstall] [--help]
+#
+# Environment variables:
+#   DO_MODEL_URL (string): llama.cpp GGUF URL to download. Defaults to a Qwen3
+#       Instruct Q4_K_M build suitable for laptops.
+#   DO_MODEL_PATH (string): Destination path for the GGUF. Defaults to
+#       "${HOME}/.do/models/qwen3-1.5b-instruct-q4_k_m.gguf".
+#   DO_LINK_DIR (string): Directory for the PATH symlink. Defaults to
+#       "/usr/local/bin".
+#   HF_TOKEN (string): Optional Hugging Face token for gated model downloads.
+#   DO_INSTALLER_ASSUME_OFFLINE (bool): Set to "true" to skip network actions
+#       (intended for CI); install fails if downloads are required while offline.
+#
+# Exit codes:
+#   0: Success
+#   1: Invalid usage
+#   2: Dependency installation failed
+#   3: Unsupported platform (non-macOS)
+#   4: Network unavailable when required
+#   5: Filesystem permission error
+#
+# Dependencies:
+#   - bash 5+
+#   - curl
+#   - core macOS utilities (cp, ln, mkdir, rm)
 
-# Get the directory where this file is saved
-DIR=$(dirname -- "$0")
-echo "DIR: ${DIR}"
+set -euo pipefail
 
-# Keep track of packages to install
-brew_packages_to_install=""
-dependencies_to_check=$(
-	cat <<-EOF
-		llama-cli:llama.cpp
-		llama-tokenize:llama.cpp
-		tesseract:tesseract
-		pandoc:pandoc
-		pdftotext:poppler
-		yq:yq
-	EOF
+APP_NAME="do"
+DEFAULT_PREFIX="/usr/local/do"
+DO_LINK_DIR="${DO_LINK_DIR:-/usr/local/bin}"
+DEFAULT_LINK_PATH="${DO_LINK_DIR}/${APP_NAME}"
+DEFAULT_MODEL_DIR="${HOME}/.do/models"
+DEFAULT_MODEL_URL="${DO_MODEL_URL:-https://huggingface.co/Qwen/Qwen3-1.5B-Instruct-GGUF/resolve/main/qwen3-1.5b-instruct-q4_k_m.gguf}"
+DEFAULT_MODEL_PATH="${DO_MODEL_PATH:-${DEFAULT_MODEL_DIR}/qwen3-1.5b-instruct-q4_k_m.gguf}"
+
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+PROJECT_ROOT="${SCRIPT_DIR%/scripts}"
+SRC_DIR="${PROJECT_ROOT}/src"
+
+BREW_PACKAGES=(
+	"llama.cpp"
+	"llama-tokenize"
+	"tesseract"
+	"pandoc"
+	"poppler"
+	"yq"
+	"bash"
+	"coreutils"
+	"jq"
 )
 
-# Check to see if the command line dependencies are installed and add them to the list if not
-while [ -n "${dependencies_to_check}" ]; do
-	# Get the first dependency in the list
-	dependency=$(echo "${dependencies_to_check}" | head -n 1)
-	dependencies_to_check=$(echo "${dependencies_to_check}" | tail -n +2)
+log() {
+	# $1: level, $2: message
+	printf '[%s] %s\n' "$1" "$2"
+}
 
-	# The dependency is in the format of "command:package"
-	command="${dependency%%:*}"
-	package="${dependency##*:}"
+usage() {
+	cat <<'USAGE'
+Usage: scripts/install [options]
 
-	# Check to see if the command is installed
-	if ! command -v "${command}" >/dev/null 2>&1; then
-		brew_packages_to_install="${brew_packages_to_install}${package} "
+Options:
+  --prefix PATH     Installation prefix (default: /usr/local/do)
+  --upgrade         Reinstall project files and refresh the model download
+  --uninstall       Remove installed files and symlink
+  --help            Show this help message
+
+Environment variables:
+  DO_MODEL_URL               GGUF URL to download for llama.cpp
+  DO_MODEL_PATH              Destination path for the GGUF file
+  DO_LINK_DIR                Directory for the CLI symlink
+  HF_TOKEN                   Hugging Face token for gated downloads
+  DO_INSTALLER_ASSUME_OFFLINE=true to prevent network access
+
+Exit codes:
+  0 success, 1 usage error, 2 dependency failure,
+  3 unsupported platform, 4 network required, 5 permission error
+USAGE
+}
+
+require_macos() {
+	if [ "$(uname -s)" != "Darwin" ]; then
+		log "ERROR" "This installer only supports macOS."
+		exit 3
 	fi
-done
+}
 
-# Install the command line dependencies
-if [ -n "${brew_packages_to_install}" ]; then
-	# Check to see if homebrew is installed and install it if it is not
-	if ! command -v brew >/dev/null 2>&1; then
-		echo "Homebrew not found. Installing Homebrew..."
-		NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-		echo "Homebrew installation complete."
+has_network() {
+	if [ "${DO_INSTALLER_ASSUME_OFFLINE:-false}" = "true" ]; then
+		return 1
+	fi
+	curl --head --silent --connect-timeout 3 --max-time 5 https://brew.sh >/dev/null 2>&1
+}
+
+ensure_homebrew() {
+	if command -v brew >/dev/null 2>&1; then
+		log "INFO" "Homebrew detected."
+		return 0
+	fi
+
+	if ! has_network; then
+		log "ERROR" "Homebrew is missing and network connectivity is unavailable."
+		exit 4
+	fi
+
+	log "INFO" "Installing Homebrew..."
+	local tmp_script
+	tmp_script="$(mktemp)"
+	trap 'rm -f -- "${tmp_script}"' EXIT
+	if ! curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh -o "${tmp_script}"; then
+		log "ERROR" "Failed to download Homebrew installer."
+		exit 2
+	fi
+	NONINTERACTIVE=1 /bin/bash "${tmp_script}" >/dev/null
+	log "INFO" "Homebrew installation complete."
+}
+
+install_brew_packages() {
+	local missing=()
+	for pkg in "${BREW_PACKAGES[@]}"; do
+		if ! brew list --formula --versions "${pkg}" >/dev/null 2>&1; then
+			missing+=("${pkg}")
+		fi
+	done
+
+	if [ ${#missing[@]} -eq 0 ]; then
+		log "INFO" "Required Homebrew packages already installed."
+		return 0
+	fi
+
+	if ! has_network; then
+		log "ERROR" "Network connectivity is required to install: ${missing[*]}"
+		exit 4
+	fi
+
+	log "INFO" "Installing required packages: ${missing[*]}"
+	if ! HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1 brew install "${missing[@]}"; then
+		log "ERROR" "Failed to install Homebrew dependencies."
+		exit 2
+	fi
+}
+
+ensure_prefix_writable() {
+	# $1: path to check
+	local path="$1"
+	if [ -w "${path}" ]; then
+		return 0
+	fi
+	if [ ! -d "${path}" ]; then
+		mkdir -p "${path}" 2>/dev/null || true
+	fi
+	if [ -w "${path}" ]; then
+		return 0
+	fi
+	if command -v sudo >/dev/null 2>&1; then
+		return 0
+	fi
+	log "ERROR" "Insufficient permissions to modify ${path} and sudo not available."
+	exit 5
+}
+
+copy_project_files() {
+	# $1: prefix
+	local prefix="$1"
+	ensure_prefix_writable "${prefix}"
+	if [ ! -d "${SRC_DIR}" ]; then
+		log "ERROR" "Source directory missing at ${SRC_DIR}"
+		exit 2
+	fi
+
+	log "INFO" "Installing project files into ${prefix}"
+	if [ -w "${prefix}" ]; then
+		mkdir -p "${prefix}"
+		cp -R "${SRC_DIR}/." "${prefix}/"
 	else
-		echo "Homebrew is already installed."
+		sudo mkdir -p "${prefix}"
+		sudo cp -R "${SRC_DIR}/." "${prefix}/"
 	fi
-	echo "Installing command line dependencies..."
-	eval "brew install ${brew_packages_to_install}"
-	echo "Command line dependencies installed."
-else
-	echo "Command line dependencies are already installed."
-fi
+}
 
-# Update all brew packages
-echo "Updating all brew packages..."
-brew update
-brew upgrade
+create_symlink() {
+	# $1: target prefix, $2: link path
+	local prefix="$1"
+	local link_path="$2"
+	local target="${prefix}/main.sh"
 
-# Download the latest version of do
-echo "Downloading and installing the latest version of do..."
+	if [ ! -f "${target}" ]; then
+		log "ERROR" "Entrypoint missing at ${target}"
+		exit 2
+	fi
 
-# Install the side files
-sudo mkdir -p /usr/local/do
+	local link_dir
+	link_dir="$(dirname "${link_path}")"
+	ensure_prefix_writable "${link_dir}"
+	if [ -w "${link_dir}" ]; then
+		mkdir -p "${link_dir}"
+		ln -sf "${target}" "${link_path}"
+	else
+		sudo mkdir -p "${link_dir}"
+		sudo ln -sf "${target}" "${link_path}"
+	fi
+	log "INFO" "Symlinked ${link_path} -> ${target}"
+}
 
-# Check DIR to see if it ends with src
-case ${DIR} in
-*"scripts")
-	# Copy contents of src/ to do
-	sudo cp -r ${DIR}/../src/* /usr/local/do/
-	;;
-*)
-	# Download the whole project from git
-	sudo git clone https://github.com/cmccomb/do.git /tmp/do
+download_model() {
+	# $1: model_path, $2: model_url
+	local model_path="$1"
+	local model_url="$2"
+	local model_dir
+	model_dir="$(dirname "${model_path}")"
 
-	# Copy contents of src/ to do
-	sudo cp -r /tmp/do/src/* /usr/local/do/
+	mkdir -p "${model_dir}"
+	if [ -f "${model_path}" ]; then
+		log "INFO" "Model already present at ${model_path}"
+		return 0
+	fi
 
-	;;
-esac
+	if ! has_network; then
+		log "ERROR" "Network connectivity required to download model."
+		exit 4
+	fi
 
-# Cleanup
-sudo rm -rf /tmp/do
+	log "INFO" "Downloading model from ${model_url}"
+	local curl_args=(
+		"-L"
+		"--fail"
+		"--continue-at" "-"
+		"--output" "${model_path}"
+		"--connect-timeout" "10"
+		"--retry" "2"
+	)
+	if [ -n "${HF_TOKEN:-}" ]; then
+		curl_args+=("-H" "Authorization: Bearer ${HF_TOKEN}")
+	fi
+	curl_args+=("${model_url}")
 
-# Move main.sh to /usr/local/bin and make it executable
-sudo mv /usr/local/do/main.sh /usr/local/bin/do
-sudo chmod +x /usr/local/bin/do
+	if ! curl "${curl_args[@]}"; then
+		log "ERROR" "Failed to download model to ${model_path}"
+		exit 4
+	fi
+}
+
+uninstall() {
+	local prefix="$1"
+	local link_path="$2"
+
+	if [ -e "${link_path}" ]; then
+		if [ -w "${link_path}" ]; then
+			rm -f "${link_path}"
+		elif command -v sudo >/dev/null 2>&1; then
+			sudo rm -f "${link_path}"
+		else
+			log "ERROR" "Cannot remove ${link_path}; insufficient permissions."
+			exit 5
+		fi
+		log "INFO" "Removed symlink ${link_path}"
+	fi
+
+	if [ -d "${prefix}" ]; then
+		if [ -w "${prefix}" ]; then
+			rm -rf "${prefix}"
+		elif command -v sudo >/dev/null 2>&1; then
+			sudo rm -rf "${prefix}"
+		else
+			log "ERROR" "Cannot remove ${prefix}; insufficient permissions."
+			exit 5
+		fi
+		log "INFO" "Removed installation prefix ${prefix}"
+	fi
+}
+
+main() {
+	local prefix="${DEFAULT_PREFIX}"
+	local mode="install"
+
+	while [ $# -gt 0 ]; do
+		case "$1" in
+		--prefix)
+			if [ $# -lt 2 ]; then
+				usage
+				exit 1
+			fi
+			prefix="$2"
+			shift 2
+			;;
+		--upgrade)
+			mode="upgrade"
+			shift
+			;;
+		--uninstall)
+			mode="uninstall"
+			shift
+			;;
+		--help | -h)
+			usage
+			exit 0
+			;;
+		*)
+			usage
+			exit 1
+			;;
+		esac
+	done
+
+	if [ "${mode}" != "uninstall" ]; then
+		require_macos
+		ensure_homebrew
+		install_brew_packages
+	elif [ "$(uname -s)" != "Darwin" ]; then
+		log "ERROR" "Uninstall is only supported on macOS."
+		exit 3
+	fi
+
+	case "${mode}" in
+	install | upgrade)
+		copy_project_files "${prefix}"
+		create_symlink "${prefix}" "${DEFAULT_LINK_PATH}"
+		download_model "${DEFAULT_MODEL_PATH}" "${DEFAULT_MODEL_URL}"
+		;;
+	uninstall)
+		uninstall "${prefix}" "${DEFAULT_LINK_PATH}"
+		;;
+	esac
+
+	log "INFO" "${APP_NAME} installer completed (${mode})."
+}
+
+main "$@"
