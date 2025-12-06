@@ -69,7 +69,7 @@ CLI and config file are the primary configuration surfaces.
 
 ## Tooling registry
 
-The planner registers the following tools:
+The planner registers the following tools (each defined in `src/tools/<name>.sh`):
 
 - `os_nav`: inspect the working directory (read-only).
 - `file_search`: search for files and contents using `fd`/`rg` fallbacks.
@@ -92,7 +92,8 @@ and testing:
 - `src/main.sh`: wiring and high-level orchestration.
 - `src/cli.sh`: help/version output and argument parsing.
 - `src/config.sh`: configuration loading, normalization, and environment setup.
-- `src/tools.sh`: tool registry plus handler implementations.
+- `src/tools.sh`: central registry that sources per-tool modules from `src/tools/`.
+- `src/tools/*.sh`: individual tool handlers (e.g., `os_nav`, `file_search`).
 - `src/planner.sh`: ranking, planning, and execution flow.
 - `src/logging.sh`: structured logging helpers shared across modules.
 
@@ -118,8 +119,8 @@ Use `--help` to view all options. Pass `--verbose` for debug-level logs or
 Run the formatting and lint targets before executing the Bats suite:
 
 ```bash
-shfmt -w src/*.sh tests/*.bats tests/test_all.sh scripts/install
-shellcheck src/*.sh tests/*.bats tests/test_all.sh scripts/install
+shfmt -w src/*.sh src/tools/*.sh tests/*.bats tests/test_all.sh scripts/install
+shellcheck src/*.sh src/tools/*.sh tests/*.bats tests/test_all.sh scripts/install
 bats tests/test_all.sh tests/test_install.bats tests/test_main.bats tests/test_modules.bats
 ```
 
