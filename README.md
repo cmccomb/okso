@@ -71,7 +71,8 @@ CLI and config file are the primary configuration surfaces.
 
 The planner registers the following tools (each defined in `src/tools/<name>.sh`):
 
-- `os_nav`: inspect the working directory (read-only).
+- `os_nav`: persistent terminal session with a limited command set (pwd, ls,
+  cd, cat, head, tail, find, grep, open on macOS).
 - `file_search`: search for files and contents using `fd`/`rg` fallbacks.
 - `notes_create`: create a new Apple Note (first line = title).
 - `notes_append`: append text to an existing Apple Note by title.
@@ -87,6 +88,12 @@ The planner registers the following tools (each defined in `src/tools/<name>.sh`
 - `mail_list_inbox`: list recent Apple Mail inbox messages.
 - `mail_list_unread`: list unread Apple Mail inbox messages.
 - `applescript`: execute AppleScript snippets on macOS (no-op elsewhere).
+
+The `os_nav` tool keeps a per-query working directory and reuses it across
+invocations so agents can `cd` once and continue running commands from the same
+location. Supported commands include `status` (default, shows the current
+directory and a listing), `pwd`, `ls`, `cd`, `cat`, `head`, `tail`, `find`, and
+`grep`, plus `open` on macOS hosts.
 
 Apple Notes tools expect the first line of `TOOL_QUERY` to be the note title and
 the remaining lines to form the body (where applicable). Set `NOTES_FOLDER` to
