@@ -8,20 +8,19 @@
 # Options:
 #   -h, --help            Show help text.
 #   -V, --version         Show version information.
-#   -s, --supervised      Require confirmation before running tools (default).
-#   -u, --unsupervised    Run tools without confirmations.
-#   -m, --model VALUE     HF repo[:file] for llama.cpp download (default: $DO_MODEL or Qwen/Qwen3-1.5B-Instruct-GGUF:qwen3-1.5b-instruct-q4_k_m.gguf).
+#   -y, --yes, --no-confirm
+#                         Approve all tool runs without prompting.
+#       --confirm         Always prompt before running tools.
+#       --dry-run         Print the planned tool calls without running them.
+#       --plan-only       Emit the planned calls as JSON and exit.
+#   -m, --model VALUE     HF repo[:file] for llama.cpp download (default: Qwen/Qwen3-1.5B-Instruct-GGUF:qwen3-1.5b-instruct-q4_k_m.gguf).
 #       --model-branch BRANCH  HF branch or tag for the model download.
 #       --model-cache DIR      Directory that stores downloaded models (default: ~/.do/models).
+#       --config FILE     Config file to load (default: ${XDG_CONFIG_HOME:-$HOME/.config}/do/config.env).
 #   -v, --verbose         Increase log verbosity (JSON logs are always structured).
 #   -q, --quiet           Silence informational logs.
 #
 # Environment:
-#   DO_MODEL        HF repo[:file] identifier for the llama.cpp model.
-#   DO_MODEL_BRANCH HF branch or tag for the model download.
-#   DO_MODEL_CACHE  Cache directory where llama.cpp stores downloaded models.
-#   DO_SUPERVISED   Set to "false" to default to unsupervised mode.
-#   DO_VERBOSITY    0 (quiet), 1 (info), 2 (debug). Overrides -v/-q when set.
 #   LLAMA_BIN       llama.cpp binary (default: llama).
 #
 # Dependencies:
@@ -37,15 +36,22 @@ set -euo pipefail
 VERSION="0.1.0"
 LLAMA_BIN=${LLAMA_BIN:-llama}
 DEFAULT_MODEL_FILE="qwen3-1.5b-instruct-q4_k_m.gguf"
-MODEL_SPEC=${DO_MODEL:-"Qwen/Qwen3-1.5B-Instruct-GGUF:${DEFAULT_MODEL_FILE}"}
-MODEL_BRANCH=${DO_MODEL_BRANCH:-main}
-MODEL_CACHE=${DO_MODEL_CACHE:-"${HOME}/.do/models"}
+CONFIG_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/do"
+CONFIG_FILE="${CONFIG_DIR}/config.env"
+MODEL_SPEC="Qwen/Qwen3-1.5B-Instruct-GGUF:${DEFAULT_MODEL_FILE}"
+MODEL_BRANCH="main"
+MODEL_CACHE="${HOME}/.do/models"
 MODEL_PATH=""
-SUPERVISED=${DO_SUPERVISED:-true}
-VERBOSITY=${DO_VERBOSITY:-1}
+APPROVE_ALL=false
+FORCE_CONFIRM=false
+DRY_RUN=false
+PLAN_ONLY=false
+VERBOSITY=1
 NOTES_DIR="${HOME}/.do"
 LLAMA_AVAILABLE=false
 IS_MACOS=false
+COMMAND="run"
+USER_QUERY=""
 
 # shellcheck disable=SC2034 # Readability for associative maps below.
 declare -A TOOL_DESCRIPTION=()
@@ -96,22 +102,113 @@ Usage: ./src/main.sh [OPTIONS] -- "user query"
 Options:
   -h, --help            Show help text.
   -V, --version         Show version information.
-  -s, --supervised      Require confirmation before running tools (default).
-  -u, --unsupervised    Run tools without confirmations.
-  -m, --model VALUE     HF repo[:file] for llama.cpp (default: $DO_MODEL or Qwen/Qwen3-1.5B-Instruct-GGUF:qwen3-1.5b-instruct-q4_k_m.gguf).
-      --model-branch BRANCH  HF branch or tag (default: $DO_MODEL_BRANCH or main).
-      --model-cache DIR      Cache directory for GGUF downloads (default: $DO_MODEL_CACHE or ~/.do/models).
+  -y, --yes, --no-confirm
+                        Approve all tool runs without prompting.
+      --confirm         Always prompt before running tools.
+      --dry-run         Print the planned tool calls without running them.
+      --plan-only       Emit the planned calls as JSON and exit (implies --dry-run).
+  -m, --model VALUE     HF repo[:file] for llama.cpp (default: Qwen/Qwen3-1.5B-Instruct-GGUF:qwen3-1.5b-instruct-q4_k_m.gguf).
+      --model-branch BRANCH  HF branch or tag (default: main).
+      --model-cache DIR      Cache directory for GGUF downloads (default: ~/.do/models).
+      --config FILE     Config file to load or create (default: ${XDG_CONFIG_HOME:-$HOME/.config}/do/config.env).
   -v, --verbose         Increase log verbosity (JSON logs are always structured).
   -q, --quiet           Silence informational logs.
 
 The script orchestrates a llama.cpp-backed planner with a registry of
 machine-checkable tools (MCP-style). Provide a natural language query after
 "--" to trigger planning, ranking, and execution.
+
+Use "./src/main.sh init" with the same options to write a config file without
+running a query. The config file stores model defaults and approval behavior
+for future runs.
 USAGE
 }
 
 show_version() {
 	printf 'do assistant %s\n' "${VERSION}"
+}
+
+json_escape() {
+	# Arguments:
+	#   $1 - raw string
+	local raw escaped
+	raw="$1"
+	escaped="${raw//\\/\\\\}"
+	escaped="${escaped//"/\\"/}"
+	escaped="${escaped//$'\n'/\\n}"
+	printf '%s' "${escaped}"
+}
+
+detect_config_file() {
+	while [[ $# -gt 0 ]]; do
+		case "$1" in
+		--config)
+			if [[ $# -lt 2 ]]; then
+				log "ERROR" "--config requires a path"
+				exit 1
+			fi
+			CONFIG_FILE="$2"
+			shift 2
+			;;
+		--config=*)
+			CONFIG_FILE="${1#*=}"
+			shift
+			;;
+		*)
+			shift
+			;;
+		esac
+	done
+}
+
+load_config() {
+	if [[ -f "${CONFIG_FILE}" ]]; then
+		# shellcheck source=/dev/null
+		source "${CONFIG_FILE}"
+	fi
+
+	MODEL_SPEC=${MODEL_SPEC:-"Qwen/Qwen3-1.5B-Instruct-GGUF:${DEFAULT_MODEL_FILE}"}
+	MODEL_BRANCH=${MODEL_BRANCH:-main}
+	MODEL_CACHE=${MODEL_CACHE:-"${HOME}/.do/models"}
+	VERBOSITY=${VERBOSITY:-1}
+	APPROVE_ALL=${APPROVE_ALL:-false}
+	FORCE_CONFIRM=${FORCE_CONFIRM:-false}
+
+	if [[ -n "${DO_MODEL:-}" ]]; then
+		MODEL_SPEC="${DO_MODEL}"
+	fi
+	if [[ -n "${DO_MODEL_BRANCH:-}" ]]; then
+		MODEL_BRANCH="${DO_MODEL_BRANCH}"
+	fi
+	if [[ -n "${DO_MODEL_CACHE:-}" ]]; then
+		MODEL_CACHE="${DO_MODEL_CACHE}"
+	fi
+	if [[ -n "${DO_SUPERVISED:-}" ]]; then
+		case "${DO_SUPERVISED}" in
+		false | False | FALSE | 0)
+			APPROVE_ALL=true
+			;;
+		*)
+			APPROVE_ALL=false
+			;;
+		esac
+	fi
+	if [[ -n "${DO_VERBOSITY:-}" ]]; then
+		VERBOSITY="${DO_VERBOSITY}"
+	fi
+}
+
+write_config_file() {
+	mkdir -p "$(dirname "${CONFIG_FILE}")"
+	cat >"${CONFIG_FILE}" <<EOF
+MODEL_SPEC="${MODEL_SPEC}"
+MODEL_BRANCH="${MODEL_BRANCH}"
+MODEL_CACHE="${MODEL_CACHE}"
+VERBOSITY=${VERBOSITY}
+APPROVE_ALL=${APPROVE_ALL}
+FORCE_CONFIRM=${FORCE_CONFIRM}
+EOF
+	printf 'Wrote config to %s\n' "${CONFIG_FILE}"
 }
 
 parse_model_spec() {
@@ -133,17 +230,30 @@ parse_model_spec() {
 	printf '%s\n%s\n' "${repo}" "${file}"
 }
 
-normalize_supervised_flag() {
-	case "${SUPERVISED}" in
+normalize_approval_flags() {
+	case "${APPROVE_ALL}" in
 	true | True | TRUE | 1)
-		SUPERVISED=true
+		APPROVE_ALL=true
 		;;
 	false | False | FALSE | 0)
-		SUPERVISED=false
+		APPROVE_ALL=false
 		;;
 	*)
-		log "WARN" "Invalid DO_SUPERVISED value; defaulting to supervised" "${SUPERVISED}"
-		SUPERVISED=true
+		log "WARN" "Invalid approval flag; defaulting to prompts" "${APPROVE_ALL}"
+		APPROVE_ALL=false
+		;;
+	esac
+
+	case "${FORCE_CONFIRM}" in
+	true | True | TRUE | 1)
+		FORCE_CONFIRM=true
+		;;
+	false | False | FALSE | 0)
+		FORCE_CONFIRM=false
+		;;
+	*)
+		log "WARN" "Invalid confirm flag; defaulting to prompts" "${FORCE_CONFIRM}"
+		FORCE_CONFIRM=false
 		;;
 	esac
 }
@@ -168,6 +278,10 @@ parse_args() {
 
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
+		init | configure)
+			COMMAND="init"
+			shift
+			;;
 		-h | --help)
 			show_help
 			exit 0
@@ -176,12 +290,23 @@ parse_args() {
 			show_version
 			exit 0
 			;;
-		-s | --supervised)
-			SUPERVISED=true
+		-y | --yes | --no-confirm)
+			APPROVE_ALL=true
+			FORCE_CONFIRM=false
 			shift
 			;;
-		-u | --unsupervised)
-			SUPERVISED=false
+		--confirm)
+			FORCE_CONFIRM=true
+			APPROVE_ALL=false
+			shift
+			;;
+		--dry-run)
+			DRY_RUN=true
+			shift
+			;;
+		--plan-only)
+			PLAN_ONLY=true
+			DRY_RUN=true
 			shift
 			;;
 		-m | --model)
@@ -206,6 +331,14 @@ parse_args() {
 				exit 1
 			fi
 			MODEL_CACHE="$2"
+			shift 2
+			;;
+		--config)
+			if [[ $# -lt 2 ]]; then
+				log "ERROR" "--config requires a path"
+				exit 1
+			fi
+			CONFIG_FILE="$2"
 			shift 2
 			;;
 		-v | --verbose)
@@ -237,14 +370,14 @@ parse_args() {
 		USER_QUERY="$*"
 	fi
 
-	if [[ -z "${USER_QUERY:-}" ]]; then
+	if [[ "${COMMAND}" == "run" && -z "${USER_QUERY:-}" ]]; then
 		log "ERROR" "A user query is required. See --help for usage."
 		exit 1
 	fi
 }
 
 init_environment() {
-	normalize_supervised_flag
+	normalize_approval_flags
 	resolve_model_path
 	if command -v uname >/dev/null 2>&1 && [[ "$(uname -s)" == "Darwin" ]]; then
 		IS_MACOS=true
@@ -473,10 +606,47 @@ generate_tool_prompt() {
 	printf '%s\n' "${prompt%,}"
 }
 
+emit_plan_json() {
+	local ranked entry score tool first description command safety
+	ranked="$1"
+	first=true
+
+	printf '['
+	while IFS= read -r entry; do
+		[[ -z "${entry}" ]] && continue
+		score="${entry%%:*}"
+		tool="${entry##*:}"
+		description="$(json_escape "${TOOL_DESCRIPTION[${tool}]}")"
+		command="$(json_escape "${TOOL_COMMAND[${tool}]}")"
+		safety="$(json_escape "${TOOL_SAFETY[${tool}]}")"
+		if [[ "${first}" != true ]]; then
+			printf ','
+		fi
+		printf '{"tool":"%s","score":%s,"command":"%s","description":"%s","safety":"%s"}' \
+			"$(json_escape "${tool}")" "${score:-0}" "${command}" "${description}" "${safety}"
+		first=false
+	done <<<"${ranked}"
+	printf ']\n'
+}
+
+should_prompt_for_tool() {
+	if [[ "${PLAN_ONLY}" == true || "${DRY_RUN}" == true ]]; then
+		return 1
+	fi
+	if [[ "${FORCE_CONFIRM}" == true ]]; then
+		return 0
+	fi
+	if [[ "${APPROVE_ALL}" == true ]]; then
+		return 1
+	fi
+
+	return 0
+}
+
 confirm_tool() {
 	local tool_name
 	tool_name="$1"
-	if [[ "${SUPERVISED}" != true ]]; then
+	if ! should_prompt_for_tool; then
 		return 0
 	fi
 
@@ -502,6 +672,11 @@ execute_tool() {
 		return 1
 	fi
 
+	if [[ "${DRY_RUN}" == true || "${PLAN_ONLY}" == true ]]; then
+		log "INFO" "Skipping execution in preview mode" "${tool_name}"
+		return 0
+	fi
+
 	TOOL_QUERY="${USER_QUERY}" ${handler}
 }
 
@@ -518,10 +693,22 @@ collect_plan() {
 }
 
 planner_executor_loop() {
-	local plan ranked entry tool summary
+	local plan ranked entry tool summary plan_json
 	ranked="$1"
 	plan="$(collect_plan "${ranked}")"
+	plan_json="$(emit_plan_json "${ranked}")"
 	log "INFO" "Generated plan" "${plan}"
+
+	if [[ "${PLAN_ONLY}" == true ]]; then
+		printf '%s\n' "${plan_json}"
+		return 0
+	fi
+
+	if [[ "${DRY_RUN}" == true ]]; then
+		printf 'Dry run: planned tool calls (no execution).\n'
+		printf '%s\n' "${plan_json}"
+		return 0
+	fi
 
 	summary=""
 	while IFS= read -r entry; do
@@ -539,7 +726,17 @@ planner_executor_loop() {
 
 main() {
 	local ranked_tools
+	detect_config_file "$@"
+	load_config
 	parse_args "$@"
+
+	normalize_approval_flags
+
+	if [[ "${COMMAND}" == "init" ]]; then
+		write_config_file
+		return 0
+	fi
+
 	init_environment
 	initialize_tools
 	log "DEBUG" "Starting tool selection" "${USER_QUERY}"
