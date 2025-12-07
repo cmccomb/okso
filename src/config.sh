@@ -160,16 +160,16 @@ init_environment() {
 		IS_MACOS=true
 	fi
 
-        if [[ "${TESTING_PASSTHROUGH:-false}" == true ]]; then
-                LLAMA_AVAILABLE=false
-        else
-                LLAMA_AVAILABLE=true
-        fi
+	if [[ "${TESTING_PASSTHROUGH:-false}" == true ]]; then
+		LLAMA_AVAILABLE=false
+	else
+		LLAMA_AVAILABLE=true
+	fi
 
-        if [[ "${LLAMA_AVAILABLE}" == true && ! -x "${LLAMA_BIN}" ]]; then
-                log "WARN" "llama.cpp binary not found" "${LLAMA_BIN}"
-                LLAMA_AVAILABLE=false
-        fi
+	if [[ "${LLAMA_AVAILABLE}" == true && ! -x "${LLAMA_BIN}" ]]; then
+		log "WARN" "llama.cpp binary not found" "${LLAMA_BIN}"
+		LLAMA_AVAILABLE=false
+	fi
 
 	mkdir -p "${NOTES_DIR}"
 }

@@ -65,9 +65,10 @@ structured_tool_relevance() {
 	declare -A relevance_map=()
 	user_query="$1"
 
-	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
-		return 0
-	fi
+	# I had to comment this out in order to get this to run outsid eof a test environment. Weird.
+	#	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
+	#		return 0
+	#	fi
 
 	tool_alternatives=""
 	for tool in "${TOOLS[@]}"; do
@@ -87,11 +88,13 @@ bool ::= "true" | "false"
 ws ::= [ \t\n\r]*
 GRAM
 
-	prompt="Return a compact JSON map of tool relevance using boolean flags. The available tools are: "
+	prompt="Return a compact JSON map of tool relevance using boolean flags based on their relevance for addressing the query from the user. The available tools are: \n"
 	for tool in "${TOOLS[@]}"; do
-		prompt+=$(printf '%s ' "${tool}")
+		prompt+=$(printf '%s ' "- ${tool}\n")
 	done
-	prompt+=" User request: ${user_query}"
+	prompt+="\n\nUser request: ${user_query}"
+
+	log "INFO" "Structured tool relevance prompt:" "${prompt}" >&2
 
 	raw="$(${LLAMA_BIN} \
 		--hf-repo "${MODEL_REPO}" \
@@ -100,7 +103,8 @@ GRAM
 		--no-display-prompt \
 		--repeat-penalty 1.5 \
 		--grammar "${grammar}" \
-		-p "${prompt}" 2>/dev/null || true)"
+		-p "${prompt}" 2>/dev/null || true)" #
+	echo "${raw}" >&2
 
 	mapfile -t relevant_tools < <(jq -r '
                 if type == "array" then
@@ -127,10 +131,11 @@ rank_tools() {
 	local user_query
 	user_query="$1"
 
-	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
-		log "WARN" "llama.cpp binary unavailable; skipping tool selection" "${LLAMA_BIN}" >&2
-		return 0
-	fi
+	# Had to comment this out to get it to run outside of a test enviornment
+	#	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
+	#		log "WARN" "llama.cpp binary unavailable; skipping tool selection" "${LLAMA_BIN}" >&2
+	#		return 0
+	#	fi
 
 	structured_tool_relevance "${user_query}"
 	return $?
