@@ -59,15 +59,15 @@ SOURCE_PAYLOAD_DIR="${SRC_DIR}"
 TEMP_ARCHIVE_DIR=""
 
 BREW_PACKAGES=(
-        "llama.cpp"
-        "tesseract"
-        "pandoc"
-        "poppler"
-        "yq"
-        "bash"
-        "coreutils"
-        "jq"
-        "gum"
+	"llama.cpp"
+	"tesseract"
+	"pandoc"
+	"poppler"
+	"yq"
+	"bash"
+	"coreutils"
+	"jq"
+	"gum"
 )
 
 log() {

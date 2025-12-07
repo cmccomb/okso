@@ -21,7 +21,7 @@
 source "${BASH_SOURCE[0]%/cli.sh}/logging.sh"
 
 build_usage_text() {
-        cat <<'USAGE'
+	cat <<'USAGE'
 Usage: ./src/main.sh [OPTIONS] -- "user query"
 
 Options:
@@ -49,19 +49,19 @@ USAGE
 }
 
 render_usage() {
-        local usage_text
-        usage_text="$(build_usage_text)"
+	local usage_text
+	usage_text="$(build_usage_text)"
 
-        if command -v gum >/dev/null 2>&1; then
-                printf '%s\n' "${usage_text}" | gum format
-                return
-        fi
+	if command -v gum >/dev/null 2>&1; then
+		printf '%s\n' "${usage_text}" | gum format
+		return
+	fi
 
-        printf '%s\n' "${usage_text}"
+	printf '%s\n' "${usage_text}"
 }
 
 show_help() {
-        render_usage
+	render_usage
 }
 
 show_version() {

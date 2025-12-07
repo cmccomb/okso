@@ -52,29 +52,29 @@
 }
 
 @test "log emits JSON with escaped fields" {
-run bash -lc $'VERBOSITY=2; source ./src/logging.sh; log "INFO" $'"'"'quote\nline'"'"' "detail"'
-[ "$status" -eq 0 ]
-message=$(echo "${output}" | jq -r '.message')
-[ "${message}" = $'quote\nline' ]
+	run bash -lc $'VERBOSITY=2; source ./src/logging.sh; log "INFO" $'"'"'quote\nline'"'"' "detail"'
+	[ "$status" -eq 0 ]
+	message=$(echo "${output}" | jq -r '.message')
+	[ "${message}" = $'quote\nline' ]
 }
 
 @test "parse_llama_ranking reads JSON responses" {
-run bash -lc 'source ./src/planner.sh; initialize_tools; raw='"'"'[{"tool":"terminal","score":4,"reason":"ok"},{"tool":"file_search","score":5}]'"'"'; parse_llama_ranking "${raw}"'
-[ "$status" -eq 0 ]
-[ "${lines[0]}" = "5:file_search" ]
-[ "${lines[1]}" = "4:terminal" ]
+	run bash -lc 'source ./src/planner.sh; initialize_tools; raw='"'"'[{"tool":"terminal","score":4,"reason":"ok"},{"tool":"file_search","score":5}]'"'"'; parse_llama_ranking "${raw}"'
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "5:file_search" ]
+	[ "${lines[1]}" = "4:terminal" ]
 }
 
 @test "emit_plan_json builds valid array" {
-run bash -lc $'source ./src/planner.sh; plan=$'"'"'terminal|echo "hi"|4\nnotes_create|add note|3'"'"'; emit_plan_json "${plan}"'
-[ "$status" -eq 0 ]
-[ "$(echo "${output}" | jq -r '.[0].tool')" = "terminal" ]
-[ "$(echo "${output}" | jq -r '.[0].query')" = 'echo "hi"' ]
-[ "$(echo "${output}" | jq -r '.[1].score')" = "3" ]
+	run bash -lc $'source ./src/planner.sh; plan=$'"'"'terminal|echo "hi"|4\nnotes_create|add note|3'"'"'; emit_plan_json "${plan}"'
+	[ "$status" -eq 0 ]
+	[ "$(echo "${output}" | jq -r '.[0].tool')" = "terminal" ]
+	[ "$(echo "${output}" | jq -r '.[0].query')" = 'echo "hi"' ]
+	[ "$(echo "${output}" | jq -r '.[1].score')" = "3" ]
 }
 
 @test "confirm_tool uses gum when available" {
-run bash -lc '
+	run bash -lc '
 tmpdir=$(mktemp -d)
 export LOG_FILE="${tmpdir}/gum.log"
 cat >"${tmpdir}/gum"<<'"'"'EOF'"'"'
@@ -92,12 +92,12 @@ source ./src/planner.sh
 confirm_tool "terminal"
 cat "${LOG_FILE}"
 '
- [ "$status" -eq 0 ]
-[ "${lines[0]}" = "confirm --affirmative Run --negative Skip Execute tool \"terminal\"?" ]
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "confirm --affirmative Run --negative Skip Execute tool \"terminal\"?" ]
 }
 
 @test "confirm_tool surfaces skipped message when gum declines" {
-run bash -lc '
+	run bash -lc '
 tmpdir=$(mktemp -d)
 export LOG_FILE="${tmpdir}/gum.log"
 cat >"${tmpdir}/gum"<<'"'"'EOF'"'"'
@@ -117,13 +117,13 @@ status=$?
 cat "${LOG_FILE}"
 exit ${status}
 '
- [ "$status" -eq 1 ]
-[ "${lines[1]}" = "[terminal skipped]" ]
-[ "${lines[2]}" = "confirm --affirmative Run --negative Skip Execute tool \"terminal\"?" ]
+	[ "$status" -eq 1 ]
+	[ "${lines[1]}" = "[terminal skipped]" ]
+	[ "${lines[2]}" = "confirm --affirmative Run --negative Skip Execute tool \"terminal\"?" ]
 }
 
 @test "show_help renders through gum when available" {
-run bash -lc '
+	run bash -lc '
 tmpdir=$(mktemp -d)
 export LOG_FILE="${tmpdir}/gum.log"
 cat >"${tmpdir}/gum"<<'"'"'EOF'"'"'
@@ -137,7 +137,7 @@ source ./src/cli.sh
 show_help
 printf "LOG:%s\n" "$(cat "${LOG_FILE}")"
 '
- [ "$status" -eq 0 ]
- last_index=$(( ${#lines[@]} - 1 ))
- [ "${lines[${last_index}]}" = "LOG:format" ]
+	[ "$status" -eq 0 ]
+	last_index=$((${#lines[@]} - 1))
+	[ "${lines[${last_index}]}" = "LOG:format" ]
 }
