@@ -33,7 +33,7 @@
 set -euo pipefail
 
 VERSION="0.1.0"
-LLAMA_BIN="llama-cli"
+LLAMA_BIN=${LLAMA_BIN:-"llama-cli"}
 DEFAULT_MODEL_FILE="Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
 CONFIG_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/okso"
 CONFIG_FILE="${CONFIG_DIR}/config.env"
@@ -48,6 +48,7 @@ PLAN_ONLY=false
 VERBOSITY=1
 NOTES_DIR="${HOME}/.okso"
 LLAMA_AVAILABLE=false
+USE_REACT_LLAMA=${USE_REACT_LLAMA:-false}
 IS_MACOS=false
 COMMAND="run"
 USER_QUERY=""

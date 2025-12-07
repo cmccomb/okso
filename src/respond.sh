@@ -27,11 +27,11 @@ respond_text() {
 	user_query="$1"
 	observations="${2:-}"
 
-	if [[ "${LLAMA_AVAILABLE}" == true ]]; then
-		prompt="Provide a concise answer to the user without suggesting tools. User request: ${user_query}. Context: ${observations}"
-		llama_infer "${prompt}"
-		return 0
-	fi
+        if [[ "${USE_REACT_LLAMA:-false}" == true && "${LLAMA_AVAILABLE}" == true ]]; then
+                prompt="Provide a concise answer to the user without suggesting tools. User request: ${user_query}. Context: ${observations}"
+                llama_infer "${prompt}"
+                return 0
+        fi
 
 	printf 'Responding directly to: %s\n' "${user_query}"
 }

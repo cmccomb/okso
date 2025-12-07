@@ -48,54 +48,10 @@ llama_infer() {
 #		2>/dev/null || true
 }
 
-build_ranking_prompt() {
-	local user_query prompt tool
-	user_query="$1"
-	prompt=$'You are selecting tools to execute for a request. Respond ONLY with a JSON array of objects formatted as [{"tool":"name","score":0-5,"reason":"brief justification"}]. Do not invent tools.'
-	prompt+=$'\nRequest: '${user_query}'\nAvailable tools:'
-
-	for tool in "${TOOLS[@]}"; do
-		prompt+=$(
-			printf '\n- name=%s desc=%s safety=%s command=%s' \
-				"${tool}" "${TOOL_DESCRIPTION[${tool}]}" "${TOOL_SAFETY[${tool}]}" "${TOOL_COMMAND[${tool}]}"
-		)
-	done
-
-	printf '%s\n' "${prompt}"
-}
-
-parse_llama_ranking() {
-	local raw_line tool score raw
-	raw="$1"
-	local results
-	declare -A best_scores=()
-	results=()
-
-	while IFS= read -r raw_line; do
-		score="${raw_line%%:*}"
-		tool="${raw_line##*:}"
-		if [[ -n "${TOOL_DESCRIPTION[${tool}]:-}" ]]; then
-			if [[ -z "${best_scores[${tool}]:-}" || ${score} -gt ${best_scores[${tool}]} ]]; then
-				best_scores[${tool}]="${score}"
-			fi
-		fi
-	done < <(jq -r '.[] | select(.tool != null and .score != null) | (.score | tonumber) as $score | "\($score):\(.tool)"' <<<"${raw}" 2>/dev/null)
-
-	for tool in "${!best_scores[@]}"; do
-		results+=("${best_scores[${tool}]}:${tool}")
-	done
-
-	if [[ ${#results[@]} -eq 0 ]]; then
-		return 1
-	fi
-
-	printf '%s\n' "${results[@]}" | sort -r -n -t ':' -k1,1 | head -n 3
-}
-
 filter_ranked_tools() {
-	local ranked entry score filtered
-	ranked="$1"
-	filtered=()
+        local ranked entry score filtered
+        ranked="$1"
+        filtered=()
 	while IFS= read -r entry; do
 		[[ -z "${entry}" ]] && continue
 		score="${entry%%:*}"
@@ -155,114 +111,16 @@ GRAM
         ' <<<"${raw}" 2>/dev/null || true
 }
 
-heuristic_rank_tools() {
-	local user_query tool score lower_query has_shell_command has_backtick
+rank_tools() {
+	local user_query parsed
 	user_query="$1"
-	lower_query=${user_query,,}
-	has_backtick=false
-	has_shell_command=false
-	local threshold
-	threshold=2
 
-	declare -A best_scores=()
-
-	if [[ "${user_query}" =~ \`[^\`]+\` ]]; then
-		has_backtick=true
-	fi
-
-	if [[ "${lower_query}" =~ (^|[[:space:]])(ls|cd|cat|grep|find|pwd|rg)([[:space:]]|$) ]]; then
-		has_shell_command=true
-	fi
-
-	while IFS= read -r entry; do
-		[[ -z "${entry}" ]] && continue
-		score="${entry%%:*}"
-		tool="${entry##*:}"
-		if [[ -z "${best_scores[${tool}]:-}" || ${score} -gt ${best_scores[${tool}]} ]]; then
-			best_scores[${tool}]="${score}"
-		fi
-	done < <(structured_tool_relevance "${user_query}" || true)
-
-	for tool in "${TOOLS[@]}"; do
-		score=0
-
-		case "${tool}" in
-		terminal)
-			if [[ "${has_backtick}" == true || "${has_shell_command}" == true ]]; then
-				score=5
-			elif [[ "${lower_query}" == *"list files"* || "${lower_query}" == *"show directory"* || "${lower_query}" == *"show folder"* || "${lower_query}" == *"grep"* || "${lower_query}" == *"find "* || "${lower_query}" == *"search files"* || "${lower_query}" == *"look around"* || "${lower_query}" == *"what's here"* || "${lower_query}" == *"folder"* ]]; then
-				score=4
-			elif [[ "${lower_query}" == *"file"* ]]; then
-				score=3
-			fi
-			;;
-		reminders_create)
-			if [[ "${lower_query}" == *"remind me"* || "${lower_query}" == *"set a reminder"* || "${lower_query}" == *"add a reminder"* || "${lower_query}" == *"remember to"* ]]; then
-				score=5
-			elif [[ "${lower_query}" == *"reminder"* ]]; then
-				score=3
-			fi
-			;;
-		reminders_list)
-			if [[ "${lower_query}" == *"show reminders"* || "${lower_query}" == *"list reminders"* || "${lower_query}" == *"what reminders"* ]]; then
-				score=4
-			fi
-			;;
-		*)
-			if [[ "${lower_query}" == *"note"* || "${lower_query}" == *"notes"* || "${lower_query}" == *"write this down"* || "${lower_query}" == *"jot"* || "${lower_query}" == *"save this"* ]]; then
-				case "${tool}" in
-				notes_create)
-					score=5
-					;;
-				notes_append | notes_search | notes_read | notes_list)
-					score=4
-					;;
-				esac
-			fi
-
-			if [[ "${lower_query}" == *"${tool,,}"* ]]; then
-				((score < 4)) && score=4
-			fi
-			;;
-		esac
-
-		if [[ ${score} -gt ${best_scores[${tool}]:-0} ]]; then
-			best_scores[${tool}]="${score}"
-		fi
-	done
-
-	local results
-	results=()
-	for tool in "${!best_scores[@]}"; do
-		if ((best_scores[${tool}] >= threshold)); then
-			results+=("${best_scores[${tool}]}:${tool}")
-		fi
-	done
-
-	if [[ ${#results[@]} -eq 0 ]]; then
+	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
+		log "WARN" "llama.cpp binary unavailable; skipping tool selection" "${LLAMA_BIN}"
 		return 0
 	fi
 
-	printf '%s\n' "${results[@]}" | sort -r -n -t ':' -k1,1 | head -n 3
-}
-
-rank_tools() {
-	local user_query prompt raw parsed
-	user_query="$1"
-	prompt="$(build_ranking_prompt "${user_query}")"
-
-#	if [[ "${LLAMA_AVAILABLE}" == true ]]; then
-		raw="$(llama_infer "${prompt}")"
-		echo "Ranking raw output: ${raw}" >&2
-		parsed="$(parse_llama_ranking "${raw}" || true)"
-#	fi
-
-
-
-#	if [[ -z "${parsed:-""}" ]]; then
-#		parsed="$(heuristic_rank_tools "${user_query}")"
-#	fi
-
+	parsed="$(structured_tool_relevance "${user_query}")"
 	printf '%s\n' "$(filter_ranked_tools "${parsed}")"
 }
 
@@ -520,15 +378,15 @@ react_loop() {
 	while ((step < max_steps)); do
 		step=$((step + 1))
 
-		if [[ "${LLAMA_AVAILABLE}" == true ]]; then
-			action_json="$(llama_infer "$(build_react_prompt "${user_query}" "${allowed_tools}" "${history}")")"
-		else
-			action_json="$(fallback_action_from_plan "${plan_entries}" $((step - 1)) "${user_query}")"
+                if [[ "${USE_REACT_LLAMA:-false}" == true && "${LLAMA_AVAILABLE}" == true ]]; then
+                        action_json="$(llama_infer "$(build_react_prompt "${user_query}" "${allowed_tools}" "${history}")")"
+                else
+                        action_json="$(fallback_action_from_plan "${plan_entries}" $((step - 1)) "${user_query}")"
 		fi
 
-		action_type="$(printf '%s' "${action_json}" | jq -r '.type // empty' 2>/dev/null)"
-		tool="$(printf '%s' "${action_json}" | jq -r '.tool // empty' 2>/dev/null)"
-		query="$(printf '%s' "${action_json}" | jq -r '.query // empty' 2>/dev/null)"
+                action_type="$(printf '%s' "${action_json}" | jq -r '.type // empty' 2>/dev/null || true)"
+                tool="$(printf '%s' "${action_json}" | jq -r '.tool // empty' 2>/dev/null || true)"
+                query="$(printf '%s' "${action_json}" | jq -r '.query // empty' 2>/dev/null || true)"
 
 		if [[ "${action_type}" != "tool" && "${action_type}" != "final" ]]; then
 			history+=$(printf 'Unusable action: %s\n' "${action_json}")
