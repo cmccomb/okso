@@ -117,12 +117,12 @@ main() {
 		return 0
 	fi
 
-        if [[ -z "${ranked_tools}" ]]; then
-                emit_plan_json "${plan_entries}"
-                log "WARN" "No tools selected; responding directly" "${USER_QUERY}"
-                printf '%s\n' "$(respond_text "${USER_QUERY}" "${plan_entries}")"
-                return 0
-        fi
+	if [[ -z "${ranked_tools}" ]]; then
+		emit_plan_json "${plan_entries}"
+		log "WARN" "No tools selected; responding directly" "${USER_QUERY}"
+		printf '%s\n' "$(respond_text "${USER_QUERY}" "${plan_entries}")"
+		return 0
+	fi
 
 	react_loop "${USER_QUERY}" "${ranked_tools}" "${plan_entries}"
 }
