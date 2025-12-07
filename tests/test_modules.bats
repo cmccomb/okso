@@ -12,10 +12,43 @@
 #   Inherits Bats semantics; individual tests assert script exit codes.
 
 @test "parse_model_spec falls back to default file" {
-	run bash -lc 'source ./src/config.sh; parts=(); mapfile -t parts < <(parse_model_spec "example/repo" "fallback.gguf"); echo "${parts[0]}"; echo "${parts[1]}"'
-	[ "$status" -eq 0 ]
-	[ "${lines[0]}" = "example/repo" ]
-	[ "${lines[1]}" = "fallback.gguf" ]
+        run bash -lc 'source ./src/config.sh; parts=(); mapfile -t parts < <(parse_model_spec "example/repo" "fallback.gguf"); echo "${parts[0]}"; echo "${parts[1]}"'
+        [ "$status" -eq 0 ]
+        [ "${lines[0]}" = "example/repo" ]
+        [ "${lines[1]}" = "fallback.gguf" ]
+}
+
+@test "init_environment forces llama off when testing passthrough set" {
+        run bash -lc '
+                export TESTING_PASSTHROUGH=true
+                MODEL_SPEC="demo/repo:demo.gguf"
+                DEFAULT_MODEL_FILE="demo.gguf"
+                APPROVE_ALL=false
+                FORCE_CONFIRM=false
+                NOTES_DIR="$(mktemp -d)"
+                source ./src/config.sh
+                init_environment
+                printf "%s" "${LLAMA_AVAILABLE}"
+        '
+        [ "$status" -eq 0 ]
+        [ "${lines[0]}" = "false" ]
+}
+
+@test "init_environment keeps llama enabled when passthrough is unset" {
+        run bash -lc '
+                unset TESTING_PASSTHROUGH
+                MODEL_SPEC="demo/repo:demo.gguf"
+                DEFAULT_MODEL_FILE="demo.gguf"
+                LLAMA_BIN="/bin/true"
+                APPROVE_ALL=false
+                FORCE_CONFIRM=false
+                NOTES_DIR="$(mktemp -d)"
+                source ./src/config.sh
+                init_environment
+                printf "%s" "${LLAMA_AVAILABLE}"
+        '
+        [ "$status" -eq 0 ]
+        [ "${lines[0]}" = "true" ]
 }
 
 @test "init_tool_registry clears previous tools" {

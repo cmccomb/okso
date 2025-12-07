@@ -10,6 +10,7 @@
 #   CONFIG_FILE (string): config path; default resolved in detect_config_file.
 #   MODEL_SPEC (string): HF repo[:file] spec; may be overridden by DO_MODEL.
 #   MODEL_BRANCH (string): HF branch; may be overridden by DO_MODEL_BRANCH.
+#   TESTING_PASSTHROUGH (bool): forces llama calls off during tests.
 #   APPROVE_ALL (bool): skip prompts when true.
 #   FORCE_CONFIRM (bool): always prompt when true.
 #   VERBOSITY (int): logging verbosity.
@@ -153,17 +154,22 @@ hydrate_model_spec() {
 init_environment() {
 	normalize_approval_flags
 	hydrate_model_spec
+
 	if command -v uname >/dev/null 2>&1 && [[ "$(uname -s)" == "Darwin" ]]; then
 		# shellcheck disable=SC2034
 		IS_MACOS=true
 	fi
 
-	if command -v "${LLAMA_BIN}" >/dev/null 2>&1; then
-		# shellcheck disable=SC2034
-		LLAMA_AVAILABLE=true
-	else
-		log "WARN" "llama.cpp binary not found; using heuristic fallback" "${LLAMA_BIN}"
-	fi
+        if [[ "${TESTING_PASSTHROUGH:-false}" == true ]]; then
+                LLAMA_AVAILABLE=false
+        else
+                LLAMA_AVAILABLE=true
+        fi
+
+        if [[ "${LLAMA_AVAILABLE}" == true && ! -x "${LLAMA_BIN}" ]]; then
+                log "WARN" "llama.cpp binary not found" "${LLAMA_BIN}"
+                LLAMA_AVAILABLE=false
+        fi
 
 	mkdir -p "${NOTES_DIR}"
 }
