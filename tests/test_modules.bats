@@ -25,25 +25,28 @@
 }
 
 @test "initialize_tools registers each module" {
-	run bash -lc 'source ./src/tools.sh; init_tool_registry; initialize_tools; printf "%s\n" "${TOOLS[@]}"'
-	[ "$status" -eq 0 ]
-	[ "${#lines[@]}" -eq 16 ]
-	[ "${lines[0]}" = "terminal" ]
-	[ "${lines[1]}" = "file_search" ]
-	[ "${lines[2]}" = "notes_create" ]
-	[ "${lines[3]}" = "notes_append" ]
-	[ "${lines[4]}" = "notes_list" ]
-	[ "${lines[5]}" = "notes_search" ]
-	[ "${lines[6]}" = "notes_read" ]
-	[ "${lines[7]}" = "reminders_create" ]
-	[ "${lines[8]}" = "reminders_list" ]
-	[ "${lines[9]}" = "reminders_complete" ]
-	[ "${lines[10]}" = "mail_draft" ]
-	[ "${lines[11]}" = "mail_send" ]
-	[ "${lines[12]}" = "mail_search" ]
-	[ "${lines[13]}" = "mail_list_inbox" ]
-	[ "${lines[14]}" = "mail_list_unread" ]
-	[ "${lines[15]}" = "applescript" ]
+        run bash -lc 'source ./src/tools.sh; init_tool_registry; initialize_tools; printf "%s\n" "${TOOLS[@]}"'
+        [ "$status" -eq 0 ]
+        [ "${#lines[@]}" -eq 19 ]
+        [ "${lines[0]}" = "terminal" ]
+        [ "${lines[1]}" = "file_search" ]
+        [ "${lines[2]}" = "notes_create" ]
+        [ "${lines[3]}" = "notes_append" ]
+        [ "${lines[4]}" = "notes_list" ]
+        [ "${lines[5]}" = "notes_search" ]
+        [ "${lines[6]}" = "notes_read" ]
+        [ "${lines[7]}" = "reminders_create" ]
+        [ "${lines[8]}" = "reminders_list" ]
+        [ "${lines[9]}" = "reminders_complete" ]
+        [ "${lines[10]}" = "calendar_create" ]
+        [ "${lines[11]}" = "calendar_list" ]
+        [ "${lines[12]}" = "calendar_search" ]
+        [ "${lines[13]}" = "mail_draft" ]
+        [ "${lines[14]}" = "mail_send" ]
+        [ "${lines[15]}" = "mail_search" ]
+        [ "${lines[16]}" = "mail_list_inbox" ]
+        [ "${lines[17]}" = "mail_list_unread" ]
+        [ "${lines[18]}" = "applescript" ]
 }
 
 @test "json_escape preserves newlines and quotes" {

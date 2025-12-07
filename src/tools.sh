@@ -33,16 +33,19 @@ source "${TOOLS_DIR}/file_search.sh"
 source "${TOOLS_DIR}/notes/index.sh"
 # shellcheck source=./tools/reminders/index.sh disable=SC1091
 source "${TOOLS_DIR}/reminders/index.sh"
+# shellcheck source=./tools/calendar/index.sh disable=SC1091
+source "${TOOLS_DIR}/calendar/index.sh"
 # shellcheck source=./tools/mail/index.sh disable=SC1091
 source "${TOOLS_DIR}/mail/index.sh"
 # shellcheck source=./tools/applescript.sh disable=SC1091
 source "${TOOLS_DIR}/applescript.sh"
 
 initialize_tools() {
-	register_terminal
-	register_file_search
-	register_notes_suite
-	register_reminders_suite
-	register_mail_suite
-	register_applescript
+        register_terminal
+        register_file_search
+        register_notes_suite
+        register_reminders_suite
+        register_calendar_suite
+        register_mail_suite
+        register_applescript
 }

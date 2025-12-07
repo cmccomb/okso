@@ -82,6 +82,9 @@ The planner registers the following tools (each defined in `src/tools/<name>.sh`
 - `reminders_create`: create a new Apple Reminder (first line = title).
 - `reminders_list`: list incomplete Apple Reminders in the configured list.
 - `reminders_complete`: mark an Apple Reminder complete by title.
+- `calendar_create`: create a new Apple Calendar event (line 1: title; line 2: start time; optional line 3: location).
+- `calendar_list`: list upcoming Apple Calendar events for the configured calendar.
+- `calendar_search`: search Apple Calendar events by title or location.
 - `mail_draft`: create a new Apple Mail draft (line 1: recipients, line 2: subject).
 - `mail_send`: compose and send an Apple Mail message immediately.
 - `mail_search`: search Apple Mail inbox messages by subject, sender, or body.
@@ -99,6 +102,13 @@ Apple Notes tools expect the first line of `TOOL_QUERY` to be the note title and
 the remaining lines to form the body (where applicable). Set `NOTES_FOLDER` to
 point at a specific folder (default: `Notes`). On non-macOS hosts or when
 `osascript` is unavailable, the tools emit a warning and exit without changes.
+
+Apple Calendar tools use `TOOL_QUERY` lines for event details: the first line is
+the title, the second is a human-friendly start time (parsed by AppleScript's
+`date`), and the third is an optional location. Set `CALENDAR_NAME` to direct
+operations to a specific calendar (default: `Calendar`). These tools only run on
+macOS with `osascript` available; otherwise, they log a warning and return
+without executing.
 
 Apple Mail tools expect `TOOL_QUERY` lines to be structured as comma-separated
 recipients on the first line, a subject on the second, and the optional body on
