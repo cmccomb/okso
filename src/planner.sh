@@ -43,15 +43,14 @@ llama_infer() {
 	"${LLAMA_BIN}" \
 		--hf-repo "${MODEL_REPO}" \
 		--hf-file "${MODEL_FILE}" \
-		-no-cnv --verbose \
-		-p "${prompt}"
-#		2>/dev/null || true
+		-no-cnv \
+		-p "${prompt}" 2>/dev/null || true
 }
 
 filter_ranked_tools() {
-        local ranked entry score filtered
-        ranked="$1"
-        filtered=()
+	local ranked entry score filtered
+	ranked="$1"
+	filtered=()
 	while IFS= read -r entry; do
 		[[ -z "${entry}" ]] && continue
 		score="${entry%%:*}"
@@ -97,6 +96,7 @@ GRAM
 	raw="$(${LLAMA_BIN} \
 		--hf-repo "${MODEL_REPO}" \
 		--hf-file "${MODEL_FILE}" \
+		--no-cnv \
 		--grammar "${grammar}" \
 		-p "${prompt}" 2>/dev/null || true)"
 
@@ -378,15 +378,15 @@ react_loop() {
 	while ((step < max_steps)); do
 		step=$((step + 1))
 
-                if [[ "${USE_REACT_LLAMA:-false}" == true && "${LLAMA_AVAILABLE}" == true ]]; then
-                        action_json="$(llama_infer "$(build_react_prompt "${user_query}" "${allowed_tools}" "${history}")")"
-                else
-                        action_json="$(fallback_action_from_plan "${plan_entries}" $((step - 1)) "${user_query}")"
+		if [[ "${USE_REACT_LLAMA:-false}" == true && "${LLAMA_AVAILABLE}" == true ]]; then
+			action_json="$(llama_infer "$(build_react_prompt "${user_query}" "${allowed_tools}" "${history}")")"
+		else
+			action_json="$(fallback_action_from_plan "${plan_entries}" $((step - 1)) "${user_query}")"
 		fi
 
-                action_type="$(printf '%s' "${action_json}" | jq -r '.type // empty' 2>/dev/null || true)"
-                tool="$(printf '%s' "${action_json}" | jq -r '.tool // empty' 2>/dev/null || true)"
-                query="$(printf '%s' "${action_json}" | jq -r '.query // empty' 2>/dev/null || true)"
+		action_type="$(printf '%s' "${action_json}" | jq -r '.type // empty' 2>/dev/null || true)"
+		tool="$(printf '%s' "${action_json}" | jq -r '.tool // empty' 2>/dev/null || true)"
+		query="$(printf '%s' "${action_json}" | jq -r '.query // empty' 2>/dev/null || true)"
 
 		if [[ "${action_type}" != "tool" && "${action_type}" != "final" ]]; then
 			history+=$(printf 'Unusable action: %s\n' "${action_json}")

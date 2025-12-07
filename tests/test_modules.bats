@@ -52,14 +52,14 @@
 }
 
 @test "log emits JSON with escaped fields" {
-        run bash -lc $'VERBOSITY=2; source ./src/logging.sh; log "INFO" $'"'"'quote\nline'"'"' "detail"'
-        [ "$status" -eq 0 ]
-        message=$(echo "${output}" | jq -r '.message')
-        [ "${message}" = $'quote\nline' ]
+	run bash -lc $'VERBOSITY=2; source ./src/logging.sh; log "INFO" $'"'"'quote\nline'"'"' "detail"'
+	[ "$status" -eq 0 ]
+	message=$(echo "${output}" | jq -r '.message')
+	[ "${message}" = $'quote\nline' ]
 }
 
 @test "structured_tool_relevance parses boolean map grammar" {
-        run bash -lc '
+	run bash -lc '
                 source ./src/planner.sh
                 initialize_tools
                 LLAMA_AVAILABLE=true
@@ -68,12 +68,12 @@
                 MODEL_FILE="demo.gguf"
                 structured_tool_relevance "list files"
         '
-        [ "$status" -eq 0 ]
-        [ "${lines[0]}" = "5:terminal" ]
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "5:terminal" ]
 }
 
 @test "rank_tools uses grammar-constrained llama selection" {
-        run bash -lc '
+	run bash -lc '
                 source ./src/planner.sh
                 initialize_tools
                 LLAMA_AVAILABLE=true
@@ -82,8 +82,8 @@
                 MODEL_FILE="demo.gguf"
                 rank_tools "note something"
         '
-        [ "$status" -eq 0 ]
-        [ "${lines[0]}" = "5:notes_create" ]
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "5:notes_create" ]
 }
 
 @test "emit_plan_json builds valid array" {

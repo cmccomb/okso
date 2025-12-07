@@ -10,45 +10,45 @@ set -euo pipefail
 prompt=""
 
 while [[ $# -gt 0 ]]; do
-        case "$1" in
-        --hf-repo | --hf-file | --grammar)
-                shift 2
-                ;;
-        -p)
-                prompt="$2"
-                shift 2
-                ;;
-        *)
-                shift 1
-                ;;
-        esac
+	case "$1" in
+	--hf-repo | --hf-file | --grammar)
+		shift 2
+		;;
+	-p)
+		prompt="$2"
+		shift 2
+		;;
+	*)
+		shift 1
+		;;
+	esac
 done
 
 prompt_lower=${prompt,,}
 
 if [[ "${prompt_lower}" == *"joke"* || "${prompt_lower}" == *"chat"* ]]; then
-        printf '{}\n'
-        exit 0
+	printf '{}\n'
+	exit 0
 fi
 
 if [[ "${prompt_lower}" == *"remind"* ]]; then
-        printf '{"reminders_create":true}\n'
-        exit 0
+	printf '{"reminders_create":true}\n'
+	exit 0
 fi
 
 if [[ "${prompt_lower}" == *"note"* ]]; then
-        printf '{"notes_create":true}\n'
-        exit 0
+	printf '{"notes_create":true}\n'
+	exit 0
 fi
 
 if [[ "${prompt_lower}" == *"todo"* ]]; then
-        printf '{"terminal":true}\n'
-        exit 0
+	printf '{"terminal":true}\n'
+	exit 0
 fi
 
 if [[ "${prompt_lower}" == *"file"* || "${prompt_lower}" == *"folder"* ]]; then
-        printf '{"terminal":true}\n'
-        exit 0
+	printf '{"terminal":true}\n'
+	exit 0
 fi
 
 printf '{}\n'
