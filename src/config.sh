@@ -56,9 +56,9 @@ load_config() {
 
 	MODEL_SPEC=${MODEL_SPEC:-"Qwen/Qwen3-1.5B-Instruct-GGUF:${DEFAULT_MODEL_FILE}"}
 	MODEL_BRANCH=${MODEL_BRANCH:-main}
-        VERBOSITY=${VERBOSITY:-1}
-        APPROVE_ALL=${APPROVE_ALL:-false}
-        FORCE_CONFIRM=${FORCE_CONFIRM:-false}
+	VERBOSITY=${VERBOSITY:-1}
+	APPROVE_ALL=${APPROVE_ALL:-false}
+	FORCE_CONFIRM=${FORCE_CONFIRM:-false}
 
 	if [[ -n "${DO_MODEL:-}" ]]; then
 		MODEL_SPEC="${DO_MODEL}"
@@ -66,9 +66,9 @@ load_config() {
 	if [[ -n "${DO_MODEL_BRANCH:-}" ]]; then
 		MODEL_BRANCH="${DO_MODEL_BRANCH}"
 	fi
-        if [[ -n "${DO_SUPERVISED:-}" ]]; then
-                case "${DO_SUPERVISED}" in
-                false | False | FALSE | 0)
+	if [[ -n "${DO_SUPERVISED:-}" ]]; then
+		case "${DO_SUPERVISED}" in
+		false | False | FALSE | 0)
 			APPROVE_ALL=true
 			;;
 		*)
@@ -82,15 +82,15 @@ load_config() {
 }
 
 write_config_file() {
-        mkdir -p "$(dirname "${CONFIG_FILE}")"
-        cat >"${CONFIG_FILE}" <<EOF_CONFIG
+	mkdir -p "$(dirname "${CONFIG_FILE}")"
+	cat >"${CONFIG_FILE}" <<EOF_CONFIG
 MODEL_SPEC="${MODEL_SPEC}"
 MODEL_BRANCH="${MODEL_BRANCH}"
 VERBOSITY=${VERBOSITY}
 APPROVE_ALL=${APPROVE_ALL}
 FORCE_CONFIRM=${FORCE_CONFIRM}
 EOF_CONFIG
-        printf 'Wrote config to %s\n' "${CONFIG_FILE}"
+	printf 'Wrote config to %s\n' "${CONFIG_FILE}"
 }
 
 parse_model_spec() {
@@ -141,19 +141,21 @@ normalize_approval_flags() {
 }
 
 hydrate_model_spec() {
-        # Normalizes MODEL_SPEC into repo and file components for llama.cpp calls.
-        local model_parts
-        mapfile -t model_parts < <(parse_model_spec "${MODEL_SPEC}" "${DEFAULT_MODEL_FILE}")
-        MODEL_REPO="${model_parts[0]}"
-        MODEL_FILE="${model_parts[1]}"
+	# Normalizes MODEL_SPEC into repo and file components for llama.cpp calls.
+	local model_parts
+	mapfile -t model_parts < <(parse_model_spec "${MODEL_SPEC}" "${DEFAULT_MODEL_FILE}")
+	# shellcheck disable=SC2034
+	MODEL_REPO="${model_parts[0]}"
+	# shellcheck disable=SC2034
+	MODEL_FILE="${model_parts[1]}"
 }
 
 init_environment() {
-        normalize_approval_flags
-        hydrate_model_spec
-        if command -v uname >/dev/null 2>&1 && [[ "$(uname -s)" == "Darwin" ]]; then
-                # shellcheck disable=SC2034
-                IS_MACOS=true
+	normalize_approval_flags
+	hydrate_model_spec
+	if command -v uname >/dev/null 2>&1 && [[ "$(uname -s)" == "Darwin" ]]; then
+		# shellcheck disable=SC2034
+		IS_MACOS=true
 	fi
 
 	if command -v "${LLAMA_BIN}" >/dev/null 2>&1; then

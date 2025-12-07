@@ -48,7 +48,7 @@ USAGE
 }
 
 show_version() {
-        printf 'okso assistant %s\n' "${VERSION}"
+	printf 'okso assistant %s\n' "${VERSION}"
 }
 
 # shellcheck disable=SC2034

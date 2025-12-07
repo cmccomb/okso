@@ -29,29 +29,29 @@ source "${BASH_SOURCE[0]%/tools/calendar/list.sh}/logging.sh"
 source "${BASH_SOURCE[0]%/list.sh}/common.sh"
 
 calendar_list_dry_run_guard() {
-        if [[ "${DRY_RUN}" == true ]]; then
-                log "INFO" "Dry run: skipping Apple Calendar listing" "${TOOL_QUERY:-}" || true
-                return 0
-        fi
+	if [[ "${DRY_RUN}" == true ]]; then
+		log "INFO" "Dry run: skipping Apple Calendar listing" "${TOOL_QUERY:-}" || true
+		return 0
+	fi
 
-        return 1
+	return 1
 }
 
 tool_calendar_list() {
-        local calendar_script
+	local calendar_script
 
-        if calendar_list_dry_run_guard; then
-                return 0
-        fi
+	if calendar_list_dry_run_guard; then
+		return 0
+	fi
 
-        if ! calendar_require_platform; then
-                return 0
-        fi
+	if ! calendar_require_platform; then
+		return 0
+	fi
 
-        calendar_script="$(calendar_resolve_calendar_script)"
+	calendar_script="$(calendar_resolve_calendar_script)"
 
-        log "INFO" "Listing upcoming Apple Calendar events" "$(calendar_name)"
-        calendar_run_script <<APPLESCRIPT
+	log "INFO" "Listing upcoming Apple Calendar events" "$(calendar_name)"
+	calendar_run_script <<APPLESCRIPT
 on run
         tell application "Calendar"
 ${calendar_script}
@@ -73,10 +73,10 @@ APPLESCRIPT
 }
 
 register_calendar_list() {
-        register_tool \
-                "calendar_list" \
-                "List upcoming Apple Calendar events from the configured calendar." \
-                "osascript -e 'events of calendar <name> starting today'" \
-                "Requires macOS Calendar access; read-only." \
-                tool_calendar_list
+	register_tool \
+		"calendar_list" \
+		"List upcoming Apple Calendar events from the configured calendar." \
+		"osascript -e 'events of calendar <name> starting today'" \
+		"Requires macOS Calendar access; read-only." \
+		tool_calendar_list
 }

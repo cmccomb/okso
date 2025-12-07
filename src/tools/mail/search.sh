@@ -30,21 +30,21 @@ source "${BASH_SOURCE[0]%/tools/mail/search.sh}/logging.sh"
 source "${BASH_SOURCE[0]%/search.sh}/common.sh"
 
 tool_mail_search() {
-        local term limit
-        term=${TOOL_QUERY:-""}
-        limit=$(mail_inbox_limit)
+	local term limit
+	term=${TOOL_QUERY:-""}
+	limit=$(mail_inbox_limit)
 
-        if ! mail_require_platform; then
-                return 0
-        fi
+	if ! mail_require_platform; then
+		return 0
+	fi
 
-        if [[ -z "${term//[[:space:]]/}" ]]; then
-                log "ERROR" "Search term is required" "" || true
-                return 1
-        fi
+	if [[ -z "${term//[[:space:]]/}" ]]; then
+		log "ERROR" "Search term is required" "" || true
+		return 1
+	fi
 
-        log "INFO" "Searching Apple Mail inbox" "${term}" || true
-        mail_run_script "${term}" "${limit}" <<'APPLESCRIPT'
+	log "INFO" "Searching Apple Mail inbox" "${term}" || true
+	mail_run_script "${term}" "${limit}" <<'APPLESCRIPT'
 on run argv
         set searchTerm to item 1 of argv
         set maxItems to (item 2 of argv) as integer
@@ -67,10 +67,10 @@ APPLESCRIPT
 }
 
 register_mail_search() {
-        register_tool \
-                "mail_search" \
-                "Search Apple Mail inbox messages by subject, sender, or content." \
-                "osascript -e 'messages of inbox whose subject contains <term>'" \
-                "Requires macOS Apple Mail access; returns metadata only." \
-                tool_mail_search
+	register_tool \
+		"mail_search" \
+		"Search Apple Mail inbox messages by subject, sender, or content." \
+		"osascript -e 'messages of inbox whose subject contains <term>'" \
+		"Requires macOS Apple Mail access; returns metadata only." \
+		tool_mail_search
 }

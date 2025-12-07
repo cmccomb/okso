@@ -29,28 +29,28 @@ source "${BASH_SOURCE[0]%/tools/mail/draft.sh}/logging.sh"
 source "${BASH_SOURCE[0]%/draft.sh}/common.sh"
 
 mail_build_recipient_args() {
-        # Emits recipient addresses as separate osascript arguments.
-        local recipients_line
-        recipients_line=$1
-        mail_split_recipients "${recipients_line}"
+	# Emits recipient addresses as separate osascript arguments.
+	local recipients_line
+	recipients_line=$1
+	mail_split_recipients "${recipients_line}"
 }
 
 tool_mail_draft() {
-        local recipients_line subject body
+	local recipients_line subject body
 
-        if ! mail_require_platform; then
-                return 0
-        fi
+	if ! mail_require_platform; then
+		return 0
+	fi
 
-        if ! { IFS= read -r -d '' recipients_line && IFS= read -r -d '' subject && IFS= read -r -d '' body; } < <(mail_extract_envelope); then
-                log "ERROR" "Unable to parse mail envelope" "${TOOL_QUERY:-}" || true
-                return 1
-        fi
+	if ! { IFS= read -r -d '' recipients_line && IFS= read -r -d '' subject && IFS= read -r -d '' body; } < <(mail_extract_envelope); then
+		log "ERROR" "Unable to parse mail envelope" "${TOOL_QUERY:-}" || true
+		return 1
+	fi
 
-        mapfile -t recipients < <(mail_build_recipient_args "${recipients_line}")
+	mapfile -t recipients < <(mail_build_recipient_args "${recipients_line}")
 
-        log "INFO" "Creating Apple Mail draft" "${subject}" || true
-        mail_run_script "${subject}" "${body}" "${recipients[@]}" <<'APPLESCRIPT'
+	log "INFO" "Creating Apple Mail draft" "${subject}" || true
+	mail_run_script "${subject}" "${body}" "${recipients[@]}" <<'APPLESCRIPT'
 on run argv
         set subjectLine to item 1 of argv
         set bodyText to item 2 of argv
@@ -71,10 +71,10 @@ APPLESCRIPT
 }
 
 register_mail_draft() {
-        register_tool \
-                "mail_draft" \
-                "Create an Apple Mail draft using the first line for recipients and second for the subject." \
-                "osascript -e 'make new outgoing message with {subject:<subject>, content:<body>}'" \
-                "Requires macOS Apple Mail access; content and recipients are sent to Mail." \
-                tool_mail_draft
+	register_tool \
+		"mail_draft" \
+		"Create an Apple Mail draft using the first line for recipients and second for the subject." \
+		"osascript -e 'make new outgoing message with {subject:<subject>, content:<body>}'" \
+		"Requires macOS Apple Mail access; content and recipients are sent to Mail." \
+		tool_mail_draft
 }

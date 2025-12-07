@@ -33,9 +33,9 @@ source "${BASH_SOURCE[0]%/index.sh}/list_inbox.sh"
 source "${BASH_SOURCE[0]%/index.sh}/list_unread.sh"
 
 register_mail_suite() {
-        register_mail_draft
-        register_mail_send
-        register_mail_search
-        register_mail_list_inbox
-        register_mail_list_unread
+	register_mail_draft
+	register_mail_send
+	register_mail_search
+	register_mail_list_inbox
+	register_mail_list_unread
 }

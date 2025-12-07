@@ -29,25 +29,25 @@ source "${BASH_SOURCE[0]%/tools/mail/send.sh}/logging.sh"
 source "${BASH_SOURCE[0]%/send.sh}/common.sh"
 
 tool_mail_send() {
-        local recipients_line subject body
+	local recipients_line subject body
 
-        if ! mail_require_platform; then
-                return 0
-        fi
+	if ! mail_require_platform; then
+		return 0
+	fi
 
-        if ! { IFS= read -r -d '' recipients_line && IFS= read -r -d '' subject && IFS= read -r -d '' body; } < <(mail_extract_envelope); then
-                log "ERROR" "Unable to parse mail envelope" "${TOOL_QUERY:-}" || true
-                return 1
-        fi
+	if ! { IFS= read -r -d '' recipients_line && IFS= read -r -d '' subject && IFS= read -r -d '' body; } < <(mail_extract_envelope); then
+		log "ERROR" "Unable to parse mail envelope" "${TOOL_QUERY:-}" || true
+		return 1
+	fi
 
-        mapfile -t recipients < <(mail_split_recipients "${recipients_line}")
-        if ((${#recipients[@]} == 0)); then
-                log "ERROR" "At least one recipient is required to send" "${TOOL_QUERY:-}" || true
-                return 1
-        fi
+	mapfile -t recipients < <(mail_split_recipients "${recipients_line}")
+	if ((${#recipients[@]} == 0)); then
+		log "ERROR" "At least one recipient is required to send" "${TOOL_QUERY:-}" || true
+		return 1
+	fi
 
-        log "INFO" "Sending Apple Mail message" "${subject}" || true
-        mail_run_script "${subject}" "${body}" "${recipients[@]}" <<'APPLESCRIPT'
+	log "INFO" "Sending Apple Mail message" "${subject}" || true
+	mail_run_script "${subject}" "${body}" "${recipients[@]}" <<'APPLESCRIPT'
 on run argv
         set subjectLine to item 1 of argv
         set bodyText to item 2 of argv
@@ -67,10 +67,10 @@ APPLESCRIPT
 }
 
 register_mail_send() {
-        register_tool \
-                "mail_send" \
-                "Send an email via Apple Mail; recipients on line one, subject on line two." \
-                "osascript -e 'make new outgoing message with {subject:<subject>, content:<body>}' -e 'send result'" \
-                "Requires macOS Apple Mail access; sends immediately to listed recipients." \
-                tool_mail_send
+	register_tool \
+		"mail_send" \
+		"Send an email via Apple Mail; recipients on line one, subject on line two." \
+		"osascript -e 'make new outgoing message with {subject:<subject>, content:<body>}' -e 'send result'" \
+		"Requires macOS Apple Mail access; sends immediately to listed recipients." \
+		tool_mail_send
 }

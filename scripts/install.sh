@@ -46,7 +46,6 @@ DEFAULT_LINK_PATH="${DO_LINK_DIR}/${APP_NAME}"
 DEFAULT_INSTALLER_BASE_URL="https://cmccomb.github.io/okso"
 INSTALLER_BASE_URL="${DO_INSTALLER_BASE_URL:-${DEFAULT_INSTALLER_BASE_URL}}"
 DEFAULT_PROJECT_ARCHIVE_URL="${DO_PROJECT_ARCHIVE_URL:-${INSTALLER_BASE_URL%/}/okso.tar.gz}"
-LLAMA_BIN="llama-cli"
 
 SCRIPT_SOURCE="${BASH_SOURCE[0]-${0-}}"
 if [ -z "${SCRIPT_SOURCE}" ] || [ "${SCRIPT_SOURCE}" = "-" ] || [ ! -f "${SCRIPT_SOURCE}" ]; then
@@ -180,8 +179,8 @@ prepare_source_payload() {
 
 	local archive_url archive_path
 	archive_url=$(resolve_project_archive_url)
-        archive_path=$(mktemp "${TMPDIR:-/tmp}/okso-archive-XXXXXX.tar.gz")
-        TEMP_ARCHIVE_DIR=$(mktemp -d "${TMPDIR:-/tmp}/okso-src-XXXXXX")
+	archive_path=$(mktemp "${TMPDIR:-/tmp}/okso-archive-XXXXXX.tar.gz")
+	TEMP_ARCHIVE_DIR=$(mktemp -d "${TMPDIR:-/tmp}/okso-src-XXXXXX")
 	trap cleanup_temp_dir EXIT
 
 	download_project_archive "${archive_url}" "${archive_path}"
@@ -382,8 +381,8 @@ uninstall() {
 }
 
 main() {
-        local prefix="${DEFAULT_PREFIX}"
-        local mode="install"
+	local prefix="${DEFAULT_PREFIX}"
+	local mode="install"
 
 	while [ $# -gt 0 ]; do
 		case "$1" in
@@ -403,9 +402,9 @@ main() {
 			mode="uninstall"
 			shift
 			;;
-                --help | -h)
-                        usage
-                        exit 0
+		--help | -h)
+			usage
+			exit 0
 			;;
 		*)
 			usage
@@ -414,22 +413,22 @@ main() {
 		esac
 	done
 
-        if [ "${mode}" != "uninstall" ]; then
-                require_macos
-                ensure_homebrew
-                install_brew_packages
+	if [ "${mode}" != "uninstall" ]; then
+		require_macos
+		ensure_homebrew
+		install_brew_packages
 	elif [ "${IS_MACOS}" != "true" ]; then
 		log "ERROR" "Uninstall is only supported on macOS."
 		exit 3
 	fi
 
-        case "${mode}" in
-        install | upgrade)
-                prepare_source_payload
-                copy_project_files "${prefix}"
-                create_symlink "${prefix}" "${DEFAULT_LINK_PATH}"
-                ;;
-        uninstall)
+	case "${mode}" in
+	install | upgrade)
+		prepare_source_payload
+		copy_project_files "${prefix}"
+		create_symlink "${prefix}" "${DEFAULT_LINK_PATH}"
+		;;
+	uninstall)
 		uninstall "${prefix}" "${DEFAULT_LINK_PATH}"
 		;;
 	esac

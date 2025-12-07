@@ -30,33 +30,33 @@ source "${BASH_SOURCE[0]%/tools/calendar/create.sh}/logging.sh"
 source "${BASH_SOURCE[0]%/create.sh}/common.sh"
 
 calendar_dry_run_guard() {
-        if [[ "${DRY_RUN}" == true ]]; then
-                log "INFO" "Dry run: skipping Apple Calendar event creation" "${TOOL_QUERY:-}" || true
-                return 0
-        fi
+	if [[ "${DRY_RUN}" == true ]]; then
+		log "INFO" "Dry run: skipping Apple Calendar event creation" "${TOOL_QUERY:-}" || true
+		return 0
+	fi
 
-        return 1
+	return 1
 }
 
 tool_calendar_create() {
-        local title start_time location calendar_script
+	local title start_time location calendar_script
 
-        if calendar_dry_run_guard; then
-                return 0
-        fi
+	if calendar_dry_run_guard; then
+		return 0
+	fi
 
-        if ! calendar_require_platform; then
-                return 0
-        fi
+	if ! calendar_require_platform; then
+		return 0
+	fi
 
-        if ! { IFS= read -r -d '' title && IFS= read -r -d '' start_time && IFS= read -r -d '' location; } < <(calendar_extract_event_fields); then
-                return 0
-        fi
+	if ! { IFS= read -r -d '' title && IFS= read -r -d '' start_time && IFS= read -r -d '' location; } < <(calendar_extract_event_fields); then
+		return 0
+	fi
 
-        calendar_script="$(calendar_resolve_calendar_script)"
+	calendar_script="$(calendar_resolve_calendar_script)"
 
-        log "INFO" "Creating Apple Calendar event" "${title}"
-        calendar_run_script "${title}" "${start_time}" "${location}" <<APPLESCRIPT
+	log "INFO" "Creating Apple Calendar event" "${title}"
+	calendar_run_script "${title}" "${start_time}" "${location}" <<APPLESCRIPT
 on run argv
         set eventTitle to item 1 of argv
         set eventStart to item 2 of argv
@@ -75,10 +75,10 @@ APPLESCRIPT
 }
 
 register_calendar_create() {
-        register_tool \
-                "calendar_create" \
-                "Create a new Apple Calendar event (line 1: title; line 2: start time)." \
-                "osascript -e 'make new event with {summary:<title>, start date:date \"<time>\"}'" \
-                "Requires macOS Calendar access; event details are sent to Calendar." \
-                tool_calendar_create
+	register_tool \
+		"calendar_create" \
+		"Create a new Apple Calendar event (line 1: title; line 2: start time)." \
+		"osascript -e 'make new event with {summary:<title>, start date:date \"<time>\"}'" \
+		"Requires macOS Calendar access; event details are sent to Calendar." \
+		tool_calendar_create
 }

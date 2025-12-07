@@ -28,15 +28,15 @@ source "${BASH_SOURCE[0]%/planner.sh}/logging.sh"
 source "${BASH_SOURCE[0]%/planner.sh}/tools.sh"
 
 llama_infer() {
-        # Runs llama.cpp with HF caching enabled for the configured model.
-        local prompt
-        prompt="$1"
+	# Runs llama.cpp with HF caching enabled for the configured model.
+	local prompt
+	prompt="$1"
 
-        "${LLAMA_BIN}" \
-                --hf-repo "${MODEL_REPO}" \
-                --hf-file "${MODEL_FILE}" \
-                --hf-branch "${MODEL_BRANCH}" \
-                -p "${prompt}" 2>/dev/null || true
+	"${LLAMA_BIN}" \
+		--hf-repo "${MODEL_REPO}" \
+		--hf-file "${MODEL_FILE}" \
+		--hf-branch "${MODEL_BRANCH}" \
+		-p "${prompt}" 2>/dev/null || true
 }
 
 build_ranking_prompt() {
@@ -132,13 +132,13 @@ heuristic_rank_tools() {
 
 rank_tools() {
 	local user_query prompt raw parsed
-        user_query="$1"
-        prompt="$(build_ranking_prompt "${user_query}")"
+	user_query="$1"
+	prompt="$(build_ranking_prompt "${user_query}")"
 
-        if [[ "${LLAMA_AVAILABLE}" == true ]]; then
-                raw="$(llama_infer "${prompt}")"
-                parsed="$(parse_llama_ranking "${raw}" || true)"
-        fi
+	if [[ "${LLAMA_AVAILABLE}" == true ]]; then
+		raw="$(llama_infer "${prompt}")"
+		parsed="$(parse_llama_ranking "${raw}" || true)"
+	fi
 
 	if [[ -z "${parsed:-""}" ]]; then
 		parsed="$(heuristic_rank_tools "${user_query}")"
@@ -240,13 +240,13 @@ execute_tool() {
 
 collect_plan() {
 	local ranked plan_prompt raw_plan
-        ranked="$1"
-        plan_prompt="Plan a concise sequence of tool uses to satisfy: ${USER_QUERY}. Candidates: ${ranked}."
-        if [[ "${LLAMA_AVAILABLE}" == true ]]; then
-                raw_plan="$(llama_infer "${plan_prompt}")"
-        else
-                raw_plan="Use top-ranked tools sequentially: ${ranked}."
-        fi
+	ranked="$1"
+	plan_prompt="Plan a concise sequence of tool uses to satisfy: ${USER_QUERY}. Candidates: ${ranked}."
+	if [[ "${LLAMA_AVAILABLE}" == true ]]; then
+		raw_plan="$(llama_infer "${plan_prompt}")"
+	else
+		raw_plan="Use top-ranked tools sequentially: ${ranked}."
+	fi
 	printf '%s\n' "${raw_plan}"
 }
 
