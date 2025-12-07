@@ -126,14 +126,14 @@ structured_tool_relevance() {
         tool_alternatives="${tool_alternatives% | }"
 
         read -r -d '' grammar <<GRAM || true
-root ::= "[" entries? "]"
-entries ::= item ("," item)*
-item ::= "{\\\"tool\\\":" tool_name ",\\\"relevant\\\":" bool "}"
+root ::= "{" pairs? "}"
+pairs ::= pair ("," pair)*
+pair ::= "\\\"" tool_name "\\\":" bool
 tool_name ::= ${tool_alternatives}
 bool ::= "true" | "false"
 GRAM
 
-        prompt="Identify which tools are relevant to the user request with true/false flags."
+        prompt="Return a JSON object mapping each tool name to a relevance boolean."
         prompt+=" User request: ${user_query}"
 
         raw="$(${LLAMA_BIN} \
@@ -142,7 +142,7 @@ GRAM
                 --grammar "${grammar}" \
                 -p "${prompt}" 2>/dev/null || true)"
 
-        jq -r '.[] | select(.relevant == true and .tool != null) | "5:\(.tool)"' <<<"${raw}" 2>/dev/null || true
+        jq -r 'to_entries[] | select(.value == true) | "5:\(.key)"' <<<"${raw}" 2>/dev/null || true
 }
 
 heuristic_rank_tools() {

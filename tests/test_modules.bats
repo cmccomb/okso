@@ -65,6 +65,20 @@ run bash -lc 'source ./src/planner.sh; initialize_tools; raw='"'"'[{"tool":"term
 [ "${lines[1]}" = "4:terminal" ]
 }
 
+@test "structured_tool_relevance parses boolean map grammar" {
+        run bash -lc '
+                source ./src/planner.sh
+                initialize_tools
+                LLAMA_AVAILABLE=true
+                LLAMA_BIN="./tests/fixtures/mock_llama_relevance.sh"
+                MODEL_REPO="demo/repo"
+                MODEL_FILE="demo.gguf"
+                structured_tool_relevance "list files"
+        '
+        [ "$status" -eq 0 ]
+        [ "${lines[0]}" = "5:terminal" ]
+}
+
 @test "emit_plan_json builds valid array" {
 run bash -lc $'source ./src/planner.sh; plan=$'"'"'terminal|echo "hi"|4\nnotes_create|add note|3'"'"'; emit_plan_json "${plan}"'
 [ "$status" -eq 0 ]
