@@ -4,7 +4,7 @@
 # do installer: macOS-only bootstrapper for the do assistant.
 #
 # Usage:
-#   scripts/install [--prefix PATH] [--upgrade] [--uninstall] [--help]
+#   scripts/install.sh [--prefix PATH] [--upgrade] [--uninstall] [--help]
 #
 # Environment variables:
 #   DO_MODEL (string): Hugging Face repo and file identifier for the model,
@@ -20,9 +20,9 @@
 #   DO_INSTALLER_ASSUME_OFFLINE (bool): Set to "true" to skip network actions
 #       (intended for CI); install fails if downloads are required while offline.
 #   DO_INSTALLER_BASE_URL (string): Base URL hosting the installer artifacts
-#       (install script + tarball). Defaults to empty; when provided, the
-#       installer fetches the project archive from
-#       "${DO_INSTALLER_BASE_URL%/}/do.tar.gz".
+#       (install script + tarball). Defaults to the public site
+#       https://cmccomb.github.io/do; the installer fetches the project archive
+#       from "${DO_INSTALLER_BASE_URL%/}/do.tar.gz".
 #   DO_PROJECT_ARCHIVE_URL (string): Explicit URL to a project archive. Takes
 #       precedence over DO_INSTALLER_BASE_URL.
 #
@@ -39,6 +39,11 @@
 #   - curl
 #   - core macOS utilities (cp, ln, mkdir, rm)
 
+if [ -z "${BASH_VERSION:-}" ]; then
+  # Re-exec with bash to ensure array and parameter expansion support.
+  exec /usr/bin/env bash "$0" "$@"
+fi
+
 set -euo pipefail
 
 # Defaults
@@ -50,11 +55,17 @@ DEFAULT_MODEL_CACHE="${DO_MODEL_CACHE:-${HOME}/.do/models}"
 DEFAULT_MODEL_FILE="qwen3-1.5b-instruct-q4_k_m.gguf"
 DEFAULT_MODEL_SPEC="${DO_MODEL:-Qwen/Qwen3-1.5B-Instruct-GGUF:${DEFAULT_MODEL_FILE}}"
 DEFAULT_MODEL_BRANCH="${DO_MODEL_BRANCH:-main}"
-INSTALLER_BASE_URL="${DO_INSTALLER_BASE_URL:-}"
-DEFAULT_PROJECT_ARCHIVE_URL="${DO_PROJECT_ARCHIVE_URL:-${INSTALLER_BASE_URL:+${INSTALLER_BASE_URL%/}/do.tar.gz}}"
+DEFAULT_INSTALLER_BASE_URL="https://cmccomb.github.io/do"
+INSTALLER_BASE_URL="${DO_INSTALLER_BASE_URL:-${DEFAULT_INSTALLER_BASE_URL}}"
+DEFAULT_PROJECT_ARCHIVE_URL="${DO_PROJECT_ARCHIVE_URL:-${INSTALLER_BASE_URL%/}/do.tar.gz}"
 LLAMA_BIN="${LLAMA_BIN:-llama}"
 
-SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+SCRIPT_SOURCE="${BASH_SOURCE[0]-${0-}}"
+if [ -z "${SCRIPT_SOURCE}" ] || [ "${SCRIPT_SOURCE}" = "-" ] || [ ! -f "${SCRIPT_SOURCE}" ]; then
+        SCRIPT_DIR="${PWD}"
+else
+        SCRIPT_DIR=$(cd -- "$(dirname -- "${SCRIPT_SOURCE}")" && pwd)
+fi
 PROJECT_ROOT="${SCRIPT_DIR%/scripts}"
 SRC_DIR="${PROJECT_ROOT}/src"
 SOURCE_PAYLOAD_DIR="${SRC_DIR}"
@@ -73,14 +84,30 @@ BREW_PACKAGES=(
 )
 
 log() {
-	# $1: level, $2: message
-	printf '[%s] %s\n' "$1" "$2"
+        # $1: level, $2: message
+        printf '[%s] %s\n' "$1" "$2"
+}
+
+read_lines_into_array() {
+        # $1: destination array name
+        local target line
+        target="$1"
+
+        if command -v mapfile >/dev/null 2>&1; then
+                mapfile -t "${target}"
+                return
+        fi
+
+        eval "${target}=()"
+        while IFS= read -r line; do
+                eval "${target}+=(\"${line}\")"
+        done
 }
 
 cleanup_temp_dir() {
-	if [ -n "${TEMP_ARCHIVE_DIR}" ] && [ -d "${TEMP_ARCHIVE_DIR}" ]; then
-		rm -rf "${TEMP_ARCHIVE_DIR}"
-	fi
+        if [ -n "${TEMP_ARCHIVE_DIR}" ] && [ -d "${TEMP_ARCHIVE_DIR}" ]; then
+                rm -rf "${TEMP_ARCHIVE_DIR}"
+        fi
 }
 
 resolve_project_archive_url() {
@@ -185,7 +212,7 @@ parse_model_spec() {
 
 usage() {
 	cat <<'USAGE'
-Usage: scripts/install [options]
+Usage: scripts/install.sh [options]
 
 Options:
   --prefix PATH     Installation prefix (default: /usr/local/do)
@@ -406,7 +433,7 @@ download_model() {
 		exit 2
 	fi
 
-	mapfile -t meta < <(fetch_remote_metadata "${repo}" "${file}" "${branch}")
+        read_lines_into_array meta < <(fetch_remote_metadata "${repo}" "${file}" "${branch}")
 	size="${meta[0]}"
 	checksum="${meta[1]}"
 
@@ -545,7 +572,7 @@ main() {
 		esac
 	done
 
-	mapfile -t model_parts < <(parse_model_spec "${model_spec}" "${DEFAULT_MODEL_FILE}")
+        read_lines_into_array model_parts < <(parse_model_spec "${model_spec}" "${DEFAULT_MODEL_FILE}")
 	model_repo="${model_parts[0]}"
 	model_file="${model_parts[1]}"
 	refresh_model=false

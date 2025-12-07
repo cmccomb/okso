@@ -16,16 +16,15 @@ dependencies and installs the CLI binary without running global Homebrew
 upgrades:
 
 ```bash
-./scripts/install [--prefix /custom/path] [--upgrade | --uninstall]
+./scripts/install.sh [--prefix /custom/path] [--upgrade | --uninstall]
 ```
 
 For unattended installs, the CI pipeline publishes the installer and a
-project tarball to GitHub Pages. Replace `<GITHUB_USER>` with the repository
-owner and run:
+project tarball to GitHub Pages. The hosted script re-execs itself under
+`bash`, so use:
 
 ```bash
-curl -fsSL https://<GITHUB_USER>.github.io/do/install.sh | \
-  DO_INSTALLER_BASE_URL=https://<GITHUB_USER>.github.io/do bash
+curl -fsSL https://cmccomb.github.io/do/install.sh | bash
 ```
 
 What the installer does:
@@ -187,8 +186,8 @@ Use `--help` to view all options. Pass `--verbose` for debug-level logs or
 Run the formatting and lint targets before executing the Bats suite:
 
 ```bash
-shfmt -w src/*.sh src/tools/*.sh src/tools/notes/*.sh tests/*.bats tests/test_all.sh tests/test_install.bats tests/test_main.bats tests/test_modules.bats tests/test_notes.bats scripts/install
-shellcheck src/*.sh src/tools/*.sh src/tools/notes/*.sh tests/*.bats tests/test_all.sh tests/test_install.bats tests/test_main.bats tests/test_modules.bats tests/test_notes.bats scripts/install
+shfmt -w src/*.sh src/tools/*.sh src/tools/notes/*.sh tests/*.bats tests/test_all.sh tests/test_install.bats tests/test_main.bats tests/test_modules.bats tests/test_notes.bats scripts/install.sh
+shellcheck src/*.sh src/tools/*.sh src/tools/notes/*.sh tests/*.bats tests/test_all.sh tests/test_install.bats tests/test_main.bats tests/test_modules.bats tests/test_notes.bats scripts/install.sh
 bats tests/test_all.sh tests/test_install.bats tests/test_main.bats tests/test_modules.bats tests/test_notes.bats
 ```
 

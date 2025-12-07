@@ -31,13 +31,25 @@ teardown() {
 }
 
 @test "shows installer help" {
-	run ./scripts/install --help
-	[ "$status" -eq 0 ]
-	[[ "$output" == *"Usage: scripts/install"* ]]
+        run ./scripts/install.sh --help
+        [ "$status" -eq 0 ]
+        [[ "$output" == *"Usage: scripts/install.sh"* ]]
+}
+
+@test "reinvokes with bash when executed via sh" {
+        run sh -c "./scripts/install.sh --help"
+        [ "$status" -eq 0 ]
+        [[ "$output" == *"Usage: scripts/install.sh"* ]]
+}
+
+@test "supports stdin execution under bash" {
+        run bash -c "cat ./scripts/install.sh | DO_INSTALLER_ASSUME_OFFLINE=true bash -s -- --help"
+        [ "$status" -eq 0 ]
+        [[ "$output" == *"Usage: scripts/install.sh"* ]]
 }
 
 @test "fails fast on non-macOS" {
-	run ./scripts/install --prefix "${TEST_ROOT}/prefix"
+	run ./scripts/install.sh --prefix "${TEST_ROOT}/prefix"
 	[ "$status" -eq 3 ]
 	[[ "$output" == *"supports macOS"* ]]
 }
@@ -64,7 +76,7 @@ command -v "$1" >/dev/null 2>&1
 EOM_BREW
 	chmod +x "${mock_path}/brew"
 
-	run env PATH="${mock_path}:${PATH}" ./scripts/install --prefix "${TEST_ROOT}/prefix"
+	run env PATH="${mock_path}:${PATH}" ./scripts/install.sh --prefix "${TEST_ROOT}/prefix"
 	[ "$status" -eq 0 ]
 	[ -f "${TEST_ROOT}/prefix/main.sh" ]
 	[ -L "${DO_LINK_DIR}/do" ]
@@ -94,7 +106,7 @@ command -v "$1" >/dev/null 2>&1
 EOM_BREW
 	chmod +x "${mock_path}/brew"
 
-	run env PATH="${mock_path}:${PATH}" ./scripts/install --prefix "${TEST_ROOT}/prefix" --model-cache "${DO_MODEL_CACHE}"
+	run env PATH="${mock_path}:${PATH}" ./scripts/install.sh --prefix "${TEST_ROOT}/prefix" --model-cache "${DO_MODEL_CACHE}"
 	[ "$status" -eq 0 ]
 	grep -q "existing-model" "${DO_MODEL_CACHE}/demo.gguf"
 }
@@ -129,7 +141,7 @@ EOM_BREW
 	chmod +x "${mock_path}/brew"
 	chmod +x "${mock_path}/llama" "${mock_path}/curl"
 
-	run env PATH="${mock_path}:${PATH}" ./scripts/install --prefix "${TEST_ROOT}/prefix" --model "example/repo:demo.gguf" --model-branch main
+	run env PATH="${mock_path}:${PATH}" ./scripts/install.sh --prefix "${TEST_ROOT}/prefix" --model "example/repo:demo.gguf" --model-branch main
 	[ "$status" -eq 0 ]
 	[ -f "${DO_MODEL_CACHE}/demo.gguf" ]
 	grep -q "stub-model-body" "${DO_MODEL_CACHE}/demo.gguf"
@@ -137,16 +149,16 @@ EOM_BREW
 }
 
 @test "downloads project archive when sources are missing" {
-	local mock_path="${TEST_ROOT}/mock-bin"
-	local remote_root="${TEST_ROOT}/remote"
-	local bundle_dir="${TEST_ROOT}/bundle"
-	local tarball="${bundle_dir}/do.tar.gz"
+        local mock_path="${TEST_ROOT}/mock-bin"
+        local remote_root="${TEST_ROOT}/remote"
+        local bundle_dir="${TEST_ROOT}/bundle"
+        local tarball="${bundle_dir}/do.tar.gz"
 
 	mkdir -p "${mock_path}" "${remote_root}/scripts" "${bundle_dir}" "${TEST_ROOT}/prefix"
 
 	tar -czf "${tarball}" -C . src scripts README.md LICENSE
 
-	cp scripts/install "${remote_root}/scripts/install"
+	cp scripts/install.sh "${remote_root}/scripts/install.sh"
 
 	cat >"${mock_path}/uname" <<'EOM_UNAME'
 #!/usr/bin/env bash
@@ -164,12 +176,84 @@ if [ "$1" = "install" ]; then
 fi
 command -v "$1" >/dev/null 2>&1
 EOM_BREW
-	chmod +x "${mock_path}/brew"
+        chmod +x "${mock_path}/brew"
 
-	run env PATH="${mock_path}:${PATH}" DO_INSTALLER_BASE_URL="file://${bundle_dir}" bash "${remote_root}/scripts/install" --prefix "${TEST_ROOT}/prefix"
-	[ "$status" -eq 0 ]
-	[ -f "${TEST_ROOT}/prefix/main.sh" ]
-	[ -L "${DO_LINK_DIR}/do" ]
+        run env PATH="${mock_path}:${PATH}" DO_INSTALLER_BASE_URL="file://${bundle_dir}" bash "${remote_root}/scripts/install.sh" --prefix "${TEST_ROOT}/prefix"
+        [ "$status" -eq 0 ]
+        [ -f "${TEST_ROOT}/prefix/main.sh" ]
+        [ -L "${DO_LINK_DIR}/do" ]
+}
+
+@test "defaults to published installer base when downloading archive" {
+        local mock_path="${TEST_ROOT}/mock-bin"
+        local remote_root="${TEST_ROOT}/remote"
+        local bundle_dir="${TEST_ROOT}/bundle"
+        local tarball="${bundle_dir}/do.tar.gz"
+        local log_path="${TEST_ROOT}/curl.log"
+
+        mkdir -p "${mock_path}" "${remote_root}/scripts" "${bundle_dir}" "${TEST_ROOT}/prefix"
+
+        tar -czf "${tarball}" -C . src scripts README.md LICENSE
+
+        cp scripts/install.sh "${remote_root}/scripts/install.sh"
+
+        cat >"${mock_path}/uname" <<'EOM_UNAME'
+#!/usr/bin/env bash
+echo "Darwin"
+EOM_UNAME
+        chmod +x "${mock_path}/uname"
+
+        cat >"${mock_path}/brew" <<'EOM_BREW'
+#!/usr/bin/env bash
+if [ "$1" = "list" ]; then
+        exit 0
+fi
+if [ "$1" = "install" ]; then
+        exit 0
+fi
+command -v "$1" >/dev/null 2>&1
+EOM_BREW
+        chmod +x "${mock_path}/brew"
+
+        cat >"${mock_path}/curl" <<'EOM_CURL'
+#!/usr/bin/env bash
+set -euo pipefail
+
+log_file="${MOCK_CURL_LOG:-}"
+archive_path="${PROJECT_ARCHIVE:-}"
+
+if [[ "$*" == *"brew.sh"* ]]; then
+        exit 0
+fi
+
+if [[ "${1:-}" == "--head" ]]; then
+        exit 0
+fi
+
+if [[ "${1:-}" == "-sI" ]]; then
+        printf 'HTTP/1.1 200 OK\nContent-Length: 15\n'
+        exit 0
+fi
+
+if [[ "${1:-}" == "-fsSL" ]]; then
+        if [ -n "${log_file}" ]; then
+                printf "%s\n" "$2" >>"${log_file}"
+        fi
+        cp "${archive_path}" "$4"
+        exit 0
+fi
+
+exit 0
+EOM_CURL
+        chmod +x "${mock_path}/curl"
+
+        run env PATH="${mock_path}:${PATH}" DO_INSTALLER_ASSUME_OFFLINE=false \
+                MOCK_CURL_LOG="${log_path}" PROJECT_ARCHIVE="${tarball}" bash "${remote_root}/scripts/install.sh" --prefix "${TEST_ROOT}/prefix"
+
+        [ "$status" -eq 0 ]
+        [ -f "${TEST_ROOT}/prefix/main.sh" ]
+        [ -L "${DO_LINK_DIR}/do" ]
+        grep -q "https://cmccomb.github.io/do/do.tar.gz" "${log_path}"
 }
 
 @test "uninstall removes prefix and symlink" {
@@ -189,7 +273,7 @@ EOM_BREW
 	cp -R src/. "${TEST_ROOT}/prefix/"
 	ln -s "${TEST_ROOT}/prefix/main.sh" "${DO_LINK_DIR}/do"
 
-	run env PATH="${mock_path}:${PATH}" ./scripts/install --prefix "${TEST_ROOT}/prefix" --uninstall
+	run env PATH="${mock_path}:${PATH}" ./scripts/install.sh --prefix "${TEST_ROOT}/prefix" --uninstall
 	[ "$status" -eq 0 ]
 	[ ! -e "${TEST_ROOT}/prefix/main.sh" ]
 	[ ! -e "${DO_LINK_DIR}/do" ]
