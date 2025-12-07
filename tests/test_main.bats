@@ -1,18 +1,14 @@
 #!/usr/bin/env bats
 
 setup() {
-	TEST_ROOT="${BATS_TMPDIR}/do-main"
+	TEST_ROOT="${BATS_TMPDIR}/okso-main"
 	export HOME="${TEST_ROOT}/home"
 	export CONFIG_FILE="${TEST_ROOT}/config.env"
-	MODEL_CACHE="${TEST_ROOT}/models"
-
-	mkdir -p "${MODEL_CACHE}" "${HOME}"
-	printf "stub-model-body" >"${MODEL_CACHE}/demo.gguf"
+	mkdir -p "${HOME}"
 
 	cat >"${CONFIG_FILE}" <<EOF
 MODEL_SPEC="example/repo:demo.gguf"
 MODEL_BRANCH="main"
-MODEL_CACHE="${MODEL_CACHE}"
 VERBOSITY=0
 APPROVE_ALL=false
 FORCE_CONFIRM=false
@@ -29,7 +25,7 @@ EOF
 @test "prints version" {
 	run ./src/main.sh --version -- "query"
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"do assistant"* ]]
+	[[ "$output" == *"okso assistant"* ]]
 }
 
 @test "prompts before executing when approval is required" {
@@ -63,7 +59,7 @@ EOF
 @test "init writes configuration" {
 	local new_config
 	new_config="${BATS_TMPDIR}/fresh-config.env"
-	run ./src/main.sh init --config "${new_config}" --model "example/repo:demo.gguf" --model-branch dev --model-cache "${MODEL_CACHE}"
+	run ./src/main.sh init --config "${new_config}" --model "example/repo:demo.gguf" --model-branch dev
 	[ "$status" -eq 0 ]
 	[ -f "${new_config}" ]
 	grep -q "MODEL_BRANCH=\"dev\"" "${new_config}"
@@ -72,7 +68,7 @@ EOF
 @test "resolves sources when executed via symlink" {
 	local prefix link_path
 	prefix="${BATS_TMPDIR}/symlink-prefix"
-	link_path="${BATS_TMPDIR}/do"
+	link_path="${BATS_TMPDIR}/okso"
 
 	mkdir -p "${prefix}"
 	cp -R src "${prefix}"

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 #
-# Planning and execution helpers for the do assistant CLI.
+# Planning and execution helpers for the okso assistant CLI.
 #
 # Usage:
 #   source "${BASH_SOURCE[0]%/planner.sh}/planner.sh"
@@ -9,7 +9,8 @@
 # Environment variables:
 #   USER_QUERY (string): user-provided request for planning.
 #   LLAMA_BIN (string): llama.cpp binary path.
-#   MODEL_PATH (string): resolved GGUF path.
+#   MODEL_REPO (string): Hugging Face repository name.
+#   MODEL_FILE (string): model file within the repository.
 #   PLAN_ONLY, DRY_RUN (bool): control execution and preview behaviour.
 #   APPROVE_ALL, FORCE_CONFIRM (bool): confirmation toggles.
 #   VERBOSITY (int): log level.
@@ -25,6 +26,18 @@
 source "${BASH_SOURCE[0]%/planner.sh}/logging.sh"
 # shellcheck source=./tools.sh disable=SC1091
 source "${BASH_SOURCE[0]%/planner.sh}/tools.sh"
+
+llama_infer() {
+	# Runs llama.cpp with HF caching enabled for the configured model.
+	local prompt
+	prompt="$1"
+
+	"${LLAMA_BIN}" \
+		--hf-repo "${MODEL_REPO}" \
+		--hf-file "${MODEL_FILE}" \
+		--hf-branch "${MODEL_BRANCH}" \
+		-p "${prompt}" 2>/dev/null || true
+}
 
 build_ranking_prompt() {
 	local user_query prompt tool
@@ -123,7 +136,7 @@ rank_tools() {
 	prompt="$(build_ranking_prompt "${user_query}")"
 
 	if [[ "${LLAMA_AVAILABLE}" == true ]]; then
-		raw="$(${LLAMA_BIN} -m "${MODEL_PATH}" -p "${prompt}" 2>/dev/null || true)"
+		raw="$(llama_infer "${prompt}")"
 		parsed="$(parse_llama_ranking "${raw}" || true)"
 	fi
 
@@ -230,7 +243,7 @@ collect_plan() {
 	ranked="$1"
 	plan_prompt="Plan a concise sequence of tool uses to satisfy: ${USER_QUERY}. Candidates: ${ranked}."
 	if [[ "${LLAMA_AVAILABLE}" == true ]]; then
-		raw_plan="$(${LLAMA_BIN} -m "${MODEL_PATH}" -p "${plan_prompt}" 2>/dev/null || true)"
+		raw_plan="$(llama_infer "${plan_prompt}")"
 	else
 		raw_plan="Use top-ranked tools sequentially: ${ranked}."
 	fi

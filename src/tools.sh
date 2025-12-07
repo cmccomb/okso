@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 #
-# Tool registration aggregator for the do assistant CLI.
+# Tool registration aggregator for the okso assistant CLI.
 #
 # Usage:
 #   source "${BASH_SOURCE[0]%/tools.sh}/tools.sh"

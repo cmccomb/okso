@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 #
-# CLI-facing helpers for the do assistant.
+# CLI-facing helpers for the okso assistant.
 #
 # Usage:
 #   source "${BASH_SOURCE[0]%/cli.sh}/cli.sh"
@@ -33,8 +33,7 @@ Options:
       --plan-only       Emit the planned calls as JSON and exit (implies --dry-run).
   -m, --model VALUE     HF repo[:file] for llama.cpp (default: Qwen/Qwen3-1.5B-Instruct-GGUF:qwen3-1.5b-instruct-q4_k_m.gguf).
       --model-branch BRANCH  HF branch or tag (default: main).
-      --model-cache DIR      Cache directory for GGUF downloads (default: ~/.do/models).
-      --config FILE     Config file to load or create (default: ${XDG_CONFIG_HOME:-$HOME/.config}/do/config.env).
+      --config FILE     Config file to load or create (default: ${XDG_CONFIG_HOME:-$HOME/.config}/okso/config.env).
   -v, --verbose         Increase log verbosity (JSON logs are always structured).
   -q, --quiet           Silence informational logs.
 
@@ -49,7 +48,7 @@ USAGE
 }
 
 show_version() {
-	printf 'do assistant %s\n' "${VERSION}"
+	printf 'okso assistant %s\n' "${VERSION}"
 }
 
 # shellcheck disable=SC2034
@@ -104,14 +103,6 @@ parse_args() {
 				exit 1
 			fi
 			MODEL_BRANCH="$2"
-			shift 2
-			;;
-		--model-cache)
-			if [[ $# -lt 2 ]]; then
-				log "ERROR" "--model-cache requires a directory"
-				exit 1
-			fi
-			MODEL_CACHE="$2"
 			shift 2
 			;;
 		--config)

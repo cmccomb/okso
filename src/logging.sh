@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 #
-# Logging helpers for the do assistant CLI.
+# Logging helpers for the okso assistant CLI.
 #
 # Usage:
 #   source "${BASH_SOURCE[0]%/logging.sh}/logging.sh"

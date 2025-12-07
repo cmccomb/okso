@@ -28,7 +28,7 @@ source "${BASH_SOURCE[0]%/index.sh}/list.sh"
 source "${BASH_SOURCE[0]%/index.sh}/search.sh"
 
 register_calendar_suite() {
-        register_calendar_create
-        register_calendar_list
-        register_calendar_search
+	register_calendar_create
+	register_calendar_list
+	register_calendar_search
 }

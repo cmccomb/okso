@@ -29,15 +29,15 @@ source "${BASH_SOURCE[0]%/tools/mail/list_inbox.sh}/logging.sh"
 source "${BASH_SOURCE[0]%/list_inbox.sh}/common.sh"
 
 tool_mail_list_inbox() {
-        local limit
-        limit=$(mail_inbox_limit)
+	local limit
+	limit=$(mail_inbox_limit)
 
-        if ! mail_require_platform; then
-                return 0
-        fi
+	if ! mail_require_platform; then
+		return 0
+	fi
 
-        log "INFO" "Listing Apple Mail inbox" "limit=${limit}" || true
-        mail_run_script "${limit}" <<'APPLESCRIPT'
+	log "INFO" "Listing Apple Mail inbox" "limit=${limit}" || true
+	mail_run_script "${limit}" <<'APPLESCRIPT'
 on run argv
         set maxItems to (item 1 of argv) as integer
 
@@ -59,10 +59,10 @@ APPLESCRIPT
 }
 
 register_mail_list_inbox() {
-        register_tool \
-                "mail_list_inbox" \
-                "List recent Apple Mail inbox messages." \
-                "osascript -e 'get messages of inbox'" \
-                "Requires macOS Apple Mail access; returns metadata only." \
-                tool_mail_list_inbox
+	register_tool \
+		"mail_list_inbox" \
+		"List recent Apple Mail inbox messages." \
+		"osascript -e 'get messages of inbox'" \
+		"Requires macOS Apple Mail access; returns metadata only." \
+		tool_mail_list_inbox
 }

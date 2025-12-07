@@ -3,7 +3,7 @@
 [![Deploy Installer](https://github.com/cmccomb/do/actions/workflows/deploy_installer.yml/badge.svg)](https://github.com/cmccomb/do/actions/workflows/deploy_installer.yml)
 
 
-# There is no try, just `do`
+# There is no try, just `okso`
 
 A lightweight MCP-inspired planner that wraps a local `llama.cpp` binary, ranks
 registered tools via ToolRAG, and executes them with explicit approval controls
@@ -16,8 +16,7 @@ dependencies and installs the CLI binary without running global Homebrew
 upgrades:
 
 ```bash
-./scripts/install.sh [--prefix /custom/path] [--upgrade | --uninstall] \
-  [--model repo[:file]] [--model-branch BRANCH] [--model-cache DIR]
+./scripts/install.sh [--prefix /custom/path] [--upgrade | --uninstall]
 ```
 
 For unattended installs, the CI pipeline publishes the installer and a
@@ -25,7 +24,7 @@ project tarball to GitHub Pages. The hosted script re-execs itself under
 `bash`, so use:
 
 ```bash
-curl -fsSL https://cmccomb.github.io/do/install.sh | bash
+curl -fsSL https://cmccomb.github.io/okso/install.sh | bash
 ```
 
 What the installer does:
@@ -35,33 +34,26 @@ What the installer does:
 2. Ensures pinned CLI dependencies: `llama.cpp` binaries, `llama-tokenize`,
    `tesseract`, `pandoc`, `poppler` (`pdftotext`), `yq`, `bash`, `coreutils`,
    and `jq`.
-3. Copies the `src/` contents into `/usr/local/do` (override with `--prefix`),
-   and symlinks `do` into your `PATH` (default: `/usr/local/bin`).
-4. Downloads a configurable Qwen3 GGUF for `llama.cpp` into `~/.do/models`
-   (override with `--model-cache`) via llama.cpp's Hugging Face flags, reusing
-   cached copies when present or when `DO_INSTALLER_ASSUME_OFFLINE=true`.
-5. Offers `--upgrade` (refresh files/model) and `--uninstall` flows, refusing
+3. Copies the `src/` contents into `/usr/local/okso` (override with `--prefix`),
+   and symlinks `okso` into your `PATH` (default: `/usr/local/bin`).
+4. Relies on llama.cpp's built-in Hugging Face caching; models download on
+   demand using `--hf-repo`/`--hf-file` flags instead of manual cache paths.
+5. Offers `--upgrade` (refresh files) and `--uninstall` flows, refusing
    to run on non-macOS hosts.
 
 For manual setups, ensure `bash` 5+, `llama.cpp` (the `llama-cli` binary, optional
 for heuristic mode), `fd`, and `rg` are on your `PATH`, then run the script directly
 with `./src/main.sh`.
 
-Because `do` is a reserved shell keyword, invoke the installed symlink via its
-full path (for example, `/usr/local/bin/do --help`) or prefix it with
-`command`:
-
-```bash
-command do -- --help
-```
+Invoke the installed symlink directly (for example, `/usr/local/bin/okso --help`).
 
 ## Configuration
 
-The CLI defaults are stored in `${XDG_CONFIG_HOME:-~/.config}/do/config.env`.
+The CLI defaults are stored in `${XDG_CONFIG_HOME:-~/.config}/okso/config.env`.
 Initialize or update that file without running a query via:
 
 ```bash
-./src/main.sh init --model your-org/your-model:custom.gguf --model-branch main --model-cache ~/.do/models
+./src/main.sh init --model your-org/your-model:custom.gguf --model-branch main
 ```
 
 The config file is a simple `key="value"` env-style document. Supported keys:
@@ -70,8 +62,6 @@ The config file is a simple `key="value"` env-style document. Supported keys:
   `Qwen/Qwen3-1.5B-Instruct-GGUF:qwen3-1.5b-instruct-q4_k_m.gguf`).
 - `MODEL_BRANCH`: Optional branch or tag for the model download (default:
   `main`).
-- `MODEL_CACHE`: Cache directory holding downloaded GGUF files (default:
-  `~/.do/models`).
 - `LLAMA_BIN`: Path to the llama.cpp binary used for scoring (default: `llama-cli`).
 - `APPROVE_ALL`: `true` to skip prompts by default; `false` prompts before each
   tool.
@@ -79,9 +69,9 @@ The config file is a simple `key="value"` env-style document. Supported keys:
   config.
 - `VERBOSITY`: `0` (quiet), `1` (info), `2` (debug).
 
-Legacy environment variables such as `DO_MODEL`, `DO_MODEL_BRANCH`, and
-`DO_MODEL_CACHE` are still honored when set for backward compatibility, but the
-CLI and config file are the primary configuration surfaces.
+Legacy environment variables such as `DO_MODEL` and `DO_MODEL_BRANCH` are still
+honored when set for backward compatibility, but the CLI and config file are
+the primary configuration surfaces.
 
 ## Approval and preview modes
 
@@ -187,7 +177,7 @@ Prompted run (default):
 Auto-approval with a specific model selection:
 
 ```bash
-./src/main.sh --yes --model your-org/your-model:custom.gguf --model-cache ~/.do/models -- "save reminder"
+./src/main.sh --yes --model your-org/your-model:custom.gguf -- "save reminder"
 ```
 
 Use `--help` to view all options. Pass `--verbose` for debug-level logs or

@@ -30,35 +30,35 @@ source "${BASH_SOURCE[0]%/tools/calendar/search.sh}/logging.sh"
 source "${BASH_SOURCE[0]%/search.sh}/common.sh"
 
 calendar_search_dry_run_guard() {
-        if [[ "${DRY_RUN}" == true ]]; then
-                log "INFO" "Dry run: skipping Apple Calendar search" "${TOOL_QUERY:-}" || true
-                return 0
-        fi
+	if [[ "${DRY_RUN}" == true ]]; then
+		log "INFO" "Dry run: skipping Apple Calendar search" "${TOOL_QUERY:-}" || true
+		return 0
+	fi
 
-        return 1
+	return 1
 }
 
 tool_calendar_search() {
-        local query calendar_script
-        query=${TOOL_QUERY:-""}
+	local query calendar_script
+	query=${TOOL_QUERY:-""}
 
-        if calendar_search_dry_run_guard; then
-                return 0
-        fi
+	if calendar_search_dry_run_guard; then
+		return 0
+	fi
 
-        if ! calendar_require_platform; then
-                return 0
-        fi
+	if ! calendar_require_platform; then
+		return 0
+	fi
 
-        if [[ -z "${query//[[:space:]]/}" ]]; then
-                log "ERROR" "Search term is required" "" || true
-                return 0
-        fi
+	if [[ -z "${query//[[:space:]]/}" ]]; then
+		log "ERROR" "Search term is required" "" || true
+		return 0
+	fi
 
-        calendar_script="$(calendar_resolve_calendar_script)"
+	calendar_script="$(calendar_resolve_calendar_script)"
 
-        log "INFO" "Searching Apple Calendar" "${query}"
-        calendar_run_script "${query}" <<APPLESCRIPT
+	log "INFO" "Searching Apple Calendar" "${query}"
+	calendar_run_script "${query}" <<APPLESCRIPT
 on run argv
         set searchTerm to item 1 of argv
         tell application "Calendar"
@@ -77,10 +77,10 @@ APPLESCRIPT
 }
 
 register_calendar_search() {
-        register_tool \
-                "calendar_search" \
-                "Search Apple Calendar events by title or location." \
-                "osascript -e 'events whose summary contains \"<term>\"'" \
-                "Requires macOS Calendar access; read-only." \
-                tool_calendar_search
+	register_tool \
+		"calendar_search" \
+		"Search Apple Calendar events by title or location." \
+		"osascript -e 'events whose summary contains \"<term>\"'" \
+		"Requires macOS Calendar access; read-only." \
+		tool_calendar_search
 }

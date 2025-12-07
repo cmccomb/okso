@@ -29,15 +29,15 @@ source "${BASH_SOURCE[0]%/tools/mail/list_unread.sh}/logging.sh"
 source "${BASH_SOURCE[0]%/list_unread.sh}/common.sh"
 
 tool_mail_list_unread() {
-        local limit
-        limit=$(mail_inbox_limit)
+	local limit
+	limit=$(mail_inbox_limit)
 
-        if ! mail_require_platform; then
-                return 0
-        fi
+	if ! mail_require_platform; then
+		return 0
+	fi
 
-        log "INFO" "Listing unread Apple Mail inbox messages" "limit=${limit}" || true
-        mail_run_script "${limit}" <<'APPLESCRIPT'
+	log "INFO" "Listing unread Apple Mail inbox messages" "limit=${limit}" || true
+	mail_run_script "${limit}" <<'APPLESCRIPT'
 on run argv
         set maxItems to (item 1 of argv) as integer
 
@@ -59,10 +59,10 @@ APPLESCRIPT
 }
 
 register_mail_list_unread() {
-        register_tool \
-                "mail_list_unread" \
-                "List unread Apple Mail inbox messages." \
-                "osascript -e 'get messages of inbox whose unread is true'" \
-                "Requires macOS Apple Mail access; returns metadata only." \
-                tool_mail_list_unread
+	register_tool \
+		"mail_list_unread" \
+		"List unread Apple Mail inbox messages." \
+		"osascript -e 'get messages of inbox whose unread is true'" \
+		"Requires macOS Apple Mail access; returns metadata only." \
+		tool_mail_list_unread
 }

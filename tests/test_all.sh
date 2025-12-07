@@ -13,18 +13,14 @@
 #   Inherits Bats semantics; individual tests assert script exit codes explicitly.
 
 setup() {
-	TEST_ROOT="${BATS_TMPDIR}/do-all"
+	TEST_ROOT="${BATS_TMPDIR}/okso-all"
 	export HOME="${TEST_ROOT}/home"
 	export CONFIG_FILE="${TEST_ROOT}/config.env"
-	MODEL_CACHE="${TEST_ROOT}/models"
-
-	mkdir -p "${MODEL_CACHE}" "${HOME}"
-	printf "stub-model-body" >"${MODEL_CACHE}/demo.gguf"
+	mkdir -p "${HOME}"
 
 	cat >"${CONFIG_FILE}" <<EOF
 MODEL_SPEC="example/repo:demo.gguf"
 MODEL_BRANCH="main"
-MODEL_CACHE="${MODEL_CACHE}"
 VERBOSITY=1
 APPROVE_ALL=true
 FORCE_CONFIRM=false
@@ -40,7 +36,7 @@ EOF
 @test "prints version" {
 	run ./src/main.sh --version -- "query"
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"do assistant"* ]]
+	[[ "$output" == *"okso assistant"* ]]
 }
 
 @test "prompts in supervised mode and respects decline" {

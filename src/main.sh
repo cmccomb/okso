@@ -16,8 +16,7 @@
 #       --plan-only       Emit the planned calls as JSON and exit.
 #   -m, --model VALUE     HF repo[:file] for llama.cpp download (default: Qwen/Qwen3-1.5B-Instruct-GGUF:qwen3-1.5b-instruct-q4_k_m.gguf).
 #       --model-branch BRANCH  HF branch or tag for the model download.
-#       --model-cache DIR      Directory that stores downloaded models (default: ~/.do/models).
-#       --config FILE     Config file to load (default: ${XDG_CONFIG_HOME:-$HOME/.config}/do/config.env).
+#       --config FILE     Config file to load (default: ${XDG_CONFIG_HOME:-$HOME/.config}/okso/config.env).
 #   -v, --verbose         Increase log verbosity (JSON logs are always structured).
 #   -q, --quiet           Silence informational logs.
 #
@@ -36,18 +35,18 @@ set -euo pipefail
 VERSION="0.1.0"
 LLAMA_BIN="llama-cli"
 DEFAULT_MODEL_FILE="qwen3-1.5b-instruct-q4_k_m.gguf"
-CONFIG_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/do"
+CONFIG_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/okso"
 CONFIG_FILE="${CONFIG_DIR}/config.env"
 MODEL_SPEC="Qwen/Qwen3-1.5B-Instruct-GGUF:${DEFAULT_MODEL_FILE}"
 MODEL_BRANCH="main"
-MODEL_CACHE="${HOME}/.do/models"
-MODEL_PATH=""
+MODEL_REPO=""
+MODEL_FILE=""
 APPROVE_ALL=false
 FORCE_CONFIRM=false
 DRY_RUN=false
 PLAN_ONLY=false
 VERBOSITY=1
-NOTES_DIR="${HOME}/.do"
+NOTES_DIR="${HOME}/.okso"
 LLAMA_AVAILABLE=false
 IS_MACOS=false
 COMMAND="run"
