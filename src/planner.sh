@@ -225,10 +225,10 @@ derive_tool_query() {
 			return
 		fi
 
-		if [[ "${lower_query}" == *"todo"* ]]; then
-			printf 'rg -n "TODO" .\n'
-			return
-		fi
+                if [[ "${lower_query}" == *"todo"* ]]; then
+                        printf 'rg -n "TODO" .\n'
+                        return
+                fi
 
 		if [[ "${lower_query}" == *"list files"* || "${lower_query}" == *"show directory"* || "${lower_query}" == *"show folder"* ]]; then
 			printf 'ls -la\n'
@@ -276,19 +276,17 @@ derive_tool_query() {
 }
 
 emit_plan_json() {
-	local plan_entries
-	plan_entries="$1"
+        local plan_entries
+        plan_entries="$1"
 
-	jq -n --argjson items "$(
-	        while IFS=$'|' read -r tool query score; do
-	                [[ -z "${tool}" ]] && continue
-	                jq -n \
-	                        --arg tool "${tool}" \
-	                        --arg query "${query}" \
-	                        --argjson score "${score:-0}" \
-	                        '{tool:$tool, query:$query, score:$score}'
-	        done <<<"${plan_entries}" | jq -s .
-	)" '$items'
+        while IFS=$'|' read -r tool query score; do
+                [[ -z "${tool}" ]] && continue
+                jq -n \
+                        --arg tool "${tool}" \
+                        --arg query "${query}" \
+                        --argjson score "${score:-0}" \
+                        '{tool:$tool, query:$query, score:$score}'
+        done <<<"${plan_entries}" | jq -sc '.'
 }
 
 should_prompt_for_tool() {
@@ -326,15 +324,15 @@ build_plan_entries() {
 	local ranked user_query entry score tool plan query
 	ranked="$1"
 	user_query="$2"
-	plan=""
+        plan=""
 
-	while IFS= read -r entry; do
-		[[ -z "${entry}" ]] && continue
-		score="${entry%%:*}"
-		tool="${entry##*:}"
-		query="$(derive_tool_query "${tool}" "${user_query}")"
-		plan+=$(printf '%s|%s|%s\n' "${tool}" "${query}" "${score}")
-	done <<<"${ranked}"
+        while IFS= read -r entry; do
+                [[ -z "${entry}" ]] && continue
+                score="${entry%%:*}"
+                tool="${entry##*:}"
+                query="$(derive_tool_query "${tool}" "${user_query}")"
+                plan+="${tool}|${query}|${score}"$'\n'
+        done <<<"${ranked}"
 
 	printf '%s' "${plan}"
 }
