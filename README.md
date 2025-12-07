@@ -41,8 +41,9 @@ What the installer does:
 5. Offers `--upgrade` (refresh files/model) and `--uninstall` flows, refusing
    to run on non-macOS hosts.
 
-For manual setups, ensure `bash` 5+, `llama.cpp` (optional for heuristic mode),
-`fd`, and `rg` are on your `PATH`, then run the script directly with `./src/main.sh`.
+For manual setups, ensure `bash` 5+, `llama.cpp` (the `llama-cli` binary, optional
+for heuristic mode), `fd`, and `rg` are on your `PATH`, then run the script directly
+with `./src/main.sh`.
 
 ## Configuration
 
@@ -61,6 +62,7 @@ The config file is a simple `key="value"` env-style document. Supported keys:
   `main`).
 - `MODEL_CACHE`: Cache directory holding downloaded GGUF files (default:
   `~/.do/models`).
+- `LLAMA_BIN`: Path to the llama.cpp binary used for scoring (default: `llama-cli`).
 - `APPROVE_ALL`: `true` to skip prompts by default; `false` prompts before each
   tool.
 - `FORCE_CONFIRM`: `true` to always prompt, even when `--yes` is set in the

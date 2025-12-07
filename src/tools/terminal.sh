@@ -280,10 +280,10 @@ tool_terminal() {
 }
 
 register_terminal() {
-        register_tool \
-                "terminal" \
-                "Persistent terminal session for navigation, inspection, and safe mutations (pwd, ls, du, cd, cat, head, tail, find, grep, stat, wc, base64 encode/decode, mkdir, rmdir, mv, cp, touch, rm -i default; open on macOS)." \
-                "terminal <status|pwd|ls|cd|cat|head|tail|find|grep|open|mkdir|rmdir|mv|cp|touch|rm|stat|wc|du|base64>" \
-                "Restricted command set with a per-query working directory; destructive operations default to interactive rm." \
-                tool_terminal
+	register_tool \
+		"terminal" \
+		"Persistent terminal session for navigation, inspection, and safe mutations (pwd, ls, du, cd, cat, head, tail, find, grep, stat, wc, base64 encode/decode, mkdir, rmdir, mv, cp, touch, rm -i default; open on macOS)." \
+		"terminal <status|pwd|ls|cd|cat|head|tail|find|grep|open|mkdir|rmdir|mv|cp|touch|rm|stat|wc|du|base64>" \
+		"Restricted command set with a per-query working directory; destructive operations default to interactive rm." \
+		tool_terminal
 }

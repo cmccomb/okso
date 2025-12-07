@@ -22,7 +22,7 @@
 #   -q, --quiet           Silence informational logs.
 #
 # Environment:
-#   LLAMA_BIN       llama.cpp binary (default: llama).
+#   LLAMA_BIN       llama.cpp binary (default: llama-cli).
 #
 # Dependencies:
 #   - bash 5+
