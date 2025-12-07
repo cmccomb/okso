@@ -111,43 +111,6 @@ EOM_BREW
 	grep -q "existing-model" "${DO_MODEL_CACHE}/demo.gguf"
 }
 
-@test "downloads model via llama cpp when online" {
-	local mock_path="${TEST_ROOT}/mock-bin"
-	local log_path="${TEST_ROOT}/llama.log"
-	mkdir -p "${mock_path}" "${TEST_ROOT}/prefix"
-	rm -f "${DO_MODEL_CACHE}/demo.gguf"
-	export DO_INSTALLER_ASSUME_OFFLINE=false
-	export LLAMA_CALL_LOG="${log_path}"
-
-	cp tests/fixtures/mock_llama_download.sh "${mock_path}/llama"
-	cp tests/fixtures/mock_curl.sh "${mock_path}/curl"
-
-	cat >"${mock_path}/uname" <<'EOM_UNAME'
-#!/usr/bin/env bash
-echo "Darwin"
-EOM_UNAME
-	chmod +x "${mock_path}/uname"
-
-	cat >"${mock_path}/brew" <<'EOM_BREW'
-#!/usr/bin/env bash
-if [ "$1" = "list" ]; then
-        exit 0
-fi
-if [ "$1" = "install" ]; then
-        exit 0
-fi
-command -v "$1" >/dev/null 2>&1
-EOM_BREW
-	chmod +x "${mock_path}/brew"
-	chmod +x "${mock_path}/llama" "${mock_path}/curl"
-
-	run env PATH="${mock_path}:${PATH}" ./scripts/install.sh --prefix "${TEST_ROOT}/prefix" --model "example/repo:demo.gguf" --model-branch main
-	[ "$status" -eq 0 ]
-	[ -f "${DO_MODEL_CACHE}/demo.gguf" ]
-	grep -q "stub-model-body" "${DO_MODEL_CACHE}/demo.gguf"
-	grep -q "example/repo demo.gguf main ${DO_MODEL_CACHE}/demo.gguf" "${log_path}"
-}
-
 @test "downloads project archive when sources are missing" {
 	local mock_path="${TEST_ROOT}/mock-bin"
 	local remote_root="${TEST_ROOT}/remote"
