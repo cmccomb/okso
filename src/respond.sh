@@ -22,10 +22,12 @@ source "${BASH_SOURCE[0]%/respond.sh}/logging.sh"
 respond_text() {
 	# Arguments:
 	#   $1 - user query (string)
-	local user_query prompt
+	#   $2 - number of tokens to generate (int)
+	local user_query prompt number_of_tokens
 	user_query="$1"
+	number_of_tokens="$2"
 
-	prompt="Provide a short, concise answer (two to three sentences) to the user. Your response will be stopped after the first newline character. USER REQUEST: ${user_query}.\nCONCISE RESPONSE: "
-	llama_infer "${prompt}" "\n"
+	prompt="Provide a short, concise answer (two to three sentences) to the user. Your response will be stopped after the first newline character. USER REQUEST: ${user_query}.\nCONCISE RESPONSE:"
+	llama_infer "${prompt}" "\n" "${number_of_tokens}"
 	return 0
 }
