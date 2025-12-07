@@ -144,7 +144,7 @@ exit ${status}
 }
 
 @test "show_help renders through gum when available" {
-	run bash -lc '
+        run bash -lc '
 tmpdir=$(mktemp -d)
 export LOG_FILE="${tmpdir}/gum.log"
 cat >"${tmpdir}/gum"<<'"'"'EOF'"'"'
@@ -159,6 +159,65 @@ show_help
 printf "LOG:%s\n" "$(cat "${LOG_FILE}")"
 '
 	[ "$status" -eq 0 ]
-	last_index=$((${#lines[@]} - 1))
-	[ "${lines[${last_index}]}" = "LOG:format" ]
+        last_index=$((${#lines[@]} - 1))
+        [ "${lines[${last_index}]}" = "LOG:format" ]
+}
+
+@test "select_next_action falls back to plan when llama is disabled" {
+        run bash -lc '
+                source ./src/planner.sh
+                declare -A state=(
+                        [user_query]="list files"
+                        [allowed_tools]="terminal"
+                        [plan_entries]=$'"'"'terminal|echo hi|4'"'"'
+                        [history]=""
+                        [step]=1
+                        [max_steps]=2
+                        [final_answer]=""
+                )
+                USE_REACT_LLAMA=false
+                LLAMA_AVAILABLE=false
+                select_next_action state | jq -r ".type,.tool,.query"
+        '
+        [ "$status" -eq 0 ]
+        [ "${lines[0]}" = "tool" ]
+        [ "${lines[1]}" = "terminal" ]
+        [ "${lines[2]}" = "echo hi" ]
+}
+
+@test "validate_tool_permission records history for disallowed tool" {
+        run bash -lc '
+                source ./src/planner.sh
+                declare -A state=(
+                        [allowed_tools]=$'"'"'terminal\nnotes_create'"'"'
+                        [history]=""
+                )
+                validate_tool_permission state "mail_send"
+                echo "$?"
+                printf "%s" "${state[history]}"
+        '
+        [ "${lines[0]}" -eq 1 ]
+        [ "${lines[1]}" = "Tool mail_send not permitted." ]
+}
+
+@test "finalize_react_result generates answer when none provided" {
+        run bash -lc '
+                source ./src/planner.sh
+                respond_text() { printf "%s" "stubbed response"; }
+                declare -A state=(
+                        [user_query]="demo question"
+                        [allowed_tools]="terminal"
+                        [plan_entries]=""
+                        [history]=$'"'"'Action terminal query=list\nObservation: ok'"'"'
+                        [step]=2
+                        [max_steps]=3
+                        [final_answer]=""
+                )
+                finalize_react_result state
+        '
+        [ "$status" -eq 0 ]
+        [ "${lines[0]}" = "stubbed response" ]
+        [ "${lines[1]}" = "Execution summary:" ]
+        [ "${lines[2]}" = "Action terminal query=list" ]
+        [ "${lines[3]}" = "Observation: ok" ]
 }
