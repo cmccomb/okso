@@ -125,13 +125,13 @@ heuristic_rank_tools() {
 		score=0
 
 		case "${tool}" in
-		terminal)
-			if [[ "${has_backtick}" == true || "${has_shell_command}" == true ]]; then
-				score=5
-			elif [[ "${lower_query}" == *"list files"* || "${lower_query}" == *"show directory"* || "${lower_query}" == *"show folder"* || "${lower_query}" == *"grep"* || "${lower_query}" == *"find "* ]]; then
-				score=3
-			fi
-			;;
+                terminal)
+                        if [[ "${has_backtick}" == true || "${has_shell_command}" == true ]]; then
+                                score=5
+                        elif [[ "${lower_query}" == *"list files"* || "${lower_query}" == *"show directory"* || "${lower_query}" == *"show folder"* || "${lower_query}" == *"grep"* || "${lower_query}" == *"find "* || "${lower_query}" == *"search files"* ]]; then
+                                score=3
+                        fi
+                        ;;
 		reminders_create)
 			if [[ "${lower_query}" == *"remind me"* || "${lower_query}" == *"set a reminder"* || "${lower_query}" == *"add a reminder"* ]]; then
 				score=5
@@ -308,19 +308,20 @@ should_prompt_for_tool() {
 }
 
 confirm_tool() {
-	local tool_name
-	tool_name="$1"
-	if ! should_prompt_for_tool; then
-		return 0
-	fi
+        local tool_name
+        tool_name="$1"
+        if ! should_prompt_for_tool; then
+                return 0
+        fi
 
-	printf 'Execute tool "%s"? [y/N]: ' "${tool_name}" >&2
-	read -r reply
-	if [[ "${reply}" != "y" && "${reply}" != "Y" ]]; then
-		log "WARN" "Tool execution declined" "${tool_name}"
-		return 1
-	fi
-	return 0
+        printf 'Execute tool "%s"? [y/N]: ' "${tool_name}" >&2
+        read -r reply
+        if [[ "${reply}" != "y" && "${reply}" != "Y" ]]; then
+                log "WARN" "Tool execution declined" "${tool_name}"
+                printf '[%s skipped]\n' "${tool_name}"
+                return 1
+        fi
+        return 0
 }
 
 build_plan_entries() {
@@ -422,14 +423,15 @@ fallback_action_from_plan() {
 }
 
 react_loop() {
-	local user_query ranked plan_entries max_steps allowed_tools history step action_json action_type tool query observation
-	user_query="$1"
-	ranked="$2"
-	plan_entries="$3"
-	max_steps=${MAX_STEPS:-6}
-	allowed_tools="$(allowed_tool_list "${ranked}")"
-	history=""
-	step=0
+        local user_query ranked plan_entries max_steps allowed_tools history step action_json action_type tool query observation final_answer
+        user_query="$1"
+        ranked="$2"
+        plan_entries="$3"
+        max_steps=${MAX_STEPS:-6}
+        allowed_tools="$(allowed_tool_list "${ranked}")"
+        history=""
+        step=0
+        final_answer=""
 
 	while ((step < max_steps)); do
 		step=$((step + 1))
@@ -449,19 +451,28 @@ react_loop() {
 			continue
 		fi
 
-		if [[ "${action_type}" == "final" ]]; then
-			printf '%s\n' "$(printf '%s' "${action_json}" | jq -r '.answer // ""')"
-			return 0
-		fi
+                if [[ "${action_type}" == "final" ]]; then
+                        final_answer="$(printf '%s' "${action_json}" | jq -r '.answer // ""')"
+                        break
+                fi
 
 		if ! grep -Fxq "${tool}" <<<"${allowed_tools}"; then
 			history+=$(printf 'Tool %s not permitted.\n' "${tool}")
 			continue
 		fi
 
-		observation="$(execute_tool_with_query "${tool}" "${query}")" || observation=""
-		history+=$(printf 'Action %s query=%s\nObservation: %s\n' "${tool}" "${query}" "${observation}")
-	done
+                observation="$(execute_tool_with_query "${tool}" "${query}")" || observation=""
+                history+=$(printf 'Action %s query=%s\nObservation: %s\n' "${tool}" "${query}" "${observation}")
+        done
 
-	respond "${user_query}" "${history}"
+        if [[ -z "${final_answer}" ]]; then
+                final_answer="$(respond_text "${user_query}" "${history}")"
+        fi
+
+        printf '%s\n' "${final_answer}"
+        if [[ -z "${history}" ]]; then
+                printf 'Execution summary: no actions executed.\n'
+        else
+                printf 'Execution summary:\n%s\n' "${history}"
+        fi
 }
