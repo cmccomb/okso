@@ -73,7 +73,6 @@ TEMP_ARCHIVE_DIR=""
 
 BREW_PACKAGES=(
 	"llama.cpp"
-	"llama-tokenize"
 	"tesseract"
 	"pandoc"
 	"poppler"
