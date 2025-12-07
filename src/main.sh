@@ -34,7 +34,7 @@
 set -euo pipefail
 
 VERSION="0.1.0"
-LLAMA_BIN=${LLAMA_BIN:-llama-cli}
+LLAMA_BIN="${llama-cli}"
 DEFAULT_MODEL_FILE="qwen3-1.5b-instruct-q4_k_m.gguf"
 CONFIG_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/do"
 CONFIG_FILE="${CONFIG_DIR}/config.env"

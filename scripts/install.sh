@@ -439,7 +439,6 @@ download_model() {
 	log "INFO" "Downloading ${file} from ${repo}@${branch}"
 	llama_args=(
 		"--model" "${tmp_path}"
-		"--only-download"
 		"--hf-repo" "${repo}"
 		"--hf-file" "${file}"
 		"--hf-branch" "${branch}"
