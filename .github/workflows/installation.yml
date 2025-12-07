@@ -19,8 +19,8 @@ jobs:
 
       - name: Lint installer
         run: |
-          shfmt -d scripts/install tests/test_install.bats
-          shellcheck scripts/install tests/test_install.bats
+          shfmt -d scripts/install.sh tests/test_install.bats
+          shellcheck scripts/install.sh tests/test_install.bats
 
       - name: Run installer tests
         run: bats tests/test_install.bats

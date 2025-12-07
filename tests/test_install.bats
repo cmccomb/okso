@@ -31,21 +31,21 @@ teardown() {
 }
 
 @test "shows installer help" {
-        run ./scripts/install.sh --help
-        [ "$status" -eq 0 ]
-        [[ "$output" == *"Usage: scripts/install.sh"* ]]
+	run ./scripts/install.sh --help
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"Usage: scripts/install.sh"* ]]
 }
 
 @test "reinvokes with bash when executed via sh" {
-        run sh -c "./scripts/install.sh --help"
-        [ "$status" -eq 0 ]
-        [[ "$output" == *"Usage: scripts/install.sh"* ]]
+	run sh -c "./scripts/install.sh --help"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"Usage: scripts/install.sh"* ]]
 }
 
 @test "supports stdin execution under bash" {
-        run bash -c "cat ./scripts/install.sh | DO_INSTALLER_ASSUME_OFFLINE=true bash -s -- --help"
-        [ "$status" -eq 0 ]
-        [[ "$output" == *"Usage: scripts/install.sh"* ]]
+	run bash -c "cat ./scripts/install.sh | DO_INSTALLER_ASSUME_OFFLINE=true bash -s -- --help"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"Usage: scripts/install.sh"* ]]
 }
 
 @test "fails fast on non-macOS" {
@@ -149,10 +149,10 @@ EOM_BREW
 }
 
 @test "downloads project archive when sources are missing" {
-        local mock_path="${TEST_ROOT}/mock-bin"
-        local remote_root="${TEST_ROOT}/remote"
-        local bundle_dir="${TEST_ROOT}/bundle"
-        local tarball="${bundle_dir}/do.tar.gz"
+	local mock_path="${TEST_ROOT}/mock-bin"
+	local remote_root="${TEST_ROOT}/remote"
+	local bundle_dir="${TEST_ROOT}/bundle"
+	local tarball="${bundle_dir}/do.tar.gz"
 
 	mkdir -p "${mock_path}" "${remote_root}/scripts" "${bundle_dir}" "${TEST_ROOT}/prefix"
 
@@ -176,34 +176,34 @@ if [ "$1" = "install" ]; then
 fi
 command -v "$1" >/dev/null 2>&1
 EOM_BREW
-        chmod +x "${mock_path}/brew"
+	chmod +x "${mock_path}/brew"
 
-        run env PATH="${mock_path}:${PATH}" DO_INSTALLER_BASE_URL="file://${bundle_dir}" bash "${remote_root}/scripts/install.sh" --prefix "${TEST_ROOT}/prefix"
-        [ "$status" -eq 0 ]
-        [ -f "${TEST_ROOT}/prefix/main.sh" ]
-        [ -L "${DO_LINK_DIR}/do" ]
+	run env PATH="${mock_path}:${PATH}" DO_INSTALLER_BASE_URL="file://${bundle_dir}" bash "${remote_root}/scripts/install.sh" --prefix "${TEST_ROOT}/prefix"
+	[ "$status" -eq 0 ]
+	[ -f "${TEST_ROOT}/prefix/main.sh" ]
+	[ -L "${DO_LINK_DIR}/do" ]
 }
 
 @test "defaults to published installer base when downloading archive" {
-        local mock_path="${TEST_ROOT}/mock-bin"
-        local remote_root="${TEST_ROOT}/remote"
-        local bundle_dir="${TEST_ROOT}/bundle"
-        local tarball="${bundle_dir}/do.tar.gz"
-        local log_path="${TEST_ROOT}/curl.log"
+	local mock_path="${TEST_ROOT}/mock-bin"
+	local remote_root="${TEST_ROOT}/remote"
+	local bundle_dir="${TEST_ROOT}/bundle"
+	local tarball="${bundle_dir}/do.tar.gz"
+	local log_path="${TEST_ROOT}/curl.log"
 
-        mkdir -p "${mock_path}" "${remote_root}/scripts" "${bundle_dir}" "${TEST_ROOT}/prefix"
+	mkdir -p "${mock_path}" "${remote_root}/scripts" "${bundle_dir}" "${TEST_ROOT}/prefix"
 
-        tar -czf "${tarball}" -C . src scripts README.md LICENSE
+	tar -czf "${tarball}" -C . src scripts README.md LICENSE
 
-        cp scripts/install.sh "${remote_root}/scripts/install.sh"
+	cp scripts/install.sh "${remote_root}/scripts/install.sh"
 
-        cat >"${mock_path}/uname" <<'EOM_UNAME'
+	cat >"${mock_path}/uname" <<'EOM_UNAME'
 #!/usr/bin/env bash
 echo "Darwin"
 EOM_UNAME
-        chmod +x "${mock_path}/uname"
+	chmod +x "${mock_path}/uname"
 
-        cat >"${mock_path}/brew" <<'EOM_BREW'
+	cat >"${mock_path}/brew" <<'EOM_BREW'
 #!/usr/bin/env bash
 if [ "$1" = "list" ]; then
         exit 0
@@ -213,9 +213,9 @@ if [ "$1" = "install" ]; then
 fi
 command -v "$1" >/dev/null 2>&1
 EOM_BREW
-        chmod +x "${mock_path}/brew"
+	chmod +x "${mock_path}/brew"
 
-        cat >"${mock_path}/curl" <<'EOM_CURL'
+	cat >"${mock_path}/curl" <<'EOM_CURL'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -245,15 +245,15 @@ fi
 
 exit 0
 EOM_CURL
-        chmod +x "${mock_path}/curl"
+	chmod +x "${mock_path}/curl"
 
-        run env PATH="${mock_path}:${PATH}" DO_INSTALLER_ASSUME_OFFLINE=false \
-                MOCK_CURL_LOG="${log_path}" PROJECT_ARCHIVE="${tarball}" bash "${remote_root}/scripts/install.sh" --prefix "${TEST_ROOT}/prefix"
+	run env PATH="${mock_path}:${PATH}" DO_INSTALLER_ASSUME_OFFLINE=false \
+		MOCK_CURL_LOG="${log_path}" PROJECT_ARCHIVE="${tarball}" bash "${remote_root}/scripts/install.sh" --prefix "${TEST_ROOT}/prefix"
 
-        [ "$status" -eq 0 ]
-        [ -f "${TEST_ROOT}/prefix/main.sh" ]
-        [ -L "${DO_LINK_DIR}/do" ]
-        grep -q "https://cmccomb.github.io/do/do.tar.gz" "${log_path}"
+	[ "$status" -eq 0 ]
+	[ -f "${TEST_ROOT}/prefix/main.sh" ]
+	[ -L "${DO_LINK_DIR}/do" ]
+	grep -q "https://cmccomb.github.io/do/do.tar.gz" "${log_path}"
 }
 
 @test "uninstall removes prefix and symlink" {

@@ -26,7 +26,7 @@ jobs:
         with:
           filters: |
             installer:
-              - 'scripts/install'
+              - 'scripts/install.sh'
 
   lint-and-test:
     runs-on: ubuntu-latest
@@ -45,7 +45,7 @@ jobs:
         run: |
           shfmt -d \
             src/main.sh \
-            scripts/install \
+            scripts/install.sh \
             tests/test_all.sh \
             tests/test_main.bats \
             tests/test_install.bats
@@ -54,7 +54,7 @@ jobs:
         run: |
           shellcheck \
             src/main.sh \
-            scripts/install \
+            scripts/install.sh \
             tests/test_all.sh \
             tests/test_main.bats \
             tests/test_install.bats
@@ -82,7 +82,7 @@ jobs:
       - name: Build Pages artifacts
         run: |
           mkdir -p public
-          cp scripts/install public/install.sh
+          cp scripts/install.sh public/install.sh
           tar -czf public/do.tar.gz -C . src scripts README.md LICENSE
 
       - name: Upload artifact

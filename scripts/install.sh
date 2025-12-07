@@ -40,8 +40,8 @@
 #   - core macOS utilities (cp, ln, mkdir, rm)
 
 if [ -z "${BASH_VERSION:-}" ]; then
-  # Re-exec with bash to ensure array and parameter expansion support.
-  exec /usr/bin/env bash "$0" "$@"
+	# Re-exec with bash to ensure array and parameter expansion support.
+	exec /usr/bin/env bash "$0" "$@"
 fi
 
 set -euo pipefail
@@ -62,9 +62,9 @@ LLAMA_BIN="${LLAMA_BIN:-llama}"
 
 SCRIPT_SOURCE="${BASH_SOURCE[0]-${0-}}"
 if [ -z "${SCRIPT_SOURCE}" ] || [ "${SCRIPT_SOURCE}" = "-" ] || [ ! -f "${SCRIPT_SOURCE}" ]; then
-        SCRIPT_DIR="${PWD}"
+	SCRIPT_DIR="${PWD}"
 else
-        SCRIPT_DIR=$(cd -- "$(dirname -- "${SCRIPT_SOURCE}")" && pwd)
+	SCRIPT_DIR=$(cd -- "$(dirname -- "${SCRIPT_SOURCE}")" && pwd)
 fi
 PROJECT_ROOT="${SCRIPT_DIR%/scripts}"
 SRC_DIR="${PROJECT_ROOT}/src"
@@ -84,30 +84,30 @@ BREW_PACKAGES=(
 )
 
 log() {
-        # $1: level, $2: message
-        printf '[%s] %s\n' "$1" "$2"
+	# $1: level, $2: message
+	printf '[%s] %s\n' "$1" "$2"
 }
 
 read_lines_into_array() {
-        # $1: destination array name
-        local target line
-        target="$1"
+	# $1: destination array name
+	local target line
+	target="$1"
 
-        if command -v mapfile >/dev/null 2>&1; then
-                mapfile -t "${target}"
-                return
-        fi
+	if command -v mapfile >/dev/null 2>&1; then
+		mapfile -t "${target}"
+		return
+	fi
 
-        eval "${target}=()"
-        while IFS= read -r line; do
-                eval "${target}+=(\"${line}\")"
-        done
+	eval "${target}=()"
+	while IFS= read -r line; do
+		eval "${target}+=(\"${line}\")"
+	done
 }
 
 cleanup_temp_dir() {
-        if [ -n "${TEMP_ARCHIVE_DIR}" ] && [ -d "${TEMP_ARCHIVE_DIR}" ]; then
-                rm -rf "${TEMP_ARCHIVE_DIR}"
-        fi
+	if [ -n "${TEMP_ARCHIVE_DIR}" ] && [ -d "${TEMP_ARCHIVE_DIR}" ]; then
+		rm -rf "${TEMP_ARCHIVE_DIR}"
+	fi
 }
 
 resolve_project_archive_url() {
@@ -433,7 +433,7 @@ download_model() {
 		exit 2
 	fi
 
-        read_lines_into_array meta < <(fetch_remote_metadata "${repo}" "${file}" "${branch}")
+	read_lines_into_array meta < <(fetch_remote_metadata "${repo}" "${file}" "${branch}")
 	size="${meta[0]}"
 	checksum="${meta[1]}"
 
@@ -572,7 +572,7 @@ main() {
 		esac
 	done
 
-        read_lines_into_array model_parts < <(parse_model_spec "${model_spec}" "${DEFAULT_MODEL_FILE}")
+	read_lines_into_array model_parts < <(parse_model_spec "${model_spec}" "${DEFAULT_MODEL_FILE}")
 	model_repo="${model_parts[0]}"
 	model_file="${model_parts[1]}"
 	refresh_model=false
