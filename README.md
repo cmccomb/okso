@@ -74,6 +74,8 @@ The planner registers the following tools (each defined in `src/tools/<name>.sh`
 - `terminal`: persistent terminal session with a limited command set (pwd, ls,
   cd, cat, head, tail, find, grep, open on macOS).
 - `file_search`: search for files and contents using `fd`/`rg` fallbacks.
+- `clipboard_copy`: copy provided text into the macOS clipboard.
+- `clipboard_paste`: read the current macOS clipboard contents.
 - `notes_create`: create a new Apple Note (first line = title).
 - `notes_append`: append text to an existing Apple Note by title.
 - `notes_list`: list note titles within the configured Apple Notes folder.
@@ -97,6 +99,15 @@ invocations so agents can `cd` once and continue running commands from the same
 location. Supported commands include `status` (default, shows the current
 directory and a listing), `pwd`, `ls`, `cd`, `cat`, `head`, `tail`, `find`, and
 `grep`, plus `open` on macOS hosts.
+
+Clipboard helpers are macOS-only and rely on `pbcopy`/`pbpaste`. Avoid copying
+credentials or other sensitive information because clipboard contents may be
+visible to other applications and logs. Examples:
+
+```bash
+./src/main.sh -- tool clipboard_copy "temporary text"
+./src/main.sh -- tool clipboard_paste
+```
 
 Apple Notes tools expect the first line of `TOOL_QUERY` to be the note title and
 the remaining lines to form the body (where applicable). Set `NOTES_FOLDER` to
