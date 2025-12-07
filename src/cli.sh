@@ -12,6 +12,7 @@
 #
 # Dependencies:
 #   - bash 5+
+#   - gum (optional, for styled help output)
 #
 # Exit codes:
 #   0 for help/version responses; 1 for argument errors.
@@ -19,7 +20,7 @@
 # shellcheck source=./logging.sh disable=SC1091
 source "${BASH_SOURCE[0]%/cli.sh}/logging.sh"
 
-show_help() {
+build_usage_text() {
 	cat <<'USAGE'
 Usage: ./src/main.sh [OPTIONS] -- "user query"
 
@@ -44,6 +45,22 @@ Use "./src/main.sh init" with the same options to write a config file without
 running a query. The config file stores model defaults and approval behavior
 for future runs.
 USAGE
+}
+
+render_usage() {
+	local usage_text
+	usage_text="$(build_usage_text)"
+
+	if command -v gum >/dev/null 2>&1; then
+		printf '%s\n' "${usage_text}" | gum format
+		return
+	fi
+
+	printf '%s\n' "${usage_text}"
+}
+
+show_help() {
+	render_usage
 }
 
 show_version() {

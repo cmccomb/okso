@@ -67,6 +67,7 @@ BREW_PACKAGES=(
 	"bash"
 	"coreutils"
 	"jq"
+	"gum"
 )
 
 log() {
