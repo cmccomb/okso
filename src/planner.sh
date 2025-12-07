@@ -36,13 +36,15 @@ llama_infer() {
 	local prompt
 	prompt="$1"
 	stop_string="$2"
+	number_of_tokens="$3"
 
 	# If a stop string is provided, use it to terminate output.
 	if [[ -n "${stop_string}" ]]; then
 		"${LLAMA_BIN}" \
 			--hf-repo "${MODEL_REPO}" \
 			--hf-file "${MODEL_FILE}" \
-			-no-cnv --no-display-prompt --verbose -r "${stop_string}" \
+			-no-cnv --no-display-prompt --simple-io --verbose -r "${stop_string}" \
+			-n "${number_of_tokens}" \
 			-p "${prompt}" 2>/dev/null || true
 		return
 	fi
@@ -50,7 +52,8 @@ llama_infer() {
 	"${LLAMA_BIN}" \
 		--hf-repo "${MODEL_REPO}" \
 		--hf-file "${MODEL_FILE}" \
-		-no-cnv --no-display-prompt --verbose \
+    -n "${number_of_tokens}" \
+		-no-cnv --no-display-prompt --simple-io --verbose \
 		-p "${prompt}" 2>/dev/null || true
 }
 
@@ -71,14 +74,15 @@ structured_tool_relevance() {
 	tool_alternatives="${tool_alternatives% | }"
 
 	read -r -d '' grammar <<GRAM || true
-root ::= "{" entries? "}"
-entries ::= pair ("," pair)*
-pair ::= tool-key ":" bool
+root ::= "{" ws entries? ws "}"
+entries ::= pair (ws "," ws pair)*
+pair ::= tool-key ws ":" ws bool
 
 tool-key ::= "\"" tool-name "\""
 tool-name ::= ${tool_alternatives}
 
 bool ::= "true" | "false"
+ws ::= [ \t\n\r]*
 GRAM
 
 	prompt="Return a compact JSON map of tool relevance using boolean flags. The available tools are: "
@@ -90,10 +94,10 @@ GRAM
 	raw="$(${LLAMA_BIN} \
 		--hf-repo "${MODEL_REPO}" \
 		--hf-file "${MODEL_FILE}" \
-		-no-cnv \
+		-no-cnv --simple-io \
 		--no-display-prompt \
+		--repeat-penalty 1.5 \
 		--grammar "${grammar}" \
-		-r "}" \
 		-p "${prompt}" 2>/dev/null || true)"
 
 	jq -r '
@@ -108,7 +112,7 @@ GRAM
 }
 
 rank_tools() {
-	local user_query parsed
+	local user_query
 	user_query="$1"
 
 	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
@@ -335,7 +339,7 @@ fallback_action_from_plan() {
 		IFS='|' read -r tool query score <<<"${plan_entries[${step_index}]}"
 		jq -n --arg tool "${tool}" --arg query "${query}" '{type:"tool", tool:$tool, query:$query}'
 	else
-		jq -n --arg answer "$(respond_text "${user_query}" "")" '{type:"final", answer:$answer}'
+		jq -n --arg answer "$(respond_text "${user_query}" 1000)" '{type:"final", answer:$answer}'
 	fi
 }
 
@@ -383,7 +387,7 @@ react_loop() {
 	done
 
 	if [[ -z "${final_answer}" ]]; then
-		final_answer="$(respond_text "${user_query}" "${history}")"
+		final_answer="$(respond_text "${user_query} ${history}" 1000)"
 	fi
 
 	printf '%s\n' "${final_answer}"
