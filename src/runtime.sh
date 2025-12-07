@@ -216,14 +216,15 @@ select_response_strategy() {
 	ranked_tools="$1"
 	plan_entries="$2"
 
-	apply_settings_to_globals "${settings_name}"
+        apply_settings_to_globals "${settings_name}"
 
-	if [[ -z "${ranked_tools}" ]]; then
-		log "WARN" "No tools selected; responding directly" "${USER_QUERY}"
-		printf 'No tools selected; responding directly.\n'
-		printf '%s\n' "$(respond_text "${USER_QUERY}" 256)"
-		return 0
-	fi
+        if [[ -z "${ranked_tools}" ]]; then
+                log "WARN" "No tools selected; responding directly" "${USER_QUERY}"
+                printf 'No tools selected; responding directly.\n'
+                printf '%s\n' "$(respond_text "${USER_QUERY}" 256)"
+                printf 'Execution summary: no tool runs.\n'
+                return 0
+        fi
 
 	react_loop "${USER_QUERY}" "${ranked_tools}" "${plan_entries}"
 }

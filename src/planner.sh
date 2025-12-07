@@ -127,10 +127,10 @@ rank_tools() {
         local user_query
         user_query="$1"
 
-	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
-		log "WARN" "llama.cpp binary unavailable; skipping tool selection" "${LLAMA_BIN}"
-		return 0
-	fi
+        if [[ "${LLAMA_AVAILABLE}" != true ]]; then
+                log "WARN" "llama.cpp binary unavailable; skipping tool selection" "${LLAMA_BIN}" >&2
+                return 0
+        fi
 
         structured_tool_relevance "${user_query}"
         return $?
@@ -303,72 +303,155 @@ allowed_tool_list() {
 }
 
 fallback_action_from_plan() {
-	local plan_entries step_index user_query
-	plan_entries=()
-	while IFS= read -r line; do
-		plan_entries+=("${line}")
-	done <<<"$1"
-	step_index=$2
-	user_query="$3"
-	if ((step_index < ${#plan_entries[@]})); then
-		IFS='|' read -r tool query score <<<"${plan_entries[${step_index}]}"
-		jq -n --arg tool "${tool}" --arg query "${query}" '{type:"tool", tool:$tool, query:$query}'
-	else
-		jq -n --arg answer "$(respond_text "${user_query}" 1000)" '{type:"final", answer:$answer}'
-	fi
+        local plan_entries step_index user_query
+        plan_entries=()
+        while IFS= read -r line; do
+                plan_entries+=("${line}")
+        done <<<"$1"
+        step_index=$2
+        user_query="$3"
+        if ((step_index < ${#plan_entries[@]})); then
+                IFS='|' read -r tool query score <<<"${plan_entries[${step_index}]}"
+                jq -n --arg tool "${tool}" --arg query "${query}" '{type:"tool", tool:$tool, query:$query}'
+        else
+                jq -n --arg answer "$(respond_text "${user_query}" 1000)" '{type:"final", answer:$answer}'
+        fi
+}
+
+initialize_react_state() {
+        # Arguments:
+        #   $1 - name of associative array to populate
+        #   $2 - user query
+        #   $3 - allowed tools (newline delimited)
+        #   $4 - ranked plan entries
+        local -n state_ref=$1
+        state_ref[user_query]="$2"
+        state_ref[allowed_tools]="$3"
+        state_ref[plan_entries]="$4"
+        state_ref[history]=""
+        state_ref[step]=0
+        state_ref[max_steps]="${MAX_STEPS:-6}"
+        state_ref[final_answer]=""
+}
+
+record_history() {
+        # Arguments:
+        #   $1 - name of associative array holding state
+        #   $2 - formatted history entry
+        local -n state_ref=$1
+        local entry
+        entry="$2"
+        state_ref[history]+=$(printf '%s\n' "${entry}")
+}
+
+select_next_action() {
+        # Arguments:
+        #   $1 - name of associative array holding state
+        local -n state_ref=$1
+        local react_prompt
+        if [[ "${USE_REACT_LLAMA:-false}" == true && "${LLAMA_AVAILABLE}" == true ]]; then
+                react_prompt="$(build_react_prompt "${state_ref[user_query]}" "${state_ref[allowed_tools]}" "${state_ref[history]}")"
+                llama_infer "${react_prompt}"
+                return
+        fi
+
+        fallback_action_from_plan "${state_ref[plan_entries]}" $((state_ref[step] - 1)) "${state_ref[user_query]}"
+}
+
+validate_tool_permission() {
+        # Arguments:
+        #   $1 - name of associative array holding state
+        #   $2 - tool name to validate
+        local state_name
+        local -n state_ref=$1
+        local tool
+        state_name="$1"
+        tool="$2"
+        if grep -Fxq "${tool}" <<<"${state_ref[allowed_tools]}"; then
+                return 0
+        fi
+
+        record_history "${state_name}" "$(printf 'Tool %s not permitted.' "${tool}")"
+        return 1
+}
+
+execute_tool_action() {
+        # Arguments:
+        #   $1 - tool name
+        #   $2 - tool query
+        local tool query
+        tool="$1"
+        query="$2"
+        execute_tool_with_query "${tool}" "${query}" || true
+}
+
+record_tool_execution() {
+        # Arguments:
+        #   $1 - name of associative array holding state
+        #   $2 - tool name
+        #   $3 - query string
+        #   $4 - observation text
+        local state_name
+        local -n state_ref=$1
+        local tool query observation
+        state_name="$1"
+        tool="$2"
+        query="$3"
+        observation="$4"
+        record_history "${state_name}" "$(printf 'Action %s query=%s\nObservation: %s' "${tool}" "${query}" "${observation}")"
+}
+
+finalize_react_result() {
+        # Arguments:
+        #   $1 - name of associative array holding state
+        local -n state_ref=$1
+        if [[ -z "${state_ref[final_answer]}" ]]; then
+                state_ref[final_answer]="$(respond_text "${state_ref[user_query]} ${state_ref[history]}" 1000)"
+        fi
+
+        printf '%s\n' "${state_ref[final_answer]}"
+        if [[ -z "${state_ref[history]}" ]]; then
+                printf 'Execution summary: no tool runs.\n'
+        else
+                printf 'Execution summary:\n%s\n' "${state_ref[history]}"
+        fi
 }
 
 react_loop() {
-	local user_query ranked plan_entries max_steps allowed_tools history step action_json action_type tool query observation final_answer
-	user_query="$1"
-	ranked="$2"
-	plan_entries="$3"
-	max_steps=${MAX_STEPS:-6}
-	allowed_tools="$(allowed_tool_list "${ranked}")"
-	history=""
-	step=0
-	final_answer=""
+        local user_query ranked plan_entries allowed_tools action_json action_type tool query observation
+        declare -A react_state
+        user_query="$1"
+        ranked="$2"
+        plan_entries="$3"
+        allowed_tools="$(allowed_tool_list "${ranked}")"
 
-	while ((step < max_steps)); do
-		step=$((step + 1))
+        initialize_react_state react_state "${user_query}" "${allowed_tools}" "${plan_entries}"
 
-		if [[ "${USE_REACT_LLAMA:-false}" == true && "${LLAMA_AVAILABLE}" == true ]]; then
-			action_json="$(llama_infer "$(build_react_prompt "${user_query}" "${allowed_tools}" "${history}")")"
-		else
-			action_json="$(fallback_action_from_plan "${plan_entries}" $((step - 1)) "${user_query}")"
-		fi
+        while ((react_state[step] < react_state[max_steps])); do
+                react_state[step]=$((react_state[step] + 1))
 
-		action_type="$(printf '%s' "${action_json}" | jq -r '.type // empty' 2>/dev/null || true)"
-		tool="$(printf '%s' "${action_json}" | jq -r '.tool // empty' 2>/dev/null || true)"
-		query="$(printf '%s' "${action_json}" | jq -r '.query // empty' 2>/dev/null || true)"
+                action_json="$(select_next_action react_state)"
+                action_type="$(printf '%s' "${action_json}" | jq -r '.type // empty' 2>/dev/null || true)"
+                tool="$(printf '%s' "${action_json}" | jq -r '.tool // empty' 2>/dev/null || true)"
+                query="$(printf '%s' "${action_json}" | jq -r '.query // empty' 2>/dev/null || true)"
 
-		if [[ "${action_type}" != "tool" && "${action_type}" != "final" ]]; then
-			history+=$(printf 'Unusable action: %s\n' "${action_json}")
-			continue
-		fi
+                if [[ "${action_type}" != "tool" && "${action_type}" != "final" ]]; then
+                        record_history react_state "$(printf 'Unusable action: %s' "${action_json}")"
+                        continue
+                fi
 
-		if [[ "${action_type}" == "final" ]]; then
-			final_answer="$(printf '%s' "${action_json}" | jq -r '.answer // ""')"
-			break
-		fi
+                if [[ "${action_type}" == "final" ]]; then
+                        react_state[final_answer]="$(printf '%s' "${action_json}" | jq -r '.answer // ""')"
+                        break
+                fi
 
-		if ! grep -Fxq "${tool}" <<<"${allowed_tools}"; then
-			history+=$(printf 'Tool %s not permitted.\n' "${tool}")
-			continue
-		fi
+                if ! validate_tool_permission react_state "${tool}"; then
+                        continue
+                fi
 
-		observation="$(execute_tool_with_query "${tool}" "${query}")" || observation=""
-		history+=$(printf 'Action %s query=%s\nObservation: %s\n' "${tool}" "${query}" "${observation}")
-	done
+                observation="$(execute_tool_action "${tool}" "${query}")"
+                record_tool_execution react_state "${tool}" "${query}" "${observation}"
+        done
 
-	if [[ -z "${final_answer}" ]]; then
-		final_answer="$(respond_text "${user_query} ${history}" 1000)"
-	fi
-
-	printf '%s\n' "${final_answer}"
-	if [[ -z "${history}" ]]; then
-		printf 'Execution summary: no actions executed.\n'
-	else
-		printf 'Execution summary:\n%s\n' "${history}"
-	fi
+        finalize_react_result react_state
 }
