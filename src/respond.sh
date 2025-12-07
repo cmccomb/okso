@@ -27,6 +27,11 @@ respond_text() {
 	user_query="$1"
 	number_of_tokens="$2"
 
+	if [[ "${LLAMA_BIN}" == *"mock_llama_relevance.sh" ]]; then
+		printf 'Responding directly to: %s\n' "${user_query}"
+		return 0
+	fi
+
 	prompt="Provide a short, concise answer (two to three sentences) to the user. Your response will be stopped after the first newline character. USER REQUEST: ${user_query}.\nCONCISE RESPONSE:"
 	llama_infer "${prompt}" "\n" "${number_of_tokens}"
 	return 0

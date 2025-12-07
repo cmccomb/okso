@@ -103,6 +103,16 @@ main() {
 	log "INFO" "Selected tools" "${ranked_tools}"
 	plan_entries="$(build_plan_entries "${ranked_tools}" "${USER_QUERY}")"
 
+	if [[ -z "${ranked_tools}" ]]; then
+		printf 'Suggested tools: none.\n'
+	else
+		printf 'Suggested tools:\n'
+		while IFS= read -r ranked_entry; do
+			[[ -z "${ranked_entry}" ]] && continue
+			printf ' - %s\n' "${ranked_entry#*:}"
+		done <<<"${ranked_tools}"
+	fi
+
 	if [[ "${PLAN_ONLY}" == true ]]; then
 		emit_plan_json "${plan_entries}"
 		return 0
@@ -120,6 +130,7 @@ main() {
 
 	if [[ -z "${ranked_tools}" ]]; then
 		log "WARN" "No tools selected; responding directly" "${USER_QUERY}"
+		printf 'No tools selected; responding directly.\n'
 		printf '%s\n' "$(respond_text "${USER_QUERY}" 256)"
 		return 0
 	fi

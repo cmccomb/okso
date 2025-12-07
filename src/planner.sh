@@ -52,7 +52,7 @@ llama_infer() {
 	"${LLAMA_BIN}" \
 		--hf-repo "${MODEL_REPO}" \
 		--hf-file "${MODEL_FILE}" \
-    -n "${number_of_tokens}" \
+		-n "${number_of_tokens}" \
 		-no-cnv --no-display-prompt --simple-io --verbose \
 		-p "${prompt}" 2>/dev/null || true
 }
@@ -61,6 +61,8 @@ structured_tool_relevance() {
 	# Arguments:
 	#   $1 - user query (string)
 	local user_query grammar tool_alternatives prompt raw
+	local -a relevant_tools
+	declare -A relevance_map=()
 	user_query="$1"
 
 	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
@@ -100,7 +102,7 @@ GRAM
 		--grammar "${grammar}" \
 		-p "${prompt}" 2>/dev/null || true)"
 
-	jq -r '
+	mapfile -t relevant_tools < <(jq -r '
                 if type == "array" then
                         .[] | select(.relevant == true and .tool != null) | "\(.tool)"
                 elif type == "object" then
@@ -108,7 +110,17 @@ GRAM
                 else
                         empty
                 end
-        ' <<<"${raw}" 2>/dev/null || true
+        ' <<<"${raw}" 2>/dev/null || true)
+
+	for tool in "${relevant_tools[@]}"; do
+		relevance_map["${tool}"]=true
+	done
+
+	for tool in "${TOOLS[@]}"; do
+		if [[ -n "${relevance_map[${tool}]:-}" ]]; then
+			printf '5:%s\n' "${tool}"
+		fi
+	done
 }
 
 rank_tools() {

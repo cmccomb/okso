@@ -25,28 +25,40 @@ while [[ $# -gt 0 ]]; do
 done
 
 prompt_lower=${prompt,,}
+user_request=${prompt#*User request: }
+if [[ "${user_request}" == "${prompt}" ]]; then
+	user_request=${prompt#*USER REQUEST: }
+fi
+user_request_lower=${user_request,,}
 
-if [[ "${prompt_lower}" == *"joke"* || "${prompt_lower}" == *"chat"* ]]; then
+if [[ "${prompt_lower}" == *"concise response"* ]]; then
+	request=${prompt#*USER REQUEST: }
+	request=${request%%.*}
+	printf 'Responding directly to: %s\n' "${request}"
+	exit 0
+fi
+
+if [[ "${user_request_lower}" == *"joke"* || "${user_request_lower}" == *"chat"* ]]; then
 	printf '{}\n'
 	exit 0
 fi
 
-if [[ "${prompt_lower}" == *"remind"* ]]; then
+if [[ "${user_request_lower}" == *"remind"* ]]; then
 	printf '{"reminders_create":true}\n'
 	exit 0
 fi
 
-if [[ "${prompt_lower}" == *"note"* ]]; then
+if [[ "${user_request_lower}" == *"note"* ]]; then
 	printf '{"notes_create":true}\n'
 	exit 0
 fi
 
-if [[ "${prompt_lower}" == *"todo"* ]]; then
+if [[ "${user_request_lower}" == *"todo"* ]]; then
 	printf '{"terminal":true}\n'
 	exit 0
 fi
 
-if [[ "${prompt_lower}" == *"file"* || "${prompt_lower}" == *"folder"* ]]; then
+if [[ "${user_request_lower}" == *"file"* || "${user_request_lower}" == *"folder"* ]]; then
 	printf '{"terminal":true}\n'
 	exit 0
 fi
