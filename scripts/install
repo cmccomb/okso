@@ -19,6 +19,12 @@
 #   HF_TOKEN (string): Optional Hugging Face token for gated model downloads.
 #   DO_INSTALLER_ASSUME_OFFLINE (bool): Set to "true" to skip network actions
 #       (intended for CI); install fails if downloads are required while offline.
+#   DO_INSTALLER_BASE_URL (string): Base URL hosting the installer artifacts
+#       (install script + tarball). Defaults to empty; when provided, the
+#       installer fetches the project archive from
+#       "${DO_INSTALLER_BASE_URL%/}/do.tar.gz".
+#   DO_PROJECT_ARCHIVE_URL (string): Explicit URL to a project archive. Takes
+#       precedence over DO_INSTALLER_BASE_URL.
 #
 # Exit codes:
 #   0: Success
@@ -43,11 +49,15 @@ DEFAULT_MODEL_CACHE="${DO_MODEL_CACHE:-${HOME}/.do/models}"
 DEFAULT_MODEL_FILE="qwen3-1.5b-instruct-q4_k_m.gguf"
 DEFAULT_MODEL_SPEC="${DO_MODEL:-Qwen/Qwen3-1.5B-Instruct-GGUF:${DEFAULT_MODEL_FILE}}"
 DEFAULT_MODEL_BRANCH="${DO_MODEL_BRANCH:-main}"
+INSTALLER_BASE_URL="${DO_INSTALLER_BASE_URL:-}"
+DEFAULT_PROJECT_ARCHIVE_URL="${DO_PROJECT_ARCHIVE_URL:-${INSTALLER_BASE_URL:+${INSTALLER_BASE_URL%/}/do.tar.gz}}"
 LLAMA_BIN="${LLAMA_BIN:-llama}"
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 PROJECT_ROOT="${SCRIPT_DIR%/scripts}"
 SRC_DIR="${PROJECT_ROOT}/src"
+SOURCE_PAYLOAD_DIR="${SRC_DIR}"
+TEMP_ARCHIVE_DIR=""
 
 BREW_PACKAGES=(
 	"llama.cpp"
@@ -64,6 +74,94 @@ BREW_PACKAGES=(
 log() {
 	# $1: level, $2: message
 	printf '[%s] %s\n' "$1" "$2"
+}
+
+cleanup_temp_dir() {
+	if [ -n "${TEMP_ARCHIVE_DIR}" ] && [ -d "${TEMP_ARCHIVE_DIR}" ]; then
+		rm -rf "${TEMP_ARCHIVE_DIR}"
+	fi
+}
+
+resolve_project_archive_url() {
+	local archive_url
+
+	if [ -n "${DEFAULT_PROJECT_ARCHIVE_URL}" ]; then
+		printf '%s\n' "${DEFAULT_PROJECT_ARCHIVE_URL}"
+		return 0
+	fi
+
+	log "ERROR" "Source directory missing and no archive URL configured."
+	log "ERROR" "Set DO_PROJECT_ARCHIVE_URL to a tar.gz containing the project (for GitHub Pages: \\\"${DO_INSTALLER_BASE_URL:-https://example.github.io/do}/do.tar.gz\\\")."
+	exit 2
+}
+
+download_project_archive() {
+	# $1: archive URL, $2: destination path
+	local archive_url dest_path
+	archive_url="$1"
+	dest_path="$2"
+
+	if [[ "${archive_url}" == file://* ]]; then
+		local file_path
+		file_path="${archive_url#file://}"
+		if [ ! -f "${file_path}" ]; then
+			log "ERROR" "Archive not found at ${file_path}"
+			exit 2
+		fi
+		cp "${file_path}" "${dest_path}"
+		return 0
+	fi
+
+	if ! has_network; then
+		log "ERROR" "Network connectivity required to fetch ${archive_url}"
+		exit 4
+	fi
+
+	if ! curl -fsSL "${archive_url}" -o "${dest_path}"; then
+		log "ERROR" "Failed to download project archive from ${archive_url}"
+		exit 2
+	fi
+}
+
+derive_source_root() {
+	# $1: extraction root
+	local extraction_root archive_root
+	extraction_root="$1"
+
+	if [ -d "${extraction_root}/src" ]; then
+		printf '%s\n' "${extraction_root}/src"
+		return 0
+	fi
+
+	archive_root=$(find "${extraction_root}" -maxdepth 1 -mindepth 1 -type d | head -n 1)
+	if [ -n "${archive_root}" ] && [ -d "${archive_root}/src" ]; then
+		printf '%s\n' "${archive_root}/src"
+		return 0
+	fi
+
+	log "ERROR" "Extracted archive does not contain a src directory"
+	exit 2
+}
+
+prepare_source_payload() {
+	if [ -d "${SRC_DIR}" ] && [ -f "${SRC_DIR}/main.sh" ]; then
+		SOURCE_PAYLOAD_DIR="${SRC_DIR}"
+		return 0
+	fi
+
+	local archive_url archive_path
+	archive_url=$(resolve_project_archive_url)
+	archive_path=$(mktemp "${TMPDIR:-/tmp}/do-archive-XXXXXX.tar.gz")
+	TEMP_ARCHIVE_DIR=$(mktemp -d "${TMPDIR:-/tmp}/do-src-XXXXXX")
+	trap cleanup_temp_dir EXIT
+
+	download_project_archive "${archive_url}" "${archive_path}"
+	if ! tar -xzf "${archive_path}" -C "${TEMP_ARCHIVE_DIR}"; then
+		log "ERROR" "Failed to extract project archive from ${archive_url}"
+		exit 2
+	fi
+
+	SOURCE_PAYLOAD_DIR=$(derive_source_root "${TEMP_ARCHIVE_DIR}")
 }
 
 parse_model_spec() {
@@ -236,18 +334,18 @@ copy_project_files() {
 	# $1: prefix
 	local prefix="$1"
 	ensure_prefix_writable "${prefix}"
-	if [ ! -d "${SRC_DIR}" ]; then
-		log "ERROR" "Source directory missing at ${SRC_DIR}"
+	if [ ! -d "${SOURCE_PAYLOAD_DIR}" ]; then
+		log "ERROR" "Source directory missing at ${SOURCE_PAYLOAD_DIR}"
 		exit 2
 	fi
 
 	log "INFO" "Installing project files into ${prefix}"
 	if [ -w "${prefix}" ]; then
 		mkdir -p "${prefix}"
-		cp -R "${SRC_DIR}/." "${prefix}/"
+		cp -R "${SOURCE_PAYLOAD_DIR}/." "${prefix}/"
 	else
 		sudo mkdir -p "${prefix}"
-		sudo cp -R "${SRC_DIR}/." "${prefix}/"
+		sudo cp -R "${SOURCE_PAYLOAD_DIR}/." "${prefix}/"
 	fi
 }
 
@@ -466,6 +564,7 @@ main() {
 
 	case "${mode}" in
 	install | upgrade)
+		prepare_source_payload
 		copy_project_files "${prefix}"
 		create_symlink "${prefix}" "${DEFAULT_LINK_PATH}"
 		download_model "${model_repo}" "${model_file}" "${model_branch}" "${model_cache}" "${refresh_model}"
