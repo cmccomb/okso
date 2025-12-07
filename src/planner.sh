@@ -127,23 +127,31 @@ structured_tool_relevance() {
 	tool_alternatives="${tool_alternatives% | }"
 
 	read -r -d '' grammar <<GRAM || true
-root ::= "[" entries? "]"
-entries ::= item ("," item)*
-item ::= "{\\\"tool\\\":" tool_name ",\\\"relevant\\\":" bool "}"
+root ::= "{" entries? "}"
+entries ::= pair ("," pair)*
+pair ::= tool_name ":" bool
 tool_name ::= ${tool_alternatives}
 bool ::= "true" | "false"
 GRAM
 
-	prompt="Identify which tools are relevant to the user request with true/false flags."
+	prompt="Return a compact JSON map of tool relevance using boolean flags."
 	prompt+=" User request: ${user_query}"
 
-        raw="$(${LLAMA_BIN} \
-                --hf-repo "${MODEL_REPO}" \
-                --hf-file "${MODEL_FILE}" \
-                --grammar "${grammar}" \
-                -p "${prompt}" 2>/dev/null || true)"
+	raw="$(${LLAMA_BIN} \
+		--hf-repo "${MODEL_REPO}" \
+		--hf-file "${MODEL_FILE}" \
+		--grammar "${grammar}" \
+		-p "${prompt}" 2>/dev/null || true)"
 
-	jq -r '.[] | select(.relevant == true and .tool != null) | "5:\(.tool)"' <<<"${raw}" 2>/dev/null || true
+	jq -r '
+                if type == "array" then
+                        .[] | select(.relevant == true and .tool != null) | "5:\(.tool)"
+                elif type == "object" then
+                        to_entries[] | select(.value == true) | "5:\(.key)"
+                else
+                        empty
+                end
+        ' <<<"${raw}" 2>/dev/null || true
 }
 
 heuristic_rank_tools() {
@@ -465,7 +473,7 @@ ${tool_lines}
 Previous steps:
 ${history}
 PROMPT
-#	PROMPT
+	#	PROMPT
 }
 
 allowed_tool_list() {

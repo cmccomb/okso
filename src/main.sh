@@ -34,10 +34,10 @@ set -euo pipefail
 
 VERSION="0.1.0"
 LLAMA_BIN="llama-cli"
-DEFAULT_MODEL_FILE="Qwen3-8B-Q4_K_M.gguf"
+DEFAULT_MODEL_FILE="qwen3-1.5b-instruct-q4_k_m.gguf"
 CONFIG_DIR="${XDG_CONFIG_HOME:-${HOME}/.config}/okso"
 CONFIG_FILE="${CONFIG_DIR}/config.env"
-MODEL_SPEC="Qwen/Qwen3-8B-GGUF:${DEFAULT_MODEL_FILE}"
+MODEL_SPEC="Qwen/Qwen3-1.5B-Instruct-GGUF:${DEFAULT_MODEL_FILE}"
 MODEL_BRANCH="main"
 MODEL_REPO=""
 MODEL_FILE=""
