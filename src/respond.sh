@@ -22,24 +22,10 @@ source "${BASH_SOURCE[0]%/respond.sh}/logging.sh"
 respond_text() {
 	# Arguments:
 	#   $1 - user query (string)
-	#   $2 - prior observations (string, optional)
-	local user_query observations prompt
+	local user_query prompt
 	user_query="$1"
-	observations="${2:-}"
 
-	if [[ "${USE_REACT_LLAMA:-false}" == true && "${LLAMA_AVAILABLE}" == true ]]; then
-		prompt="Provide a concise answer to the user without suggesting tools. User request: ${user_query}. Context: ${observations}"
-		llama_infer "${prompt}"
-		return 0
-	fi
-
-	printf 'Responding directly to: %s\n' "${user_query}"
-}
-
-respond() {
-	local user_query observations answer
-	user_query="$1"
-	observations="${2:-}"
-	answer="$(respond_text "${user_query}" "${observations}")"
-	printf '%s\n' "${answer}"
+	prompt="Provide a short, concise answer (two to three sentences) to the user. Your response will be stopped after the first newline character. USER REQUEST: ${user_query}.\nCONCISE RESPONSE: "
+	llama_infer "${prompt}" "\n"
+	return 0
 }
