@@ -85,8 +85,8 @@ structured_tool_relevance() {
 	read -r -d '' grammar <<GRAM || true
 root ::= "{" entries? "}"
 entries ::= pair ("," pair)*
-pair ::= tool_name ":" bool
-tool_name ::= ${tool_alternatives}
+pair ::= tool-name ":" bool
+tool-name ::= ${tool_alternatives}
 bool ::= "true" | "false"
 GRAM
 
@@ -96,7 +96,7 @@ GRAM
 	raw="$(${LLAMA_BIN} \
 		--hf-repo "${MODEL_REPO}" \
 		--hf-file "${MODEL_FILE}" \
-		--no-cnv \
+		-no-cnv \
 		--grammar "${grammar}" \
 		-p "${prompt}" 2>/dev/null || true)"
 
@@ -122,26 +122,6 @@ rank_tools() {
 
 	parsed="$(structured_tool_relevance "${user_query}")"
 	printf '%s\n' "$(filter_ranked_tools "${parsed}")"
-}
-
-generate_tool_prompt() {
-	local user_query ranked entry score tool prompt
-	user_query="$1"
-	ranked="$2"
-	prompt="User request: ${user_query}. Suggested tools:"
-	if [[ -z "${ranked}" ]]; then
-		printf 'User request: %s. Suggested tools: none.\n' "${user_query}"
-		return
-	fi
-	while IFS= read -r entry; do
-		score="${entry%%:*}"
-		tool="${entry##*:}"
-		prompt+=$(
-			printf ' %s(score=%s,desc=%s,safety=%s,cmd=%s),' \
-				"${tool}" "${score}" "${TOOL_DESCRIPTION[${tool}]}" "${TOOL_SAFETY[${tool}]}" "${TOOL_COMMAND[${tool}]}"
-		)
-	done <<<"${ranked}"
-	printf '%s\n' "${prompt%,}"
 }
 
 derive_tool_query() {

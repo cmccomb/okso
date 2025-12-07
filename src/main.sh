@@ -101,7 +101,6 @@ main() {
 	log "DEBUG" "Starting tool selection" "${USER_QUERY}"
 	ranked_tools="$(rank_tools "${USER_QUERY}")"
 	plan_entries="$(build_plan_entries "${ranked_tools}" "${USER_QUERY}")"
-	printf '%s\n' "$(generate_tool_prompt "${USER_QUERY}" "${ranked_tools}")"
 
 	if [[ "${PLAN_ONLY}" == true ]]; then
 		emit_plan_json "${plan_entries}"
