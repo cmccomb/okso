@@ -14,6 +14,15 @@ upgrades:
 ./scripts/install [--prefix /custom/path] [--upgrade | --uninstall]
 ```
 
+For unattended installs, the CI pipeline publishes the installer and a
+project tarball to GitHub Pages. Replace `<GITHUB_USER>` with the repository
+owner and run:
+
+```bash
+curl -fsSL https://<GITHUB_USER>.github.io/do/install.sh | \
+  DO_INSTALLER_BASE_URL=https://<GITHUB_USER>.github.io/do bash
+```
+
 What the installer does:
 
 1. Verifies Homebrew is present (installing it if missing) without running

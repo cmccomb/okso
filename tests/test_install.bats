@@ -136,6 +136,42 @@ EOM_BREW
 	grep -q "example/repo demo.gguf main ${DO_MODEL_CACHE}/demo.gguf" "${log_path}"
 }
 
+@test "downloads project archive when sources are missing" {
+	local mock_path="${TEST_ROOT}/mock-bin"
+	local remote_root="${TEST_ROOT}/remote"
+	local bundle_dir="${TEST_ROOT}/bundle"
+	local tarball="${bundle_dir}/do.tar.gz"
+
+	mkdir -p "${mock_path}" "${remote_root}/scripts" "${bundle_dir}" "${TEST_ROOT}/prefix"
+
+	tar -czf "${tarball}" -C . src scripts README.md LICENSE
+
+	cp scripts/install "${remote_root}/scripts/install"
+
+	cat >"${mock_path}/uname" <<'EOM_UNAME'
+#!/usr/bin/env bash
+echo "Darwin"
+EOM_UNAME
+	chmod +x "${mock_path}/uname"
+
+	cat >"${mock_path}/brew" <<'EOM_BREW'
+#!/usr/bin/env bash
+if [ "$1" = "list" ]; then
+        exit 0
+fi
+if [ "$1" = "install" ]; then
+        exit 0
+fi
+command -v "$1" >/dev/null 2>&1
+EOM_BREW
+	chmod +x "${mock_path}/brew"
+
+	run env PATH="${mock_path}:${PATH}" DO_INSTALLER_BASE_URL="file://${bundle_dir}" bash "${remote_root}/scripts/install" --prefix "${TEST_ROOT}/prefix"
+	[ "$status" -eq 0 ]
+	[ -f "${TEST_ROOT}/prefix/main.sh" ]
+	[ -L "${DO_LINK_DIR}/do" ]
+}
+
 @test "uninstall removes prefix and symlink" {
 	local mock_path="${TEST_ROOT}/mock-bin"
 	mkdir -p "${mock_path}" "${TEST_ROOT}/prefix" "${DO_LINK_DIR}"
