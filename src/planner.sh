@@ -43,8 +43,9 @@ llama_infer() {
 	"${LLAMA_BIN}" \
 		--hf-repo "${MODEL_REPO}" \
 		--hf-file "${MODEL_FILE}" \
-		-no-cnv \
-		-p "${prompt}" 2>/dev/null || true
+		-no-cnv --verbose \
+		-p "${prompt}"
+#		2>/dev/null || true
 }
 
 build_ranking_prompt() {
@@ -242,14 +243,17 @@ rank_tools() {
 	user_query="$1"
 	prompt="$(build_ranking_prompt "${user_query}")"
 
-	if [[ "${LLAMA_AVAILABLE}" == true ]]; then
+#	if [[ "${LLAMA_AVAILABLE}" == true ]]; then
 		raw="$(llama_infer "${prompt}")"
+		echo "Ranking raw output: ${raw}" >&2
 		parsed="$(parse_llama_ranking "${raw}" || true)"
-	fi
+#	fi
 
-	if [[ -z "${parsed:-""}" ]]; then
-		parsed="$(heuristic_rank_tools "${user_query}")"
-	fi
+
+
+#	if [[ -z "${parsed:-""}" ]]; then
+#		parsed="$(heuristic_rank_tools "${user_query}")"
+#	fi
 
 	printf '%s\n' "$(filter_ranked_tools "${parsed}")"
 }
