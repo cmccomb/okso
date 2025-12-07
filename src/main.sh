@@ -98,8 +98,9 @@ main() {
 	init_environment
 	init_tool_registry
 	initialize_tools
-	log "DEBUG" "Starting tool selection" "${USER_QUERY}"
+	log "INFO" "Starting tool selection" "${USER_QUERY}"
 	ranked_tools="$(rank_tools "${USER_QUERY}")"
+	log "INFO" "Selected tools" "${ranked_tools}"
 	plan_entries="$(build_plan_entries "${ranked_tools}" "${USER_QUERY}")"
 
 	if [[ "${PLAN_ONLY}" == true ]]; then
