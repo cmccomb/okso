@@ -66,7 +66,7 @@
 }
 
 @test "structured_tool_relevance parses boolean map grammar" {
-        run bash -lc '
+	run bash -lc '
                 source ./src/planner.sh
                 initialize_tools
                 LLAMA_AVAILABLE=true
@@ -75,8 +75,8 @@
                 MODEL_FILE="demo.gguf"
                 structured_tool_relevance "list files"
         '
-        [ "$status" -eq 0 ]
-        [ "${lines[0]}" = "5:terminal" ]
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "5:terminal" ]
 }
 
 @test "emit_plan_json builds valid array" {
