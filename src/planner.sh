@@ -101,10 +101,11 @@ generate_plan_outline() {
 	local user_query prompt raw_plan
 	user_query="$1"
 
-	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
-		printf '1. Use final_answer to respond directly to the user request.'
-		return 0
-	fi
+	# Had to disable this check to allow this to work outside of testing environments.
+	#	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
+	#		printf '1. Use final_answer to respond directly to the user request.'
+	#		return 0
+	#	fi
 
 	prompt="$(build_planner_prompt "${user_query}")"
 	raw_plan="$(llama_infer "${prompt}" '' 512)"
