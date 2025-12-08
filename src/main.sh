@@ -70,12 +70,16 @@ main() {
 	load_runtime_settings settings "$@"
 
 	if [[ "${settings[command]}" == "init" ]]; then
+		# Init mode writes a config file and exits without running the planner.
 		apply_settings_to_globals settings
 		write_config_file
 		return 0
 	fi
 
 	prepare_environment_with_settings settings
+	# Planner flow:
+	# 1. Generate an outline, 2. identify tools, 3. build concrete plan entries
+	# for execution, then 4. render plan outputs before proceeding.
 	log "INFO" "Starting plan generation" "${settings[user_query]}"
 	plan_outline="$(generate_plan_outline "${settings[user_query]}")"
 	required_tools="$(extract_tools_from_plan "${plan_outline}")"

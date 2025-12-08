@@ -33,6 +33,8 @@ readonly DEFAULT_MODEL_SPEC_BASE="${DEFAULT_MODEL_REPO_BASE}:${DEFAULT_MODEL_FIL
 readonly DEFAULT_MODEL_BRANCH_BASE="main"
 
 detect_config_file() {
+	# Parse the config path early so subsequent helpers can honor user-provided
+	# locations before any other arguments are interpreted.
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
 		--config)
@@ -55,6 +57,8 @@ detect_config_file() {
 }
 
 load_config() {
+	# Load file-backed configuration first so environment overrides and CLI flags
+	# can layer on top in a predictable order.
 	if [[ -f "${CONFIG_FILE}" ]]; then
 		# shellcheck source=/dev/null
 		source "${CONFIG_FILE}"
@@ -73,6 +77,8 @@ load_config() {
 		MODEL_BRANCH="${DO_MODEL_BRANCH}"
 	fi
 	if [[ -n "${DO_SUPERVISED:-}" ]]; then
+		# DO_SUPERVISED mirrors the hosted behavior where "false" should allow
+		# automated tool execution without a prompt.
 		case "${DO_SUPERVISED}" in
 		false | False | FALSE | 0)
 			APPROVE_ALL=true
@@ -111,6 +117,8 @@ parse_model_spec() {
 		repo="${spec%%:*}"
 		file="${spec#*:}"
 	else
+		# If no file component is provided we assume the default quantization file
+		# to keep CLI usage ergonomic.
 		repo="${spec}"
 		file="${default_file}"
 	fi
@@ -119,6 +127,8 @@ parse_model_spec() {
 }
 
 normalize_approval_flags() {
+	# Normalize approval toggles to strict booleans to avoid surprising behavior
+	# from varied casing or numeric inputs.
 	case "${APPROVE_ALL}" in
 	true | True | TRUE | 1)
 		APPROVE_ALL=true
@@ -149,6 +159,8 @@ normalize_approval_flags() {
 hydrate_model_spec() {
 	# Normalizes MODEL_SPEC into repo and file components for llama.cpp calls.
 	local model_parts
+	# parse_model_spec prints repo then file on separate lines for easy mapfile
+	# consumption; we preserve that order here explicitly.
 	mapfile -t model_parts < <(parse_model_spec "${MODEL_SPEC}" "${DEFAULT_MODEL_FILE}")
 	# shellcheck disable=SC2034
 	MODEL_REPO="${model_parts[0]}"
@@ -161,11 +173,14 @@ init_environment() {
 	hydrate_model_spec
 
 	if command -v uname >/dev/null 2>&1 && [[ "$(uname -s)" == "Darwin" ]]; then
+		# Downstream tools sometimes need macOS-specific flags; stash a boolean
+		# rather than repeatedly shelling out.
 		# shellcheck disable=SC2034
 		IS_MACOS=true
 	fi
 
 	if [[ "${TESTING_PASSTHROUGH:-false}" == true ]]; then
+		# During bats runs we suppress llama.cpp invocation for determinism.
 		LLAMA_AVAILABLE=false
 	else
 		LLAMA_AVAILABLE=true

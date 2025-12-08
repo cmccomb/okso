@@ -58,6 +58,8 @@ render_usage() {
 	usage_text="$(build_usage_text)"
 
 	if command -v gum >/dev/null 2>&1; then
+		# gum formatting keeps help text readable when available but the
+		# plain fallback ensures portability.
 		printf '%s\n' "${usage_text}" | gum format
 		return
 	fi
@@ -81,6 +83,7 @@ parse_args() {
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
 		init | configure)
+			# Accept both verbs for parity with hosted setup flows.
 			COMMAND="init"
 			shift
 			;;
@@ -107,6 +110,7 @@ parse_args() {
 			shift
 			;;
 		--plan-only)
+			# plan-only always implies dry-run so we avoid running tools.
 			PLAN_ONLY=true
 			DRY_RUN=true
 			shift
