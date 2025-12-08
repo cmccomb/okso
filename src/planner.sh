@@ -24,6 +24,8 @@
 # Exit codes:
 #   Functions return non-zero on misuse; fatal errors logged by caller.
 
+# shellcheck source=./errors.sh disable=SC1091
+source "${BASH_SOURCE[0]%/planner.sh}/errors.sh"
 # shellcheck source=./logging.sh disable=SC1091
 source "${BASH_SOURCE[0]%/planner.sh}/logging.sh"
 # shellcheck source=./tools.sh disable=SC1091
@@ -47,6 +49,11 @@ llama_infer() {
 	stop_string="${2:-}"
 	number_of_tokens="${3:-256}"
 	grammar_file_path="${4:-}"
+
+	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
+		log "WARN" "llama unavailable; skipping inference" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}"
+		return 1
+	fi
 
 	local additional_args
 	additional_args=()
@@ -76,31 +83,50 @@ llama_infer() {
 		"${additional_args[@]}" 2>/dev/null || true
 }
 
-format_tool_catalog() {
-	local tool_lines tool
-	tool_lines=""
-
-	for tool in "${TOOLS[@]}"; do
-		tool_lines+=$(printf -- '- %s: %s\n' "${tool}" "${TOOL_DESCRIPTION[${tool}]}")
-	done
-
-	printf '%s' "${tool_lines}"
-}
-
-format_allowed_tool_descriptions() {
+format_tool_descriptions() {
 	# Arguments:
 	#   $1 - newline-delimited allowed tool names (string)
-	local allowed_tools tool
+	#   $2 - callback to format a single tool line (function name)
+	local allowed_tools formatter tool_lines tool formatted_line
 	allowed_tools="$1"
-	local tool_lines
-	tool_lines="Available tools:"
+	formatter="$2"
+	tool_lines=""
+
+	if [[ -z "${formatter}" ]]; then
+		log "ERROR" "format_tool_descriptions requires a formatter" ""
+		return 1
+	fi
+
+	if ! declare -F "${formatter}" >/dev/null 2>&1; then
+		log "ERROR" "Unknown tool formatter" "${formatter}"
+		return 1
+	fi
 
 	while IFS= read -r tool; do
 		[[ -z "${tool}" ]] && continue
-		tool_lines+=$(printf '\n- %s: %s (example query: %s)' "${tool}" "${TOOL_DESCRIPTION[${tool}]}" "${TOOL_COMMAND[${tool}]}")
+		formatted_line="$(${formatter} "${tool}")"
+		if [[ -n "${formatted_line}" ]]; then
+			tool_lines+="${formatted_line}"$'\n'
+		fi
 	done <<<"${allowed_tools}"
 
-	printf '%s' "${tool_lines}"
+	printf '%s' "${tool_lines%$'\n'}"
+}
+
+format_tool_summary_line() {
+	# Arguments:
+	#   $1 - tool name (string)
+	local tool
+	tool="$1"
+	printf -- '- %s: %s' "${tool}" "${TOOL_DESCRIPTION[${tool}]}"
+}
+
+format_tool_example_line() {
+	# Arguments:
+	#   $1 - tool name (string)
+	local tool
+	tool="$1"
+	printf -- '- %s: %s (example query: %s)' "${tool}" "${TOOL_DESCRIPTION[${tool}]}" "${TOOL_COMMAND[${tool}]}"
 }
 
 append_final_answer_step() {
@@ -124,16 +150,19 @@ append_final_answer_step() {
 generate_plan_outline() {
 	# Arguments:
 	#   $1 - user query (string)
-	local user_query prompt raw_plan planner_grammar_path
+	local user_query
 	user_query="$1"
-	local tool_lines
-	tool_lines="$(format_tool_catalog)"
-	planner_grammar_path="$(grammar_path planner_plan)"
 
 	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
+		log "INFO" "Using static plan outline because llama is unavailable" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}"
 		printf '1. Use final_answer to respond directly to the user request.'
 		return 0
 	fi
+
+	local prompt raw_plan planner_grammar_path
+	local tool_lines
+	tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${TOOLS[@]}")" format_tool_summary_line)"
+	planner_grammar_path="$(grammar_path planner_plan)"
 
 	prompt="$(build_planner_prompt "${user_query}" "${tool_lines}")"
 	raw_plan="$(llama_infer "${prompt}" '' 512 "${planner_grammar_path}")"
@@ -316,6 +345,7 @@ execute_tool_with_query() {
 	return 0
 }
 
+# shellcheck disable=SC2154,SC2178
 initialize_react_state() {
 	# Arguments:
 	#   $1 - name of associative array to populate
@@ -351,6 +381,7 @@ record_history() {
 	state_ref["${history_key}"]+=$(printf '%s\n' "${entry}")
 }
 
+# shellcheck disable=SC2178,SC2034
 select_next_action() {
 	# Arguments:
 	#   $1 - name of associative array holding state
@@ -360,9 +391,13 @@ select_next_action() {
 	output_name="${2:-}"
 	# shellcheck disable=SC2178
 	local -n state_ref=$state_name
-	local react_prompt plan_index planned_entry tool query next_action_payload allowed_tool_descriptions
+	local react_prompt plan_index planned_entry tool query next_action_payload allowed_tool_descriptions allowed_tool_lines
 	if [[ "${USE_REACT_LLAMA:-false}" == true && "${LLAMA_AVAILABLE}" == true ]]; then
-		allowed_tool_descriptions="$(format_allowed_tool_descriptions "${state_ref[allowed_tools]}")"
+		allowed_tool_lines="$(format_tool_descriptions "${state_ref[allowed_tools]}" format_tool_example_line)"
+		allowed_tool_descriptions="Available tools:"
+		if [[ -n "${allowed_tool_lines}" ]]; then
+			allowed_tool_descriptions+=$'\n'"${allowed_tool_lines}"
+		fi
 		react_prompt="$(build_react_prompt "${state_ref[user_query]}" "${allowed_tool_descriptions}" "${state_ref[plan_outline]}" "${state_ref[history]}")"
 
 		local react_grammar_path raw_action validated_action
@@ -375,7 +410,6 @@ select_next_action() {
 		fi
 
 		if [[ -n "${output_name}" ]]; then
-			# shellcheck disable=SC2034
 			local -n output_ref=$output_name
 			output_ref="${validated_action}"
 		else

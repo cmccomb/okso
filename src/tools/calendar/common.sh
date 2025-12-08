@@ -17,12 +17,15 @@
 #   - bash 5+
 #   - osascript (optional; required on macOS)
 #   - logging helpers from logging.sh
+#   - osascript helpers from osascript_helpers.sh
 #
 # Exit codes:
 #   Functions emit errors via log and return non-zero on misuse.
 
 # shellcheck source=../../logging.sh disable=SC1091
 source "${BASH_SOURCE[0]%/tools/calendar/common.sh}/logging.sh"
+# shellcheck source=../osascript_helpers.sh disable=SC1091
+source "${BASH_SOURCE[0]%/tools/calendar/common.sh}/tools/osascript_helpers.sh"
 
 calendar_name() {
 	# Prints the resolved Apple Calendar name.
@@ -73,12 +76,12 @@ calendar_extract_event_fields() {
 }
 
 calendar_run_script() {
-	# Runs an AppleScript provided on stdin, passing through all arguments.
-	# Arguments:
-	#   $@ - parameters forwarded to osascript
-	local bin
-	bin=${CALENDAR_OSASCRIPT_BIN:-osascript}
-	"${bin}" - "$@"
+        # Runs an AppleScript provided on stdin, passing through all arguments.
+        # Arguments:
+        #   $@ - parameters forwarded to osascript
+        local bin
+        bin=${CALENDAR_OSASCRIPT_BIN:-osascript}
+        osascript_run_piped "${bin}" "$@"
 }
 
 calendar_resolve_calendar_script() {

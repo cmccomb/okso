@@ -51,10 +51,68 @@
 	[ "${lines[0]}" = "true" ]
 }
 
+@test "llama_infer reports unavailability without invoking llama" {
+	run bash -lc '
+                tmpdir=$(mktemp -d)
+                export LLAMA_AVAILABLE=false
+                export LLAMA_BIN="${tmpdir}/llama"
+                cat >"${LLAMA_BIN}"<<'"'"'EOF'"'"'
+#!/usr/bin/env bash
+echo "invoked" >>"${TMP_LOG}" 2>/dev/null
+EOF
+                chmod +x "${LLAMA_BIN}"
+                TMP_LOG="${tmpdir}/log"
+                source ./src/planner.sh
+                log() { :; }
+                llama_infer "demo prompt" "" 4
+                infer_status=$?
+                printf "STATUS:%s\n" "${infer_status}"
+                printf "LOG:%s\n" "$(cat "${TMP_LOG}" 2>/dev/null || true)"
+        '
+
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "STATUS:1" ]
+	[ "${lines[1]}" = "LOG:" ]
+}
+
 @test "init_tool_registry clears previous tools" {
 	run bash -lc 'source ./src/tools.sh; TOOLS=(stub); TOOL_DESCRIPTION=( [stub]="desc"); init_tool_registry; echo "${#TOOLS[@]}"'
 	[ "$status" -eq 0 ]
 	[ "${lines[0]}" -eq 0 ]
+}
+
+@test "assert_osascript_available warns and exits when not on macOS" {
+	run bash -lc '
+                IS_MACOS=false
+                VERBOSITY=1
+                TOOL_QUERY="demo query"
+                source ./src/tools/osascript_helpers.sh
+                assert_osascript_available \
+                        "AppleScript not available on this platform" \
+                        "missing" \
+                        "osascript" \
+                        "${TOOL_QUERY}"
+        '
+
+	[ "$status" -eq 1 ]
+	[ "$(echo "${output}" | jq -r '.message')" = "AppleScript not available on this platform" ]
+	[ "$(echo "${output}" | jq -r '.detail')" = "demo query" ]
+}
+
+@test "assert_osascript_available flags missing binary on macOS" {
+	run bash -lc '
+                IS_MACOS=true
+                VERBOSITY=1
+                source ./src/tools/osascript_helpers.sh
+                assert_osascript_available \
+                        "AppleScript not available on this platform" \
+                        "osascript missing; cannot execute AppleScript" \
+                        "/nonexistent/osascript" \
+                        ""
+        '
+
+	[ "$status" -eq 1 ]
+	[ "$(echo "${output}" | jq -r '.message')" = "osascript missing; cannot execute AppleScript" ]
 }
 
 @test "initialize_tools registers each module" {
@@ -347,9 +405,29 @@ printf "PLAN:%s\nGRAMMAR:%s\n" "${plan_text}" "$(cat "${llama_grammar_file}")"
 	[ "${lines[${last_index}]}" = "GRAMMAR:${expected_grammar}" ]
 }
 
+@test "generate_plan_outline short-circuits when llama unavailable" {
+	run bash -lc '
+                tmpdir=$(mktemp -d)
+                source ./src/planner.sh
+                llama_infer() { printf "called" >"${tmpdir}/llama.called"; }
+                log() { :; }
+                initialize_tools
+                LLAMA_AVAILABLE=false
+
+                plan_text="$(generate_plan_outline "offline request")"
+                call_log="$(cat "${tmpdir}/llama.called" 2>/dev/null || true)"
+                printf "PLAN:%s\nCALLED:%s\n" "${plan_text}" "${call_log}"
+        '
+
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "PLAN:1. Use final_answer to respond directly to the user request." ]
+	[ "${lines[1]}" = "CALLED:" ]
+}
+
 @test "respond_text forwards concise response grammar" {
 	run bash -lc '
                 source ./src/respond.sh
+                LLAMA_AVAILABLE=true
 
                 llama_grammar_file="$(mktemp)"
                 llama_infer() {
@@ -364,6 +442,32 @@ printf "PLAN:%s\nGRAMMAR:%s\n" "${plan_text}" "$(cat "${llama_grammar_file}")"
 	expected_grammar="$(cd src && pwd)/grammars/concise_response.gbnf"
 	last_index=$((${#lines[@]} - 1))
 	[ "${lines[${last_index}]}" = "GRAMMAR:${expected_grammar}" ]
+}
+
+@test "respond_text falls back when llama is unavailable" {
+	run bash -lc '
+                tmpdir=$(mktemp -d)
+                export TESTING_PASSTHROUGH=true
+                export LLAMA_BIN="${tmpdir}/llama"
+                printf "#!/usr/bin/env bash\necho llama >>\"${tmpdir}/llama.log\"" >"${LLAMA_BIN}"
+                chmod +x "${LLAMA_BIN}"
+                MODEL_SPEC="demo/repo:demo.gguf"
+                DEFAULT_MODEL_FILE="demo.gguf"
+                NOTES_DIR="${tmpdir}/notes"
+                APPROVE_ALL=false
+                FORCE_CONFIRM=false
+                source ./src/config.sh
+                init_environment
+                source ./src/respond.sh
+                log() { :; }
+                response_output="$(respond_text "offline question" 8)"
+                printf "OUTPUT:%s\nLOG:%s\nAVAILABLE:%s\n" "${response_output}" "$(cat "${tmpdir}/llama.log" 2>/dev/null || true)" "${LLAMA_AVAILABLE}"
+        '
+
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "OUTPUT:LLM unavailable. Request received: offline question" ]
+	[ "${lines[1]}" = "LOG:" ]
+	[ "${lines[2]}" = "AVAILABLE:false" ]
 }
 
 @test "select_next_action logs and fails on invalid llama output" {

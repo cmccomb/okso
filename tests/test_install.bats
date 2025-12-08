@@ -134,26 +134,40 @@ echo "Darwin"
 EOM_UNAME
 	chmod +x "${mock_path}/uname"
 
-	cat >"${mock_path}/curl" <<EOM_CURL
+        cat >"${mock_path}/curl" <<EOM_CURL
 #!/usr/bin/env bash
 printf 'curl %s\n' "\$*" >>"${log_path}"
 printf 'args:' >>"${log_path}"
 for arg in "\$@"; do
-        printf ' %q' "\$arg" >>"${log_path}"
+	printf ' %q' "\$arg" >>"${log_path}"
 done
 printf '\n' >>"${log_path}"
 dest=""
+url=""
 while [ \$# -gt 0 ]; do
-        if [ "\$1" = "-o" ] && [ \$# -ge 2 ]; then
-                dest="\$2"
-                shift 2
-                continue
-        fi
-        shift
+	case "\$1" in
+	-o)
+		if [ \$# -ge 2 ]; then
+			dest="\$2"
+			shift 2
+			continue
+		fi
+		;;
+	http*|file*)
+		url="\$1"
+		shift
+		continue
+		;;
+	esac
+	shift
 done
 
+if [[ "\${url}" == *".sha256" || "\${url}" == *".asc" ]]; then
+	exit 22
+fi
+
 if [ -n "\${dest}" ]; then
-        cp "${tarball}" "\${dest}"
+	cp "${tarball}" "\${dest}"
 fi
 EOM_CURL
 	chmod +x "${mock_path}/curl"

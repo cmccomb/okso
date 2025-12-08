@@ -41,6 +41,9 @@
 # Exit codes:
 #   0 for success, non-zero bubbled from downstream helpers.
 
+# shellcheck source=./errors.sh disable=SC1091
+source "${BASH_SOURCE[0]%/runtime.sh}/errors.sh"
+
 create_default_settings() {
 	# Arguments:
 	#   $1 - name of associative array to populate

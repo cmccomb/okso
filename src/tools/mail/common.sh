@@ -16,12 +16,15 @@
 #   - bash 5+
 #   - osascript (optional; required on macOS)
 #   - logging helpers from logging.sh
+#   - osascript helpers from osascript_helpers.sh
 #
 # Exit codes:
 #   Functions emit errors via log and return non-zero on misuse.
 
 # shellcheck source=../../logging.sh disable=SC1091
 source "${BASH_SOURCE[0]%/tools/mail/common.sh}/logging.sh"
+# shellcheck source=../osascript_helpers.sh disable=SC1091
+source "${BASH_SOURCE[0]%/tools/mail/common.sh}/tools/osascript_helpers.sh"
 
 mail_require_platform() {
 	# Ensures Apple Mail tools only run on macOS with osascript available.
@@ -110,10 +113,10 @@ mail_split_recipients() {
 }
 
 mail_run_script() {
-	# Runs an AppleScript provided on stdin, passing through all arguments.
-	# Arguments:
-	#   $@ - parameters forwarded to osascript
-	local bin
-	bin=${MAIL_OSASCRIPT_BIN:-osascript}
-	"${bin}" - "$@"
+        # Runs an AppleScript provided on stdin, passing through all arguments.
+        # Arguments:
+        #   $@ - parameters forwarded to osascript
+        local bin
+        bin=${MAIL_OSASCRIPT_BIN:-osascript}
+        osascript_run_piped "${bin}" "$@"
 }

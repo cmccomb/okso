@@ -12,15 +12,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Setup Bats and bats libs
+        uses: bats-core/bats-action@3.0.0
+        
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y shellcheck shfmt bats
+          sudo apt-get install -y shellcheck shfmt
 
       - name: Lint installer
         run: |
-          shfmt -d scripts/install.sh tests/test_install.bats
-          shellcheck scripts/install.sh tests/test_install.bats
+          shfmt -d scripts/install.sh tests/test_install.bats tests/install/test_install_features.bats
+          shellcheck scripts/install.sh tests/test_install.bats tests/install/test_install_features.bats
 
       - name: Run installer tests
-        run: bats tests/test_install.bats
+        run: |
+          bats tests/test_install.bats tests/install/test_install_features.bats

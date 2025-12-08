@@ -14,6 +14,16 @@ The Bats suite covers CLI help/version output, confirmation prompts, determinist
 
 Set `TESTING_PASSTHROUGH=true` when running the suite to disable llama.cpp invocation and surface test-only code paths without muting runtime errors that depend on llama availability.
 
+### Coverage collection
+
+Generate HTML, JSON, and Cobertura coverage reports with bashcov:
+
+```bash
+./scripts/coverage.sh
+```
+
+Artifacts are written to `coverage/` (HTML + XML + JSON). Set `COVERAGE_THRESHOLD=75` to warn when totals dip below 75%, and enable `COVERAGE_STRICT=true` to fail the run when the threshold is not met. The script defaults to `TESTING_PASSTHROUGH=false` while pointing `LLAMA_BIN` at the mocked binary used in tests.
+
 ## Planning workflow
 
 The planner now drives execution through an explicit, tool-aware outline:
