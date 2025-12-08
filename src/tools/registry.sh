@@ -52,6 +52,27 @@ register_tool() {
 
 	local name
 	name="$1"
+
+	if [[ ! "${name}" =~ ^[a-z0-9_]+$ ]]; then
+		log "ERROR" "tool names must be alphanumeric with underscores" "${name}" || true
+		return 1
+	fi
+
+	if [[ -n "${TOOL_NAME_ALLOWLIST[*]:-}" ]]; then
+		local allowed
+		allowed=false
+		for allowed in "${TOOL_NAME_ALLOWLIST[@]}"; do
+			if [[ "${name}" == "${allowed}" ]]; then
+				allowed=true
+				break
+			fi
+		done
+
+		if [[ "${allowed}" != true ]]; then
+			log "ERROR" "tool name not in allowlist" "${name}" || true
+			return 1
+		fi
+	fi
 	# shellcheck disable=SC2034
 	TOOLS+=("${name}")
 	# shellcheck disable=SC2034

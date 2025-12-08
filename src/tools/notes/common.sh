@@ -72,8 +72,8 @@ notes_run_script() {
 	# Arguments:
 	#   $@ - parameters forwarded to osascript
 	local bin
-	bin=${NOTES_OSASCRIPT_BIN:-osascript}
-	"${bin}" - "$@"
+        bin=${NOTES_OSASCRIPT_BIN:-osascript}
+        osascript_run_piped "${bin}" "$@"
 }
 
 notes_resolve_folder_script() {

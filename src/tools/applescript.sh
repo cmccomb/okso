@@ -38,8 +38,10 @@ tool_applescript() {
 		return 0
 	fi
 
-	log "INFO" "Executing AppleScript" "${query}"
-	osascript -e "${query}"
+        log "INFO" "Executing AppleScript" "${query}"
+        if ! osascript_run_evaluated "osascript" "${query}"; then
+                return 1
+        fi
 }
 
 register_applescript() {
