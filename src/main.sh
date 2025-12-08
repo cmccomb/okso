@@ -14,8 +14,8 @@
 #       --confirm         Always prompt before running tools.
 #       --dry-run         Print the planned tool calls without running them.
 #       --plan-only       Emit the planned calls as JSON and exit.
-#   -m, --model VALUE     HF repo[:file] for llama.cpp download (default: Qwen/Qwen3-1.5B-Instruct-GGUF:qwen3-1.5b-instruct-q4_k_m.gguf).
-#       --model-branch BRANCH  HF branch or tag for the model download.
+#   -m, --model VALUE     HF repo[:file] for llama.cpp download (default: bartowski/Qwen_Qwen3-4B-Instruct-2507-GGUF:Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf).
+#       --model-branch BRANCH  HF branch or tag for the model download (default: main).
 #       --config FILE     Config file to load (default: ${XDG_CONFIG_HOME:-$HOME/.config}/okso/config.env).
 #   -v, --verbose         Increase log verbosity (JSON logs are always structured).
 #   -q, --quiet           Silence informational logs.
@@ -70,12 +70,16 @@ main() {
 	load_runtime_settings settings "$@"
 
 	if [[ "${settings[command]}" == "init" ]]; then
+		# Init mode writes a config file and exits without running the planner.
 		apply_settings_to_globals settings
 		write_config_file
 		return 0
 	fi
 
 	prepare_environment_with_settings settings
+	# Planner flow:
+	# 1. Generate an outline, 2. identify tools, 3. build concrete plan entries
+	# for execution, then 4. render plan outputs before proceeding.
 	log "INFO" "Starting plan generation" "${settings[user_query]}"
 	plan_outline="$(generate_plan_outline "${settings[user_query]}")"
 	required_tools="$(extract_tools_from_plan "${plan_outline}")"

@@ -51,13 +51,15 @@ create_default_settings() {
 
 	settings_ref=()
 
+	# Defaults mirror the baked-in CLI behavior; downstream layers can override
+	# via config files, environment variables, and argument parsing.
 	settings_ref[version]="0.1.0"
 	settings_ref[llama_bin]="${LLAMA_BIN:-llama-cli}"
-	settings_ref[default_model_file]="Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
+	settings_ref[default_model_file]="${DEFAULT_MODEL_FILE_BASE:-Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf}"
 	settings_ref[config_dir]="${XDG_CONFIG_HOME:-${HOME}/.config}/okso"
 	settings_ref[config_file]="${settings_ref[config_dir]}/config.env"
-	settings_ref[model_spec]="bartowski/Qwen_Qwen3-4B-Instruct-2507-GGUF:${settings_ref[default_model_file]}"
-	settings_ref[model_branch]="main"
+	settings_ref[model_spec]="${DEFAULT_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-4B-Instruct-2507-GGUF:${settings_ref[default_model_file]}}"
+	settings_ref[model_branch]="${DEFAULT_MODEL_BRANCH_BASE:-main}"
 	settings_ref[model_repo]=""
 	settings_ref[model_file]=""
 	settings_ref[approve_all]="false"
@@ -139,6 +141,8 @@ load_runtime_settings() {
 	create_default_settings "${settings_name}"
 	apply_settings_to_globals "${settings_name}"
 
+	# Ordering matters: config file may update globals before CLI args take
+	# precedence, matching typical UNIX expectations.
 	detect_config_file "$@"
 	load_config
 	parse_args "$@"
@@ -159,6 +163,8 @@ prepare_environment_with_settings() {
 	init_environment
 	init_tool_registry
 	initialize_tools
+	# Capture any mutations (e.g., resolved model paths, OS flags) back into the
+	# settings structure for downstream consumers.
 	capture_globals_into_settings "${settings_name}"
 }
 # shellcheck disable=SC2034
@@ -193,12 +199,16 @@ render_plan_outputs() {
 	fi
 
 	if [[ "${settings_ref[plan_only]}" == true ]]; then
+		# plan-only short-circuits execution and dry-run emission; callers handle
+		# the resulting action_ref to exit early.
 		emit_plan_json "${plan_entries}"
 		action_ref="exit"
 		return 0
 	fi
 
 	if [[ "${settings_ref[dry_run]}" == true ]]; then
+		# Dry run prints the intended commands for operator inspection while still
+		# providing the serialized JSON plan for automation.
 		printf 'Dry run: planned tool calls (no execution).\n'
 		emit_plan_json "${plan_entries}"
 		while IFS='|' read -r _tool query _score; do
@@ -227,6 +237,8 @@ select_response_strategy() {
 	apply_settings_to_globals "${settings_name}"
 
 	if [[ -z "${required_tools}" ]]; then
+		# The planner may occasionally decline tools; fall back to direct text
+		# responses so the user still receives output.
 		log "WARN" "No tools selected; responding directly" "${USER_QUERY}"
 		printf 'No tools selected; responding directly.\n'
 		printf '%s\n' "$(respond_text "${USER_QUERY}" 256)"

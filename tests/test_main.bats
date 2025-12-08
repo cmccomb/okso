@@ -23,6 +23,15 @@ EOF
 	[[ "$output" != *"DO_MODEL"* ]]
 }
 
+@test "includes default model spec in help" {
+	local default_spec
+	default_spec="$(bash -c 'source ./src/config.sh; printf "%s" "${DEFAULT_MODEL_SPEC_BASE}"')"
+
+	run ./src/main.sh --help -- "example query"
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"${default_spec}"* ]]
+}
+
 @test "prints version" {
 	run ./src/main.sh --version -- "query"
 	[ "$status" -eq 0 ]

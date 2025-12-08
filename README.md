@@ -24,7 +24,7 @@ Auto-approval with a specific model selection:
 ./src/main.sh --yes --model your-org/your-model:custom.gguf -- "save reminder"
 ```
 
-Write a config file up front with a custom model branch (defaults to `Qwen/Qwen3-1.5B-Instruct-GGUF:qwen3-1.5b-instruct-q4_k_m.gguf` on `main`):
+Write a config file up front with a custom model branch (defaults to `bartowski/Qwen_Qwen3-4B-Instruct-2507-GGUF:Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf` on `main`):
 
 ```bash
 ./src/main.sh init --model your-org/your-model:custom.gguf --model-branch release
