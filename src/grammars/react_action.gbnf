@@ -1,0 +1,7 @@
+root ::= object
+object ::= "{" ws '"type"' ws ":" ws string ws "," ws '"tool"' ws ":" ws string ws "," ws '"query"' ws ":" ws string ws "}"
+string ::= '"' chars '"'
+chars ::= char+
+char ::= [^"\\\n\r] | escape
+escape ::= "\\\"" | "\\\\" | "\\/" | "\\b" | "\\f" | "\\n" | "\\r" | "\\t"
+ws ::= [ \t\n\r]*

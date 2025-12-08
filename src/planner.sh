@@ -35,10 +35,23 @@ source "${BASH_SOURCE[0]%/planner.sh}/prompts.sh"
 
 llama_infer() {
         # Runs llama.cpp with HF caching enabled for the configured model.
-        local prompt
-        prompt="$1"
-        stop_string="$2"
-        number_of_tokens="$3"
+        # Arguments:
+        #   $1 - prompt string
+        #   $2 - stop string (optional)
+        #   $3 - max tokens (optional)
+        #   $4 - grammar file path (optional)
+local prompt stop_string number_of_tokens grammar_path
+prompt="$1"
+stop_string="${2:-}"
+number_of_tokens="${3:-256}"
+grammar_path="${4:-}"
+
+        local additional_args
+        additional_args=()
+
+        if [[ -n "${grammar_path}" ]]; then
+                additional_args+=(--grammar "${grammar_path}")
+        fi
 
         # If a stop string is provided, use it to terminate output.
         if [[ -n "${stop_string}" ]]; then
@@ -47,7 +60,8 @@ llama_infer() {
                         --hf-file "${MODEL_FILE}" \
                         -no-cnv --no-display-prompt --simple-io --verbose -r "${stop_string}" \
                         -n "${number_of_tokens}" \
-                        -p "${prompt}" 2>/dev/null || true
+                        -p "${prompt}" \
+                        "${additional_args[@]}" 2>/dev/null || true
                 return
         fi
 
@@ -56,7 +70,8 @@ llama_infer() {
                 --hf-file "${MODEL_FILE}" \
                 -n "${number_of_tokens}" \
                 -no-cnv --no-display-prompt --simple-io --verbose \
-                -p "${prompt}" 2>/dev/null || true
+                -p "${prompt}" \
+                "${additional_args[@]}" 2>/dev/null || true
 }
 
 format_tool_catalog() {
@@ -340,7 +355,23 @@ select_next_action() {
         if [[ "${USE_REACT_LLAMA:-false}" == true && "${LLAMA_AVAILABLE}" == true ]]; then
                 allowed_tool_descriptions="$(format_allowed_tool_descriptions "${state_ref[allowed_tools]}")"
                 react_prompt="$(build_react_prompt "${state_ref[user_query]}" "${allowed_tool_descriptions}" "${state_ref[plan_outline]}" "${state_ref[history]}")"
-                llama_infer "${react_prompt}"
+
+                local grammar_path raw_action validated_action
+                grammar_path="$(cd "${BASH_SOURCE[0]%/planner.sh}" && pwd)/grammars/react_action.gbnf"
+
+                raw_action="$(llama_infer "${react_prompt}" "" 256 "${grammar_path}")"
+                if ! validated_action=$(jq -cer 'select(type == "object") | {type, tool, query} | select(.type|type == "string") | select(.tool|type == "string") | select(.query|type == "string")' <<<"${raw_action}"); then
+                        log "ERROR" "Invalid action output from llama" "${raw_action}"
+                        return 1
+                fi
+
+                if [[ -n "${output_name}" ]]; then
+                        local -n output_ref=$output_name
+                        output_ref="${validated_action}"
+                else
+                        printf '%s\n' "${validated_action}"
+                fi
+
                 return
         fi
 

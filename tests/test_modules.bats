@@ -241,7 +241,7 @@ printf "LOG:%s\n" "$(cat "${LOG_FILE}")"
 }
 
 @test "select_next_action follows plan entries before finalizing" {
-	run bash -lc '
+        run bash -lc '
                 source ./src/planner.sh
                 respond_text() { printf "offline response"; }
                 declare -A state=(
@@ -259,9 +259,87 @@ printf "LOG:%s\n" "$(cat "${LOG_FILE}")"
                 select_next_action state | jq -r ".type,.tool,.query"
         '
 	[ "$status" -eq 0 ]
-	[ "${lines[0]}" = "tool" ]
-	[ "${lines[1]}" = "terminal" ]
-	[ "${lines[2]}" = "echo hi" ]
+        [ "${lines[0]}" = "tool" ]
+        [ "${lines[1]}" = "terminal" ]
+        [ "${lines[2]}" = "echo hi" ]
+}
+
+@test "select_next_action uses llama grammar and captures output" {
+        run bash -lc '
+                source ./src/planner.sh
+
+                llama_arg_file="$(mktemp)"
+                llama_grammar_file="$(mktemp)"
+                llama_infer() {
+                        printf "%s" "$#" >"${llama_arg_file}"
+                        printf "%s" "$4" >"${llama_grammar_file}"
+                        printf "{\"type\":\"tool\",\"tool\":\"terminal\",\"query\":\"ls\"}"
+                }
+
+                declare -A state=(
+                        [user_query]="list files"
+                        [allowed_tools]=$'"'"'terminal\nfinal_answer'"'"'
+                        [plan_entries]=""
+                        [plan_outline]=$'"'"'1. terminal -> list\n2. final_answer -> summarize'"'"'
+                        [history]=""
+                        [step]=0
+                        [plan_index]=0
+                        [max_steps]=2
+                        [final_answer]=""
+                )
+
+                USE_REACT_LLAMA=true
+                LLAMA_AVAILABLE=true
+                action_json=""
+
+                select_next_action state action_json
+
+                llama_arg_count="$(cat "${llama_arg_file}")"
+                llama_grammar="$(cat "${llama_grammar_file}")"
+                expected_grammar="$(cd src && pwd)/grammars/react_action.gbnf"
+                printf "%s\n" "${action_json}" "COUNT:${llama_arg_count}" "GRAMMAR:${llama_grammar}" "EXPECTED:${expected_grammar}"
+        '
+
+        [ "$status" -eq 0 ]
+        [ "${lines[0]}" = '{"type":"tool","tool":"terminal","query":"ls"}' ]
+        [ "${lines[1]}" = "COUNT:4" ]
+        [ "${lines[2]}" = "GRAMMAR:${lines[3]#EXPECTED:}" ]
+}
+
+@test "select_next_action logs and fails on invalid llama output" {
+        run bash -lc '
+                source ./src/planner.sh
+
+                llama_infer() {
+                        printf "invalid json"
+                }
+
+                declare -A state=(
+                        [user_query]="list files"
+                        [allowed_tools]=$'"'"'terminal\nfinal_answer'"'"'
+                        [plan_entries]=""
+                        [plan_outline]=$'"'"'1. terminal -> list'"'"'
+                        [history]=""
+                        [step]=0
+                        [plan_index]=0
+                        [max_steps]=2
+                        [final_answer]=""
+                )
+
+                USE_REACT_LLAMA=true
+                LLAMA_AVAILABLE=true
+                action_json=""
+
+                select_next_action state action_json
+                rc=$?
+                echo "STATUS:${rc}"
+                exit ${rc}
+        '
+
+        [ "$status" -eq 1 ]
+        [[ "${output}" == *"Invalid action output from llama"* ]]
+        last_index=$((${#lines[@]} - 1))
+        [ "${lines[${last_index}]}" = "STATUS:1" ]
 }
 
 @test "validate_tool_permission records history for disallowed tool" {
