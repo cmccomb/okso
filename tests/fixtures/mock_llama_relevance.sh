@@ -38,29 +38,29 @@ if [[ "${prompt_lower}" == *"concise response"* ]]; then
 	exit 0
 fi
 
-if [[ "${user_request_lower}" == *"joke"* || "${user_request_lower}" == *"chat"* ]]; then
-	printf '{}\n'
+if [[ "${prompt_lower}" == *"numbered list of high-level actions"* || "${prompt_lower}" == *"available tools"* ]]; then
+	if [[ "${user_request_lower}" == *"remind"* ]]; then
+		printf '1. Use reminders_create to schedule the reminder.\n2. Use final_answer to confirm for the user.\n'
+		exit 0
+	fi
+
+	if [[ "${user_request_lower}" == *"note"* ]]; then
+		printf '1. Use notes_create to capture the note.\n2. Use final_answer to summarize what was saved.\n'
+		exit 0
+	fi
+
+	if [[ "${user_request_lower}" == *"todo"* ]]; then
+		printf '1. Use terminal to search for TODO markers.\n2. Use final_answer to summarize findings.\n'
+		exit 0
+	fi
+
+	if [[ "${user_request_lower}" == *"file"* || "${user_request_lower}" == *"folder"* ]]; then
+		printf '1. Use terminal to inspect the files.\n2. Use final_answer to relay the results.\n'
+		exit 0
+	fi
+
+	printf '1. Use final_answer to respond directly.\n'
 	exit 0
 fi
 
-if [[ "${user_request_lower}" == *"remind"* ]]; then
-	printf '{"reminders_create":true}\n'
-	exit 0
-fi
-
-if [[ "${user_request_lower}" == *"note"* ]]; then
-	printf '{"notes_create":true}\n'
-	exit 0
-fi
-
-if [[ "${user_request_lower}" == *"todo"* ]]; then
-	printf '{"terminal":true}\n'
-	exit 0
-fi
-
-if [[ "${user_request_lower}" == *"file"* || "${user_request_lower}" == *"folder"* ]]; then
-	printf '{"terminal":true}\n'
-	exit 0
-fi
-
-printf '{}\n'
+printf '1. Use final_answer to respond directly.\n'

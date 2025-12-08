@@ -166,24 +166,30 @@ render_plan_outputs() {
 	# Arguments:
 	#   $1 - name of variable to receive action ("continue" or "exit")
 	#   $2 - name of settings associative array
-	#   $3 - ranked tools string
+	#   $3 - required tools list (newline delimited)
 	#   $4 - plan entries string
+	#   $5 - plan outline text
 	local -n action_ref=$1
 	local -n settings_ref=$2
-	local ranked_tools plan_entries
-	ranked_tools="$3"
+	local required_tools plan_entries plan_outline
+	required_tools="$3"
 	plan_entries="$4"
+	plan_outline="$5"
 
 	action_ref="continue"
 
-	if [[ -z "${ranked_tools}" ]]; then
+	if [[ -z "${required_tools}" ]]; then
 		printf 'Suggested tools: none.\n'
 	else
 		printf 'Suggested tools:\n'
-		while IFS= read -r ranked_entry; do
-			[[ -z "${ranked_entry}" ]] && continue
-			printf ' - %s\n' "${ranked_entry#*:}"
-		done <<<"${ranked_tools}"
+		while IFS= read -r tool; do
+			[[ -z "${tool}" ]] && continue
+			printf ' - %s\n' "${tool}"
+		done <<<"${required_tools}"
+	fi
+
+	if [[ -n "${plan_outline}" ]]; then
+		printf 'Plan outline:\n%s\n' "${plan_outline}"
 	fi
 
 	if [[ "${settings_ref[plan_only]}" == true ]]; then
@@ -206,19 +212,21 @@ render_plan_outputs() {
 select_response_strategy() {
 	# Arguments:
 	#   $1 - name of settings associative array
-	#   $2 - ranked tools string
+	#   $2 - required tools string
 	#   $3 - plan entries string
+	#   $4 - plan outline text
 	local settings_name
 	settings_name="$1"
 	shift
 	local -n settings_ref=$settings_name
-	local ranked_tools plan_entries
-	ranked_tools="$1"
+	local required_tools plan_entries plan_outline
+	required_tools="$1"
 	plan_entries="$2"
+	plan_outline="$3"
 
 	apply_settings_to_globals "${settings_name}"
 
-	if [[ -z "${ranked_tools}" ]]; then
+	if [[ -z "${required_tools}" ]]; then
 		log "WARN" "No tools selected; responding directly" "${USER_QUERY}"
 		printf 'No tools selected; responding directly.\n'
 		printf '%s\n' "$(respond_text "${USER_QUERY}" 256)"
@@ -226,5 +234,5 @@ select_response_strategy() {
 		return 0
 	fi
 
-	react_loop "${USER_QUERY}" "${ranked_tools}" "${plan_entries}"
+	react_loop "${USER_QUERY}" "${required_tools}" "${plan_entries}" "${plan_outline}"
 }

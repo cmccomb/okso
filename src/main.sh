@@ -65,7 +65,7 @@ source "${SCRIPT_DIR}/runtime.sh"
 
 main() {
 	local -A settings
-	local ranked_tools plan_entries plan_action
+	local plan_outline required_tools plan_entries plan_action
 
 	load_runtime_settings settings "$@"
 
@@ -76,17 +76,18 @@ main() {
 	fi
 
 	prepare_environment_with_settings settings
-	log "INFO" "Starting tool selection" "${settings[user_query]}"
-	ranked_tools="$(rank_tools "${settings[user_query]}")"
-	log "INFO" "Selected tools" "${ranked_tools}"
-	plan_entries="$(build_plan_entries "${ranked_tools}" "${settings[user_query]}")"
+	log "INFO" "Starting plan generation" "${settings[user_query]}"
+	plan_outline="$(generate_plan_outline "${settings[user_query]}")"
+	required_tools="$(extract_tools_from_plan "${plan_outline}")"
+	log "INFO" "Planner identified tools" "${required_tools}"
+	plan_entries="$(build_plan_entries_from_tools "${required_tools}" "${settings[user_query]}")"
 
-	render_plan_outputs plan_action settings "${ranked_tools}" "${plan_entries}"
+	render_plan_outputs plan_action settings "${required_tools}" "${plan_entries}" "${plan_outline}"
 	if [[ "${plan_action}" == "exit" ]]; then
 		return 0
 	fi
 
-	select_response_strategy settings "${ranked_tools}" "${plan_entries}"
+	select_response_strategy settings "${required_tools}" "${plan_entries}" "${plan_outline}"
 }
 
 main "$@"

@@ -57,91 +57,58 @@ llama_infer() {
 		-p "${prompt}" 2>/dev/null || true
 }
 
-structured_tool_relevance() {
+build_planner_prompt() {
 	# Arguments:
 	#   $1 - user query (string)
-	local user_query grammar tool_alternatives prompt raw
-	local -a relevant_tools
-	declare -A relevance_map=()
+	local user_query tool_lines
 	user_query="$1"
-
-	# I had to comment this out in order to get this to run outsid eof a test environment. Weird.
-	#	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
-	#		return 0
-	#	fi
-
-	tool_alternatives=""
-	for tool in "${TOOLS[@]}"; do
-		tool_alternatives+=$(printf '"%s" | ' "${tool}")
-	done
-	tool_alternatives="${tool_alternatives% | }"
-
-	read -r -d '' grammar <<GRAM || true
-root ::= "{" ws entries? ws "}"
-entries ::= pair (ws "," ws pair)*
-pair ::= tool-key ws ":" ws bool
-
-tool-key ::= "\"" tool-name "\""
-tool-name ::= ${tool_alternatives}
-
-bool ::= "true" | "false"
-ws ::= [ \t\n\r]*
-GRAM
-
-	prompt="Return a compact JSON map of tool relevance using boolean flags based on their relevance for addressing the query from the user. The available tools are: \n"
-	for tool in "${TOOLS[@]}"; do
-		prompt+=$(printf '%s ' "- ${tool}\n")
-	done
-	prompt+="\n\nUser request: ${user_query}"
-
-	log "INFO" "Structured tool relevance prompt:" "${prompt}" >&2
-
-	raw="$(${LLAMA_BIN} \
-		--hf-repo "${MODEL_REPO}" \
-		--hf-file "${MODEL_FILE}" \
-		-no-cnv --simple-io \
-		--no-display-prompt \
-		--repeat-penalty 1.5 \
-		--grammar "${grammar}" \
-		-p "${prompt}" 2>/dev/null || true)" #
-
-	if [[ ${VERBOSITY:-1} -ge 2 ]]; then
-		printf '%s\n' "${raw}" >&2
-	fi
-
-	mapfile -t relevant_tools < <(jq -r '
-                if type == "array" then
-                        .[] | select(.relevant == true and .tool != null) | "\(.tool)"
-                elif type == "object" then
-                        to_entries[] | select(.value == true) | "\(.key)"
-                else
-                        empty
-                end
-        ' <<<"${raw}" 2>/dev/null || true)
-
-	for tool in "${relevant_tools[@]}"; do
-		relevance_map["${tool}"]=true
-	done
+	tool_lines=""
 
 	for tool in "${TOOLS[@]}"; do
-		if [[ -n "${relevance_map[${tool}]:-}" ]]; then
-			printf '5:%s\n' "${tool}"
-		fi
+		tool_lines+=$(printf -- '- %s: %s\n' "${tool}" "${TOOL_DESCRIPTION[${tool}]}")
 	done
+
+	cat <<PROMPT
+You are a planner for an autonomous agent. Given a user request and a list of available tools, draft a numbered list of high-level actions the agent should take. Each step must mention the tool name that will be used. Do NOT include fully executable shell commands; keep the guidance conceptual. Always end with a final step that uses the final_answer tool to deliver the response back to the user.
+
+Available tools:
+${tool_lines}
+User request: ${user_query}
+PROMPT
 }
 
-rank_tools() {
-	local user_query
+append_final_answer_step() {
+	# Ensures the plan includes a final step with the final_answer tool.
+	# Arguments:
+	#   $1 - plan text (string)
+	local plan_text step_count
+	plan_text="$1"
+
+	if [[ "${plan_text,,}" == *"final_answer"* ]]; then
+		printf '%s' "${plan_text}"
+		return 0
+	fi
+
+	step_count=$(grep -Ec '^[[:space:]]*[0-9]+\.' <<<"${plan_text}" || true)
+	step_count=${step_count:-0}
+	step_count=$((step_count + 1))
+	printf '%s\n%d. Use final_answer to summarize the result for the user.' "${plan_text}" "${step_count}"
+}
+
+generate_plan_outline() {
+	# Arguments:
+	#   $1 - user query (string)
+	local user_query prompt raw_plan
 	user_query="$1"
 
-	# Had to comment this out to get it to run outside of a test enviornment
-	#	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
-	#		log "WARN" "llama.cpp binary unavailable; skipping tool selection" "${LLAMA_BIN}" >&2
-	#		return 0
-	#	fi
+	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
+		printf '1. Use final_answer to respond directly to the user request.'
+		return 0
+	fi
 
-	structured_tool_relevance "${user_query}"
-	return $?
+	prompt="$(build_planner_prompt "${user_query}")"
+	raw_plan="$(llama_infer "${prompt}" '' 512)"
+	append_final_answer_step "${raw_plan}"
 }
 
 declare -A TOOL_QUERY_DERIVERS=(
@@ -187,6 +154,55 @@ emit_plan_json() {
 	done <<<"${plan_entries}" | jq -sc '.'
 }
 
+extract_tools_from_plan() {
+	# Arguments:
+	#   $1 - plan outline text (string)
+	local plan_text lower_line tool
+	declare -A seen=()
+	local -a required=()
+	plan_text="$1"
+
+	while IFS= read -r line; do
+		lower_line="${line,,}"
+		for tool in "${TOOLS[@]}"; do
+			if [[ -n "${seen[${tool}]:-}" ]]; then
+				continue
+			fi
+			if [[ "${lower_line}" == *"${tool,,}"* ]]; then
+				required+=("${tool}")
+				seen["${tool}"]=1
+			fi
+		done
+	done <<<"${plan_text}"
+
+	if [[ -z "${seen[final_answer]:-}" ]]; then
+		required+=("final_answer")
+	fi
+
+	printf '%s\n' "${required[@]}"
+}
+
+build_plan_entries_from_tools() {
+	# Arguments:
+	#   $1 - newline-delimited tool names
+	#   $2 - user query (string)
+	local tool_list user_query plan query
+	tool_list="$1"
+	user_query="$2"
+	plan=""
+
+	while IFS= read -r tool; do
+		[[ -z "${tool}" ]] && continue
+		if [[ "${tool}" == "final_answer" ]]; then
+			continue
+		fi
+		query="$(derive_tool_query "${tool}" "${user_query}")"
+		plan+="${tool}|${query}|0"$'\n'
+	done <<<"${tool_list}"
+
+	printf '%s' "${plan}"
+}
+
 should_prompt_for_tool() {
 	if [[ "${PLAN_ONLY}" == true || "${DRY_RUN}" == true ]]; then
 		return 1
@@ -227,23 +243,6 @@ confirm_tool() {
 		return 1
 	fi
 	return 0
-}
-
-build_plan_entries() {
-	local ranked user_query entry score tool plan query
-	ranked="$1"
-	user_query="$2"
-	plan=""
-
-	while IFS= read -r entry; do
-		[[ -z "${entry}" ]] && continue
-		score="${entry%%:*}"
-		tool="${entry##*:}"
-		query="$(derive_tool_query "${tool}" "${user_query}")"
-		plan+="${tool}|${query}|${score}"$'\n'
-	done <<<"${ranked}"
-
-	printf '%s' "${plan}"
 }
 
 execute_tool_with_query() {
@@ -315,49 +314,18 @@ ${history}
 PROMPT
 }
 
-allowed_tool_list() {
-	local ranked entry tool
-	ranked="$1"
-	local includes_final_answer=false
-	while IFS= read -r entry; do
-		[[ -z "${entry}" ]] && continue
-		tool="${entry##*:}"
-		printf '%s\n' "${tool}"
-		if [[ "${tool}" == "final_answer" ]]; then
-			includes_final_answer=true
-		fi
-	done <<<"${ranked}"
-
-	if [[ "${includes_final_answer}" != true ]]; then
-		printf 'final_answer\n'
-	fi
-}
-
-build_plan_outline() {
-	# Arguments:
-	#   $1 - ranked plan entries (tool|query|score per line)
-	local plan_entries index tool query outline_line
-	plan_entries="$1"
-	index=1
-	while IFS='|' read -r tool query _score; do
-		[[ -z "${tool}" ]] && continue
-		outline_line=$(printf '%d. %s -> %s' "${index}" "${tool}" "${query}")
-		printf '%s\n' "${outline_line}"
-		index=$((index + 1))
-	done <<<"${plan_entries}"
-}
-
 initialize_react_state() {
 	# Arguments:
 	#   $1 - name of associative array to populate
 	#   $2 - user query
 	#   $3 - allowed tools (newline delimited)
 	#   $4 - ranked plan entries
+	#   $5 - plan outline text
 	local -n state_ref=$1
 	state_ref[user_query]="$2"
 	state_ref[allowed_tools]="$3"
 	state_ref[plan_entries]="$4"
-	state_ref[plan_outline]="$(build_plan_outline "${4}")"
+	state_ref[plan_outline]="$5"
 	state_ref[history]=""
 	state_ref[step]=0
 	state_ref[plan_index]=0
@@ -478,14 +446,14 @@ finalize_react_result() {
 }
 
 react_loop() {
-	local user_query ranked plan_entries allowed_tools action_json action_type tool query observation current_step
+	local user_query allowed_tools plan_entries plan_outline action_json action_type tool query observation current_step
 	declare -A react_state
 	user_query="$1"
-	ranked="$2"
+	allowed_tools="$2"
 	plan_entries="$3"
-	allowed_tools="$(allowed_tool_list "${ranked}")"
+	plan_outline="$4"
 
-	initialize_react_state react_state "${user_query}" "${allowed_tools}" "${plan_entries}"
+	initialize_react_state react_state "${user_query}" "${allowed_tools}" "${plan_entries}" "${plan_outline}"
 	action_json=""
 
 	while ((react_state[step] < react_state[max_steps])); do

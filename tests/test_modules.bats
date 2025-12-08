@@ -92,36 +92,33 @@
 	[ "${message}" = $'quote\nline' ]
 }
 
-@test "structured_tool_relevance parses boolean map grammar" {
+@test "generate_plan_outline adds final answer step" {
 	run bash -lc '
                 source ./src/planner.sh
                 initialize_tools
                 VERBOSITY=0
                 LLAMA_AVAILABLE=true
-                VERBOSITY=0
                 LLAMA_BIN="./tests/fixtures/mock_llama_relevance.sh"
                 MODEL_REPO="demo/repo"
                 MODEL_FILE="demo.gguf"
-                structured_tool_relevance "list files" 2>/dev/null
+                generate_plan_outline "list files"
         '
 	[ "$status" -eq 0 ]
-	[ "${lines[0]}" = "5:terminal" ]
+	[[ "${output}" == *"terminal"* ]]
+	[[ "${output}" == *"final_answer"* ]]
 }
 
-@test "rank_tools uses grammar-constrained llama selection" {
+@test "extract_tools_from_plan returns ordered list" {
 	run bash -lc '
                 source ./src/planner.sh
                 initialize_tools
-                VERBOSITY=0
-                LLAMA_AVAILABLE=true
-                VERBOSITY=0
-                LLAMA_BIN="./tests/fixtures/mock_llama_relevance.sh"
-                MODEL_REPO="demo/repo"
-                MODEL_FILE="demo.gguf"
-                rank_tools "note something" 2>/dev/null
+                plan_text=$'"'"'1. Use notes_create to capture details.\n2. Use terminal to list files.\n3. Use final_answer to wrap up.'"'"'
+                extract_tools_from_plan "${plan_text}"
         '
 	[ "$status" -eq 0 ]
-	[ "${lines[0]}" = "5:notes_create" ]
+	[ "${lines[0]}" = "notes_create" ]
+	[ "${lines[1]}" = "terminal" ]
+	[ "${lines[2]}" = "final_answer" ]
 }
 
 @test "emit_plan_json builds valid array" {
@@ -243,15 +240,15 @@ printf "LOG:%s\n" "$(cat "${LOG_FILE}")"
 	[ "${lines[${last_index}]}" = "LOG:format" ]
 }
 
-@test "select_next_action emits final_answer action without llama" {
+@test "select_next_action follows plan entries before finalizing" {
 	run bash -lc '
                 source ./src/planner.sh
                 respond_text() { printf "offline response"; }
                 declare -A state=(
                         [user_query]="list files"
-                        [allowed_tools]="terminal"
+                        [allowed_tools]=$'"'"'terminal\nfinal_answer'"'"'
                         [plan_entries]=$'"'"'terminal|echo hi|4'"'"'
-                        [plan_outline]=$'"'"'1. terminal -> echo hi'"'"'
+                        [plan_outline]=$'"'"'1. terminal -> echo hi\n2. final_answer -> respond'"'"'
                         [history]=""
                         [step]=0
                         [max_steps]=2
@@ -263,8 +260,8 @@ printf "LOG:%s\n" "$(cat "${LOG_FILE}")"
         '
 	[ "$status" -eq 0 ]
 	[ "${lines[0]}" = "tool" ]
-	[ "${lines[1]}" = "final_answer" ]
-	[ "${lines[2]}" = "offline response" ]
+	[ "${lines[1]}" = "terminal" ]
+	[ "${lines[2]}" = "echo hi" ]
 }
 
 @test "validate_tool_permission records history for disallowed tool" {
@@ -311,16 +308,7 @@ printf "LOG:%s\n" "$(cat "${LOG_FILE}")"
 	run bash -lc '
                 source ./src/planner.sh
                 execute_tool_action() { printf "%s" "${2}"; }
-                allowed_tool_list() { echo "final_answer"; }
-                select_next_action() {
-                        if [[ -z "${CALLED:-}" ]]; then
-                                CALLED=1
-                                printf "{\"type\":\"tool\",\"tool\":\"final_answer\",\"query\":\"done\"}"
-                        else
-                                printf "{\"type\":\"final\",\"answer\":\"unused\"}"
-                        fi
-                }
-                react_loop "question" "5:final_answer" "final_answer|done|5"
+                react_loop "question" $'"'"'final_answer'"'"' "final_answer|done|5" $'"'"'1. final_answer -> done'"'"'
         '
 
 	[ "$status" -eq 0 ]

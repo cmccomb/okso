@@ -13,3 +13,12 @@ bats tests/test_all.sh tests/test_install.bats tests/test_main.bats tests/test_m
 The Bats suite covers CLI help/version output, confirmation prompts, deterministic mock scoring via `tests/fixtures/mock_llama.sh`, and graceful handling when `LLAMA_BIN` is missing.
 
 Set `TESTING_PASSTHROUGH=true` when running the suite to disable llama.cpp invocation and surface test-only code paths without muting runtime errors that depend on llama availability.
+
+## Planning workflow
+
+The planner now drives execution through an explicit, tool-aware outline:
+
+1. `generate_plan_outline` prompts the model with the full tool catalog to produce a numbered, high-level plan that explicitly names tools and always ends with `final_answer`.
+2. `extract_tools_from_plan` reads that outline to build the allowed tool list (ensuring `final_answer` is available for the final handoff).
+3. `build_plan_entries_from_tools` derives concrete tool queries for the React loop while preserving the outline for agent guidance.
+4. The React loop executes tools in sequence, adapting after each observation until the `final_answer` tool is invoked.

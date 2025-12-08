@@ -57,11 +57,11 @@ EOF
 	[[ "$output" == *"\"query\""* ]]
 }
 
-@test "casual prompts skip tools" {
+@test "casual prompts still finish with final_answer" {
 	run ./src/main.sh --config "${CONFIG_FILE}" --yes -- "tell me a joke"
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"Suggested tools: none."* ]]
-	[[ "$output" != *"executed"* ]]
+	[[ "$output" == *"Suggested tools:"* ]]
+	[[ "$output" == *"final_answer"* ]]
 }
 
 @test "conversational phrasing suggests terminal tool" {
@@ -69,13 +69,6 @@ EOF
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"Suggested tools"* ]]
 	[[ "$output" == *"terminal"* ]]
-}
-
-@test "direct responses log fallback when no tools apply" {
-	run ./src/main.sh --config "${CONFIG_FILE}" --yes -- "just chat with me"
-	[ "$status" -eq 0 ]
-	[[ "$output" == *"No tools selected; responding directly"* ]]
-	[[ "$output" == *"Responding directly to: just chat with me"* ]]
 }
 
 @test "reminder intent builds reminder plan" {
