@@ -92,28 +92,30 @@
 }
 
 @test "structured_tool_relevance parses boolean map grammar" {
-	run bash -lc '
+        run bash -lc '
                 source ./src/planner.sh
                 initialize_tools
+                VERBOSITY=0
                 LLAMA_AVAILABLE=true
                 LLAMA_BIN="./tests/fixtures/mock_llama_relevance.sh"
                 MODEL_REPO="demo/repo"
                 MODEL_FILE="demo.gguf"
-                structured_tool_relevance "list files"
+                structured_tool_relevance "list files" 2>/dev/null
         '
 	[ "$status" -eq 0 ]
 	[ "${lines[0]}" = "5:terminal" ]
 }
 
 @test "rank_tools uses grammar-constrained llama selection" {
-	run bash -lc '
+        run bash -lc '
                 source ./src/planner.sh
                 initialize_tools
+                VERBOSITY=0
                 LLAMA_AVAILABLE=true
                 LLAMA_BIN="./tests/fixtures/mock_llama_relevance.sh"
                 MODEL_REPO="demo/repo"
                 MODEL_FILE="demo.gguf"
-                rank_tools "note something"
+                rank_tools "note something" 2>/dev/null
         '
 	[ "$status" -eq 0 ]
 	[ "${lines[0]}" = "5:notes_create" ]
@@ -151,7 +153,7 @@ cat "${LOG_FILE}"
 }
 
 @test "confirm_tool surfaces skipped message when gum declines" {
-	run bash -lc '
+        run bash -lc '
 tmpdir=$(mktemp -d)
 export LOG_FILE="${tmpdir}/gum.log"
 cat >"${tmpdir}/gum"<<'"'"'EOF'"'"'
@@ -172,8 +174,50 @@ cat "${LOG_FILE}"
 exit ${status}
 '
 	[ "$status" -eq 1 ]
-	[ "${lines[1]}" = "[terminal skipped]" ]
-	[ "${lines[2]}" = "confirm --affirmative Run --negative Skip Execute tool \"terminal\"?" ]
+        [ "${lines[1]}" = "[terminal skipped]" ]
+        [ "${lines[2]}" = "confirm --affirmative Run --negative Skip Execute tool \"terminal\"?" ]
+}
+
+@test "execute_tool_with_query logs confirmation before prompt" {
+        run bash -lc '
+tmpdir=$(mktemp -d)
+cat >"${tmpdir}/gum"<<'"'"'EOF'"'"'
+#!/usr/bin/env bash
+echo "PROMPT:$*"
+exit 0
+EOF
+chmod +x "${tmpdir}/gum"
+PATH="${tmpdir}:$PATH"
+source ./src/planner.sh
+demo_handler() { echo "ran ${TOOL_QUERY}"; }
+TOOL_HANDLER["demo_tool"]="demo_handler"
+FORCE_CONFIRM=true
+APPROVE_ALL=false
+DRY_RUN=false
+PLAN_ONLY=false
+execute_tool_with_query "demo_tool" "echo hi"
+'
+        [ "$status" -eq 0 ]
+        [[ "${lines[0]}" == *"Requesting tool confirmation"* ]]
+        [ "$(echo "${lines[0]}" | jq -r '.detail')" = "tool=demo_tool query=echo hi" ]
+        [ "${lines[1]}" = "PROMPT:confirm --affirmative Run --negative Skip Execute tool \"demo_tool\"?" ]
+        [ "${lines[2]}" = "ran echo hi" ]
+}
+
+@test "execute_tool_with_query skips confirmation logging in preview modes" {
+        run bash -lc '
+source ./src/planner.sh
+demo_handler() { echo "ran ${TOOL_QUERY}"; }
+TOOL_HANDLER["demo_tool"]="demo_handler"
+FORCE_CONFIRM=true
+APPROVE_ALL=false
+DRY_RUN=false
+PLAN_ONLY=true
+execute_tool_with_query "demo_tool" "noop"
+'
+        [ "$status" -eq 0 ]
+        [[ "${output}" != *"Requesting tool confirmation"* ]]
+        [ "$(echo "${output}" | jq -r '.message')" = "Skipping execution in preview mode" ]
 }
 
 @test "show_help renders through gum when available" {

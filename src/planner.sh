@@ -249,9 +249,19 @@ execute_tool_with_query() {
 	tool_query="$2"
 	handler="${TOOL_HANDLER[${tool_name}]}"
 
+	local requires_confirmation
+	requires_confirmation=false
+	if should_prompt_for_tool; then
+		requires_confirmation=true
+	fi
+
 	if [[ -z "${handler}" ]]; then
 		log "ERROR" "No handler registered for tool" "${tool_name}"
 		return 1
+	fi
+
+	if [[ "${requires_confirmation}" == true ]]; then
+		log "INFO" "Requesting tool confirmation" "$(printf 'tool=%s query=%s' "${tool_name}" "${tool_query}")"
 	fi
 
 	if ! confirm_tool "${tool_name}"; then
