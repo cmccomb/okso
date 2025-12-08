@@ -71,12 +71,12 @@ reminders_extract_title_and_body() {
 }
 
 reminders_run_script() {
-        # Runs an AppleScript provided on stdin, passing through all arguments.
-        # Arguments:
-        #   $@ - parameters forwarded to osascript
-        local bin
-        bin=${REMINDERS_OSASCRIPT_BIN:-osascript}
-        osascript_run_piped "${bin}" "$@"
+	# Runs an AppleScript provided on stdin, passing through all arguments.
+	# Arguments:
+	#   $@ - parameters forwarded to osascript
+	local bin
+	bin=${REMINDERS_OSASCRIPT_BIN:-osascript}
+	osascript_run_piped "${bin}" "$@"
 }
 
 reminders_resolve_list_script() {

@@ -115,27 +115,27 @@ parse_args() {
 			DRY_RUN=true
 			shift
 			;;
-                -m | --model)
-                        if [[ $# -lt 2 ]]; then
-                                die "cli" "usage" "--model requires an HF repo[:file] value"
-                        fi
-                        MODEL_SPEC="$2"
-                        shift 2
-                        ;;
-                --model-branch)
-                        if [[ $# -lt 2 ]]; then
-                                die "cli" "usage" "--model-branch requires a branch or tag"
-                        fi
-                        MODEL_BRANCH="$2"
-                        shift 2
-                        ;;
-                --config)
-                        if [[ $# -lt 2 ]]; then
-                                die "cli" "usage" "--config requires a path"
-                        fi
-                        CONFIG_FILE="$2"
-                        shift 2
-                        ;;
+		-m | --model)
+			if [[ $# -lt 2 ]]; then
+				die "cli" "usage" "--model requires an HF repo[:file] value"
+			fi
+			MODEL_SPEC="$2"
+			shift 2
+			;;
+		--model-branch)
+			if [[ $# -lt 2 ]]; then
+				die "cli" "usage" "--model-branch requires a branch or tag"
+			fi
+			MODEL_BRANCH="$2"
+			shift 2
+			;;
+		--config)
+			if [[ $# -lt 2 ]]; then
+				die "cli" "usage" "--config requires a path"
+			fi
+			CONFIG_FILE="$2"
+			shift 2
+			;;
 		-v | --verbose)
 			VERBOSITY=2
 			shift
@@ -144,13 +144,13 @@ parse_args() {
 			VERBOSITY=0
 			shift
 			;;
-                --)
-                        shift
-                        break
-                        ;;
-                -*)
-                        die "cli" "usage" "Unknown option: ${1}"
-                        ;;
+		--)
+			shift
+			break
+			;;
+		-*)
+			die "cli" "usage" "Unknown option: ${1}"
+			;;
 		*)
 			positional+=("$1")
 			shift
@@ -162,9 +162,9 @@ parse_args() {
 		USER_QUERY="${positional[*]}"
 	else
 		USER_QUERY="$*"
-        fi
+	fi
 
-        if [[ "${COMMAND}" == "run" && -z "${USER_QUERY:-}" ]]; then
-                die "cli" "usage" "A user query is required. See --help for usage."
-        fi
+	if [[ "${COMMAND}" == "run" && -z "${USER_QUERY:-}" ]]; then
+		die "cli" "usage" "A user query is required. See --help for usage."
+	fi
 }

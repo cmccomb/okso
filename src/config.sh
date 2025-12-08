@@ -36,14 +36,14 @@ detect_config_file() {
 	# Parse the config path early so subsequent helpers can honor user-provided
 	# locations before any other arguments are interpreted.
 	while [[ $# -gt 0 ]]; do
-                case "$1" in
-                --config)
-                        if [[ $# -lt 2 ]]; then
-                                die "config" "usage" "--config requires a path"
-                        fi
-                        CONFIG_FILE="$2"
-                        shift 2
-                        ;;
+		case "$1" in
+		--config)
+			if [[ $# -lt 2 ]]; then
+				die "config" "usage" "--config requires a path"
+			fi
+			CONFIG_FILE="$2"
+			shift 2
+			;;
 		--config=*)
 			CONFIG_FILE="${1#*=}"
 			shift

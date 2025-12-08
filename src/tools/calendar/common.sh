@@ -76,12 +76,12 @@ calendar_extract_event_fields() {
 }
 
 calendar_run_script() {
-        # Runs an AppleScript provided on stdin, passing through all arguments.
-        # Arguments:
-        #   $@ - parameters forwarded to osascript
-        local bin
-        bin=${CALENDAR_OSASCRIPT_BIN:-osascript}
-        osascript_run_piped "${bin}" "$@"
+	# Runs an AppleScript provided on stdin, passing through all arguments.
+	# Arguments:
+	#   $@ - parameters forwarded to osascript
+	local bin
+	bin=${CALENDAR_OSASCRIPT_BIN:-osascript}
+	osascript_run_piped "${bin}" "$@"
 }
 
 calendar_resolve_calendar_script() {

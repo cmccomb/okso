@@ -154,7 +154,7 @@ generate_plan_outline() {
 	user_query="$1"
 
 	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
-		log "INFO" "Using static plan outline because llama is unavailable" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}"
+		log "DEBUG" "Using static plan outline because llama is unavailable" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}" >&2
 		printf '1. Use final_answer to respond directly to the user request.'
 		return 0
 	fi

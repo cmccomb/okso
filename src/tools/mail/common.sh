@@ -113,10 +113,10 @@ mail_split_recipients() {
 }
 
 mail_run_script() {
-        # Runs an AppleScript provided on stdin, passing through all arguments.
-        # Arguments:
-        #   $@ - parameters forwarded to osascript
-        local bin
-        bin=${MAIL_OSASCRIPT_BIN:-osascript}
-        osascript_run_piped "${bin}" "$@"
+	# Runs an AppleScript provided on stdin, passing through all arguments.
+	# Arguments:
+	#   $@ - parameters forwarded to osascript
+	local bin
+	bin=${MAIL_OSASCRIPT_BIN:-osascript}
+	osascript_run_piped "${bin}" "$@"
 }

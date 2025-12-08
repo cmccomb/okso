@@ -134,7 +134,7 @@ echo "Darwin"
 EOM_UNAME
 	chmod +x "${mock_path}/uname"
 
-        cat >"${mock_path}/curl" <<EOM_CURL
+	cat >"${mock_path}/curl" <<EOM_CURL
 #!/usr/bin/env bash
 printf 'curl %s\n' "\$*" >>"${log_path}"
 printf 'args:' >>"${log_path}"

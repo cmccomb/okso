@@ -24,24 +24,24 @@ source "${BASH_SOURCE[0]%/respond.sh}/prompts.sh"
 source "${BASH_SOURCE[0]%/respond.sh}/grammar.sh"
 
 respond_text() {
-        # Arguments:
-        #   $1 - user query (string)
-        #   $2 - number of tokens to generate (int)
-        local user_query prompt number_of_tokens concise_grammar_path
-        user_query="$1"
-        number_of_tokens="$2"
-        concise_grammar_path="$(grammar_path concise_response)"
+	# Arguments:
+	#   $1 - user query (string)
+	#   $2 - number of tokens to generate (int)
+	local user_query prompt number_of_tokens concise_grammar_path
+	user_query="$1"
+	number_of_tokens="$2"
+	concise_grammar_path="$(grammar_path concise_response)"
 
-        if [[ "${LLAMA_AVAILABLE}" != true ]]; then
-                log "WARN" "llama unavailable; returning deterministic response" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}"
-                printf 'LLM unavailable. Request received: %s\n' "${user_query}"
-                return 0
-        fi
+	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
+		log "WARN" "llama unavailable; returning deterministic response" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}"
+		printf 'LLM unavailable. Request received: %s\n' "${user_query}"
+		return 0
+	fi
 
-        if [[ "${LLAMA_BIN}" == *"mock_llama_relevance.sh" ]]; then
-                printf 'Responding directly to: %s\n' "${user_query}"
-                return 0
-        fi
+	if [[ "${LLAMA_BIN}" == *"mock_llama_relevance.sh" ]]; then
+		printf 'Responding directly to: %s\n' "${user_query}"
+		return 0
+	fi
 
 	prompt="$(build_concise_response_prompt "${user_query}")"
 	llama_infer "${prompt}" "\n" "${number_of_tokens}" "${concise_grammar_path}"

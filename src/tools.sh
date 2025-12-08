@@ -29,32 +29,32 @@ source "${BASH_SOURCE[0]%/tools.sh}/logging.sh"
 source "${TOOLS_DIR}/registry.sh"
 # shellcheck disable=SC2034
 TOOL_NAME_ALLOWLIST=(
-        "terminal"
-        "file_search"
-        "clipboard_copy"
-        "clipboard_paste"
-        "notes_create"
-        "notes_append"
-        "notes_list"
-        "notes_search"
-        "notes_read"
-        "reminders_create"
-        "reminders_list"
-        "reminders_complete"
-        "calendar_create"
-        "calendar_list"
-        "calendar_search"
-        "mail_draft"
-        "mail_send"
-        "mail_search"
-        "mail_list_inbox"
-        "mail_list_unread"
-        "applescript"
-        "final_answer"
+	"terminal"
+	"file_search"
+	"clipboard_copy"
+	"clipboard_paste"
+	"notes_create"
+	"notes_append"
+	"notes_list"
+	"notes_search"
+	"notes_read"
+	"reminders_create"
+	"reminders_list"
+	"reminders_complete"
+	"calendar_create"
+	"calendar_list"
+	"calendar_search"
+	"mail_draft"
+	"mail_send"
+	"mail_search"
+	"mail_list_inbox"
+	"mail_list_unread"
+	"applescript"
+	"final_answer"
 )
 TOOL_WRITABLE_DIRECTORY_ALLOWLIST=(
-        "${HOME}/.okso"
-        "${XDG_CONFIG_HOME:-${HOME}/.config}/okso"
+	"${HOME}/.okso"
+	"${XDG_CONFIG_HOME:-${HOME}/.config}/okso"
 )
 # shellcheck source=./tools/terminal.sh disable=SC1091
 source "${TOOLS_DIR}/terminal.sh"
@@ -76,62 +76,62 @@ source "${TOOLS_DIR}/applescript.sh"
 source "${TOOLS_DIR}/final_answer.sh"
 
 tools_normalize_path() {
-        # Returns a normalized absolute path for allowlist checks.
-        # Arguments:
-        #   $1 - path to normalize (string)
-        if command -v realpath >/dev/null 2>&1; then
-                realpath -m "$1"
-                return
-        fi
+	# Returns a normalized absolute path for allowlist checks.
+	# Arguments:
+	#   $1 - path to normalize (string)
+	if command -v realpath >/dev/null 2>&1; then
+		realpath -m "$1"
+		return
+	fi
 
-        python - "$1" <<'PY'
+	python - "$1" <<'PY'
 import os, sys
 print(os.path.realpath(sys.argv[1]))
 PY
 }
 
 tools_writable_directory_allowed() {
-        # Validates that a directory is within the writable allowlist.
-        # Arguments:
-        #   $1 - target directory (string)
-        local candidate normalized allowed normalized_allowed
-        candidate="$1"
-        normalized=$(tools_normalize_path "${candidate}") || return 1
+	# Validates that a directory is within the writable allowlist.
+	# Arguments:
+	#   $1 - target directory (string)
+	local candidate normalized allowed normalized_allowed
+	candidate="$1"
+	normalized=$(tools_normalize_path "${candidate}") || return 1
 
-        for allowed in "${TOOL_WRITABLE_DIRECTORY_ALLOWLIST[@]}"; do
-                normalized_allowed=$(tools_normalize_path "${allowed}") || continue
-                if [[ "${normalized}" == "${normalized_allowed}"* ]]; then
-                        return 0
-                fi
-        done
+	for allowed in "${TOOL_WRITABLE_DIRECTORY_ALLOWLIST[@]}"; do
+		normalized_allowed=$(tools_normalize_path "${allowed}") || continue
+		if [[ "${normalized}" == "${normalized_allowed}"* ]]; then
+			return 0
+		fi
+	done
 
-        log "ERROR" "Writable directory not allowed" "${candidate}" || true
-        return 1
+	log "ERROR" "Writable directory not allowed" "${candidate}" || true
+	return 1
 }
 
 validate_writable_directories() {
-        # Confirms all configured writable directories are allowlisted.
-        local candidate
-        for candidate in "${NOTES_DIR:-${HOME}/.okso}" "${CONFIG_DIR:-${XDG_CONFIG_HOME:-${HOME}/.config}/okso}"; do
-                if [[ -z "${candidate}" ]]; then
-                        continue
-                fi
-                if ! tools_writable_directory_allowed "${candidate}"; then
-                        return 1
-                fi
-        done
+	# Confirms all configured writable directories are allowlisted.
+	local candidate
+	for candidate in "${NOTES_DIR:-${HOME}/.okso}" "${CONFIG_DIR:-${XDG_CONFIG_HOME:-${HOME}/.config}/okso}"; do
+		if [[ -z "${candidate}" ]]; then
+			continue
+		fi
+		if ! tools_writable_directory_allowed "${candidate}"; then
+			return 1
+		fi
+	done
 
-        return 0
+	return 0
 }
 
 initialize_tools() {
-        if ! validate_writable_directories; then
-                return 1
-        fi
+	if ! validate_writable_directories; then
+		return 1
+	fi
 
-        register_terminal
-        register_file_search
-        register_clipboard_copy
+	register_terminal
+	register_file_search
+	register_clipboard_copy
 	register_clipboard_paste
 	register_notes_suite
 	register_reminders_suite
