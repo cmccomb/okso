@@ -355,14 +355,17 @@ initialize_react_state() {
 	#   $5 - plan outline text
 	# shellcheck disable=SC2178
 	local -n state_ref=$1
+	local -r history_key="history"
+	local -r step_key="step"
+	local -r max_steps_key="max_steps"
 	state_ref[user_query]="$2"
 	state_ref[allowed_tools]="$3"
 	state_ref[plan_entries]="$4"
 	state_ref[plan_outline]="$5"
-	state_ref[history]=""
-	state_ref[step]=0
+	state_ref["${history_key}"]=""
+	state_ref["${step_key}"]=0
 	state_ref[plan_index]=0
-	state_ref[max_steps]="${MAX_STEPS:-6}"
+	state_ref["${max_steps_key}"]="${MAX_STEPS:-6}"
 	state_ref[final_answer]=""
 }
 
@@ -373,8 +376,9 @@ record_history() {
 	# shellcheck disable=SC2178
 	local -n state_ref=$1
 	local entry
+	local -r history_key="history"
 	entry="$2"
-	state_ref[history]+=$(printf '%s\n' "${entry}")
+	state_ref["${history_key}"]+=$(printf '%s\n' "${entry}")
 }
 
 # shellcheck disable=SC2178,SC2034
@@ -431,7 +435,9 @@ select_next_action() {
 	fi
 
 	if [[ -n "${output_name}" ]]; then
+		# shellcheck disable=SC2034
 		local -n output_ref=$output_name
+		# shellcheck disable=SC2034
 		output_ref="${next_action_payload}"
 	else
 		printf '%s\n' "${next_action_payload}"

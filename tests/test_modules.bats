@@ -166,6 +166,25 @@ EOF
 	[[ "${output}" == *"final_answer"* ]]
 }
 
+@test "generate_plan_outline bypasses llama when unavailable" {
+	run bash -lc '
+                tmpdir=$(mktemp -d)
+                export MOCK_LLAMA_LOG="${tmpdir}/llama.log"
+                export LLAMA_BIN="./tests/fixtures/mock_llama.sh"
+                source ./src/planner.sh
+                initialize_tools
+                LLAMA_AVAILABLE=false
+                plan="$(generate_plan_outline "offline request")"
+                if [[ -f "${MOCK_LLAMA_LOG}" ]]; then
+                        echo "unexpected llama invocation"
+                        exit 1
+                fi
+                printf "%s" "${plan}"
+        '
+	[ "$status" -eq 0 ]
+	[ "${output}" = "1. Use final_answer to respond directly to the user request." ]
+}
+
 @test "extract_tools_from_plan returns ordered list" {
 	run bash -lc '
                 source ./src/planner.sh
