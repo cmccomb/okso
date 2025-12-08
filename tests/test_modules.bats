@@ -108,6 +108,25 @@
 	[[ "${output}" == *"final_answer"* ]]
 }
 
+@test "generate_plan_outline bypasses llama when unavailable" {
+	run bash -lc '
+                tmpdir=$(mktemp -d)
+                export MOCK_LLAMA_LOG="${tmpdir}/llama.log"
+                export LLAMA_BIN="./tests/fixtures/mock_llama.sh"
+                source ./src/planner.sh
+                initialize_tools
+                LLAMA_AVAILABLE=false
+                plan="$(generate_plan_outline "offline request")"
+                if [[ -f "${MOCK_LLAMA_LOG}" ]]; then
+                        echo "unexpected llama invocation"
+                        exit 1
+                fi
+                printf "%s" "${plan}"
+        '
+	[ "$status" -eq 0 ]
+	[ "${output}" = "1. Use final_answer to respond directly to the user request." ]
+}
+
 @test "extract_tools_from_plan returns ordered list" {
 	run bash -lc '
                 source ./src/planner.sh
@@ -241,7 +260,7 @@ printf "LOG:%s\n" "$(cat "${LOG_FILE}")"
 }
 
 @test "select_next_action follows plan entries before finalizing" {
-        run bash -lc '
+	run bash -lc '
                 source ./src/planner.sh
                 respond_text() { printf "offline response"; }
                 declare -A state=(
@@ -259,13 +278,13 @@ printf "LOG:%s\n" "$(cat "${LOG_FILE}")"
                 select_next_action state | jq -r ".type,.tool,.query"
         '
 	[ "$status" -eq 0 ]
-        [ "${lines[0]}" = "tool" ]
-        [ "${lines[1]}" = "terminal" ]
-        [ "${lines[2]}" = "echo hi" ]
+	[ "${lines[0]}" = "tool" ]
+	[ "${lines[1]}" = "terminal" ]
+	[ "${lines[2]}" = "echo hi" ]
 }
 
 @test "select_next_action uses llama grammar and captures output" {
-        run bash -lc '
+	run bash -lc '
                 source ./src/planner.sh
 
                 llama_arg_file="$(mktemp)"
@@ -300,16 +319,17 @@ printf "LOG:%s\n" "$(cat "${LOG_FILE}")"
                 printf "%s\n" "${action_json}" "COUNT:${llama_arg_count}" "GRAMMAR:${llama_grammar}" "EXPECTED:${expected_grammar}"
         '
 
-        [ "$status" -eq 0 ]
-        [ "${lines[0]}" = '{"type":"tool","tool":"terminal","query":"ls"}' ]
-        [ "${lines[1]}" = "COUNT:4" ]
-        [ "${lines[2]}" = "GRAMMAR:${lines[3]#EXPECTED:}" ]
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = '{"type":"tool","tool":"terminal","query":"ls"}' ]
+	[ "${lines[1]}" = "COUNT:4" ]
+	[ "${lines[2]}" = "GRAMMAR:${lines[3]#EXPECTED:}" ]
 }
 
 @test "generate_plan_outline uses shared planner grammar" {
-        run bash -lc '
+	run bash -lc '
                 source ./src/planner.sh
                 initialize_tools
+                LLAMA_AVAILABLE=true
 
                 llama_grammar_file="$(mktemp)"
                 llama_infer() {
@@ -321,14 +341,14 @@ plan_text="$(generate_plan_outline "list files")"
 printf "PLAN:%s\nGRAMMAR:%s\n" "${plan_text}" "$(cat "${llama_grammar_file}")"
         '
 
-        [ "$status" -eq 0 ]
-        expected_grammar="$(cd src && pwd)/grammars/planner_plan.gbnf"
-        last_index=$(( ${#lines[@]} - 1 ))
-        [ "${lines[${last_index}]}" = "GRAMMAR:${expected_grammar}" ]
+	[ "$status" -eq 0 ]
+	expected_grammar="$(cd src && pwd)/grammars/planner_plan.gbnf"
+	last_index=$((${#lines[@]} - 1))
+	[ "${lines[${last_index}]}" = "GRAMMAR:${expected_grammar}" ]
 }
 
 @test "respond_text forwards concise response grammar" {
-        run bash -lc '
+	run bash -lc '
                 source ./src/respond.sh
 
                 llama_grammar_file="$(mktemp)"
@@ -340,14 +360,14 @@ printf "PLAN:%s\nGRAMMAR:%s\n" "${plan_text}" "$(cat "${llama_grammar_file}")"
                 printf "RESPONSE:%s\nGRAMMAR:%s\n" "${response_output}" "$(cat "${llama_grammar_file}")"
         '
 
-        [ "$status" -eq 0 ]
-        expected_grammar="$(cd src && pwd)/grammars/concise_response.gbnf"
-        last_index=$(( ${#lines[@]} - 1 ))
-        [ "${lines[${last_index}]}" = "GRAMMAR:${expected_grammar}" ]
+	[ "$status" -eq 0 ]
+	expected_grammar="$(cd src && pwd)/grammars/concise_response.gbnf"
+	last_index=$((${#lines[@]} - 1))
+	[ "${lines[${last_index}]}" = "GRAMMAR:${expected_grammar}" ]
 }
 
 @test "select_next_action logs and fails on invalid llama output" {
-        run bash -lc '
+	run bash -lc '
                 source ./src/planner.sh
 
                 llama_infer() {
@@ -376,10 +396,10 @@ printf "PLAN:%s\nGRAMMAR:%s\n" "${plan_text}" "$(cat "${llama_grammar_file}")"
                 exit ${rc}
         '
 
-        [ "$status" -eq 1 ]
-        [[ "${output}" == *"Invalid action output from llama"* ]]
-        last_index=$((${#lines[@]} - 1))
-        [ "${lines[${last_index}]}" = "STATUS:1" ]
+	[ "$status" -eq 1 ]
+	[[ "${output}" == *"Invalid action output from llama"* ]]
+	last_index=$((${#lines[@]} - 1))
+	[ "${lines[${last_index}]}" = "STATUS:1" ]
 }
 
 @test "validate_tool_permission records history for disallowed tool" {

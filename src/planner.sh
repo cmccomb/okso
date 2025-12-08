@@ -58,54 +58,54 @@ llama_infer() {
 	# If a stop string is provided, use it to terminate output.
 	if [[ -n "${stop_string}" ]]; then
 		"${LLAMA_BIN}" \
-		        --hf-repo "${MODEL_REPO}" \
-		        --hf-file "${MODEL_FILE}" \
-		        -no-cnv --no-display-prompt --simple-io --verbose -r "${stop_string}" \
-		        -n "${number_of_tokens}" \
-		        -p "${prompt}" \
-		        "${additional_args[@]}" 2>/dev/null || true
+			--hf-repo "${MODEL_REPO}" \
+			--hf-file "${MODEL_FILE}" \
+			-no-cnv --no-display-prompt --simple-io --verbose -r "${stop_string}" \
+			-n "${number_of_tokens}" \
+			-p "${prompt}" \
+			"${additional_args[@]}" 2>/dev/null || true
 		return
 	fi
 
 	"${LLAMA_BIN}" \
-	        --hf-repo "${MODEL_REPO}" \
-	        --hf-file "${MODEL_FILE}" \
-	        -n "${number_of_tokens}" \
-	        -no-cnv --no-display-prompt --simple-io --verbose \
-	        -p "${prompt}" \
-	        "${additional_args[@]}" 2>/dev/null || true
+		--hf-repo "${MODEL_REPO}" \
+		--hf-file "${MODEL_FILE}" \
+		-n "${number_of_tokens}" \
+		-no-cnv --no-display-prompt --simple-io --verbose \
+		-p "${prompt}" \
+		"${additional_args[@]}" 2>/dev/null || true
 }
 
 format_tool_catalog() {
-        local tool_lines tool
-        tool_lines=""
+	local tool_lines tool
+	tool_lines=""
 
-        for tool in "${TOOLS[@]}"; do
-                tool_lines+=$(printf -- '- %s: %s\n' "${tool}" "${TOOL_DESCRIPTION[${tool}]}")
-        done
+	for tool in "${TOOLS[@]}"; do
+		tool_lines+=$(printf -- '- %s: %s\n' "${tool}" "${TOOL_DESCRIPTION[${tool}]}")
+	done
 
-        printf '%s' "${tool_lines}"
+	printf '%s' "${tool_lines}"
 }
 
 format_allowed_tool_descriptions() {
-        # Arguments:
-        #   $1 - newline-delimited allowed tool names (string)
-        local allowed_tools tool
-        allowed_tools="$1"
-        local tool_lines
-        tool_lines="Available tools:"
+	# Arguments:
+	#   $1 - newline-delimited allowed tool names (string)
+	local allowed_tools tool
+	allowed_tools="$1"
+	local tool_lines
+	tool_lines="Available tools:"
 
-        while IFS= read -r tool; do
-                [[ -z "${tool}" ]] && continue
-                tool_lines+=$(printf '\n- %s: %s (example query: %s)' "${tool}" "${TOOL_DESCRIPTION[${tool}]}" "${TOOL_COMMAND[${tool}]}")
-        done <<<"${allowed_tools}"
+	while IFS= read -r tool; do
+		[[ -z "${tool}" ]] && continue
+		tool_lines+=$(printf '\n- %s: %s (example query: %s)' "${tool}" "${TOOL_DESCRIPTION[${tool}]}" "${TOOL_COMMAND[${tool}]}")
+	done <<<"${allowed_tools}"
 
-        printf '%s' "${tool_lines}"
+	printf '%s' "${tool_lines}"
 }
 
 append_final_answer_step() {
-        # Ensures the plan includes a final step with the final_answer tool.
-        # Arguments:
+	# Ensures the plan includes a final step with the final_answer tool.
+	# Arguments:
 	#   $1 - plan text (string)
 	local plan_text step_count
 	plan_text="$1"
@@ -122,23 +122,22 @@ append_final_answer_step() {
 }
 
 generate_plan_outline() {
-# Arguments:
-#   $1 - user query (string)
-local user_query prompt raw_plan planner_grammar_path
-user_query="$1"
-local tool_lines
-tool_lines="$(format_tool_catalog)"
-planner_grammar_path="$(grammar_path planner_plan)"
+	# Arguments:
+	#   $1 - user query (string)
+	local user_query prompt raw_plan planner_grammar_path
+	user_query="$1"
+	local tool_lines
+	tool_lines="$(format_tool_catalog)"
+	planner_grammar_path="$(grammar_path planner_plan)"
 
-	# Had to disable this check to allow this to work outside of testing environments.
-	#	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
-	#		printf '1. Use final_answer to respond directly to the user request.'
-	#		return 0
-	#	fi
+	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
+		printf '1. Use final_answer to respond directly to the user request.'
+		return 0
+	fi
 
-prompt="$(build_planner_prompt "${user_query}" "${tool_lines}")"
-raw_plan="$(llama_infer "${prompt}" '' 512 "${planner_grammar_path}")"
-append_final_answer_step "${raw_plan}"
+	prompt="$(build_planner_prompt "${user_query}" "${tool_lines}")"
+	raw_plan="$(llama_infer "${prompt}" '' 512 "${planner_grammar_path}")"
+	append_final_answer_step "${raw_plan}"
 }
 
 declare -A TOOL_QUERY_DERIVERS=(
@@ -318,21 +317,25 @@ execute_tool_with_query() {
 }
 
 initialize_react_state() {
-        # Arguments:
-        #   $1 - name of associative array to populate
+	# Arguments:
+	#   $1 - name of associative array to populate
 	#   $2 - user query
 	#   $3 - allowed tools (newline delimited)
 	#   $4 - ranked plan entries
 	#   $5 - plan outline text
+	# shellcheck disable=SC2178
 	local -n state_ref=$1
+	local -r history_key="history"
+	local -r step_key="step"
+	local -r max_steps_key="max_steps"
 	state_ref[user_query]="$2"
 	state_ref[allowed_tools]="$3"
 	state_ref[plan_entries]="$4"
 	state_ref[plan_outline]="$5"
-	state_ref[history]=""
-	state_ref[step]=0
+	state_ref["${history_key}"]=""
+	state_ref["${step_key}"]=0
 	state_ref[plan_index]=0
-	state_ref[max_steps]="${MAX_STEPS:-6}"
+	state_ref["${max_steps_key}"]="${MAX_STEPS:-6}"
 	state_ref[final_answer]=""
 }
 
@@ -340,10 +343,12 @@ record_history() {
 	# Arguments:
 	#   $1 - name of associative array holding state
 	#   $2 - formatted history entry
+	# shellcheck disable=SC2178
 	local -n state_ref=$1
 	local entry
+	local -r history_key="history"
 	entry="$2"
-	state_ref[history]+=$(printf '%s\n' "${entry}")
+	state_ref["${history_key}"]+=$(printf '%s\n' "${entry}")
 }
 
 select_next_action() {
@@ -353,30 +358,32 @@ select_next_action() {
 	local state_name output_name
 	state_name="$1"
 	output_name="${2:-}"
-        local -n state_ref=$state_name
-        local react_prompt plan_index planned_entry tool query next_action_payload allowed_tool_descriptions
-        if [[ "${USE_REACT_LLAMA:-false}" == true && "${LLAMA_AVAILABLE}" == true ]]; then
-                allowed_tool_descriptions="$(format_allowed_tool_descriptions "${state_ref[allowed_tools]}")"
-                react_prompt="$(build_react_prompt "${state_ref[user_query]}" "${allowed_tool_descriptions}" "${state_ref[plan_outline]}" "${state_ref[history]}")"
+	# shellcheck disable=SC2178
+	local -n state_ref=$state_name
+	local react_prompt plan_index planned_entry tool query next_action_payload allowed_tool_descriptions
+	if [[ "${USE_REACT_LLAMA:-false}" == true && "${LLAMA_AVAILABLE}" == true ]]; then
+		allowed_tool_descriptions="$(format_allowed_tool_descriptions "${state_ref[allowed_tools]}")"
+		react_prompt="$(build_react_prompt "${state_ref[user_query]}" "${allowed_tool_descriptions}" "${state_ref[plan_outline]}" "${state_ref[history]}")"
 
-local react_grammar_path raw_action validated_action
-react_grammar_path="$(grammar_path react_action)"
+		local react_grammar_path raw_action validated_action
+		react_grammar_path="$(grammar_path react_action)"
 
-raw_action="$(llama_infer "${react_prompt}" "" 256 "${react_grammar_path}")"
-                if ! validated_action=$(jq -cer 'select(type == "object") | {type, tool, query} | select(.type|type == "string") | select(.tool|type == "string") | select(.query|type == "string")' <<<"${raw_action}"); then
-                        log "ERROR" "Invalid action output from llama" "${raw_action}"
-                        return 1
-                fi
+		raw_action="$(llama_infer "${react_prompt}" "" 256 "${react_grammar_path}")"
+		if ! validated_action=$(jq -cer 'select(type == "object") | {type, tool, query} | select(.type|type == "string") | select(.tool|type == "string") | select(.query|type == "string")' <<<"${raw_action}"); then
+			log "ERROR" "Invalid action output from llama" "${raw_action}"
+			return 1
+		fi
 
-                if [[ -n "${output_name}" ]]; then
-                        local -n output_ref=$output_name
-                        output_ref="${validated_action}"
-                else
-                        printf '%s\n' "${validated_action}"
-                fi
+		if [[ -n "${output_name}" ]]; then
+			# shellcheck disable=SC2034
+			local -n output_ref=$output_name
+			output_ref="${validated_action}"
+		else
+			printf '%s\n' "${validated_action}"
+		fi
 
-                return
-        fi
+		return
+	fi
 
 	plan_index="${state_ref[plan_index]}"
 	planned_entry=$(printf '%s\n' "${state_ref[plan_entries]}" | sed -n "$((plan_index + 1))p")
@@ -394,7 +401,9 @@ raw_action="$(llama_infer "${react_prompt}" "" 256 "${react_grammar_path}")"
 	fi
 
 	if [[ -n "${output_name}" ]]; then
+		# shellcheck disable=SC2034
 		local -n output_ref=$output_name
+		# shellcheck disable=SC2034
 		output_ref="${next_action_payload}"
 	else
 		printf '%s\n' "${next_action_payload}"
@@ -406,6 +415,7 @@ validate_tool_permission() {
 	#   $1 - name of associative array holding state
 	#   $2 - tool name to validate
 	local state_name
+	# shellcheck disable=SC2178
 	local -n state_ref=$1
 	local tool
 	state_name="$1"
@@ -436,6 +446,7 @@ record_tool_execution() {
 	#   $4 - observation text
 	#   $5 - step index
 	local state_name
+	# shellcheck disable=SC2178
 	local -n state_ref=$1
 	local tool query observation step_index
 	state_name="$1"
@@ -449,6 +460,7 @@ record_tool_execution() {
 finalize_react_result() {
 	# Arguments:
 	#   $1 - name of associative array holding state
+	# shellcheck disable=SC2178
 	local -n state_ref=$1
 	if [[ -z "${state_ref[final_answer]}" ]]; then
 		state_ref[final_answer]="$(respond_text "${state_ref[user_query]} ${state_ref[history]}" 1000)"
