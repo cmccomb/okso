@@ -66,34 +66,36 @@ source "${SCRIPT_DIR}/cli.sh"
 source "${SCRIPT_DIR}/runtime.sh"
 
 main() {
-	local -A settings
+	local settings_prefix
 	local plan_outline required_tools plan_entries plan_action
 
-	load_runtime_settings settings "$@"
+	settings_prefix="settings"
 
-	if [[ "${settings[command]}" == "init" ]]; then
+	load_runtime_settings "${settings_prefix}" "$@"
+
+	if [[ "$(settings_get "${settings_prefix}" "command")" == "init" ]]; then
 		# Init mode writes a config file and exits without running the planner.
-		apply_settings_to_globals settings
+		apply_settings_to_globals "${settings_prefix}"
 		write_config_file
 		return 0
 	fi
 
-	prepare_environment_with_settings settings
+	prepare_environment_with_settings "${settings_prefix}"
 	# Planner flow:
 	# 1. Generate an outline, 2. identify tools, 3. build concrete plan entries
 	# for execution, then 4. render plan outputs before proceeding.
-	log "INFO" "Starting plan generation" "${settings[user_query]}"
-	plan_outline="$(generate_plan_outline "${settings[user_query]}")"
+	log "INFO" "Starting plan generation" "$(settings_get "${settings_prefix}" "user_query")"
+	plan_outline="$(generate_plan_outline "$(settings_get "${settings_prefix}" "user_query")")"
 	required_tools="$(extract_tools_from_plan "${plan_outline}")"
 	log "INFO" "Planner identified tools" "${required_tools}"
-	plan_entries="$(build_plan_entries_from_tools "${required_tools}" "${settings[user_query]}")"
+	plan_entries="$(build_plan_entries_from_tools "${required_tools}" "$(settings_get "${settings_prefix}" "user_query")")"
 
-	render_plan_outputs plan_action settings "${required_tools}" "${plan_entries}" "${plan_outline}"
+	render_plan_outputs plan_action "${settings_prefix}" "${required_tools}" "${plan_entries}" "${plan_outline}"
 	if [[ "${plan_action}" == "exit" ]]; then
 		return 0
 	fi
 
-	select_response_strategy settings "${required_tools}" "${plan_entries}" "${plan_outline}"
+	select_response_strategy "${settings_prefix}" "${required_tools}" "${plan_entries}" "${plan_outline}"
 }
 
 main "$@"

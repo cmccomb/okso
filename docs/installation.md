@@ -28,7 +28,7 @@ curl -fsSL https://cmccomb.github.io/okso/install.sh | bash
 
 ## Manual setup
 
-For manual setups, ensure `bash` 5+, `llama.cpp` (the `llama-cli` binary, optional for heuristic mode), `fd`, and `rg` are on your `PATH`, then run the script directly with:
+For manual setups, ensure the system `bash` is available (the scripts avoid associative-array features so the macOS 3.2 build works out of the box), `llama.cpp` (the `llama-cli` binary, optional for heuristic mode), `fd`, and `rg` are on your `PATH`, then run the script directly with:
 
 ```bash
 ./src/main.sh
