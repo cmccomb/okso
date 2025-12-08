@@ -21,6 +21,8 @@
 #   Functions emit errors via log and return non-zero when misused.
 
 TOOLS_DIR="${BASH_SOURCE[0]%/tools.sh}/tools"
+# shellcheck source=./errors.sh disable=SC1091
+source "${BASH_SOURCE[0]%/tools.sh}/errors.sh"
 # shellcheck source=./logging.sh disable=SC1091
 source "${BASH_SOURCE[0]%/tools.sh}/logging.sh"
 # shellcheck source=./tools/registry.sh disable=SC1091

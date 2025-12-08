@@ -24,6 +24,8 @@
 # Exit codes:
 #   Functions return non-zero on misuse; fatal errors logged by caller.
 
+# shellcheck source=./errors.sh disable=SC1091
+source "${BASH_SOURCE[0]%/planner.sh}/errors.sh"
 # shellcheck source=./logging.sh disable=SC1091
 source "${BASH_SOURCE[0]%/planner.sh}/logging.sh"
 # shellcheck source=./tools.sh disable=SC1091

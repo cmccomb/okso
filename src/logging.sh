@@ -17,6 +17,9 @@
 # Exit codes:
 #   None directly; callers handle failures.
 
+# shellcheck source=./errors.sh disable=SC1091
+source "${BASH_SOURCE[0]%/logging.sh}/errors.sh"
+
 log() {
 	# Arguments:
 	#   $1 - level (string)
