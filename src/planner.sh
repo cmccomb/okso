@@ -32,46 +32,48 @@ source "${BASH_SOURCE[0]%/planner.sh}/tools.sh"
 source "${BASH_SOURCE[0]%/planner.sh}/respond.sh"
 # shellcheck source=./prompts.sh disable=SC1091
 source "${BASH_SOURCE[0]%/planner.sh}/prompts.sh"
+# shellcheck source=./grammar.sh disable=SC1091
+source "${BASH_SOURCE[0]%/planner.sh}/grammar.sh"
 
 llama_infer() {
-        # Runs llama.cpp with HF caching enabled for the configured model.
-        # Arguments:
-        #   $1 - prompt string
-        #   $2 - stop string (optional)
-        #   $3 - max tokens (optional)
-        #   $4 - grammar file path (optional)
-local prompt stop_string number_of_tokens grammar_path
-prompt="$1"
-stop_string="${2:-}"
-number_of_tokens="${3:-256}"
-grammar_path="${4:-}"
+	# Runs llama.cpp with HF caching enabled for the configured model.
+	# Arguments:
+	#   $1 - prompt string
+	#   $2 - stop string (optional)
+	#   $3 - max tokens (optional)
+	#   $4 - grammar file path (optional)
+	local prompt stop_string number_of_tokens grammar_file_path
+	prompt="$1"
+	stop_string="${2:-}"
+	number_of_tokens="${3:-256}"
+	grammar_file_path="${4:-}"
 
-        local additional_args
-        additional_args=()
+	local additional_args
+	additional_args=()
 
-        if [[ -n "${grammar_path}" ]]; then
-                additional_args+=(--grammar "${grammar_path}")
-        fi
+	if [[ -n "${grammar_file_path}" ]]; then
+		additional_args+=(--grammar "${grammar_file_path}")
+	fi
 
-        # If a stop string is provided, use it to terminate output.
-        if [[ -n "${stop_string}" ]]; then
-                "${LLAMA_BIN}" \
-                        --hf-repo "${MODEL_REPO}" \
-                        --hf-file "${MODEL_FILE}" \
-                        -no-cnv --no-display-prompt --simple-io --verbose -r "${stop_string}" \
-                        -n "${number_of_tokens}" \
-                        -p "${prompt}" \
-                        "${additional_args[@]}" 2>/dev/null || true
-                return
-        fi
+	# If a stop string is provided, use it to terminate output.
+	if [[ -n "${stop_string}" ]]; then
+		"${LLAMA_BIN}" \
+		        --hf-repo "${MODEL_REPO}" \
+		        --hf-file "${MODEL_FILE}" \
+		        -no-cnv --no-display-prompt --simple-io --verbose -r "${stop_string}" \
+		        -n "${number_of_tokens}" \
+		        -p "${prompt}" \
+		        "${additional_args[@]}" 2>/dev/null || true
+		return
+	fi
 
-        "${LLAMA_BIN}" \
-                --hf-repo "${MODEL_REPO}" \
-                --hf-file "${MODEL_FILE}" \
-                -n "${number_of_tokens}" \
-                -no-cnv --no-display-prompt --simple-io --verbose \
-                -p "${prompt}" \
-                "${additional_args[@]}" 2>/dev/null || true
+	"${LLAMA_BIN}" \
+	        --hf-repo "${MODEL_REPO}" \
+	        --hf-file "${MODEL_FILE}" \
+	        -n "${number_of_tokens}" \
+	        -no-cnv --no-display-prompt --simple-io --verbose \
+	        -p "${prompt}" \
+	        "${additional_args[@]}" 2>/dev/null || true
 }
 
 format_tool_catalog() {
@@ -120,12 +122,13 @@ append_final_answer_step() {
 }
 
 generate_plan_outline() {
-        # Arguments:
-        #   $1 - user query (string)
-        local user_query prompt raw_plan
-        user_query="$1"
-        local tool_lines
-        tool_lines="$(format_tool_catalog)"
+# Arguments:
+#   $1 - user query (string)
+local user_query prompt raw_plan planner_grammar_path
+user_query="$1"
+local tool_lines
+tool_lines="$(format_tool_catalog)"
+planner_grammar_path="$(grammar_path planner_plan)"
 
 	# Had to disable this check to allow this to work outside of testing environments.
 	#	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
@@ -133,9 +136,9 @@ generate_plan_outline() {
 	#		return 0
 	#	fi
 
-        prompt="$(build_planner_prompt "${user_query}" "${tool_lines}")"
-        raw_plan="$(llama_infer "${prompt}" '' 512)"
-        append_final_answer_step "${raw_plan}"
+prompt="$(build_planner_prompt "${user_query}" "${tool_lines}")"
+raw_plan="$(llama_infer "${prompt}" '' 512 "${planner_grammar_path}")"
+append_final_answer_step "${raw_plan}"
 }
 
 declare -A TOOL_QUERY_DERIVERS=(
@@ -356,10 +359,10 @@ select_next_action() {
                 allowed_tool_descriptions="$(format_allowed_tool_descriptions "${state_ref[allowed_tools]}")"
                 react_prompt="$(build_react_prompt "${state_ref[user_query]}" "${allowed_tool_descriptions}" "${state_ref[plan_outline]}" "${state_ref[history]}")"
 
-                local grammar_path raw_action validated_action
-                grammar_path="$(cd "${BASH_SOURCE[0]%/planner.sh}" && pwd)/grammars/react_action.gbnf"
+local react_grammar_path raw_action validated_action
+react_grammar_path="$(grammar_path react_action)"
 
-                raw_action="$(llama_infer "${react_prompt}" "" 256 "${grammar_path}")"
+raw_action="$(llama_infer "${react_prompt}" "" 256 "${react_grammar_path}")"
                 if ! validated_action=$(jq -cer 'select(type == "object") | {type, tool, query} | select(.type|type == "string") | select(.tool|type == "string") | select(.query|type == "string")' <<<"${raw_action}"); then
                         log "ERROR" "Invalid action output from llama" "${raw_action}"
                         return 1
