@@ -35,7 +35,7 @@
 }
 
 @test "init_environment keeps llama enabled when passthrough is unset" {
-	run bash -lc '
+        run bash -lc '
                 unset TESTING_PASSTHROUGH
                 MODEL_SPEC="demo/repo:demo.gguf"
                 DEFAULT_MODEL_FILE="demo.gguf"
@@ -53,14 +53,48 @@
 
 @test "init_tool_registry clears previous tools" {
 	run bash -lc 'source ./src/tools.sh; TOOLS=(stub); TOOL_DESCRIPTION=( [stub]="desc"); init_tool_registry; echo "${#TOOLS[@]}"'
-	[ "$status" -eq 0 ]
-	[ "${lines[0]}" -eq 0 ]
+        [ "$status" -eq 0 ]
+        [ "${lines[0]}" -eq 0 ]
+}
+
+@test "assert_osascript_available warns and exits when not on macOS" {
+        run bash -lc '
+                IS_MACOS=false
+                VERBOSITY=1
+                TOOL_QUERY="demo query"
+                source ./src/tools/osascript_helpers.sh
+                assert_osascript_available \
+                        "AppleScript not available on this platform" \
+                        "missing" \
+                        "osascript" \
+                        "${TOOL_QUERY}"
+        '
+
+        [ "$status" -eq 1 ]
+        [ "$(echo "${output}" | jq -r '.message')" = "AppleScript not available on this platform" ]
+        [ "$(echo "${output}" | jq -r '.detail')" = "demo query" ]
+}
+
+@test "assert_osascript_available flags missing binary on macOS" {
+        run bash -lc '
+                IS_MACOS=true
+                VERBOSITY=1
+                source ./src/tools/osascript_helpers.sh
+                assert_osascript_available \
+                        "AppleScript not available on this platform" \
+                        "osascript missing; cannot execute AppleScript" \
+                        "/nonexistent/osascript" \
+                        ""
+        '
+
+        [ "$status" -eq 1 ]
+        [ "$(echo "${output}" | jq -r '.message')" = "osascript missing; cannot execute AppleScript" ]
 }
 
 @test "initialize_tools registers each module" {
-	run bash -lc 'source ./src/tools.sh; init_tool_registry; initialize_tools; printf "%s\n" "${TOOLS[@]}"'
-	[ "$status" -eq 0 ]
-	[ "${#lines[@]}" -eq 22 ]
+        run bash -lc 'source ./src/tools.sh; init_tool_registry; initialize_tools; printf "%s\n" "${TOOLS[@]}"'
+        [ "$status" -eq 0 ]
+        [ "${#lines[@]}" -eq 22 ]
 	[ "${lines[0]}" = "terminal" ]
 	[ "${lines[1]}" = "file_search" ]
 	[ "${lines[2]}" = "clipboard_copy" ]

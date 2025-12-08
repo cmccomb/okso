@@ -22,6 +22,8 @@
 
 # shellcheck source=../../logging.sh disable=SC1091
 source "${BASH_SOURCE[0]%/tools/notes/common.sh}/logging.sh"
+# shellcheck source=../osascript_helpers.sh disable=SC1091
+source "${BASH_SOURCE[0]%/tools/notes/common.sh}/tools/osascript_helpers.sh"
 
 notes_folder_name() {
 	# Prints the resolved Apple Notes folder name.
@@ -32,13 +34,11 @@ notes_folder_name() {
 
 notes_require_platform() {
 	# Ensures Apple Notes tools only run on macOS with osascript available.
-	if [[ "${IS_MACOS}" != true ]]; then
-		log "WARN" "Apple Notes is only available on macOS" "${TOOL_QUERY:-}" || true
-		return 1
-	fi
-
-	if ! command -v "${NOTES_OSASCRIPT_BIN:-osascript}" >/dev/null 2>&1; then
-		log "WARN" "osascript missing; cannot reach Apple Notes" "${TOOL_QUERY:-}" || true
+	if ! assert_osascript_available \
+		"Apple Notes is only available on macOS" \
+		"osascript missing; cannot reach Apple Notes" \
+		"${NOTES_OSASCRIPT_BIN:-osascript}" \
+		"${TOOL_QUERY:-}"; then
 		return 1
 	fi
 

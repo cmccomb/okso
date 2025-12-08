@@ -21,6 +21,8 @@
 
 # shellcheck source=../logging.sh disable=SC1091
 source "${BASH_SOURCE[0]%/tools/applescript.sh}/logging.sh"
+# shellcheck source=./osascript_helpers.sh disable=SC1091
+source "${BASH_SOURCE[0]%/applescript.sh}/osascript_helpers.sh"
 # shellcheck source=./registry.sh disable=SC1091
 source "${BASH_SOURCE[0]%/applescript.sh}/registry.sh"
 
@@ -28,13 +30,11 @@ tool_applescript() {
 	local query
 	query=${TOOL_QUERY:-""}
 
-	if [[ "${IS_MACOS}" != true ]]; then
-		log "WARN" "AppleScript not available on this platform" "${query}"
-		return 0
-	fi
-
-	if ! command -v osascript >/dev/null 2>&1; then
-		log "WARN" "osascript missing; cannot execute AppleScript" "${query}"
+	if ! assert_osascript_available \
+		"AppleScript not available on this platform" \
+		"osascript missing; cannot execute AppleScript" \
+		"osascript" \
+		"${query}"; then
 		return 0
 	fi
 
