@@ -32,6 +32,10 @@ Write a config file up front with a custom model branch (defaults to `bartowski/
 
 More scenarios and approval modes live in the [usage guide](docs/usage.md). Configuration keys are covered in [configuration](docs/configuration.md), and available tools are listed in [tools](docs/tools.md). Development and testing steps are in [development](docs/development.md).
 
+### Offline and testing behavior
+
+Set `TESTING_PASSTHROUGH=true` to disable llama.cpp calls during tests or offline usage. The planner exposes deterministic fallbacks when `LLAMA_AVAILABLE=false`, returning a simple final-answer-only plan and concise responses that acknowledge the original request instead of invoking `llama.cpp`.
+
 ## Prompt catalogue
 
 All prompts used by the assistant are centralized in [`src/prompts.sh`](src/prompts.sh) for easier maintenance. The file exposes prompt builders for direct responses, plan generation, and ReAct steps so updates to tone, structure, or schema can be made in one place.

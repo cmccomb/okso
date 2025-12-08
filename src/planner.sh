@@ -36,20 +36,25 @@ source "${BASH_SOURCE[0]%/planner.sh}/prompts.sh"
 source "${BASH_SOURCE[0]%/planner.sh}/grammar.sh"
 
 llama_infer() {
-	# Runs llama.cpp with HF caching enabled for the configured model.
-	# Arguments:
-	#   $1 - prompt string
-	#   $2 - stop string (optional)
-	#   $3 - max tokens (optional)
-	#   $4 - grammar file path (optional)
-	local prompt stop_string number_of_tokens grammar_file_path
-	prompt="$1"
-	stop_string="${2:-}"
-	number_of_tokens="${3:-256}"
-	grammar_file_path="${4:-}"
+        # Runs llama.cpp with HF caching enabled for the configured model.
+        # Arguments:
+        #   $1 - prompt string
+        #   $2 - stop string (optional)
+        #   $3 - max tokens (optional)
+        #   $4 - grammar file path (optional)
+        local prompt stop_string number_of_tokens grammar_file_path
+        prompt="$1"
+        stop_string="${2:-}"
+        number_of_tokens="${3:-256}"
+        grammar_file_path="${4:-}"
 
-	local additional_args
-	additional_args=()
+        if [[ "${LLAMA_AVAILABLE}" != true ]]; then
+                log "WARN" "llama unavailable; skipping inference" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}"
+                return 1
+        fi
+
+        local additional_args
+        additional_args=()
 
 	if [[ -n "${grammar_file_path}" ]]; then
 		additional_args+=(--grammar "${grammar_file_path}")
@@ -130,11 +135,11 @@ local tool_lines
 tool_lines="$(format_tool_catalog)"
 planner_grammar_path="$(grammar_path planner_plan)"
 
-	# Had to disable this check to allow this to work outside of testing environments.
-	#	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
-	#		printf '1. Use final_answer to respond directly to the user request.'
-	#		return 0
-	#	fi
+	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
+		log "INFO" "Using static plan outline because llama is unavailable" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}"
+		printf '1. Use final_answer to respond directly to the user request.'
+		return 0
+	fi
 
 prompt="$(build_planner_prompt "${user_query}" "${tool_lines}")"
 raw_plan="$(llama_infer "${prompt}" '' 512 "${planner_grammar_path}")"
