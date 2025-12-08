@@ -243,15 +243,17 @@ printf "LOG:%s\n" "$(cat "${LOG_FILE}")"
 	[ "${lines[${last_index}]}" = "LOG:format" ]
 }
 
-@test "select_next_action falls back to plan when llama is disabled" {
-	run bash -lc '
+@test "select_next_action emits final_answer action without llama" {
+        run bash -lc '
                 source ./src/planner.sh
+                respond_text() { printf "offline response"; }
                 declare -A state=(
                         [user_query]="list files"
                         [allowed_tools]="terminal"
                         [plan_entries]=$'"'"'terminal|echo hi|4'"'"'
+                        [plan_outline]=$'"'"'1. terminal -> echo hi'"'"'
                         [history]=""
-                        [step]=1
+                        [step]=0
                         [max_steps]=2
                         [final_answer]=""
                 )
@@ -259,10 +261,10 @@ printf "LOG:%s\n" "$(cat "${LOG_FILE}")"
                 LLAMA_AVAILABLE=false
                 select_next_action state | jq -r ".type,.tool,.query"
         '
-	[ "$status" -eq 0 ]
-	[ "${lines[0]}" = "tool" ]
-	[ "${lines[1]}" = "terminal" ]
-	[ "${lines[2]}" = "echo hi" ]
+        [ "$status" -eq 0 ]
+        [ "${lines[0]}" = "tool" ]
+        [ "${lines[1]}" = "final_answer" ]
+        [ "${lines[2]}" = "offline response" ]
 }
 
 @test "validate_tool_permission records history for disallowed tool" {
@@ -288,6 +290,7 @@ printf "LOG:%s\n" "$(cat "${LOG_FILE}")"
                         [user_query]="demo question"
                         [allowed_tools]="terminal"
                         [plan_entries]=""
+                        [plan_outline]=$'"'"'1. terminal -> list'"'"'
                         [history]=$'"'"'Action terminal query=list\nObservation: ok'"'"'
                         [step]=2
                         [max_steps]=3
@@ -297,9 +300,11 @@ printf "LOG:%s\n" "$(cat "${LOG_FILE}")"
         '
 	[ "$status" -eq 0 ]
 	[ "${lines[0]}" = "stubbed response" ]
-        [ "${lines[1]}" = "Execution summary:" ]
-        [ "${lines[2]}" = "Action terminal query=list" ]
-        [ "${lines[3]}" = "Observation: ok" ]
+        [ "${lines[1]}" = "Plan outline:" ]
+        [ "${lines[2]}" = "1. terminal -> list" ]
+        [ "${lines[3]}" = "Execution summary:" ]
+        [ "${lines[4]}" = "Action terminal query=list" ]
+        [ "${lines[5]}" = "Observation: ok" ]
 }
 
 @test "react_loop returns final_answer tool output" {
@@ -320,7 +325,9 @@ printf "LOG:%s\n" "$(cat "${LOG_FILE}")"
 
         [ "$status" -eq 0 ]
         [ "${lines[0]}" = "done" ]
-        [ "${lines[1]}" = "Execution summary:" ]
-        [ "${lines[2]}" = "Action final_answer query=done" ]
-        [ "${lines[3]}" = "Observation: done" ]
+        [ "${lines[1]}" = "Plan outline:" ]
+        [ "${lines[2]}" = "1. final_answer -> done" ]
+        [ "${lines[3]}" = "Execution summary:" ]
+        [ "${lines[4]}" = "Step 1 action final_answer query=done" ]
+        [ "${lines[5]}" = "Observation: done" ]
 }
