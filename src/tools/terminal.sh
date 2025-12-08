@@ -58,7 +58,7 @@ derive_terminal_query() {
 	#   $1 - user query (string)
 	local user_query lower_query
 	user_query="$1"
-	lower_query=${user_query,,}
+	lower_query=$(printf '%s' "${user_query}" | tr '[:upper:]' '[:lower:]')
 
 	if [[ "${user_query}" =~ \`([^\`]+)\` ]]; then
 		printf '%s\n' "${BASH_REMATCH[1]}"

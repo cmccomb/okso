@@ -9,6 +9,12 @@ set -euo pipefail
 
 prompt=""
 
+to_lowercase() {
+	# Arguments:
+	#   $1 - input string
+	printf '%s' "$1" | tr '[:upper:]' '[:lower:]'
+}
+
 while [[ $# -gt 0 ]]; do
 	case "$1" in
 	--hf-repo | --hf-file | --grammar)
@@ -24,12 +30,12 @@ while [[ $# -gt 0 ]]; do
 	esac
 done
 
-prompt_lower=${prompt,,}
+prompt_lower=$(to_lowercase "${prompt}")
 user_request=${prompt#*User request: }
 if [[ "${user_request}" == "${prompt}" ]]; then
 	user_request=${prompt#*USER REQUEST: }
 fi
-user_request_lower=${user_request,,}
+user_request_lower=$(to_lowercase "${user_request}")
 
 if [[ "${prompt_lower}" == *"concise response"* ]]; then
 	request=${prompt#*USER REQUEST: }
