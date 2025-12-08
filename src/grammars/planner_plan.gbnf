@@ -1,0 +1,8 @@
+root ::= step (newline step)*
+step ::= number '.' space step_text
+number ::= [1-9] digit*
+digit ::= [0-9]
+step_text ::= step_char+
+step_char ::= [^\n]
+space ::= ' '
+newline ::= '\n'

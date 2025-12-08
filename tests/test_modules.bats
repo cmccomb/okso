@@ -306,6 +306,46 @@ printf "LOG:%s\n" "$(cat "${LOG_FILE}")"
         [ "${lines[2]}" = "GRAMMAR:${lines[3]#EXPECTED:}" ]
 }
 
+@test "generate_plan_outline uses shared planner grammar" {
+        run bash -lc '
+                source ./src/planner.sh
+                initialize_tools
+
+                llama_grammar_file="$(mktemp)"
+                llama_infer() {
+                        printf "%s" "$4" >"${llama_grammar_file}"
+                        printf "1. Use terminal\n"
+                }
+
+plan_text="$(generate_plan_outline "list files")"
+printf "PLAN:%s\nGRAMMAR:%s\n" "${plan_text}" "$(cat "${llama_grammar_file}")"
+        '
+
+        [ "$status" -eq 0 ]
+        expected_grammar="$(cd src && pwd)/grammars/planner_plan.gbnf"
+        last_index=$(( ${#lines[@]} - 1 ))
+        [ "${lines[${last_index}]}" = "GRAMMAR:${expected_grammar}" ]
+}
+
+@test "respond_text forwards concise response grammar" {
+        run bash -lc '
+                source ./src/respond.sh
+
+                llama_grammar_file="$(mktemp)"
+                llama_infer() {
+                        printf "%s" "$4" >"${llama_grammar_file}"
+                }
+
+                response_output="$(respond_text "hello" 12)"
+                printf "RESPONSE:%s\nGRAMMAR:%s\n" "${response_output}" "$(cat "${llama_grammar_file}")"
+        '
+
+        [ "$status" -eq 0 ]
+        expected_grammar="$(cd src && pwd)/grammars/concise_response.gbnf"
+        last_index=$(( ${#lines[@]} - 1 ))
+        [ "${lines[${last_index}]}" = "GRAMMAR:${expected_grammar}" ]
+}
+
 @test "select_next_action logs and fails on invalid llama output" {
         run bash -lc '
                 source ./src/planner.sh
