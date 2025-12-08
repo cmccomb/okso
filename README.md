@@ -41,3 +41,20 @@ Set `TESTING_PASSTHROUGH=true` to disable llama.cpp calls during tests or offlin
 All prompts used by the assistant are centralized in [`src/prompts.sh`](src/prompts.sh) for easier maintenance. The file exposes prompt builders for direct responses, plan generation, and ReAct steps so updates to tone, structure, or schema can be made in one place.
 
 Structured outputs are enforced with shared [GBNF grammars](src/grammars/) referenced by the prompt builders and passed directly to `llama.cpp` during inference. Each grammar file name documents its purpose (e.g., `planner_plan.gbnf`, `react_action.gbnf`, `concise_response.gbnf`) so contributors can update schemas without hunting through inline prompt text.
+
+## Structured error envelopes
+
+Shared helpers in [`src/errors.sh`](src/errors.sh) emit JSON envelopes for fatal and warning paths while ensuring non-zero exit
+codes from pipelines and subshells. The envelope format is consistent across runtime and tool scripts:
+
+```json
+{
+  "name": "cli",
+  "category": "usage",
+  "message": "--model requires an HF repo[:file] value"
+}
+```
+
+- `name` identifies the emitting runtime or tool.
+- `category` classifies the error (for example, `usage`, `pipeline`, or `fatal`).
+- `message` carries the human-readable detail for the failure.

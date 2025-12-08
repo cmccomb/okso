@@ -48,6 +48,8 @@ resolve_script_dir() {
 }
 
 SCRIPT_DIR=$(resolve_script_dir)
+# shellcheck source=./errors.sh disable=SC1091
+source "${SCRIPT_DIR}/errors.sh"
 # shellcheck source=./logging.sh disable=SC1091
 source "${SCRIPT_DIR}/logging.sh"
 # shellcheck source=./config.sh disable=SC1091
