@@ -16,16 +16,22 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y shellcheck shfmt bats bats-core
+          sudo apt-get install -y shellcheck shfmt bats bc
+          gem install bashcov simplecov-cobertura
 
       - name: Check formatting
         run: |
           shfmt -d \
-            src/main.sh \
-            scripts/install.sh \
+            src/*.sh \
+            src/tools/*.sh \
+            src/tools/notes/*.sh \
+            scripts/*.sh \
+            tests/*.bats \
             tests/test_all.sh \
             tests/test_main.bats \
             tests/test_install.bats \
             tests/install/test_install_features.bats
+            tests/test_install.bats
 
       - name: Run shellcheck
         run: |
@@ -36,11 +42,23 @@ jobs:
             tests/test_main.bats \
             tests/test_install.bats \
             tests/install/test_install_features.bats
+            tests/test_config.bats \
+            tests/test_planner.bats \
+            tests/test_tools_registry.bats \
+            scripts/coverage.sh
 
-      - name: Run Bats suite
+      - name: Run Bats suite with coverage
         run: |
           bats \
             tests/test_main.bats \
             tests/test_all.sh \
             tests/test_install.bats \
             tests/install/test_install_features.bats
+          ./scripts/coverage.sh
+
+      - name: Upload coverage artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: bash-coverage
+          path: coverage/
+          retention-days: 7

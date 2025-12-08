@@ -22,6 +22,8 @@
 # If your scripts generate specific output files, add them here.
 # For example:
 # my_script_output.txt
+coverage/
+.bats-tmp/
 
 # Sensitive data or configuration files that should not be committed
 # If your scripts use local configuration files or store sensitive data,

@@ -1,0 +1,63 @@
+#!/usr/bin/env bats
+#
+# Tests for configuration helpers.
+#
+# Usage:
+#   bats tests/test_config.bats
+#
+# Dependencies:
+#   - bats
+#   - bash 5+
+#
+# Exit codes:
+#   Inherits Bats semantics; individual tests assert helper outcomes.
+
+# shellcheck disable=SC1091,SC2030,SC2031,SC2034
+
+setup() {
+	REPO_ROOT="$(git rev-parse --show-toplevel)"
+}
+
+@test "parse_model_spec falls back to provided default file" {
+	cd "${REPO_ROOT}" || exit 1
+	source ./src/config.sh
+	mapfile -t parts < <(parse_model_spec "demo/model" "custom.gguf")
+	[[ "${parts[0]}" == "demo/model" ]]
+	[[ "${parts[1]}" == "custom.gguf" ]]
+}
+
+@test "normalize_approval_flags coerces invalid inputs" {
+	cd "${REPO_ROOT}" || exit 1
+	source ./src/config.sh
+	APPROVE_ALL="maybe"
+	FORCE_CONFIRM="0"
+	normalize_approval_flags
+	[[ "${APPROVE_ALL}" == "false" ]]
+	[[ "${FORCE_CONFIRM}" == "false" ]]
+}
+
+@test "init_environment disables llama when binary is missing" {
+	cd "${REPO_ROOT}" || exit 1
+	source ./src/config.sh
+	CONFIG_FILE="${BATS_TEST_TMPDIR}/config.env"
+	MODEL_SPEC="demo/model"
+	DEFAULT_MODEL_FILE="demo.gguf"
+	NOTES_DIR="${BATS_TEST_TMPDIR}/notes"
+	LLAMA_BIN="${BATS_TEST_TMPDIR}/missing"
+	APPROVE_ALL=false
+	FORCE_CONFIRM=false
+	TESTING_PASSTHROUGH=false
+	init_environment
+	[[ "${LLAMA_AVAILABLE}" == "false" ]]
+	[[ -d "${NOTES_DIR}" ]]
+}
+
+@test "load_config honors DO_MODEL overrides" {
+	cd "${REPO_ROOT}" || exit 1
+	source ./src/config.sh
+	CONFIG_FILE="${BATS_TEST_TMPDIR}/config.env"
+	printf "MODEL_SPEC=base/model\nMODEL_BRANCH=dev\n" >"${CONFIG_FILE}"
+	DO_MODEL="override/model" DO_MODEL_BRANCH="release" load_config
+	[[ "${MODEL_SPEC}" == "override/model" ]]
+	[[ "${MODEL_BRANCH}" == "release" ]]
+}
