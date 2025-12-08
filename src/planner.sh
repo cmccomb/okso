@@ -36,25 +36,25 @@ source "${BASH_SOURCE[0]%/planner.sh}/prompts.sh"
 source "${BASH_SOURCE[0]%/planner.sh}/grammar.sh"
 
 llama_infer() {
-        # Runs llama.cpp with HF caching enabled for the configured model.
-        # Arguments:
-        #   $1 - prompt string
-        #   $2 - stop string (optional)
-        #   $3 - max tokens (optional)
-        #   $4 - grammar file path (optional)
-        local prompt stop_string number_of_tokens grammar_file_path
-        prompt="$1"
-        stop_string="${2:-}"
-        number_of_tokens="${3:-256}"
-        grammar_file_path="${4:-}"
+	# Runs llama.cpp with HF caching enabled for the configured model.
+	# Arguments:
+	#   $1 - prompt string
+	#   $2 - stop string (optional)
+	#   $3 - max tokens (optional)
+	#   $4 - grammar file path (optional)
+	local prompt stop_string number_of_tokens grammar_file_path
+	prompt="$1"
+	stop_string="${2:-}"
+	number_of_tokens="${3:-256}"
+	grammar_file_path="${4:-}"
 
-        if [[ "${LLAMA_AVAILABLE}" != true ]]; then
-                log "WARN" "llama unavailable; skipping inference" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}"
-                return 1
-        fi
+	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
+		log "WARN" "llama unavailable; skipping inference" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}"
+		return 1
+	fi
 
-        local additional_args
-        additional_args=()
+	local additional_args
+	additional_args=()
 
 	if [[ -n "${grammar_file_path}" ]]; then
 		additional_args+=(--grammar "${grammar_file_path}")
@@ -148,17 +148,19 @@ append_final_answer_step() {
 generate_plan_outline() {
 	# Arguments:
 	#   $1 - user query (string)
-	local user_query prompt raw_plan planner_grammar_path
+	local user_query
 	user_query="$1"
-	local tool_lines
-	tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${TOOLS[@]}")" format_tool_summary_line)"
-	planner_grammar_path="$(grammar_path planner_plan)"
 
 	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
 		log "INFO" "Using static plan outline because llama is unavailable" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}"
 		printf '1. Use final_answer to respond directly to the user request.'
 		return 0
 	fi
+
+	local prompt raw_plan planner_grammar_path
+	local tool_lines
+	tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${TOOLS[@]}")" format_tool_summary_line)"
+	planner_grammar_path="$(grammar_path planner_plan)"
 
 	prompt="$(build_planner_prompt "${user_query}" "${tool_lines}")"
 	raw_plan="$(llama_infer "${prompt}" '' 512 "${planner_grammar_path}")"
@@ -341,6 +343,7 @@ execute_tool_with_query() {
 	return 0
 }
 
+# shellcheck disable=SC2154,SC2178
 initialize_react_state() {
 	# Arguments:
 	#   $1 - name of associative array to populate
@@ -348,6 +351,7 @@ initialize_react_state() {
 	#   $3 - allowed tools (newline delimited)
 	#   $4 - ranked plan entries
 	#   $5 - plan outline text
+	# shellcheck disable=SC2178
 	local -n state_ref=$1
 	state_ref[user_query]="$2"
 	state_ref[allowed_tools]="$3"
@@ -364,12 +368,14 @@ record_history() {
 	# Arguments:
 	#   $1 - name of associative array holding state
 	#   $2 - formatted history entry
+	# shellcheck disable=SC2178
 	local -n state_ref=$1
 	local entry
 	entry="$2"
 	state_ref[history]+=$(printf '%s\n' "${entry}")
 }
 
+# shellcheck disable=SC2178,SC2034
 select_next_action() {
 	# Arguments:
 	#   $1 - name of associative array holding state
@@ -377,6 +383,7 @@ select_next_action() {
 	local state_name output_name
 	state_name="$1"
 	output_name="${2:-}"
+	# shellcheck disable=SC2178
 	local -n state_ref=$state_name
 	local react_prompt plan_index planned_entry tool query next_action_payload allowed_tool_descriptions allowed_tool_lines
 	if [[ "${USE_REACT_LLAMA:-false}" == true && "${LLAMA_AVAILABLE}" == true ]]; then
@@ -434,6 +441,7 @@ validate_tool_permission() {
 	#   $1 - name of associative array holding state
 	#   $2 - tool name to validate
 	local state_name
+	# shellcheck disable=SC2178
 	local -n state_ref=$1
 	local tool
 	state_name="$1"
@@ -464,6 +472,7 @@ record_tool_execution() {
 	#   $4 - observation text
 	#   $5 - step index
 	local state_name
+	# shellcheck disable=SC2178
 	local -n state_ref=$1
 	local tool query observation step_index
 	state_name="$1"
@@ -477,6 +486,7 @@ record_tool_execution() {
 finalize_react_result() {
 	# Arguments:
 	#   $1 - name of associative array holding state
+	# shellcheck disable=SC2178
 	local -n state_ref=$1
 	if [[ -z "${state_ref[final_answer]}" ]]; then
 		state_ref[final_answer]="$(respond_text "${state_ref[user_query]} ${state_ref[history]}" 1000)"

@@ -35,7 +35,7 @@
 }
 
 @test "init_environment keeps llama enabled when passthrough is unset" {
-        run bash -lc '
+	run bash -lc '
                 unset TESTING_PASSTHROUGH
                 MODEL_SPEC="demo/repo:demo.gguf"
                 DEFAULT_MODEL_FILE="demo.gguf"
@@ -47,12 +47,12 @@
                 init_environment
                 printf "%s" "${LLAMA_AVAILABLE}"
         '
-        [ "$status" -eq 0 ]
-        [ "${lines[0]}" = "true" ]
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "true" ]
 }
 
 @test "llama_infer reports unavailability without invoking llama" {
-        run bash -lc '
+	run bash -lc '
                 tmpdir=$(mktemp -d)
                 export LLAMA_AVAILABLE=false
                 export LLAMA_BIN="${tmpdir}/llama"
@@ -70,19 +70,19 @@ EOF
                 printf "LOG:%s\n" "$(cat "${TMP_LOG}" 2>/dev/null || true)"
         '
 
-        [ "$status" -eq 0 ]
-        [ "${lines[0]}" = "STATUS:1" ]
-        [ "${lines[1]}" = "LOG:" ]
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "STATUS:1" ]
+	[ "${lines[1]}" = "LOG:" ]
 }
 
 @test "init_tool_registry clears previous tools" {
 	run bash -lc 'source ./src/tools.sh; TOOLS=(stub); TOOL_DESCRIPTION=( [stub]="desc"); init_tool_registry; echo "${#TOOLS[@]}"'
-        [ "$status" -eq 0 ]
-        [ "${lines[0]}" -eq 0 ]
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" -eq 0 ]
 }
 
 @test "assert_osascript_available warns and exits when not on macOS" {
-        run bash -lc '
+	run bash -lc '
                 IS_MACOS=false
                 VERBOSITY=1
                 TOOL_QUERY="demo query"
@@ -94,13 +94,13 @@ EOF
                         "${TOOL_QUERY}"
         '
 
-        [ "$status" -eq 1 ]
-        [ "$(echo "${output}" | jq -r '.message')" = "AppleScript not available on this platform" ]
-        [ "$(echo "${output}" | jq -r '.detail')" = "demo query" ]
+	[ "$status" -eq 1 ]
+	[ "$(echo "${output}" | jq -r '.message')" = "AppleScript not available on this platform" ]
+	[ "$(echo "${output}" | jq -r '.detail')" = "demo query" ]
 }
 
 @test "assert_osascript_available flags missing binary on macOS" {
-        run bash -lc '
+	run bash -lc '
                 IS_MACOS=true
                 VERBOSITY=1
                 source ./src/tools/osascript_helpers.sh
@@ -111,14 +111,14 @@ EOF
                         ""
         '
 
-        [ "$status" -eq 1 ]
-        [ "$(echo "${output}" | jq -r '.message')" = "osascript missing; cannot execute AppleScript" ]
+	[ "$status" -eq 1 ]
+	[ "$(echo "${output}" | jq -r '.message')" = "osascript missing; cannot execute AppleScript" ]
 }
 
 @test "initialize_tools registers each module" {
-        run bash -lc 'source ./src/tools.sh; init_tool_registry; initialize_tools; printf "%s\n" "${TOOLS[@]}"'
-        [ "$status" -eq 0 ]
-        [ "${#lines[@]}" -eq 22 ]
+	run bash -lc 'source ./src/tools.sh; init_tool_registry; initialize_tools; printf "%s\n" "${TOOLS[@]}"'
+	[ "$status" -eq 0 ]
+	[ "${#lines[@]}" -eq 22 ]
 	[ "${lines[0]}" = "terminal" ]
 	[ "${lines[1]}" = "file_search" ]
 	[ "${lines[2]}" = "clipboard_copy" ]
@@ -299,7 +299,7 @@ printf "LOG:%s\n" "$(cat "${LOG_FILE}")"
 }
 
 @test "select_next_action follows plan entries before finalizing" {
-        run bash -lc '
+	run bash -lc '
                 source ./src/planner.sh
                 respond_text() { printf "offline response"; }
                 declare -A state=(
@@ -317,13 +317,13 @@ printf "LOG:%s\n" "$(cat "${LOG_FILE}")"
                 select_next_action state | jq -r ".type,.tool,.query"
         '
 	[ "$status" -eq 0 ]
-        [ "${lines[0]}" = "tool" ]
-        [ "${lines[1]}" = "terminal" ]
-        [ "${lines[2]}" = "echo hi" ]
+	[ "${lines[0]}" = "tool" ]
+	[ "${lines[1]}" = "terminal" ]
+	[ "${lines[2]}" = "echo hi" ]
 }
 
 @test "select_next_action uses llama grammar and captures output" {
-        run bash -lc '
+	run bash -lc '
                 source ./src/planner.sh
 
                 llama_arg_file="$(mktemp)"
@@ -358,14 +358,14 @@ printf "LOG:%s\n" "$(cat "${LOG_FILE}")"
                 printf "%s\n" "${action_json}" "COUNT:${llama_arg_count}" "GRAMMAR:${llama_grammar}" "EXPECTED:${expected_grammar}"
         '
 
-        [ "$status" -eq 0 ]
-        [ "${lines[0]}" = '{"type":"tool","tool":"terminal","query":"ls"}' ]
-        [ "${lines[1]}" = "COUNT:4" ]
-        [ "${lines[2]}" = "GRAMMAR:${lines[3]#EXPECTED:}" ]
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = '{"type":"tool","tool":"terminal","query":"ls"}' ]
+	[ "${lines[1]}" = "COUNT:4" ]
+	[ "${lines[2]}" = "GRAMMAR:${lines[3]#EXPECTED:}" ]
 }
 
 @test "generate_plan_outline uses shared planner grammar" {
-        run bash -lc '
+	run bash -lc '
                 source ./src/planner.sh
                 initialize_tools
                 LLAMA_AVAILABLE=true
@@ -380,14 +380,33 @@ plan_text="$(generate_plan_outline "list files")"
 printf "PLAN:%s\nGRAMMAR:%s\n" "${plan_text}" "$(cat "${llama_grammar_file}")"
         '
 
-        [ "$status" -eq 0 ]
-        expected_grammar="$(cd src && pwd)/grammars/planner_plan.gbnf"
-        last_index=$(( ${#lines[@]} - 1 ))
-        [ "${lines[${last_index}]}" = "GRAMMAR:${expected_grammar}" ]
+	[ "$status" -eq 0 ]
+	expected_grammar="$(cd src && pwd)/grammars/planner_plan.gbnf"
+	last_index=$((${#lines[@]} - 1))
+	[ "${lines[${last_index}]}" = "GRAMMAR:${expected_grammar}" ]
+}
+
+@test "generate_plan_outline short-circuits when llama unavailable" {
+	run bash -lc '
+                tmpdir=$(mktemp -d)
+                source ./src/planner.sh
+                llama_infer() { printf "called" >"${tmpdir}/llama.called"; }
+                log() { :; }
+                initialize_tools
+                LLAMA_AVAILABLE=false
+
+                plan_text="$(generate_plan_outline "offline request")"
+                call_log="$(cat "${tmpdir}/llama.called" 2>/dev/null || true)"
+                printf "PLAN:%s\nCALLED:%s\n" "${plan_text}" "${call_log}"
+        '
+
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "PLAN:1. Use final_answer to respond directly to the user request." ]
+	[ "${lines[1]}" = "CALLED:" ]
 }
 
 @test "respond_text forwards concise response grammar" {
-        run bash -lc '
+	run bash -lc '
                 source ./src/respond.sh
                 LLAMA_AVAILABLE=true
 
@@ -400,14 +419,14 @@ printf "PLAN:%s\nGRAMMAR:%s\n" "${plan_text}" "$(cat "${llama_grammar_file}")"
                 printf "RESPONSE:%s\nGRAMMAR:%s\n" "${response_output}" "$(cat "${llama_grammar_file}")"
         '
 
-        [ "$status" -eq 0 ]
-        expected_grammar="$(cd src && pwd)/grammars/concise_response.gbnf"
-        last_index=$(( ${#lines[@]} - 1 ))
-        [ "${lines[${last_index}]}" = "GRAMMAR:${expected_grammar}" ]
+	[ "$status" -eq 0 ]
+	expected_grammar="$(cd src && pwd)/grammars/concise_response.gbnf"
+	last_index=$((${#lines[@]} - 1))
+	[ "${lines[${last_index}]}" = "GRAMMAR:${expected_grammar}" ]
 }
 
 @test "respond_text falls back when llama is unavailable" {
-        run bash -lc '
+	run bash -lc '
                 tmpdir=$(mktemp -d)
                 export TESTING_PASSTHROUGH=true
                 export LLAMA_BIN="${tmpdir}/llama"
@@ -426,14 +445,14 @@ printf "PLAN:%s\nGRAMMAR:%s\n" "${plan_text}" "$(cat "${llama_grammar_file}")"
                 printf "OUTPUT:%s\nLOG:%s\nAVAILABLE:%s\n" "${response_output}" "$(cat "${tmpdir}/llama.log" 2>/dev/null || true)" "${LLAMA_AVAILABLE}"
         '
 
-        [ "$status" -eq 0 ]
-        [ "${lines[0]}" = "OUTPUT:LLM unavailable. Request received: offline question" ]
-        [ "${lines[1]}" = "LOG:" ]
-        [ "${lines[2]}" = "AVAILABLE:false" ]
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "OUTPUT:LLM unavailable. Request received: offline question" ]
+	[ "${lines[1]}" = "LOG:" ]
+	[ "${lines[2]}" = "AVAILABLE:false" ]
 }
 
 @test "select_next_action logs and fails on invalid llama output" {
-        run bash -lc '
+	run bash -lc '
                 source ./src/planner.sh
 
                 llama_infer() {
@@ -462,10 +481,10 @@ printf "PLAN:%s\nGRAMMAR:%s\n" "${plan_text}" "$(cat "${llama_grammar_file}")"
                 exit ${rc}
         '
 
-        [ "$status" -eq 1 ]
-        [[ "${output}" == *"Invalid action output from llama"* ]]
-        last_index=$((${#lines[@]} - 1))
-        [ "${lines[${last_index}]}" = "STATUS:1" ]
+	[ "$status" -eq 1 ]
+	[[ "${output}" == *"Invalid action output from llama"* ]]
+	last_index=$((${#lines[@]} - 1))
+	[ "${lines[${last_index}]}" = "STATUS:1" ]
 }
 
 @test "validate_tool_permission records history for disallowed tool" {
