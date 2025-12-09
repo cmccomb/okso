@@ -185,8 +185,8 @@ init_environment() {
 		LLAMA_AVAILABLE=true
 	fi
 
-	if [[ "${LLAMA_AVAILABLE}" == true && ! -x "${LLAMA_BIN}" ]]; then
-		log "WARN" "llama.cpp binary not found" "${LLAMA_BIN}"
+	if [[ "${LLAMA_AVAILABLE}" == true ]] && ! command -v "${LLAMA_BIN:-llama-cli}" >/dev/null 2>&1; then
+		log "WARN" "llama.cpp binary not found" "${LLAMA_BIN:-llama-cli}"
 		LLAMA_AVAILABLE=false
 	fi
 
