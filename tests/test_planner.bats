@@ -13,8 +13,8 @@
 #   Inherits Bats semantics; individual tests assert helper outcomes.
 
 @test "extract_tools_from_plan dedupes and enforces final_answer" {
-	run bash -lc 'cd "$(git rev-parse --show-toplevel)" && source ./src/planner.sh; TOOLS=(alpha beta final_answer); plan=$"1. Use Alpha\n2. Use alpha\n3. Then beta"; mapfile -t tools < <(extract_tools_from_plan "${plan}"); [[ ${#tools[@]} -eq 3 ]]; [[ "${tools[0]}" == "alpha" ]]; [[ "${tools[1]}" == "beta" ]]; [[ "${tools[2]}" == "final_answer" ]]'
-	[ "$status" -eq 0 ]
+        run bash -lc 'cd "$(git rev-parse --show-toplevel)" && source ./src/planner.sh; TOOL_NAME_ALLOWLIST=(); init_tool_registry; register_tool alpha "desc" "cmd" "safe" handler; register_tool beta "desc" "cmd" "safe" handler; register_tool final_answer "desc" "cmd" "safe" handler; plan=$"1. Use Alpha\n2. Use alpha\n3. Then beta"; mapfile -t tools < <(extract_tools_from_plan "${plan}"); [[ ${#tools[@]} -eq 3 ]]; [[ "${tools[0]}" == "alpha" ]]; [[ "${tools[1]}" == "beta" ]]; [[ "${tools[2]}" == "final_answer" ]]'
+        [ "$status" -eq 0 ]
 }
 
 @test "build_plan_entries_from_tools omits final_answer" {
@@ -28,11 +28,11 @@
 }
 
 @test "initialize_react_state seeds defaults" {
-	run bash -lc 'cd "$(git rev-parse --show-toplevel)" && source ./src/planner.sh; state_prefix=state; initialize_react_state "${state_prefix}" "answer me" $"alpha" "alpha|query|0" "1. alpha"; [[ "${state_user_query}" == "answer me" ]]; [[ "${state_allowed_tools}" == "alpha" ]]; [[ "${state_plan_index}" == "0" ]]; [[ "${state_max_steps}" -eq ${MAX_STEPS:-6} ]]'
-	[ "$status" -eq 0 ]
+        run bash -lc 'cd "$(git rev-parse --show-toplevel)" && source ./src/planner.sh; state_prefix=state; initialize_react_state "${state_prefix}" "answer me" $"alpha" "alpha|query|0" "1. alpha"; [[ "$(state_get "${state_prefix}" "user_query")" == "answer me" ]]; [[ "$(state_get "${state_prefix}" "allowed_tools")" == "alpha" ]]; [[ "$(state_get "${state_prefix}" "plan_index")" == "0" ]]; [[ "$(state_get "${state_prefix}" "max_steps")" -eq ${MAX_STEPS:-6} ]]'
+        [ "$status" -eq 0 ]
 }
 
 @test "validate_tool_permission records disallowed tools" {
-	run bash -lc 'cd "$(git rev-parse --show-toplevel)" && source ./src/planner.sh; state_prefix=state; initialize_react_state "${state_prefix}" "answer me" $"alpha" "" "1. alpha"; validate_tool_permission "${state_prefix}" beta; [[ "$?" -eq 1 ]]; [[ "${state_history}" == *"not permitted"* ]]'
+        run bash -lc 'cd "$(git rev-parse --show-toplevel)" && source ./src/planner.sh; state_prefix=state; initialize_react_state "${state_prefix}" "answer me" $"alpha" "" "1. alpha"; validate_tool_permission "${state_prefix}" beta; [[ "$?" -eq 1 ]]; [[ "$(state_get "${state_prefix}" "history")" == *"not permitted"* ]]'
 	[ "$status" -eq 0 ]
 }

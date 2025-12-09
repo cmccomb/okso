@@ -12,30 +12,31 @@
 #   - Render plan output handling dry-run and plan-only flows.
 #   - Select the execution strategy (direct response vs. react loop).
 #
-# Expected types (namespaced variables scoped by a settings prefix):
-#   ${settings_prefix}__version (string): application version.
-#   ${settings_prefix}__llama_bin (string): llama.cpp binary path.
-#   ${settings_prefix}__default_model_file (string): default GGUF filename.
-#   ${settings_prefix}__config_dir (string): directory for config file.
-#   ${settings_prefix}__config_file (string): path to the config file.
-#   ${settings_prefix}__model_spec (string): HF repo[:file] spec for downloads.
-#   ${settings_prefix}__model_branch (string): branch or tag for downloads.
-#   ${settings_prefix}__model_repo (string): parsed HF repo.
-#   ${settings_prefix}__model_file (string): parsed HF file.
-#   ${settings_prefix}__approve_all (bool string): true to bypass prompts.
-#   ${settings_prefix}__force_confirm (bool string): true to force prompts.
-#   ${settings_prefix}__dry_run (bool string): true to avoid execution.
-#   ${settings_prefix}__plan_only (bool string): true to emit plan JSON only.
-#   ${settings_prefix}__verbosity (int string): log verbosity level.
-#   ${settings_prefix}__notes_dir (string): notes storage directory.
-#   ${settings_prefix}__llama_available (bool string): llama binary availability.
-#   ${settings_prefix}__use_react_llama (bool string): toggle react llama usage.
-#   ${settings_prefix}__is_macos (bool string): detected macOS flag.
-#   ${settings_prefix}__command (string): operational mode.
-#   ${settings_prefix}__user_query (string): provided user query.
+# Expected types (namespaced JSON scoped by a settings prefix):
+#   ${settings_prefix}_json.version (string): application version.
+#   ${settings_prefix}_json.llama_bin (string): llama.cpp binary path.
+#   ${settings_prefix}_json.default_model_file (string): default GGUF filename.
+#   ${settings_prefix}_json.config_dir (string): directory for config file.
+#   ${settings_prefix}_json.config_file (string): path to the config file.
+#   ${settings_prefix}_json.model_spec (string): HF repo[:file] spec for downloads.
+#   ${settings_prefix}_json.model_branch (string): branch or tag for downloads.
+#   ${settings_prefix}_json.model_repo (string): parsed HF repo.
+#   ${settings_prefix}_json.model_file (string): parsed HF file.
+#   ${settings_prefix}_json.approve_all (bool string): true to bypass prompts.
+#   ${settings_prefix}_json.force_confirm (bool string): true to force prompts.
+#   ${settings_prefix}_json.dry_run (bool string): true to avoid execution.
+#   ${settings_prefix}_json.plan_only (bool string): true to emit plan JSON only.
+#   ${settings_prefix}_json.verbosity (int string): log verbosity level.
+#   ${settings_prefix}_json.notes_dir (string): notes storage directory.
+#   ${settings_prefix}_json.llama_available (bool string): llama binary availability.
+#   ${settings_prefix}_json.use_react_llama (bool string): toggle react llama usage.
+#   ${settings_prefix}_json.is_macos (bool string): detected macOS flag.
+#   ${settings_prefix}_json.command (string): operational mode.
+#   ${settings_prefix}_json.user_query (string): provided user query.
 #
 # Dependencies:
 #   - bash 3+
+#   - jq
 #   - config.sh, cli.sh, planner.sh, respond.sh
 #
 # Exit codes:
@@ -44,48 +45,81 @@
 # shellcheck source=./errors.sh disable=SC1091
 source "${BASH_SOURCE[0]%/runtime.sh}/errors.sh"
 
-# Simple namespaced settings helpers to avoid associative-array dependencies on
-# macOS's legacy Bash 3.2. All values are stored as ${namespace}__<key>
-# variables and accessed via indirection to keep the call sites readable.
-settings_namespace_var() {
-	# Arguments:
-	#   $1 - settings namespace prefix (string)
-	#   $2 - logical key (string)
-	printf '%s__%s' "$1" "$2"
+# Simple namespaced settings helpers backed by JSON blobs to avoid
+# associative-array dependencies on macOS's legacy Bash 3.2. All values are
+# stored on ${namespace}_json and accessed via jq for durability.
+settings_namespace_json_var() {
+        # Arguments:
+        #   $1 - settings namespace prefix (string)
+        printf '%s_json' "$1"
+}
+
+settings_get_json_document() {
+        # Arguments:
+        #   $1 - settings namespace prefix (string)
+        local json_var
+        json_var=$(settings_namespace_json_var "$1")
+        if [[ -z "${!json_var+x}" ]]; then
+                printf '{}'
+                return
+        fi
+
+        printf '%s' "${!json_var}"
+}
+
+settings_set_json_document() {
+        # Arguments:
+        #   $1 - settings namespace prefix (string)
+        #   $2 - JSON document (string)
+        local json_var sanitized
+        json_var=$(settings_namespace_json_var "$1")
+        sanitized=$(printf '%s' "$2" | jq -c '.') || return 1
+        printf -v "${json_var}" '%s' "${sanitized}"
 }
 
 settings_clear_namespace() {
-	# Arguments:
-	#   $1 - settings namespace prefix (string)
-	local prefix var
-	prefix="$1__"
-
-	while IFS= read -r var; do
-		unset "${var}"
-	done < <(compgen -v | while IFS= read -r candidate; do
-		case "${candidate}" in
-		"${prefix}"*) printf '%s\n' "${candidate}" ;;
-		esac
-	done)
+        # Arguments:
+        #   $1 - settings namespace prefix (string)
+        settings_set_json_document "$1" '{}'
 }
 
 settings_set() {
-	# Arguments:
-	#   $1 - settings namespace prefix (string)
-	#   $2 - logical key (string)
-	#   $3 - value (string)
-	local var_name
-	var_name=$(settings_namespace_var "$1" "$2")
-	printf -v "${var_name}" '%s' "$3"
+        # Arguments:
+        #   $1 - settings namespace prefix (string)
+        #   $2 - logical key (string)
+        #   $3 - value (string)
+        settings_set_json "$1" "$2" "$3"
 }
 
 settings_get() {
-	# Arguments:
-	#   $1 - settings namespace prefix (string)
-	#   $2 - logical key (string)
-	local var_name
-	var_name=$(settings_namespace_var "$1" "$2")
-	printf '%s' "${!var_name-}"
+        # Arguments:
+        #   $1 - settings namespace prefix (string)
+        #   $2 - logical key (string)
+        settings_get_json "$1" "$2"
+}
+
+settings_set_json() {
+        # Arguments:
+        #   $1 - settings namespace prefix (string)
+        #   $2 - logical key (string)
+        #   $3 - value (string)
+        local settings_prefix key value current updated
+        settings_prefix="$1"
+        key="$2"
+        value="$3"
+        current="$(settings_get_json_document "${settings_prefix}")"
+        updated=$(jq -c --arg key "${key}" --arg value "${value}" '.[$key] = $value' <<<"${current}")
+        settings_set_json_document "${settings_prefix}" "${updated}"
+}
+
+settings_get_json() {
+        # Arguments:
+        #   $1 - settings namespace prefix (string)
+        #   $2 - logical key (string)
+        local settings_prefix key
+        settings_prefix="$1"
+        key="$2"
+        jq -r --arg key "${key}" '.[$key] // ""' <<<"$(settings_get_json_document "${settings_prefix}")"
 }
 
 set_by_name() {
@@ -96,91 +130,107 @@ set_by_name() {
 }
 
 create_default_settings() {
-	# Arguments:
-	#   $1 - settings namespace prefix
-	local settings_prefix
-	settings_prefix="$1"
+        # Arguments:
+        #   $1 - settings namespace prefix
+        local settings_prefix config_dir default_model_file config_file model_spec new_settings_json
+        settings_prefix="$1"
 
-	settings_clear_namespace "${settings_prefix}"
+        settings_clear_namespace "${settings_prefix}"
 
-	# Defaults mirror the baked-in CLI behavior; downstream layers can override
-	# via config files, environment variables, and argument parsing.
-	settings_set "${settings_prefix}" "version" "0.1.0"
-	settings_set "${settings_prefix}" "llama_bin" "${LLAMA_BIN:-llama-cli}"
-	settings_set "${settings_prefix}" "default_model_file" "${DEFAULT_MODEL_FILE_BASE:-Qwen_Qwen3-4B-Q4_K_M.gguf}"
-	settings_set "${settings_prefix}" "config_dir" "${XDG_CONFIG_HOME:-${HOME}/.config}/okso"
-	settings_set "${settings_prefix}" "config_file" "$(settings_get "${settings_prefix}" "config_dir")/config.env"
-	settings_set "${settings_prefix}" "model_spec" "${DEFAULT_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-4B-GGUF:$(settings_get "${settings_prefix}" "default_model_file")}"
-	settings_set "${settings_prefix}" "model_branch" "${DEFAULT_MODEL_BRANCH_BASE:-main}"
-	settings_set "${settings_prefix}" "model_repo" ""
-	settings_set "${settings_prefix}" "model_file" ""
-	settings_set "${settings_prefix}" "approve_all" "false"
-	settings_set "${settings_prefix}" "force_confirm" "false"
-	settings_set "${settings_prefix}" "dry_run" "false"
-	settings_set "${settings_prefix}" "plan_only" "false"
-	settings_set "${settings_prefix}" "verbosity" "1"
-	settings_set "${settings_prefix}" "notes_dir" "${HOME}/.okso"
-	settings_set "${settings_prefix}" "llama_available" "true"
-	settings_set "${settings_prefix}" "use_react_llama" "${USE_REACT_LLAMA:-false}"
-	settings_set "${settings_prefix}" "is_macos" "false"
-	settings_set "${settings_prefix}" "command" "run"
-	settings_set "${settings_prefix}" "user_query" ""
+        config_dir="${XDG_CONFIG_HOME:-${HOME}/.config}/okso"
+        default_model_file="${DEFAULT_MODEL_FILE_BASE:-Qwen_Qwen3-4B-Q4_K_M.gguf}"
+        config_file="${config_dir}/config.env"
+        model_spec="${DEFAULT_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-4B-GGUF:${default_model_file}}"
+
+        new_settings_json=$(jq -c -n \
+                --arg version "0.1.0" \
+                --arg llama_bin "${LLAMA_BIN:-llama-cli}" \
+                --arg default_model_file "${default_model_file}" \
+                --arg config_dir "${config_dir}" \
+                --arg config_file "${config_file}" \
+                --arg model_spec "${model_spec}" \
+                --arg model_branch "${DEFAULT_MODEL_BRANCH_BASE:-main}" \
+                --arg notes_dir "${HOME}/.okso" \
+                --arg use_react_llama "${USE_REACT_LLAMA:-false}" \
+                '{
+                        version: $version,
+                        llama_bin: $llama_bin,
+                        default_model_file: $default_model_file,
+                        config_dir: $config_dir,
+                        config_file: $config_file,
+                        model_spec: $model_spec,
+                        model_branch: $model_branch,
+                        model_repo: "",
+                        model_file: "",
+                        approve_all: "false",
+                        force_confirm: "false",
+                        dry_run: "false",
+                        plan_only: "false",
+                        verbosity: "1",
+                        notes_dir: $notes_dir,
+                        llama_available: "true",
+                        use_react_llama: $use_react_llama,
+                        is_macos: "false",
+                        command: "run",
+                        user_query: ""
+                }')
+
+        settings_set_json_document "${settings_prefix}" "${new_settings_json}"
+}
+
+settings_field_mappings() {
+        cat <<'EOF'
+version VERSION
+llama_bin LLAMA_BIN
+default_model_file DEFAULT_MODEL_FILE
+config_dir CONFIG_DIR
+config_file CONFIG_FILE
+model_spec MODEL_SPEC
+model_branch MODEL_BRANCH
+model_repo MODEL_REPO
+model_file MODEL_FILE
+approve_all APPROVE_ALL
+force_confirm FORCE_CONFIRM
+dry_run DRY_RUN
+plan_only PLAN_ONLY
+verbosity VERBOSITY
+notes_dir NOTES_DIR
+llama_available LLAMA_AVAILABLE
+use_react_llama USE_REACT_LLAMA
+is_macos IS_MACOS
+command COMMAND
+user_query USER_QUERY
+EOF
 }
 
 apply_settings_to_globals() {
-	# Arguments:
-	#   $1 - settings namespace prefix
-	local settings_prefix
-	settings_prefix="$1"
+        # Arguments:
+        #   $1 - settings namespace prefix
+        local settings_prefix
+        settings_prefix="$1"
 
-	VERSION="$(settings_get "${settings_prefix}" "version")"
-	LLAMA_BIN="$(settings_get "${settings_prefix}" "llama_bin")"
-	DEFAULT_MODEL_FILE="$(settings_get "${settings_prefix}" "default_model_file")"
-	CONFIG_DIR="$(settings_get "${settings_prefix}" "config_dir")"
-	CONFIG_FILE="$(settings_get "${settings_prefix}" "config_file")"
-	MODEL_SPEC="$(settings_get "${settings_prefix}" "model_spec")"
-	MODEL_BRANCH="$(settings_get "${settings_prefix}" "model_branch")"
-	MODEL_REPO="$(settings_get "${settings_prefix}" "model_repo")"
-	MODEL_FILE="$(settings_get "${settings_prefix}" "model_file")"
-	APPROVE_ALL="$(settings_get "${settings_prefix}" "approve_all")"
-	FORCE_CONFIRM="$(settings_get "${settings_prefix}" "force_confirm")"
-	DRY_RUN="$(settings_get "${settings_prefix}" "dry_run")"
-	PLAN_ONLY="$(settings_get "${settings_prefix}" "plan_only")"
-	VERBOSITY="$(settings_get "${settings_prefix}" "verbosity")"
-	NOTES_DIR="$(settings_get "${settings_prefix}" "notes_dir")"
-	LLAMA_AVAILABLE="$(settings_get "${settings_prefix}" "llama_available")"
-	USE_REACT_LLAMA="$(settings_get "${settings_prefix}" "use_react_llama")"
-	IS_MACOS="$(settings_get "${settings_prefix}" "is_macos")"
-	COMMAND="$(settings_get "${settings_prefix}" "command")"
-	USER_QUERY="$(settings_get "${settings_prefix}" "user_query")"
+        local json mapping key var value
+        json="$(settings_get_json_document "${settings_prefix}")"
+
+        while read -r key var; do
+                [[ -z "${key}" ]] && continue
+                value=$(jq -r --arg key "${key}" '.[$key] // ""' <<<"${json}")
+                set_by_name "${var}" "${value}"
+        done <<<"$(settings_field_mappings)"
 }
 
 capture_globals_into_settings() {
-	# Arguments:
-	#   $1 - settings namespace prefix
-	local settings_prefix
-	settings_prefix="$1"
+        # Arguments:
+        #   $1 - settings namespace prefix
+        local settings_prefix
+        settings_prefix="$1"
 
-	settings_set "${settings_prefix}" "version" "${VERSION}"
-	settings_set "${settings_prefix}" "llama_bin" "${LLAMA_BIN}"
-	settings_set "${settings_prefix}" "default_model_file" "${DEFAULT_MODEL_FILE}"
-	settings_set "${settings_prefix}" "config_dir" "${CONFIG_DIR}"
-	settings_set "${settings_prefix}" "config_file" "${CONFIG_FILE}"
-	settings_set "${settings_prefix}" "model_spec" "${MODEL_SPEC}"
-	settings_set "${settings_prefix}" "model_branch" "${MODEL_BRANCH}"
-	settings_set "${settings_prefix}" "model_repo" "${MODEL_REPO}"
-	settings_set "${settings_prefix}" "model_file" "${MODEL_FILE}"
-	settings_set "${settings_prefix}" "approve_all" "${APPROVE_ALL}"
-	settings_set "${settings_prefix}" "force_confirm" "${FORCE_CONFIRM}"
-	settings_set "${settings_prefix}" "dry_run" "${DRY_RUN}"
-	settings_set "${settings_prefix}" "plan_only" "${PLAN_ONLY}"
-	settings_set "${settings_prefix}" "verbosity" "${VERBOSITY}"
-	settings_set "${settings_prefix}" "notes_dir" "${NOTES_DIR}"
-	settings_set "${settings_prefix}" "llama_available" "${LLAMA_AVAILABLE}"
-	settings_set "${settings_prefix}" "use_react_llama" "${USE_REACT_LLAMA}"
-	settings_set "${settings_prefix}" "is_macos" "${IS_MACOS}"
-	settings_set "${settings_prefix}" "command" "${COMMAND}"
-	settings_set "${settings_prefix}" "user_query" "${USER_QUERY}"
+        local mapping key var value
+        while read -r key var; do
+                [[ -z "${key}" ]] && continue
+                value="${!var-}"
+                settings_set_json "${settings_prefix}" "${key}" "${value}"
+        done <<<"$(settings_field_mappings)"
 }
 
 load_runtime_settings() {
