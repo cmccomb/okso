@@ -43,7 +43,7 @@ build_planner_prompt() {
 	planner_grammar="$(load_grammar_text planner_plan)"
 
 	cat <<PROMPT
-You are a planner for an autonomous agent. Given a user request and a list of available tools, draft a numbered list of high-level actions the agent should take. Each step must mention the tool name that will be used. Do NOT include fully executable shell commands; keep the guidance conceptual. Always end with a final step that uses the final_answer tool to deliver the response back to the user.
+You are a planner for an autonomous agent. Given a user request and a list of available tools, draft an ordered list of high-level actions the agent should take as a JSON array of strings. Each step must mention the tool name that will be used. Do NOT include fully executable shell commands; keep the guidance conceptual. Always end with a final step that uses the final_answer tool to deliver the response back to the user.
 
 Constrain your response using this JSON schema:
 ${planner_grammar}

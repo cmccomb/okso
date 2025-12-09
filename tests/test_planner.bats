@@ -13,13 +13,18 @@
 #   Inherits Bats semantics; individual tests assert helper outcomes.
 
 @test "extract_tools_from_plan dedupes and enforces final_answer" {
-        run bash -lc 'cd "$(git rev-parse --show-toplevel)" && source ./src/planner.sh; TOOL_NAME_ALLOWLIST=(); init_tool_registry; register_tool alpha "desc" "cmd" "safe" handler; register_tool beta "desc" "cmd" "safe" handler; register_tool final_answer "desc" "cmd" "safe" handler; plan=$"1. Use Alpha\n2. Use alpha\n3. Then beta"; mapfile -t tools < <(extract_tools_from_plan "${plan}"); [[ ${#tools[@]} -eq 3 ]]; [[ "${tools[0]}" == "alpha" ]]; [[ "${tools[1]}" == "beta" ]]; [[ "${tools[2]}" == "final_answer" ]]'
+        run bash -lc 'cd "$(git rev-parse --show-toplevel)" && source ./src/planner.sh; TOOLS=(alpha beta final_answer); plan=$"1. Use Alpha\n2. Use alpha\n3. Then beta"; mapfile -t tools < <(extract_tools_from_plan "${plan}"); [[ ${#tools[@]} -eq 3 ]]; [[ "${tools[0]}" == "alpha" ]]; [[ "${tools[1]}" == "beta" ]]; [[ "${tools[2]}" == "final_answer" ]]'
+        [ "$status" -eq 0 ]
+}
+
+@test "append_final_answer_step emits array with final step" {
+        run bash -lc 'cd "$(git rev-parse --show-toplevel)" && source ./src/planner.sh; plan_json=$"[\"alpha via terminal\"]"; with_final=$(append_final_answer_step "${plan_json}"); outline=$(plan_json_to_outline "${with_final}"); [[ "${outline}" == *"1. alpha via terminal"* ]]; [[ "${outline}" == *"Use final_answer to summarize the result for the user."* ]]'
         [ "$status" -eq 0 ]
 }
 
 @test "build_plan_entries_from_tools omits final_answer" {
-	run bash -lc 'cd "$(git rev-parse --show-toplevel)" && source ./src/planner.sh; entries=$(build_plan_entries_from_tools $'"'"'alpha\nbeta\nfinal_answer'"'"' "Tell me"); first=$(printf "%s" "${entries}" | sed -n "1p"); second=$(printf "%s" "${entries}" | sed -n "2p"); [[ "${first}" == "alpha|Tell me|0" ]]; [[ "${second}" == "beta|Tell me|0" ]]; [[ "${entries}" != *"final_answer"* ]]'
-	[ "$status" -eq 0 ]
+        run bash -lc 'cd "$(git rev-parse --show-toplevel)" && source ./src/planner.sh; entries=$(build_plan_entries_from_tools $'"'"'alpha\nbeta\nfinal_answer'"'"' "Tell me"); first=$(printf "%s" "${entries}" | sed -n "1p"); second=$(printf "%s" "${entries}" | sed -n "2p"); [[ "${first}" == "alpha|Tell me|0" ]]; [[ "${second}" == "beta|Tell me|0" ]]; [[ "${entries}" != *"final_answer"* ]]'
+        [ "$status" -eq 0 ]
 }
 
 @test "should_prompt_for_tool respects execution toggles" {

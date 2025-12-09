@@ -1,11 +1,22 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "PlannerPlan",
-  "type": "string",
-  "description": "Numbered plan outline with one step per line.",
-  "pattern": "^([1-9][0-9]*\. .+\n?)+$",
+  "type": "array",
+  "items": {
+    "type": "string",
+    "minLength": 1
+  },
+  "minItems": 1,
+  "description": "Ordered list of high-level plan steps. Each item will be numbered downstream before execution.",
   "examples": [
-    "1. Inspect repository layout\n2. Use final_answer to summarize",
-    "1. Run tests\n2. Review failures\n3. Use final_answer to report findings"
+    [
+      "Inspect repository layout",
+      "Use final_answer to summarize"
+    ],
+    [
+      "Run tests",
+      "Review failures",
+      "Use final_answer to report findings"
+    ]
   ]
 }
