@@ -70,6 +70,17 @@
         [[ "$output" == *"fatal"* ]]
 }
 
+@test "mcp client rejects non-object arguments" {
+        run bash -lc '
+                source ./src/mcp.sh
+                endpoint="./src/tools/external/mcp_echo.sh"
+                mcp_client_call_tool "${endpoint}" "echo_external" "not-json"
+        '
+
+        [ "$status" -ne 0 ]
+        [[ "$output" == *"Payload must be a JSON object"* ]]
+}
+
 @test "mcp local invocation forwards arguments" {
         run bash -lc "
                 source ./src/mcp.sh

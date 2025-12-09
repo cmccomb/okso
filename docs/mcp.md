@@ -37,6 +37,9 @@ message}}`. The `name` field should identify the emitting component, `category`
 classifies the failure (`usage`, `pipeline`, `fatal`, etc.), and `message` is a
 human-readable detail.
 
+Clients validate that outbound payloads and arguments are JSON objects before
+calling remote endpoints to avoid leaking parser errors through the transport.
+
 ## Runtime helpers
 
 The runtime layers expose helper functions for working with MCP endpoints:

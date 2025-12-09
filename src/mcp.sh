@@ -46,6 +46,21 @@ mcp_error_payload() {
                 '{type:"error", error:{name:$name, category:$category, message:$message}}'
 }
 
+mcp_require_json_object() {
+        # Validates that provided JSON is an object.
+        # Arguments:
+        #   $1 - context for error reporting (string)
+        #   $2 - JSON payload to validate (string)
+        local context payload
+        context="$1"
+        payload="$2"
+
+        if ! jq -e 'type == "object"' <<<"${payload}" >/dev/null 2>&1; then
+                mcp_error_payload "${context}" "usage" "Payload must be a JSON object" >&2
+                return 1
+        fi
+}
+
 mcp_descriptor_from_registry() {
         # Converts a registry entry into an MCP tool descriptor.
         # Arguments:
@@ -61,13 +76,14 @@ mcp_descriptor_from_registry() {
                 --arg description "${description}" \
                 --arg safety "${safety}" \
                 --arg command "${command}" \
+                --arg query_description "Value assigned to TOOL_QUERY for the handler" \
                 '{
                         name:$name,
                         description:$description,
                         command:$command,
                         origin:"local",
                         safety:$safety,
-                        input_schema:{type:"object", required:["query"], properties:{query:{type:"string", description:"Value assigned to TOOL_QUERY for the handler"}}},
+                        input_schema:{type:"object", required:["query"], properties:{query:{type:"string", description:$query_description}}},
                         result_schema:{type:"object", properties:{stdout:{type:"string"}, exit_code:{type:"integer"}}}
                 }'
 }
@@ -151,6 +167,10 @@ mcp_client_send_request() {
                 return 1
         fi
 
+        if ! mcp_require_json_object "runtime" "${payload}"; then
+                return 1
+        fi
+
         response="$(printf '%s' "${payload}" | "${endpoint}" 2>&1)"
         status=$?
         if ((status != 0)); then
@@ -215,6 +235,10 @@ mcp_client_call_tool() {
         tool_name="$2"
         arguments="$3"
 
+        if ! mcp_require_json_object "${tool_name}" "${arguments}"; then
+                return 1
+        fi
+
         payload=$(jq -cn --arg tool "${tool_name}" --argjson arguments "${arguments}" '{action:"call_tool", tool:$tool, arguments:$arguments}')
         response="$(mcp_client_send_request "${endpoint}" "${payload}")" || return 1
 
@@ -225,4 +249,3 @@ mcp_client_call_tool() {
 
         printf '%s' "${response}"
 }
-
