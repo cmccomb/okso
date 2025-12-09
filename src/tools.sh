@@ -84,7 +84,7 @@ tools_normalize_path() {
 		return
 	fi
 
-	python - "$1" <<'PY'
+	python3 - "$1" <<'PY'
 import os, sys
 print(os.path.realpath(sys.argv[1]))
 PY
