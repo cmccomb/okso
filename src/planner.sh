@@ -100,7 +100,7 @@ llama_infer() {
 
 	if [[ -n "${grammar_file_path}" ]]; then
 		if [[ "${grammar_file_path}" == *.json ]]; then
-			additional_args+=(--json-schema "${grammar_file_path}")
+			additional_args+=(--json-schema-file "${grammar_file_path}")
 		else
 			additional_args+=(--grammar-file "${grammar_file_path}")
 		fi
