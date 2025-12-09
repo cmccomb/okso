@@ -11,6 +11,8 @@
 # Exit codes:
 #   Inherits Bats semantics; individual tests assert script exit codes.
 
+bats_require_minimum_version 1.5.0
+
 @test "parse_model_spec falls back to default file" {
 	run bash -lc 'source ./src/config.sh; parts=(); mapfile -t parts < <(parse_model_spec "example/repo" "fallback.gguf"); echo "${parts[0]}"; echo "${parts[1]}"'
 	[ "$status" -eq 0 ]
@@ -168,23 +170,25 @@ EOF
 }
 
 @test "generate_plan_outline bypasses llama when unavailable" {
-    run --separate-stderr bash -lc '
-                tmpdir=$(mktemp -d)
-                export MOCK_LLAMA_LOG="${tmpdir}/llama.log"
-                export LLAMA_BIN="./tests/fixtures/mock_llama.sh"
-                source ./src/planner.sh
-                initialize_tools
-                LLAMA_AVAILABLE=false
-                plan="$(generate_plan_outline "offline request")"
-                if [[ -f "${MOCK_LLAMA_LOG}" ]]; then
-                        echo "unexpected llama invocation"
-                        exit 1
-                fi
-                printf "%s" "${plan}"
-        '
-        [ "$status" -eq 0 ]
-        [ "${output}" = "1. Use final_answer to respond directly to the user request." ]
-        [[ "${stderr}" == *"Using static plan outline"* ]]
+	# shellcheck disable=SC2016
+	run --separate-stderr bash -lc '
+tmpdir=$(mktemp -d)
+export MOCK_LLAMA_LOG="${tmpdir}/llama.log"
+export LLAMA_BIN="./tests/fixtures/mock_llama.sh"
+source ./src/planner.sh
+initialize_tools
+LLAMA_AVAILABLE=false
+plan="$(generate_plan_outline "offline request")"
+if [[ -f "${MOCK_LLAMA_LOG}" ]]; then
+echo "unexpected llama invocation"
+exit 1
+fi
+printf "%s" "${plan}"
+'
+	[ "$status" -eq 0 ]
+	[ "${output}" = "1. Use final_answer to respond directly to the user request." ]
+	# shellcheck disable=SC2154
+	[[ "${stderr}" == *"Using static plan outline"* ]]
 }
 
 @test "extract_tools_from_plan returns ordered list" {
@@ -387,7 +391,7 @@ printf "PLAN:%s\nGRAMMAR:%s\n" "${plan_text}" "$(cat "${llama_grammar_file}")"
         '
 
 	[ "$status" -eq 0 ]
-        expected_grammar="$(cd src && pwd)/grammars/planner_plan.schema.json"
+	expected_grammar="$(cd src && pwd)/grammars/planner_plan.schema.json"
 	last_index=$((${#lines[@]} - 1))
 	[ "${lines[${last_index}]}" = "GRAMMAR:${expected_grammar}" ]
 }
@@ -426,7 +430,7 @@ printf "PLAN:%s\nGRAMMAR:%s\n" "${plan_text}" "$(cat "${llama_grammar_file}")"
         '
 
 	[ "$status" -eq 0 ]
-        expected_grammar="$(cd src && pwd)/grammars/concise_response.schema.json"
+	expected_grammar="$(cd src && pwd)/grammars/concise_response.schema.json"
 	last_index=$((${#lines[@]} - 1))
 	[ "${lines[${last_index}]}" = "GRAMMAR:${expected_grammar}" ]
 }

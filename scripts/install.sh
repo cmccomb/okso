@@ -514,16 +514,16 @@ self_test_install() {
 		exit 2
 	fi
 
-        if [ ! -f "${prefix}/grammars/planner_plan.schema.json" ]; then
-                log "ERROR" "Planner grammar missing from installation"
-                exit 2
-        fi
+	if [ ! -f "${prefix}/grammars/planner_plan.schema.json" ]; then
+		log "ERROR" "Planner grammar missing from installation"
+		exit 2
+	fi
 
-        grammar_path_output="$(bash -c "source \"${prefix}/grammar.sh\" && grammar_path planner_plan" 2>/dev/null || true)"
-        if [ "${grammar_path_output}" != "${prefix}/grammars/planner_plan.schema.json" ]; then
-                log "ERROR" "Grammar resolution failed during self-test"
-                exit 2
-        fi
+	grammar_path_output="$(bash -c "source \"${prefix}/grammar.sh\" && grammar_path planner_plan" 2>/dev/null || true)"
+	if [ "${grammar_path_output}" != "${prefix}/grammars/planner_plan.schema.json" ]; then
+		log "ERROR" "Grammar resolution failed during self-test"
+		exit 2
+	fi
 
 	temp_root="$(mktemp -d "${TMPDIR:-/tmp}/okso-selftest-XXXXXX")"
 	query_output=$(env \
