@@ -375,25 +375,23 @@ printf "LOG:%s\n" "$(cat "${LOG_FILE}")"
 }
 
 @test "generate_plan_outline uses shared planner grammar" {
-	run bash -lc '
-                source ./src/planner.sh
-                initialize_tools
-                LLAMA_AVAILABLE=true
+        source ./src/planner.sh
+        initialize_tools
+        LLAMA_AVAILABLE=true
 
-                llama_grammar_file="$(mktemp)"
-                llama_infer() {
-                        printf "%s" "$4" >"${llama_grammar_file}"
-                        printf "1. Use terminal\n"
-                }
+        llama_grammar_file="$(mktemp)"
+        llama_infer() {
+                printf "%s" "$4" >"${llama_grammar_file}"
+                printf '["Inspect repo", "Use terminal"]'
+        }
 
-plan_text="$(generate_plan_outline "list files")"
-printf "PLAN:%s\nGRAMMAR:%s\n" "${plan_text}" "$(cat "${llama_grammar_file}")"
-        '
+        plan_text="$(generate_plan_outline "list files")"
 
-	[ "$status" -eq 0 ]
-	expected_grammar="$(cd src && pwd)/grammars/planner_plan.schema.json"
-	last_index=$((${#lines[@]} - 1))
-	[ "${lines[${last_index}]}" = "GRAMMAR:${expected_grammar}" ]
+        expected_grammar="$(cd src && pwd)/grammars/planner_plan.schema.json"
+        [ "$(cat "${llama_grammar_file}")" = "${expected_grammar}" ]
+        [[ "${plan_text}" == *"1. Inspect repo"* ]]
+        [[ "${plan_text}" == *"2. Use terminal"* ]]
+        [[ "${plan_text}" == *"3. Use final_answer to summarize the result for the user."* ]]
 }
 
 @test "generate_plan_outline short-circuits when llama unavailable" {

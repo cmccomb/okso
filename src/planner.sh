@@ -174,21 +174,42 @@ format_tool_example_line() {
 }
 
 append_final_answer_step() {
-	# Ensures the plan includes a final step with the final_answer tool.
-	# Arguments:
-	#   $1 - plan text (string)
-	local plan_text step_count
-	plan_text="$1"
+        # Ensures the plan includes a final step with the final_answer tool.
+        # Arguments:
+        #   $1 - plan JSON array (string)
+        local plan_json has_final updated_plan
+        plan_json="${1:-[]}" 
 
-	if [[ "$(lowercase "${plan_text}")" == *"final_answer"* ]]; then
-		printf '%s' "${plan_text}"
-		return 0
-	fi
+        if ! jq -e 'type == "array"' <<<"${plan_json}" >/dev/null 2>&1; then
+                log "ERROR" "Planner plan is not a JSON array" "${plan_json}" >&2
+                printf '%s' "${plan_json}"
+                return 0
+        fi
 
-	step_count=$(grep -Ec '^[[:space:]]*[0-9]+\.' <<<"${plan_text}" || true)
-	step_count=${step_count:-0}
-	step_count=$((step_count + 1))
-	printf '%s\n%d. Use final_answer to summarize the result for the user.' "${plan_text}" "${step_count}"
+        has_final="$(jq -r 'map(ascii_downcase | contains("final_answer")) | any' <<<"${plan_json}" 2>/dev/null || echo false)"
+        if [[ "${has_final}" == "true" ]]; then
+                printf '%s' "${plan_json}"
+                return 0
+        fi
+
+        updated_plan="$(jq -c '. + ["Use final_answer to summarize the result for the user."]' <<<"${plan_json}" 2>/dev/null || printf '%s' "${plan_json}")"
+        printf '%s' "${updated_plan}"
+}
+
+plan_json_to_outline() {
+        # Converts a JSON array of plan steps into a numbered outline string.
+        # Arguments:
+        #   $1 - plan JSON array (string)
+        local plan_json
+        plan_json="${1:-[]}" 
+
+        if ! jq -e 'type == "array"' <<<"${plan_json}" >/dev/null 2>&1; then
+                log "ERROR" "Planner plan is not a JSON array" "${plan_json}" >&2
+                printf '%s' "${plan_json}"
+                return 0
+        fi
+
+        jq -r 'to_entries | map("\(.key + 1). \(.value)") | join("\n")' <<<"${plan_json}"
 }
 
 generate_plan_outline() {
@@ -197,20 +218,21 @@ generate_plan_outline() {
 	local user_query
 	user_query="$1"
 
-	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
-		log "WARN" "Using static plan outline because llama is unavailable" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}" >&2
-		printf '1. Use final_answer to respond directly to the user request.'
-		return 0
-	fi
+        if [[ "${LLAMA_AVAILABLE}" != true ]]; then
+                log "WARN" "Using static plan outline because llama is unavailable" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}" >&2
+                printf '1. Use final_answer to respond directly to the user request.'
+                return 0
+        fi
 
-	local prompt raw_plan planner_grammar_path
-	local tool_lines
-	tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${TOOLS[@]}")" format_tool_summary_line)"
-	planner_grammar_path="$(grammar_path planner_plan)"
+        local prompt raw_plan planner_grammar_path plan_outline_json
+        local tool_lines
+        tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${TOOLS[@]}")" format_tool_summary_line)"
+        planner_grammar_path="$(grammar_path planner_plan)"
 
-	prompt="$(build_planner_prompt "${user_query}" "${tool_lines}")"
-	raw_plan="$(llama_infer "${prompt}" '' 512 "${planner_grammar_path}")"
-	append_final_answer_step "${raw_plan}"
+        prompt="$(build_planner_prompt "${user_query}" "${tool_lines}")"
+        raw_plan="$(llama_infer "${prompt}" '' 512 "${planner_grammar_path}")" || raw_plan="[]"
+        plan_outline_json="$(append_final_answer_step "${raw_plan}")" || plan_outline_json="${raw_plan}"
+        plan_json_to_outline "${plan_outline_json}" || printf '%s' "${plan_outline_json}"
 }
 
 tool_query_deriver() {
