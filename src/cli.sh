@@ -22,7 +22,7 @@ source "${BASH_SOURCE[0]%/cli.sh}/logging.sh"
 
 build_usage_text() {
 	local default_model_spec default_model_branch
-	default_model_spec="${DEFAULT_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-4B-Instruct-2507-GGUF:Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf}"
+	default_model_spec="${DEFAULT_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-4B-GGUF:Qwen_Qwen3-4B-Q4_K_M.gguf}"
 	default_model_branch="${DEFAULT_MODEL_BRANCH_BASE:-main}"
 
 	cat <<USAGE

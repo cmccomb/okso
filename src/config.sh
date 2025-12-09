@@ -27,8 +27,10 @@
 # shellcheck source=./logging.sh disable=SC1091
 source "${BASH_SOURCE[0]%/config.sh}/logging.sh"
 
-readonly DEFAULT_MODEL_REPO_BASE="bartowski/Qwen_Qwen3-4B-Instruct-2507-GGUF"
-readonly DEFAULT_MODEL_FILE_BASE="Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
+readonly DEFAULT_MODEL_REPO_BASE="bartowski/Qwen_Qwen3-4B-GGUF"
+readonly DEFAULT_MODEL_FILE_BASE="Qwen_Qwen3-4B-Q4_K_M.gguf"
+#readonly DEFAULT_MODEL_REPO_BASE="bartowski/Qwen_Qwen3-4B-Instruct-2507-GGUF"
+#readonly DEFAULT_MODEL_FILE_BASE="Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
 readonly DEFAULT_MODEL_SPEC_BASE="${DEFAULT_MODEL_REPO_BASE}:${DEFAULT_MODEL_FILE_BASE}"
 readonly DEFAULT_MODEL_BRANCH_BASE="main"
 

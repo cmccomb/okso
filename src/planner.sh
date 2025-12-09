@@ -99,7 +99,7 @@ llama_infer() {
 	additional_args=()
 
 	if [[ -n "${grammar_file_path}" ]]; then
-		additional_args+=(--grammar "${grammar_file_path}")
+		additional_args+=(--grammar-file "${grammar_file_path}")
 	fi
 
 	# If a stop string is provided, use it to terminate output.
@@ -110,7 +110,7 @@ llama_infer() {
 			-no-cnv --no-display-prompt --simple-io --verbose -r "${stop_string}" \
 			-n "${number_of_tokens}" \
 			-p "${prompt}" \
-			"${additional_args[@]}" 2>/dev/null || true
+			"${additional_args[@]}" #2>/dev/null || true
 		return
 	fi
 
@@ -120,7 +120,7 @@ llama_infer() {
 		-n "${number_of_tokens}" \
 		-no-cnv --no-display-prompt --simple-io --verbose \
 		-p "${prompt}" \
-		"${additional_args[@]}" 2>/dev/null || true
+		"${additional_args[@]}" #2>/dev/null || true
 }
 
 format_tool_descriptions() {

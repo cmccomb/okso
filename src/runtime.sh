@@ -107,10 +107,10 @@ create_default_settings() {
 	# via config files, environment variables, and argument parsing.
 	settings_set "${settings_prefix}" "version" "0.1.0"
 	settings_set "${settings_prefix}" "llama_bin" "${LLAMA_BIN:-llama-cli}"
-	settings_set "${settings_prefix}" "default_model_file" "${DEFAULT_MODEL_FILE_BASE:-Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf}"
+	settings_set "${settings_prefix}" "default_model_file" "${DEFAULT_MODEL_FILE_BASE:-Qwen_Qwen3-4B-Q4_K_M.gguf}"
 	settings_set "${settings_prefix}" "config_dir" "${XDG_CONFIG_HOME:-${HOME}/.config}/okso"
 	settings_set "${settings_prefix}" "config_file" "$(settings_get "${settings_prefix}" "config_dir")/config.env"
-	settings_set "${settings_prefix}" "model_spec" "${DEFAULT_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-4B-Instruct-2507-GGUF:$(settings_get "${settings_prefix}" "default_model_file")}"
+	settings_set "${settings_prefix}" "model_spec" "${DEFAULT_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-4B-GGUF:$(settings_get "${settings_prefix}" "default_model_file")}"
 	settings_set "${settings_prefix}" "model_branch" "${DEFAULT_MODEL_BRANCH_BASE:-main}"
 	settings_set "${settings_prefix}" "model_repo" ""
 	settings_set "${settings_prefix}" "model_file" ""

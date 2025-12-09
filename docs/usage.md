@@ -2,7 +2,7 @@
 
 The CLI guides you through planning and executing tool calls. Use `--help` to see all options, pass `--verbose` for debug-level logs, or `--quiet` to silence informational messages.
 
-Model defaults live in `${XDG_CONFIG_HOME:-~/.config}/okso/config.env`. Override them per-run with `--model` and `--model-branch` (default: `bartowski/Qwen_Qwen3-4B-Instruct-2507-GGUF:Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf` on `main`).
+Model defaults live in `${XDG_CONFIG_HOME:-~/.config}/okso/config.env`. Override them per-run with `--model` and `--model-branch` (default: `bartowski/Qwen_Qwen3-4B-GGUF:Qwen_Qwen3-4B-Q4_K_M.gguf` on `main`).
 
 ## Approval and preview modes
 
