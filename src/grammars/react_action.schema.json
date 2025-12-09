@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ReactAction",
+  "type": "object",
+  "description": "Single JSON action emitted during a ReAct step.",
+  "additionalProperties": false,
+  "required": ["type", "tool", "query"],
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": ["tool"]
+    },
+    "tool": {
+      "type": "string",
+      "description": "Name of the tool to invoke."
+    },
+    "query": {
+      "type": "string",
+      "description": "User-facing input for the selected tool."
+    }
+  }
+}

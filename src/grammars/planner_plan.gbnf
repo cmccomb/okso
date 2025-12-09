@@ -1,9 +1,0 @@
-root ::= step (newline step)*
-step ::= number dot space step-text
-number ::= [1-9] digit*
-digit ::= [0-9]
-step-text ::= step-char+
-step-char ::= [^\n]
-space ::= [' ']
-newline ::= ['\n']
-dot ::= ['.']

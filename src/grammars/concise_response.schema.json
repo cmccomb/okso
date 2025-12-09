@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ConciseResponse",
+  "type": "string",
+  "description": "Short response text terminated by an explicit <eot> marker.",
+  "pattern": ".*<eot>$",
+  "examples": [
+    "Here is your answer<eot>",
+    "Done.<eot>"
+  ]
+}

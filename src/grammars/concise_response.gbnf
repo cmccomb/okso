@@ -1,4 +1,0 @@
-root ::= text eot
-text ::= character*
-character ::= [^\n]
-eot ::= "<eot>"

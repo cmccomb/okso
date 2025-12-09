@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "PlannerPlan",
+  "type": "string",
+  "description": "Numbered plan outline with one step per line.",
+  "pattern": "^([1-9][0-9]*\. .+\n?)+$",
+  "examples": [
+    "1. Inspect repository layout\n2. Use final_answer to summarize",
+    "1. Run tests\n2. Review failures\n3. Use final_answer to report findings"
+  ]
+}

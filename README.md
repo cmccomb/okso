@@ -40,7 +40,7 @@ Set `TESTING_PASSTHROUGH=true` to disable llama.cpp calls during tests or offlin
 
 All prompts used by the assistant are centralized in [`src/prompts.sh`](src/prompts.sh) for easier maintenance. The file exposes prompt builders for direct responses, plan generation, and ReAct steps so updates to tone, structure, or schema can be made in one place.
 
-Structured outputs are enforced with shared [GBNF grammars](src/grammars/) referenced by the prompt builders and passed directly to `llama.cpp` during inference. Each grammar file name documents its purpose (e.g., `planner_plan.gbnf`, `react_action.gbnf`, `concise_response.gbnf`) so contributors can update schemas without hunting through inline prompt text.
+Structured outputs are enforced with shared [JSON schemas](src/grammars/) referenced by the prompt builders and passed directly to `llama.cpp` during inference. Each schema file name documents its purpose (e.g., `planner_plan.schema.json`, `react_action.schema.json`, `concise_response.schema.json`) so contributors can update the shapes without hunting through inline prompt text.
 
 ## Structured error envelopes
 

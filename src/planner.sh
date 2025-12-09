@@ -84,11 +84,11 @@ llama_infer() {
 	#   $2 - stop string (optional)
 	#   $3 - max tokens (optional)
 	#   $4 - grammar file path (optional)
-	local prompt stop_string number_of_tokens grammar_file_path
-	prompt="$1"
-	stop_string="${2:-}"
-	number_of_tokens="${3:-256}"
-	grammar_file_path="${4:-}"
+        local prompt stop_string number_of_tokens grammar_file_path
+        prompt="$1"
+        stop_string="${2:-}"
+        number_of_tokens="${3:-256}"
+        grammar_file_path="${4:-}"
 
 	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
 		log "WARN" "llama unavailable; skipping inference" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}"
@@ -98,9 +98,13 @@ llama_infer() {
 	local additional_args
 	additional_args=()
 
-	if [[ -n "${grammar_file_path}" ]]; then
-		additional_args+=(--grammar-file "${grammar_file_path}")
-	fi
+        if [[ -n "${grammar_file_path}" ]]; then
+                if [[ "${grammar_file_path}" == *.json ]]; then
+                        additional_args+=(--json-schema "${grammar_file_path}")
+                else
+                        additional_args+=(--grammar-file "${grammar_file_path}")
+                fi
+        fi
 
 	# If a stop string is provided, use it to terminate output.
 	if [[ -n "${stop_string}" ]]; then
