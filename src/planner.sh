@@ -37,38 +37,76 @@ source "${BASH_SOURCE[0]%/planner.sh}/prompts.sh"
 # shellcheck source=./grammar.sh disable=SC1091
 source "${BASH_SOURCE[0]%/planner.sh}/grammar.sh"
 
+state_namespace_json_var() {
+        # Arguments:
+        #   $1 - state prefix
+        printf '%s_json' "$1"
+}
+
+state_get_json_document() {
+        # Arguments:
+        #   $1 - state prefix
+        local json_var default_json
+        json_var=$(state_namespace_json_var "$1")
+        default_json='{}'
+        printf '%s' "${!json_var:-${default_json}}"
+}
+
+state_set_json_document() {
+        # Arguments:
+        #   $1 - state prefix
+        #   $2 - JSON document
+        local json_var
+        json_var=$(state_namespace_json_var "$1")
+        printf -v "${json_var}" '%s' "$2"
+}
+
 state_set() {
-	# Arguments:
-	#   $1 - state prefix
-	#   $2 - key
-	#   $3 - value
-	local prefix key value
-	prefix="$1"
-	key="$2"
-	value="$3"
-	printf -v "${prefix}_${key}" '%s' "${value}"
+        # Arguments:
+        #   $1 - state prefix
+        #   $2 - key
+        #   $3 - value
+        local prefix key value updated
+        prefix="$1"
+        key="$2"
+        value="$3"
+        updated=$(jq -c --arg key "${key}" --arg value "${value}" '.[$key] = $value' <<<"$(state_get_json_document "${prefix}")")
+        state_set_json_document "${prefix}" "${updated}"
 }
 
 state_get() {
-	# Arguments:
-	#   $1 - state prefix
-	#   $2 - key
-	local prefix key var_name
-	prefix="$1"
-	key="$2"
-	var_name="${prefix}_${key}"
-	printf '%s' "${!var_name:-}"
+        # Arguments:
+        #   $1 - state prefix
+        #   $2 - key
+        local prefix key
+        prefix="$1"
+        key="$2"
+        jq -r --arg key "${key}" '(.[$key] // "") | (if type == "array" then join("\n") else tostring end)' <<<"$(state_get_json_document "${prefix}")"
+}
+
+state_increment() {
+        # Arguments:
+        #   $1 - state prefix
+        #   $2 - key
+        #   $3 - increment amount (optional, defaults to 1)
+        local prefix key increment current updated value
+        prefix="$1"
+        key="$2"
+        increment="${3:-1}"
+        current="$(state_get_json_document "${prefix}")"
+        updated=$(jq -c --arg key "${key}" --argjson inc "${increment}" '.[$key] = ((try (.[$key]|tonumber) catch 0) + $inc)' <<<"${current}")
+        state_set_json_document "${prefix}" "${updated}"
 }
 
 state_append_history() {
-	# Arguments:
-	#   $1 - state prefix
-	#   $2 - entry to append
-	local prefix entry current
-	prefix="$1"
-	entry="$2"
-	current="$(state_get "${prefix}" "history")"
-	state_set "${prefix}" "history" "${current}$(printf '%s\n' "${entry}")"
+        # Arguments:
+        #   $1 - state prefix
+        #   $2 - entry to append
+        local prefix entry updated
+        prefix="$1"
+        entry="$2"
+        updated=$(jq -c --arg entry "${entry}" '(.history //= []) | .history += [$entry]' <<<"$(state_get_json_document "${prefix}")")
+        state_set_json_document "${prefix}" "${updated}"
 }
 
 lowercase() {
@@ -190,18 +228,20 @@ append_final_answer_step() {
 generate_plan_outline() {
 	# Arguments:
 	#   $1 - user query (string)
-	local user_query
-	user_query="$1"
+        local user_query
+        user_query="$1"
 
-	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
-		log "WARN" "Using static plan outline because llama is unavailable" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}" >&2
-		printf '1. Use final_answer to respond directly to the user request.'
-		return 0
-	fi
+        if [[ "${LLAMA_AVAILABLE}" != true ]]; then
+                if [[ ${VERBOSITY:-0} -ge 2 ]]; then
+                        log "WARN" "Using static plan outline because llama is unavailable" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}" >&2
+                fi
+                printf '1. Use final_answer to respond directly to the user request.'
+                return 0
+        fi
 
-	local prompt raw_plan planner_grammar_path
-	local tool_lines
-	tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${TOOLS[@]}")" format_tool_summary_line)"
+        local prompt raw_plan planner_grammar_path
+        local tool_lines
+        tool_lines="$(format_tool_descriptions "$(tool_names)" format_tool_summary_line)"
 	planner_grammar_path="$(grammar_path planner_plan)"
 
 	prompt="$(build_planner_prompt "${user_query}" "${tool_lines}")"
@@ -278,24 +318,26 @@ emit_plan_json() {
 extract_tools_from_plan() {
 	# Arguments:
 	#   $1 - plan outline text (string)
-	local plan_text lower_line tool
-	local seen
-	seen=""
-	local -a required=()
-	plan_text="$1"
+        local plan_text lower_line tool tool_list
+        local seen
+        seen=""
+        local -a required=()
+        plan_text="$1"
+        tool_list="$(tool_names)"
 
-	while IFS= read -r line; do
-		lower_line="$(lowercase "${line}")"
-		for tool in "${TOOLS[@]}"; do
-			if grep -Fxq "${tool}" <<<"${seen}"; then
-				continue
-			fi
-			if [[ "${lower_line}" == *"$(lowercase "${tool}")"* ]]; then
-				required+=("${tool}")
-				seen+="${tool}"$'\n'
-			fi
-		done
-	done <<<"${plan_text}"
+        while IFS= read -r line; do
+                lower_line="$(lowercase "${line}")"
+                while IFS= read -r tool; do
+                        [[ -z "${tool}" ]] && continue
+                        if grep -Fxq "${tool}" <<<"${seen}"; then
+                                continue
+                        fi
+                        if [[ "${lower_line}" == *"$(lowercase "${tool}")"* ]]; then
+                                required+=("${tool}")
+                                seen+="${tool}"$'\n'
+                        fi
+                done <<<"${tool_list}"
+        done <<<"${plan_text}"
 
 	if ! grep -Fxq "final_answer" <<<"${seen}"; then
 		required+=("final_answer")
@@ -410,23 +452,32 @@ execute_tool_with_query() {
 }
 
 initialize_react_state() {
-	# Arguments:
-	#   $1 - state prefix to populate
-	#   $2 - user query
-	#   $3 - allowed tools (newline delimited)
-	#   $4 - ranked plan entries
-	#   $5 - plan outline text
-	local state_prefix
-	state_prefix="$1"
-	state_set "${state_prefix}" "user_query" "$2"
-	state_set "${state_prefix}" "allowed_tools" "$3"
-	state_set "${state_prefix}" "plan_entries" "$4"
-	state_set "${state_prefix}" "plan_outline" "$5"
-	state_set "${state_prefix}" "history" ""
-	state_set "${state_prefix}" "step" 0
-	state_set "${state_prefix}" "plan_index" 0
-	state_set "${state_prefix}" "max_steps" "${MAX_STEPS:-6}"
-	state_set "${state_prefix}" "final_answer" ""
+        # Arguments:
+        #   $1 - state prefix to populate
+        #   $2 - user query
+        #   $3 - allowed tools (newline delimited)
+        #   $4 - ranked plan entries
+        #   $5 - plan outline text
+        local state_prefix
+        state_prefix="$1"
+
+        state_set_json_document "${state_prefix}" "$(jq -c -n \
+                --arg user_query "$2" \
+                --arg allowed_tools "$3" \
+                --arg plan_entries "$4" \
+                --arg plan_outline "$5" \
+                --argjson max_steps "${MAX_STEPS:-6}" \
+                '{
+                        user_query: $user_query,
+                        allowed_tools: $allowed_tools,
+                        plan_entries: $plan_entries,
+                        plan_outline: $plan_outline,
+                        history: [],
+                        step: 0,
+                        plan_index: 0,
+                        max_steps: $max_steps,
+                        final_answer: ""
+                }')"
 }
 
 record_history() {
@@ -471,15 +522,16 @@ select_next_action() {
 		return
 	fi
 
-	plan_index="$(state_get "${state_name}" "plan_index")"
-	planned_entry=$(printf '%s\n' "$(state_get "${state_name}" "plan_entries")" | sed -n "$((plan_index + 1))p")
+        plan_index="$(state_get "${state_name}" "plan_index")"
+        plan_index=${plan_index:-0}
+        planned_entry=$(printf '%s\n' "$(state_get "${state_name}" "plan_entries")" | sed -n "$((plan_index + 1))p")
 
-	if [[ -n "${planned_entry}" ]]; then
-		tool="${planned_entry%%|*}"
-		query="${planned_entry#*|}"
-		query="${query%%|*}"
-		state_set "${state_name}" "plan_index" $((plan_index + 1))
-		next_action_payload="$(jq -n --arg tool "${tool}" --arg query "${query}" '{type:"tool", tool:$tool, query:$query}')"
+        if [[ -n "${planned_entry}" ]]; then
+                tool="${planned_entry%%|*}"
+                query="${planned_entry#*|}"
+                query="${query%%|*}"
+                state_increment "${state_name}" "plan_index" 1 >/dev/null
+                next_action_payload="$(jq -n --arg tool "${tool}" --arg query "${query}" '{type:"tool", tool:$tool, query:$query}')"
 	else
 		local final_query
 		final_query="$(respond_text "$(state_get "${state_name}" "user_query") $(state_get "${state_name}" "history")" 512)"

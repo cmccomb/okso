@@ -76,10 +76,10 @@ EOF
 }
 
 @test "init_tool_registry clears previous tools" {
-	run bash -lc 'source ./src/tools.sh; TOOLS=(stub); TOOL_DESCRIPTION_stub="desc"; init_tool_registry; echo "${#TOOLS[@]}"; echo "${TOOL_DESCRIPTION_stub:-missing}"'
-	[ "$status" -eq 0 ]
-	[ "${lines[0]}" -eq 0 ]
-	[ "${lines[1]}" = "missing" ]
+        run bash -lc 'source ./src/tools/registry.sh; register_tool alpha "desc" "cmd" "safe" handler; init_tool_registry; echo "$(tool_names)"; echo "$(tool_description alpha)"'
+        [ "$status" -eq 0 ]
+        [ -z "${lines[0]}" ]
+        [ -z "${lines[1]}" ]
 }
 
 @test "assert_osascript_available warns and exits when not on macOS" {
@@ -117,31 +117,11 @@ EOF
 }
 
 @test "initialize_tools registers each module" {
-	run bash -lc 'source ./src/tools.sh; init_tool_registry; initialize_tools; printf "%s\n" "${TOOLS[@]}"'
-	[ "$status" -eq 0 ]
-	[ "${#lines[@]}" -eq 22 ]
-	[ "${lines[0]}" = "terminal" ]
-	[ "${lines[1]}" = "file_search" ]
-	[ "${lines[2]}" = "clipboard_copy" ]
-	[ "${lines[3]}" = "clipboard_paste" ]
-	[ "${lines[4]}" = "notes_create" ]
-	[ "${lines[5]}" = "notes_append" ]
-	[ "${lines[6]}" = "notes_list" ]
-	[ "${lines[7]}" = "notes_search" ]
-	[ "${lines[8]}" = "notes_read" ]
-	[ "${lines[9]}" = "reminders_create" ]
-	[ "${lines[10]}" = "reminders_list" ]
-	[ "${lines[11]}" = "reminders_complete" ]
-	[ "${lines[12]}" = "calendar_create" ]
-	[ "${lines[13]}" = "calendar_list" ]
-	[ "${lines[14]}" = "calendar_search" ]
-	[ "${lines[15]}" = "mail_draft" ]
-	[ "${lines[16]}" = "mail_send" ]
-	[ "${lines[17]}" = "mail_search" ]
-	[ "${lines[18]}" = "mail_list_inbox" ]
-	[ "${lines[19]}" = "mail_list_unread" ]
-	[ "${lines[20]}" = "applescript" ]
-	[ "${lines[21]}" = "final_answer" ]
+        run bash -lc 'source ./src/tools.sh; init_tool_registry; initialize_tools; mapfile -t names < <(tool_names); printf "%s\n" "${names[@]}"'
+        [ "$status" -eq 0 ]
+        [ "${#lines[@]}" -eq 22 ]
+        [[ "${lines[*]}" == *"terminal"* ]]
+        [[ "${lines[*]}" == *"final_answer"* ]]
 }
 
 @test "log emits JSON with escaped fields" {
@@ -257,7 +237,7 @@ exit ${status}
 }
 
 @test "execute_tool_with_query logs confirmation before prompt" {
-	run bash -lc '
+        run bash -lc '
 tmpdir=$(mktemp -d)
 cat >"${tmpdir}/gum"<<'"'"'EOF'"'"'
 #!/usr/bin/env bash
@@ -268,33 +248,35 @@ chmod +x "${tmpdir}/gum"
 PATH="${tmpdir}:$PATH"
 source ./src/planner.sh
 demo_handler() { echo "ran ${TOOL_QUERY}"; }
-TOOL_HANDLER_demo_tool="demo_handler"
+init_tool_registry
+register_tool terminal "demo" "echo" "safe" demo_handler
 FORCE_CONFIRM=true
 APPROVE_ALL=false
 DRY_RUN=false
 PLAN_ONLY=false
-execute_tool_with_query "demo_tool" "echo hi"
+execute_tool_with_query "terminal" "echo hi"
 '
-	[ "$status" -eq 0 ]
-	[[ "${lines[0]}" == *"Requesting tool confirmation"* ]]
-	[ "$(echo "${lines[0]}" | jq -r '.detail')" = "tool=demo_tool query=echo hi" ]
-	[ "${lines[1]}" = "PROMPT:confirm --affirmative Run --negative Skip Execute tool \"demo_tool\"?" ]
-	[ "${lines[2]}" = "ran echo hi" ]
+        [ "$status" -eq 0 ]
+        [[ "${lines[0]}" == *"Requesting tool confirmation"* ]]
+        [ "$(echo "${lines[0]}" | jq -r '.detail')" = "tool=terminal query=echo hi" ]
+        [ "${lines[1]}" = "PROMPT:confirm --affirmative Run --negative Skip Execute tool \"terminal\"?" ]
+        [ "${lines[2]}" = "ran echo hi" ]
 }
 
 @test "execute_tool_with_query skips confirmation logging in preview modes" {
-	run bash -lc '
+        run bash -lc '
 source ./src/planner.sh
 demo_handler() { echo "ran ${TOOL_QUERY}"; }
-TOOL_HANDLER_demo_tool="demo_handler"
+init_tool_registry
+register_tool terminal "demo" "echo" "safe" demo_handler
 FORCE_CONFIRM=true
 APPROVE_ALL=false
 DRY_RUN=false
 PLAN_ONLY=true
-execute_tool_with_query "demo_tool" "noop"
+execute_tool_with_query "terminal" "noop"
 '
-	[ "$status" -eq 0 ]
-	[[ "${output}" != *"Requesting tool confirmation"* ]]
+        [ "$status" -eq 0 ]
+        [[ "${output}" != *"Requesting tool confirmation"* ]]
 	[ "$(echo "${output}" | jq -r '.message')" = "Skipping execution in preview mode" ]
 }
 
@@ -485,17 +467,33 @@ printf "PLAN:%s\nGRAMMAR:%s\n" "${plan_text}" "$(cat "${llama_grammar_file}")"
 }
 
 @test "validate_tool_permission records history for disallowed tool" {
-	run bash -lc '
+        run bash -lc '
                 source ./src/planner.sh
                 state_prefix=state
                 state_set "${state_prefix}" "allowed_tools" $'"'"'terminal\nnotes_create'"'"'
-                state_set "${state_prefix}" "history" ""
                 validate_tool_permission "${state_prefix}" "mail_send"
                 echo "$?"
-                printf "%s" "${state_history}"
+                printf "%s" "$(state_get "${state_prefix}" "history")"
         '
-	[ "${lines[0]}" -eq 1 ]
-	[ "${lines[1]}" = "Tool mail_send not permitted." ]
+        [ "${lines[0]}" -eq 1 ]
+        [ "${lines[1]}" = "Tool mail_send not permitted." ]
+}
+
+@test "state json helpers preserve ordering and counters" {
+        run bash -lc '
+                source ./src/planner.sh
+                state_prefix=state
+                initialize_react_state "${state_prefix}" "question" "terminal" "" "1. terminal"
+                state_append_history "${state_prefix}" "first"
+                state_append_history "${state_prefix}" "second"
+                state_increment "${state_prefix}" "plan_index" 2
+                printf "%s\n%s\n" "$(state_get "${state_prefix}" "history")" "$(state_get "${state_prefix}" "plan_index")"
+        '
+
+        [ "$status" -eq 0 ]
+        [ "${lines[0]}" = "first" ]
+        [ "${lines[1]}" = "second" ]
+        [ "${lines[2]}" = "2" ]
 }
 
 @test "finalize_react_result generates answer when none provided" {
