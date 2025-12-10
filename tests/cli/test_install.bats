@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 #
-# Usage: bats tests/test_install.bats
+# Usage: bats tests/cli/test_install.bats
 #
 # Environment variables:
 #   DO_INSTALLER_ASSUME_OFFLINE (bool): force offline mode to skip network calls.

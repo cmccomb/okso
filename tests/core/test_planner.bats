@@ -3,7 +3,7 @@
 # Tests for planning and ReAct helpers.
 #
 # Usage:
-#   bats tests/test_planner.bats
+#   bats tests/core/test_planner.bats
 #
 # Dependencies:
 #   - bats

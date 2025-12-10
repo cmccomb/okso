@@ -3,7 +3,7 @@
 # Tests for tool-specific query derivation dispatch.
 #
 # Usage:
-#   bats tests/test_tool_query_derivation.bats
+#   bats tests/core/test_tool_query_derivation.bats
 #
 # Dependencies:
 #   - bats

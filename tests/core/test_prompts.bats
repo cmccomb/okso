@@ -3,7 +3,7 @@
 # Tests for centralized prompt builders.
 #
 # Usage:
-#   bats tests/test_prompts.bats
+#   bats tests/core/test_prompts.bats
 #
 # Dependencies:
 #   - bats

@@ -2,7 +2,7 @@
 #
 # Focused unit tests for shared Bash modules.
 #
-# Usage: bats tests/test_modules.bats
+# Usage: bats tests/core/test_modules.bats
 #
 # Dependencies:
 #   - bats
@@ -12,7 +12,7 @@
 #   Inherits Bats semantics; individual tests assert script exit codes.
 
 bats_require_minimum_version 1.5.0
-load helpers/log_parsing
+load ../helpers/log_parsing
 
 setup() {
 	export HOME="${BATS_TMPDIR}/okso-modules"

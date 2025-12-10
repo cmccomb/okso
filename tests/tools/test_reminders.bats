@@ -2,7 +2,7 @@
 #
 # Focused tests for Apple Reminders tool helpers.
 #
-# Usage: bats tests/test_reminders.bats
+# Usage: bats tests/tools/test_reminders.bats
 #
 # Dependencies:
 #   - bats

@@ -2,7 +2,7 @@
 #
 # Focused tests for shared error envelope helpers.
 #
-# Usage: bats tests/test_errors.bats
+# Usage: bats tests/core/test_errors.bats
 #
 # Dependencies:
 #   - bats

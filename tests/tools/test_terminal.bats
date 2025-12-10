@@ -2,7 +2,7 @@
 #
 # Focused tests for the terminal tool's persistent terminal session.
 #
-# Usage: bats tests/test_terminal.bats
+# Usage: bats tests/tools/test_terminal.bats
 #
 # Dependencies:
 #   - bats

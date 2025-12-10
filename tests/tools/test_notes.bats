@@ -2,7 +2,7 @@
 #
 # Focused tests for Apple Notes tool helpers.
 #
-# Usage: bats tests/test_notes.bats
+# Usage: bats tests/tools/test_notes.bats
 #
 # Dependencies:
 #   - bats

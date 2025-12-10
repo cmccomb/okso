@@ -2,7 +2,7 @@
 #
 # Focused tests for Apple Calendar tool helpers.
 #
-# Usage: bats tests/test_calendar.bats
+# Usage: bats tests/tools/test_calendar.bats
 #
 # Dependencies:
 #   - bats
