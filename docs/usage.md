@@ -2,8 +2,6 @@
 
 The CLI guides you through planning and executing tool calls. Use `--help` to see all options, pass `--verbose` for debug-level logs, or `--quiet` to silence informational messages.
 
-All runtime output is produced as structured JSON logs so it can be piped to `jq` or collected by log shippers. INFO-level events trace suggested tools, plan outlines, and dry-run previews, while ERROR entries flag fallbacks such as deterministic responses when llama.cpp is unavailable. Final answers are pretty-printed for readability without sacrificing structure.
-
 Model defaults live in `${XDG_CONFIG_HOME:-~/.config}/okso/config.env`. Override them per-run with `--model` and `--model-branch` (default: `bartowski/Qwen_Qwen3-4B-GGUF:Qwen_Qwen3-4B-Q4_K_M.gguf` on `main`).
 
 ## Approval and preview modes
