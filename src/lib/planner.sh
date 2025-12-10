@@ -58,11 +58,11 @@ normalize_planner_plan() {
 
 	raw="$(cat)"
 
-	# Extract the first bracketed JSON array (non-greedy) across newlines.
-	plan="$(
-		printf '%s' "$raw" |
-			perl -0777 -ne 'if (/\[[\s\S]*?\]/) { print $& }'
-	)"
+        # Extract the first bracketed JSON array (non-greedy) across newlines using jq only.
+        plan="$(
+                printf '%s' "$raw" |
+                        jq -Rsr -r '(match("(?s)\\[[\\s\\S]*?\\]") // {string:""}).string'
+        )"
 
 	if [[ -z "${plan:-}" ]]; then
 		log "ERROR" "normalize_planner_plan: no JSON array found in planner output" "" >&2
