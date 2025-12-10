@@ -42,47 +42,39 @@ mkdir -p "${COVERAGE_DIR}" "${BATS_TMPDIR}"
 read -r -a coverage_files <<<"${COVERAGE_TARGETS}"
 bashcov --root "${ROOT_DIR}" --command-name "bats" -- bats "${coverage_files[@]}"
 
+coverage_source=""
+if [[ -f "${COVERAGE_DIR}/coverage.json" ]]; then
+        coverage_source="${COVERAGE_DIR}/coverage.json"
+elif [[ -f "${COVERAGE_DIR}/.resultset.json" ]]; then
+        coverage_source="${COVERAGE_DIR}/.resultset.json"
+fi
+
 coverage_summary=$(
-	python - <<PY
-import json
-from pathlib import Path
+        if [[ -n "${coverage_source}" ]]; then
+                jq -er '
+                        def tally($hits):
+                                reduce $hits[]? as $hit ({total: 0, covered: 0};
+                                        if $hit == null then .
+                                        else .total += 1 | .covered += (if $hit > 0 then 1 else 0 end) end);
 
-result_path = Path("${COVERAGE_DIR}") / "coverage.json"
-fallback_path = Path("${COVERAGE_DIR}") / ".resultset.json"
-coverage_percent = 0.0
+                        def from_coverage($coverage):
+                                reduce $coverage[]? as $file ({total: 0, covered: 0};
+                                        ($file.lines // $file) as $lines |
+                                        (tally($lines)) as $stats |
+                                        .total += $stats.total | .covered += $stats.covered);
 
-if result_path.exists():
-    data = json.loads(result_path.read_text())
-    coverage_data = data.get("coverage", {})
-    covered = 0
-    total = 0
-    for file_cov in coverage_data.values():
-        for hit in file_cov.get("lines", []):
-            if hit is None:
-                continue
-            total += 1
-            if hit > 0:
-                covered += 1
-    if total:
-        coverage_percent = (covered / total) * 100
-elif fallback_path.exists():
-    raw = json.loads(fallback_path.read_text())
-    first_result = next(iter(raw.values()))
-    covered = 0
-    total = 0
-    for line_hits in first_result.get("coverage", {}).values():
-        for hit in line_hits:
-            if hit is None:
-                continue
-            total += 1
-            if hit > 0:
-                covered += 1
-    if total:
-        coverage_percent = (covered / total) * 100
+                        def from_resultset:
+                                ([.[]? | select(.coverage?) | .coverage][0] // {}) | from_coverage(.);
 
-print(f"{coverage_percent:.2f}")
-PY
+                        (if has("coverage") then from_coverage(.coverage) else from_resultset end) as $stats
+                        | if $stats.total > 0 then ($stats.covered / $stats.total * 100) else 0 end
+                        | tostring
+                ' "${coverage_source}"
+        else
+                echo "0"
+        fi
 )
+coverage_summary=$(printf '%.2f' "${coverage_summary}")
 
 echo "Total coverage: ${coverage_summary}%"
 
