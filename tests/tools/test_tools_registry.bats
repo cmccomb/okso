@@ -3,7 +3,7 @@
 # Tests for the shared tool registry utilities.
 #
 # Usage:
-#   bats tests/test_tools_registry.bats
+#   bats tests/tools/test_tools_registry.bats
 #
 # Dependencies:
 #   - bats

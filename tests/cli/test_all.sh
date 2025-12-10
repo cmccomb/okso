@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 #
-# Usage: bats tests/test_all.sh
+# Usage: bats tests/cli/test_all.sh
 #
 # Environment variables:
 #   LLAMA_BIN (string): path to llama.cpp binary or stub.
@@ -16,7 +16,7 @@ setup() {
 	TEST_ROOT="${BATS_TMPDIR}/okso-all"
 	export HOME="${TEST_ROOT}/home"
 	export CONFIG_FILE="${TEST_ROOT}/config.env"
-	export LLAMA_BIN="${BATS_TEST_DIRNAME}/fixtures/mock_llama_relevance.sh"
+        export LLAMA_BIN="${BATS_TEST_DIRNAME}/../fixtures/mock_llama_relevance.sh"
 	mkdir -p "${HOME}"
 
 	cat >"${CONFIG_FILE}" <<EOF
@@ -28,7 +28,7 @@ FORCE_CONFIRM=false
 EOF
 }
 
-load helpers/log_parsing
+load ../helpers/log_parsing
 
 @test "shows CLI help" {
 	run ./src/bin/okso --help -- "example query"

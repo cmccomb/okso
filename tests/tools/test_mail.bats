@@ -2,7 +2,7 @@
 #
 # Focused tests for Apple Mail tool helpers.
 #
-# Usage: bats tests/test_mail.bats
+# Usage: bats tests/tools/test_mail.bats
 #
 # Dependencies:
 #   - bats

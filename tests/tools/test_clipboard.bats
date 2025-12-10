@@ -2,7 +2,7 @@
 #
 # Focused tests for clipboard copy/paste helpers.
 #
-# Usage: bats tests/test_clipboard.bats
+# Usage: bats tests/tools/test_clipboard.bats
 #
 # Dependencies:
 #   - bats

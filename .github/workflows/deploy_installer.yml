@@ -53,7 +53,7 @@ jobs:
 
       - name: Run Bats suite
         run: |
-          bats tests/test_main.bats tests/test_all.sh tests/test_install.bats
+          bats tests/cli/test_main.bats tests/cli/test_all.sh tests/cli/test_install.bats
 
   deploy:
     runs-on: ubuntu-latest

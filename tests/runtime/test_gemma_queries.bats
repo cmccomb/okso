@@ -9,7 +9,7 @@
 # PATH) and internet access to download the model on first run. Subsequent
 # executions reuse the cached file in BATS_TMPDIR.
 #
-# Usage: bats tests/test_gemma_queries.bats
+# Usage: bats tests/runtime/test_gemma_queries.bats
 #
 # Environment variables:
 #   LLAMA_BIN (string): path to llama.cpp binary. If unset, the tests attempt to

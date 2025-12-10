@@ -2,7 +2,7 @@
 #
 # Tests for tools_normalize_path behavior across platforms.
 #
-# Usage: bats tests/test_tools_normalize_path.bats
+# Usage: bats tests/tools/test_tools_normalize_path.bats
 #
 # Dependencies:
 #   - bats

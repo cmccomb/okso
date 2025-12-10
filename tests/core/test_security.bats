@@ -2,7 +2,7 @@
 #
 # Security regression tests for sanitization and allowlists.
 #
-# Usage: bats tests/test_security.bats
+# Usage: bats tests/core/test_security.bats
 #
 # Dependencies:
 #   - bats

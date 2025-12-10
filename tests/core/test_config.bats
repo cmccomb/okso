@@ -3,7 +3,7 @@
 # Tests for configuration helpers.
 #
 # Usage:
-#   bats tests/test_config.bats
+#   bats tests/core/test_config.bats
 #
 # Dependencies:
 #   - bats

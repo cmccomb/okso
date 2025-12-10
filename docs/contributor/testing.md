@@ -11,7 +11,7 @@ find src scripts tests -type f \( -name '*.sh' -o -name '*.bats' -o -name 'okso'
 Execute the core suite with:
 
 ```bash
-bats tests/test_all.sh tests/test_install.bats tests/test_main.bats tests/test_modules.bats tests/test_notes.bats
+bats tests/cli/test_all.sh tests/cli/test_install.bats tests/cli/test_main.bats tests/core/test_modules.bats tests/tools/test_notes.bats
 ```
 
 Set `TESTING_PASSTHROUGH=true` to disable llama.cpp invocation while preserving deterministic tool-planning behavior. The
