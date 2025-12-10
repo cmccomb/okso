@@ -47,6 +47,10 @@ See the [documentation index](docs/index.md) for a complete map of guides, refer
 
 Set `TESTING_PASSTHROUGH=true` to disable llama.cpp calls during tests or offline usage. The planner exposes deterministic fallbacks when `LLAMA_AVAILABLE=false`, returning a simple final-answer-only plan and concise responses that acknowledge the original request instead of invoking `llama.cpp`.
 
+### Inference timeouts
+
+Set `LLAMA_TIMEOUT_SECONDS` to enforce a maximum runtime for llama.cpp invocations. When the limit is hit the subprocess is interrupted, the failure is logged with elapsed time metrics, and the calling step returns a non-zero status so plans can fall back or abort cleanly.
+
 ### Logging-first output
 
 Runtime output is emitted as structured JSON logs from [`src/lib/logging.sh`](src/lib/logging.sh). Planning summaries, dry-run previews, and final answers all use the log channel, with INFO-level entries detailing suggested tools and execution flow and ERROR entries marking fallbacks or unexpected gaps. The final answer is pretty-printed for readability so operators can scan it without additional tooling while still benefiting from structured log parsing.

@@ -103,3 +103,30 @@ SCRIPT
         [[ "${detail}" == *"-r STOP"* ]]
         [[ "${detail}" == *"fatal llama error"* ]]
 }
+
+@test "llama_infer interrupts hung llama when timeout configured" {
+        run bash -lc '
+                cd "$(git rev-parse --show-toplevel)" || exit 1
+                args_dir="$(mktemp -d)"
+                mock_binary="${args_dir}/mock_llama.sh"
+                cat >"${mock_binary}" <<SCRIPT
+#!/usr/bin/env bash
+sleep 5
+printf "hung output" >&2
+SCRIPT
+                chmod +x "${mock_binary}"
+                export LLAMA_AVAILABLE=true
+                export LLAMA_BIN="${mock_binary}"
+                export MODEL_REPO=demo/repo
+                export MODEL_FILE=model.gguf
+                export LLAMA_TIMEOUT_SECONDS=1
+                source ./src/lib/llama_client.sh
+                llama_infer "prompt" "" 4
+        '
+        [ "$status" -eq 124 ]
+        message=$(printf '%s\n' "${output}" | jq -r '.message')
+        [[ "${message}" == "llama inference timed out" ]]
+        detail=$(printf '%s\n' "${output}" | jq -r '.detail')
+        [[ "${detail}" == *"timeout_seconds=1"* ]]
+        [[ "${detail}" == *"elapsed_ms="* ]]
+}

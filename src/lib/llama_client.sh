@@ -9,6 +9,7 @@
 # Environment variables:
 #   LLAMA_AVAILABLE (bool): whether llama.cpp is available for inference.
 #   LLAMA_BIN (string): path to llama.cpp binary.
+#   LLAMA_TIMEOUT_SECONDS (int): timeout in seconds for llama.cpp invocations (0 disables the timeout).
 #   MODEL_REPO (string): Hugging Face repository name.
 #   MODEL_FILE (string): model file within the repository.
 #   VERBOSITY (int): log verbosity.
@@ -24,6 +25,30 @@ LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck source=./logging.sh disable=SC1091
 source "${LIB_DIR}/logging.sh"
+
+llama_with_timeout() {
+        # Executes llama.cpp with an optional timeout.
+        # Arguments:
+        #   $@ - command and arguments to execute
+        local timeout_seconds
+        timeout_seconds=${LLAMA_TIMEOUT_SECONDS:-0}
+
+        if [[ ${timeout_seconds} -gt 0 ]]; then
+                if command -v timeout >/dev/null 2>&1; then
+                        timeout "${timeout_seconds}" "$@"
+                        return $?
+                fi
+
+                if command -v perl >/dev/null 2>&1; then
+                        perl -e 'alarm shift; $SIG{ALRM}=sub { exit 124 }; exec @ARGV' "${timeout_seconds}" "$@"
+                        return $?
+                fi
+
+                log "WARN" "Timeout requested but unsupported; running without it" "requested_timeout=${timeout_seconds}"
+        fi
+
+        "$@"
+}
 
 llama_infer() {
 	# Runs llama.cpp with HF caching enabled for the configured model.
@@ -54,7 +79,7 @@ llama_infer() {
 		fi
 	fi
 
-        local llama_args llama_arg_string stderr_file exit_code llama_stderr
+        local llama_args llama_arg_string stderr_file exit_code llama_stderr start_time_ns end_time_ns elapsed_ms
         llama_args=(
                 "${LLAMA_BIN}"
                 --hf-repo "${MODEL_REPO}"
@@ -75,15 +100,28 @@ llama_infer() {
 
         stderr_file="$(mktemp)"
 
-        "${llama_args[@]}" 2>"${stderr_file}"
+        start_time_ns=$(date +%s%N)
+
+        llama_with_timeout "${llama_args[@]}" 2>"${stderr_file}"
         exit_code=$?
 
-        if [[ ${exit_code} -ne 0 ]]; then
+        end_time_ns=$(date +%s%N)
+        elapsed_ms=$(( (end_time_ns - start_time_ns) / 1000000 ))
+
+        if [[ ${exit_code} -eq 124 || ${exit_code} -eq 137 || ${exit_code} -eq 143 ]]; then
                 llama_stderr="$(<"${stderr_file}")"
-                log "ERROR" "llama inference failed" "bin=${LLAMA_BIN} args=${llama_arg_string} stderr=${llama_stderr}"
+                log "ERROR" "llama inference timed out" "bin=${LLAMA_BIN} args=${llama_arg_string} timeout_seconds=${LLAMA_TIMEOUT_SECONDS:-0} elapsed_ms=${elapsed_ms} stderr=${llama_stderr}"
                 rm -f "${stderr_file}"
                 return "${exit_code}"
         fi
 
+        if [[ ${exit_code} -ne 0 ]]; then
+                llama_stderr="$(<"${stderr_file}")"
+                log "ERROR" "llama inference failed" "bin=${LLAMA_BIN} args=${llama_arg_string} elapsed_ms=${elapsed_ms} stderr=${llama_stderr}"
+                rm -f "${stderr_file}"
+                return "${exit_code}"
+        fi
+
+        log "INFO" "llama inference completed" "bin=${LLAMA_BIN} args=${llama_arg_string} elapsed_ms=${elapsed_ms}"
         rm -f "${stderr_file}"
 }
