@@ -16,7 +16,7 @@ setup() {
 	TEST_ROOT="${BATS_TMPDIR}/okso-all"
 	export HOME="${TEST_ROOT}/home"
 	export CONFIG_FILE="${TEST_ROOT}/config.env"
-        export LLAMA_BIN="${BATS_TEST_DIRNAME}/../fixtures/mock_llama_relevance.sh"
+	export LLAMA_BIN="${BATS_TEST_DIRNAME}/../fixtures/mock_llama_relevance.sh"
 	mkdir -p "${HOME}"
 
 	cat >"${CONFIG_FILE}" <<EOF
