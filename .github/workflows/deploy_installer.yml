@@ -43,21 +43,13 @@ jobs:
 
       - name: Check formatting
         run: |
-          shfmt -d \
-            src/main.sh \
-            scripts/install.sh \
-            tests/test_all.sh \
-            tests/test_main.bats \
-            tests/test_install.bats
+          find src scripts tests -type f \( -name '*.sh' -o -name '*.bats' -o -name 'okso' \) -print0 \
+            | xargs -0 shfmt -d
 
       - name: Run shellcheck
         run: |
-          shellcheck \
-            src/main.sh \
-            scripts/install.sh \
-            tests/test_all.sh \
-            tests/test_main.bats \
-            tests/test_install.bats
+          find src scripts tests -type f \( -name '*.sh' -o -name '*.bats' -o -name 'okso' \) -print0 \
+            | xargs -0 shellcheck
 
       - name: Run Bats suite
         run: |
