@@ -54,44 +54,33 @@ lowercase() {
 # Normalize noisy planner output into a clean PlannerPlan JSON array.
 # Reads from stdin, writes clean JSON array to stdout.
 normalize_planner_plan() {
-	local raw plan fallback_json
+	local raw plan_candidate fallback_json normalized
 
 	raw="$(cat)"
+	plan_candidate="$(printf '%s' "$raw" | jq -ec 'select(type=="array")' 2>/dev/null || true)"
 
-        # Extract the first bracketed JSON array (non-greedy) across newlines using jq only.
-        plan="$(
-                printf '%s' "$raw" |
-                        jq -Rsr -r '(match("(?s)\\[[\\s\\S]*?\\]") // {string:""}).string'
-        )"
+	fallback_json=$(printf '%s' "$raw" |
+		sed -E 's/^[[:space:]]*[0-9]+[.)][[:space:]]*//' |
+		sed -E 's/^[[:space:]-]+//' |
+		sed '/^[[:space:]]*$/d' |
+		jq -Rsc 'split("\n") | map(select(length > 0))') || fallback_json=""
 
-	if [[ -z "${plan:-}" ]]; then
-		log "ERROR" "normalize_planner_plan: no JSON array found in planner output" "" >&2
-		fallback_json=$(printf '%s' "$raw" |
-			sed -E 's/^[[:space:]]*[0-9]+[.)][[:space:]]*//' |
-			sed -E 's/^[[:space:]-]+//' |
-			sed '/^[[:space:]]*$/d' |
-			jq -Rsc 'split("\n") | map(select(length > 0))') || fallback_json=""
-		if [[ -z "${fallback_json}" || "${fallback_json}" == "[]" ]]; then
-			return 1
+	if [[ -n "${plan_candidate:-}" ]]; then
+		normalized=$(printf '%s' "$plan_candidate" | jq -ec 'if type == "array" then [.. | select(type == "string" and length > 0)] else empty end | select(length > 0)' 2>/dev/null) || normalized=""
+		if [[ -n "${normalized}" ]]; then
+			printf '%s' "$normalized" | jq -c '.'
+			return 0
 		fi
-		log "INFO" "normalize_planner_plan: derived plan from fallback outline" "${fallback_json}" >&2
-		plan="${fallback_json}"
 	fi
 
-	# Validate shape: array, >=1 items, every item non-empty string.
-	# Then re-emit in compact canonical form.
-	printf '%s' "$plan" |
-		jq -ec '
-        type == "array" and length >= 1 and
-        all(.[]; type == "string" and length >= 1)
-      ' >/dev/null ||
-		{
-			echo "normalize_planner_plan: extracted array does not match PlannerPlan schema intent" >&2
-			echo "$plan" >&2
-			return 1
-		}
+	if [[ -n "${fallback_json}" && "${fallback_json}" != "[]" ]]; then
+		log "INFO" "normalize_planner_plan: derived plan from fallback outline" "${fallback_json}" >&2
+		printf '%s' "$fallback_json" | jq -c '.'
+		return 0
+	fi
 
-	printf '%s' "$plan" | jq -c '.'
+	log "ERROR" "normalize_planner_plan: no JSON array found in planner output" "" >&2
+	return 1
 }
 
 append_final_answer_step() {

@@ -4,7 +4,7 @@
 # okso installer: macOS-only bootstrapper for the okso assistant.
 #
 # Usage:
-#   scripts/install.sh [--uninstall] [--dry-run] [--help]
+#   scripts/install.sh [--prefix DIR] [--upgrade | --uninstall] [--dry-run] [--help]
 #
 # Environment variables:
 #   DO_LINK_DIR (string): Directory for the PATH symlink. Defaults to
@@ -31,8 +31,10 @@ fi
 set -euo pipefail
 
 APP_NAME="okso"
+DEFAULT_PREFIX="/usr/local/${APP_NAME}"
 DEFAULT_LINK_DIR="${DO_LINK_DIR:-/usr/local/bin}"
 DEFAULT_LINK_PATH="${DEFAULT_LINK_DIR}/${APP_NAME}"
+DEFAULT_BASE_URL="https://cmccomb.github.io/okso"
 SCRIPT_SOURCE="${BASH_SOURCE[0]-${0-}}"
 if [ -z "${SCRIPT_SOURCE}" ] || [ "${SCRIPT_SOURCE}" = "-" ] || [ ! -f "${SCRIPT_SOURCE}" ]; then
 	SCRIPT_DIR="${PWD}"
@@ -41,6 +43,8 @@ else
 fi
 FORMULA_PATH="${SCRIPT_DIR}/okso.rb"
 DRY_RUN="false"
+INSTALL_PREFIX="${DEFAULT_PREFIX}"
+MODE="install"
 
 log() {
 	# $1: level, $2: message
@@ -56,13 +60,75 @@ log_dry_run() {
 
 usage() {
 	cat <<'EOF'
-Usage: scripts/install.sh [--uninstall] [--dry-run] [--help]
+Usage: scripts/install.sh [--prefix DIR] [--upgrade | --uninstall] [--dry-run] [--help]
 
 Options:
+  --prefix DIR  Installation root (defaults to /usr/local/okso).
   --dry-run     Print the planned actions without executing them.
-  --uninstall   Remove the okso installation via Homebrew and unlink the CLI.
+  --upgrade     Refresh the installation in place.
+  --uninstall   Remove the okso installation and unlink the CLI.
   -h, --help    Show this help text.
 EOF
+}
+
+detect_source_root() {
+	local repo_root
+	repo_root="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
+
+	if [ -d "${repo_root}/src" ] && [ -f "${repo_root}/README.md" ]; then
+		printf '%s\n' "${repo_root}"
+		return 0
+	fi
+
+	printf ''
+}
+
+download_source_bundle() {
+	local destination base_url tarball_url tarball_path extracted_root
+
+	destination="$(mktemp -d)"
+	base_url="${DO_INSTALLER_BASE_URL:-${DEFAULT_BASE_URL}}"
+	tarball_url="${base_url%/}/okso.tar.gz"
+	tarball_path="${destination}/okso.tar.gz"
+
+	if ! curl -fsSL -o "${tarball_path}" "${tarball_url}"; then
+		log "ERROR" "Failed to download okso bundle from ${tarball_url}"
+		exit 2
+	fi
+
+	if ! tar -xzf "${tarball_path}" -C "${destination}"; then
+		log "ERROR" "Failed to extract okso bundle"
+		exit 2
+	fi
+
+	extracted_root="${destination}"
+	if [ ! -d "${extracted_root}/src" ]; then
+		extracted_root="$(find "${destination}" -maxdepth 2 -type d -name src -print0 2>/dev/null | xargs -0 dirname 2>/dev/null || true)"
+	fi
+
+	if [ -z "${extracted_root}" ] || [ ! -d "${extracted_root}/src" ]; then
+		log "ERROR" "Extracted bundle is missing source tree"
+		exit 2
+	fi
+
+	printf '%s\n' "${extracted_root}"
+}
+
+resolve_source_root() {
+	local existing_root
+	existing_root="$(detect_source_root)"
+
+	if [ -n "${existing_root}" ]; then
+		printf '%s\n' "${existing_root}"
+		return 0
+	fi
+
+	if [ "${DO_INSTALLER_ASSUME_OFFLINE:-false}" = "true" ] && [ -z "${DO_INSTALLER_BASE_URL:-}" ]; then
+		log "ERROR" "No source tree present and DO_INSTALLER_BASE_URL not set for offline install"
+		exit 2
+	fi
+
+	download_source_bundle
 }
 
 detect_macos() {
@@ -173,7 +239,7 @@ ensure_link_dir_writable() {
 link_binary() {
 	# $1: installation prefix
 	local prefix="$1"
-	local target="${prefix}/src/bin/${APP_NAME}"
+	local target="${prefix}/bin/${APP_NAME}"
 
 	if [ ! -x "${target}" ]; then
 		log "ERROR" "Installed entrypoint missing at ${target}"
@@ -195,6 +261,23 @@ link_binary() {
 	log "INFO" "Symlinked ${DEFAULT_LINK_PATH} -> ${target}"
 }
 
+copy_payload() {
+	# $1: source root, $2: installation prefix
+	local source_root="$1" prefix="$2" copy_target
+
+	copy_target="${prefix}"
+	mkdir -p "${copy_target}"
+
+	if command -v rsync >/dev/null 2>&1; then
+		rsync -a --delete "${source_root}/" "${copy_target}/"
+	else
+		tar -cf - -C "${source_root}" . | tar -xf - -C "${copy_target}"
+	fi
+
+	mkdir -p "${prefix}/bin"
+	ln -sf "${prefix}/src/bin/${APP_NAME}" "${prefix}/bin/${APP_NAME}"
+}
+
 self_test_install() {
 	# $1: installation prefix
 	local prefix="$1" grammar_path_output temp_root query_output
@@ -206,13 +289,13 @@ self_test_install() {
 		exit 2
 	fi
 
-	if [ ! -f "${prefix}/grammars/planner_plan.schema.json" ]; then
+	if [ ! -f "${prefix}/src/grammars/planner_plan.schema.json" ]; then
 		log "ERROR" "Planner grammar missing from installation"
 		exit 2
 	fi
 
-	grammar_path_output="$(bash -c "source \"${prefix}/lib/grammar.sh\" && grammar_path planner_plan" 2>/dev/null || true)"
-	if [ "${grammar_path_output}" != "${prefix}/grammars/planner_plan.schema.json" ]; then
+	grammar_path_output="$(bash -c "source \"${prefix}/src/lib/grammar.sh\" && grammar_path planner_plan" 2>/dev/null || true)"
+	if [ "${grammar_path_output}" != "${prefix}/src/grammars/planner_plan.schema.json" ]; then
 		log "ERROR" "Grammar resolution failed during self-test"
 		exit 2
 	fi
@@ -255,13 +338,23 @@ remove_symlink() {
 }
 
 main() {
-	local mode="install"
-
 	while [ $# -gt 0 ]; do
 		case "$1" in
 		--uninstall)
-			mode="uninstall"
+			MODE="uninstall"
 			shift
+			;;
+		--upgrade)
+			MODE="upgrade"
+			shift
+			;;
+		--prefix)
+			if [ $# -lt 2 ]; then
+				usage
+				exit 1
+			fi
+			INSTALL_PREFIX="$2"
+			shift 2
 			;;
 		--dry-run)
 			DRY_RUN="true"
@@ -284,44 +377,46 @@ main() {
 
 	require_macos
 
-	if [ "${mode}" = "uninstall" ]; then
+	if [ "${MODE}" = "uninstall" ]; then
 		if [ "${DRY_RUN}" = "true" ]; then
-			log_dry_run "Would uninstall ${APP_NAME} via Homebrew"
 			log_dry_run "Would remove symlink ${DEFAULT_LINK_PATH}"
+			log_dry_run "Would remove installation prefix ${INSTALL_PREFIX}"
 			log "INFO" "${APP_NAME} installer completed (dry-run uninstall)."
 			exit 0
 		fi
 
-		ensure_homebrew
-		uninstall_with_brew
 		remove_symlink
+		if [ -d "${INSTALL_PREFIX}" ]; then
+			rm -rf "${INSTALL_PREFIX}"
+			log "INFO" "Removed ${INSTALL_PREFIX}"
+		fi
 		log "INFO" "${APP_NAME} installer completed (uninstall)."
 		exit 0
 	fi
 
+	local source_root
+	source_root="$(resolve_source_root)"
+
 	if [ "${DRY_RUN}" = "true" ]; then
 		log_dry_run "Would ensure Homebrew is available"
-		log_dry_run "Would install ${APP_NAME} via Homebrew formula"
+		log_dry_run "Would copy okso sources from ${source_root} to ${INSTALL_PREFIX}"
 		log_dry_run "Would link ${APP_NAME} into ${DEFAULT_LINK_PATH}"
 		log_dry_run "Would run installer self-test"
-		log "INFO" "${APP_NAME} installer completed (dry-run)."
+		log "INFO" "${APP_NAME} installer completed (dry-run ${MODE})."
 		exit 0
 	fi
 
 	ensure_homebrew
-	install_with_brew
-
-	local install_prefix
-	install_prefix=$(resolve_install_prefix)
-	link_binary "${install_prefix}"
+	copy_payload "${source_root}" "${INSTALL_PREFIX}"
+	link_binary "${INSTALL_PREFIX}"
 
 	if [ "${DO_INSTALLER_SKIP_SELF_TEST:-false}" != "true" ]; then
-		self_test_install "${install_prefix}"
+		self_test_install "${INSTALL_PREFIX}"
 	else
 		log "WARN" "Skipping installer self-test due to DO_INSTALLER_SKIP_SELF_TEST"
 	fi
 
-	log "INFO" "${APP_NAME} installer completed (install)."
+	log "INFO" "${APP_NAME} installer completed (${MODE})."
 }
 
 IS_MACOS=$(detect_macos)

@@ -28,12 +28,12 @@
 }
 
 @test "append_final_answer_step emits array with final step" {
-        run bash -lc 'cd "$(git rev-parse --show-toplevel)" && source ./src/lib/planner.sh; plan_json=$"[\"alpha via terminal\"]"; with_final=$(append_final_answer_step "${plan_json}"); outline=$(plan_json_to_outline "${with_final}"); [[ "${outline}" == *"1. alpha via terminal"* ]]; [[ "${outline}" == *"Use final_answer to summarize the result for the user."* ]]'
-        [ "$status" -eq 0 ]
+	run bash -lc 'cd "$(git rev-parse --show-toplevel)" && source ./src/lib/planner.sh; plan_json=$"[\"alpha via terminal\"]"; with_final=$(append_final_answer_step "${plan_json}"); outline=$(plan_json_to_outline "${with_final}"); [[ "${outline}" == *"1. alpha via terminal"* ]]; [[ "${outline}" == *"Use final_answer to summarize the result for the user."* ]]'
+	[ "$status" -eq 0 ]
 }
 
 @test "normalize_planner_plan falls back when no JSON array present" {
-        run bash -lc '
+	run bash -lc '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 source ./src/lib/planner.sh
 
@@ -42,23 +42,23 @@
                 [[ "${plan_json}" == "[\"First thing\",\"second thing\"]" ]]
         '
 
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "normalize_planner_plan fails when fallback outline is empty" {
-        run bash -lc '
+	run bash -lc '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 source ./src/lib/planner.sh
 
                 printf "\n\n" | normalize_planner_plan
         '
 
-        [ "$status" -eq 1 ]
+	[ "$status" -eq 1 ]
 }
 
 @test "build_plan_entries_from_tools omits final_answer" {
-        run bash -lc 'cd "$(git rev-parse --show-toplevel)" && source ./src/lib/planner.sh; entries=$(build_plan_entries_from_tools $'"'"'alpha\nbeta\nfinal_answer'"'"' "Tell me"); first=$(printf "%s" "${entries}" | sed -n "1p"); second=$(printf "%s" "${entries}" | sed -n "2p"); [[ "${first}" == "alpha|Tell me|0" ]]; [[ "${second}" == "beta|Tell me|0" ]]; [[ "${entries}" != *"final_answer"* ]]'
-        [ "$status" -eq 0 ]
+	run bash -lc 'cd "$(git rev-parse --show-toplevel)" && source ./src/lib/planner.sh; entries=$(build_plan_entries_from_tools $'"'"'alpha\nbeta\nfinal_answer'"'"' "Tell me"); first=$(printf "%s" "${entries}" | sed -n "1p"); second=$(printf "%s" "${entries}" | sed -n "2p"); [[ "${first}" == "alpha|Tell me|0" ]]; [[ "${second}" == "beta|Tell me|0" ]]; [[ "${entries}" != *"final_answer"* ]]'
+	[ "$status" -eq 0 ]
 }
 
 @test "should_prompt_for_tool respects execution toggles" {
