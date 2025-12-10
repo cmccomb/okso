@@ -42,47 +42,21 @@ mkdir -p "${COVERAGE_DIR}" "${BATS_TMPDIR}"
 read -r -a coverage_files <<<"${COVERAGE_TARGETS}"
 bashcov --root "${ROOT_DIR}" --command-name "bats" -- bats "${coverage_files[@]}"
 
+coverage_source=""
+if [[ -f "${COVERAGE_DIR}/coverage.json" ]]; then
+	coverage_source="${COVERAGE_DIR}/coverage.json"
+elif [[ -f "${COVERAGE_DIR}/.resultset.json" ]]; then
+	coverage_source="${COVERAGE_DIR}/.resultset.json"
+fi
+
 coverage_summary=$(
-	python - <<PY
-import json
-from pathlib import Path
-
-result_path = Path("${COVERAGE_DIR}") / "coverage.json"
-fallback_path = Path("${COVERAGE_DIR}") / ".resultset.json"
-coverage_percent = 0.0
-
-if result_path.exists():
-    data = json.loads(result_path.read_text())
-    coverage_data = data.get("coverage", {})
-    covered = 0
-    total = 0
-    for file_cov in coverage_data.values():
-        for hit in file_cov.get("lines", []):
-            if hit is None:
-                continue
-            total += 1
-            if hit > 0:
-                covered += 1
-    if total:
-        coverage_percent = (covered / total) * 100
-elif fallback_path.exists():
-    raw = json.loads(fallback_path.read_text())
-    first_result = next(iter(raw.values()))
-    covered = 0
-    total = 0
-    for line_hits in first_result.get("coverage", {}).values():
-        for hit in line_hits:
-            if hit is None:
-                continue
-            total += 1
-            if hit > 0:
-                covered += 1
-    if total:
-        coverage_percent = (covered / total) * 100
-
-print(f"{coverage_percent:.2f}")
-PY
+	if [[ -n "${coverage_source}" ]]; then
+		jq -er 'if has("metrics") then (.metrics.line.percent // .metrics.covered_percent // 0) else ([.[]? | select(.coverage?) | .coverage][0] // {}) as $coverage | reduce $coverage[]? as $file ({t: 0, c: 0}; ($file.lines // $file) as $lines | .t += ($lines|length) | .c += ($lines|map(select(. != null and . > 0))|length)) | if .t > 0 then (.c / .t * 100) else 0 end end' "${coverage_source}"
+	else
+		echo "0"
+	fi
 )
+coverage_summary=$(printf '%.2f' "${coverage_summary}")
 
 echo "Total coverage: ${coverage_summary}%"
 
