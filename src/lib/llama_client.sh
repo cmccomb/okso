@@ -54,22 +54,36 @@ llama_infer() {
 		fi
 	fi
 
-	if [[ -n "${stop_string}" ]]; then
-		"${LLAMA_BIN}" \
-			--hf-repo "${MODEL_REPO}" \
-			--hf-file "${MODEL_FILE}" \
-			-no-cnv --no-display-prompt --simple-io --verbose -r "${stop_string}" \
-			-n "${number_of_tokens}" \
-			-p "${prompt}" \
-			"${additional_args[@]}" 2>/dev/null || true
-		return
-	fi
+        local llama_args llama_arg_string stderr_file exit_code llama_stderr
+        llama_args=(
+                "${LLAMA_BIN}"
+                --hf-repo "${MODEL_REPO}"
+                --hf-file "${MODEL_FILE}"
+                -no-cnv --no-display-prompt --simple-io --verbose
+                -n "${number_of_tokens}"
+                -p "${prompt}"
+        )
 
-	"${LLAMA_BIN}" \
-		--hf-repo "${MODEL_REPO}" \
-		--hf-file "${MODEL_FILE}" \
-		-n "${number_of_tokens}" \
-		-no-cnv --no-display-prompt --simple-io --verbose \
-		-p "${prompt}" \
-		"${additional_args[@]}" 2>/dev/null || true
+        if [[ -n "${stop_string}" ]]; then
+                llama_args+=(-r "${stop_string}")
+        fi
+
+        llama_args+=("${additional_args[@]}")
+
+        llama_arg_string=$(printf '%s ' "${llama_args[@]:1}")
+        llama_arg_string=${llama_arg_string% }
+
+        stderr_file="$(mktemp)"
+
+        "${llama_args[@]}" 2>"${stderr_file}"
+        exit_code=$?
+
+        if [[ ${exit_code} -ne 0 ]]; then
+                llama_stderr="$(<"${stderr_file}")"
+                log "ERROR" "llama inference failed" "bin=${LLAMA_BIN} args=${llama_arg_string} stderr=${llama_stderr}"
+                rm -f "${stderr_file}"
+                return "${exit_code}"
+        fi
+
+        rm -f "${stderr_file}"
 }
