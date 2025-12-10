@@ -38,6 +38,10 @@ See the [documentation index](docs/index.md) for a complete map of guides, refer
 
 Set `TESTING_PASSTHROUGH=true` to disable llama.cpp calls during tests or offline usage. The planner exposes deterministic fallbacks when `LLAMA_AVAILABLE=false`, returning a simple final-answer-only plan and concise responses that acknowledge the original request instead of invoking `llama.cpp`.
 
+### Logging-first output
+
+Runtime output is emitted as structured JSON logs from [`src/logging.sh`](src/logging.sh). Planning summaries, dry-run previews, and final answers all use the log channel, with INFO-level entries detailing suggested tools and execution flow and ERROR entries marking fallbacks or unexpected gaps. The final answer is pretty-printed for readability so operators can scan it without additional tooling while still benefiting from structured log parsing.
+
 ## Prompt catalogue
 
 All prompts used by the assistant are centralized in [`src/prompts.sh`](src/prompts.sh) for easier maintenance. The file exposes prompt builders for direct responses, plan generation, and ReAct steps so updates to tone, structure, or schema can be made in one place.

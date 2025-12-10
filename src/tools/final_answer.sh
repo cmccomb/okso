@@ -25,6 +25,7 @@ source "${BASH_SOURCE[0]%/final_answer.sh}/registry.sh"
 tool_final_answer() {
 	# Emits the provided final answer text without modification.
 	# Arguments: none. Reads TOOL_QUERY for the final reply content.
+	log "INFO" "final_answer tool invoked" "$(printf 'length=%s' "${#TOOL_QUERY}")" >&2
 	printf '%s' "${TOOL_QUERY:-}" || true
 }
 

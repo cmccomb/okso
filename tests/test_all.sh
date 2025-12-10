@@ -28,6 +28,8 @@ FORCE_CONFIRM=false
 EOF
 }
 
+load helpers/log_parsing
+
 @test "shows CLI help" {
 	run ./src/main.sh --help -- "example query"
 	[ "$status" -eq 0 ]
@@ -50,6 +52,8 @@ EOF
 @test "warns when llama.cpp dependency is missing but continues" {
 	run env LLAMA_BIN=/definitely/missing ./src/main.sh --config "${CONFIG_FILE}" --yes -- "search files"
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"binary not found"* ]]
-	[[ "$output" == *"Execution summary"* ]]
+	missing_detail="$(parse_json_logs <<<"${output}" | jq -r 'try (map(select(.message=="llama.cpp binary not found")) | .[0].detail) catch ""')"
+	execution_detail="$(parse_json_logs <<<"${output}" | jq -r 'try (map(select(.message=="Execution summary")) | .[0].detail) catch ""')"
+	[ "${missing_detail}" = "/definitely/missing" ]
+	[[ "${execution_detail}" == *"LLM unavailable. Request received: search files"* ]]
 }

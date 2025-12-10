@@ -209,7 +209,7 @@ apply_settings_to_globals() {
 	local settings_prefix
 	settings_prefix="$1"
 
-	local json mapping key var value
+	local json key var value
 	json="$(settings_get_json_document "${settings_prefix}")"
 
 	while read -r key var; do
@@ -225,7 +225,7 @@ capture_globals_into_settings() {
 	local settings_prefix
 	settings_prefix="$1"
 
-	local mapping key var value
+	local key var value
 	while read -r key var; do
 		[[ -z "${key}" ]] && continue
 		value="${!var-}"
@@ -287,24 +287,24 @@ render_plan_outputs() {
 
 	set_by_name "${action_var}" "continue"
 
+	local plan_json tool_list_json
+	plan_json="$(emit_plan_json "${plan_entries}")"
+	tool_list_json="$(printf '%s' "${required_tools}" | jq -Rsc 'split("\n") | map(select(length>0))')"
+
 	if [[ -z "${required_tools}" ]]; then
-		printf 'Suggested tools: none.\n'
+		log "INFO" "Suggested tools" "none"
 	else
-		printf 'Suggested tools:\n'
-		while IFS= read -r tool; do
-			[[ -z "${tool}" ]] && continue
-			printf ' - %s\n' "${tool}"
-		done <<<"${required_tools}"
+		log_pretty "INFO" "Suggested tools" "${tool_list_json}"
 	fi
 
 	if [[ -n "${plan_outline}" ]]; then
-		printf 'Plan outline:\n%s\n' "${plan_outline}"
+		log_pretty "INFO" "Plan outline" "${plan_outline}"
 	fi
 
 	if [[ "$(settings_get "${settings_prefix}" "plan_only")" == true ]]; then
 		# plan-only short-circuits execution and dry-run emission; callers handle
 		# the resulting action_ref to exit early.
-		emit_plan_json "${plan_entries}"
+		log_pretty "INFO" "Plan JSON" "${plan_json}"
 		set_by_name "${action_var}" "exit"
 		return 0
 	fi
@@ -312,11 +312,10 @@ render_plan_outputs() {
 	if [[ "$(settings_get "${settings_prefix}" "dry_run")" == true ]]; then
 		# Dry run prints the intended commands for operator inspection while still
 		# providing the serialized JSON plan for automation.
-		printf 'Dry run: planned tool calls (no execution).\n'
-		emit_plan_json "${plan_entries}"
+		log_pretty "INFO" "Dry run plan" "${plan_json}"
 		while IFS='|' read -r _tool query _score; do
 			[[ -z "${query}" ]] && continue
-			printf '%s\n' "${query}"
+			log "INFO" "Planned query" "${query}"
 		done <<<"${plan_entries}"
 		set_by_name "${action_var}" "exit"
 	fi
@@ -331,7 +330,7 @@ select_response_strategy() {
 	local settings_prefix
 	settings_prefix="$1"
 	shift
-	local required_tools plan_entries plan_outline
+	local required_tools plan_entries plan_outline direct_response
 	required_tools="$1"
 	plan_entries="$2"
 	plan_outline="$3"
@@ -341,10 +340,11 @@ select_response_strategy() {
 	if [[ -z "${required_tools}" ]]; then
 		# The planner may occasionally decline tools; fall back to direct text
 		# responses so the user still receives output.
-		log "WARN" "No tools selected; responding directly" "${USER_QUERY}"
-		printf 'No tools selected; responding directly.\n'
-		printf '%s\n' "$(respond_text "${USER_QUERY}" 256)"
-		printf 'Execution summary: no tool runs.\n'
+		log "ERROR" "No tools selected; responding directly" "${USER_QUERY}"
+		log "INFO" "Planner emitted no tools; using direct response" "${USER_QUERY}"
+		direct_response="$(respond_text "${USER_QUERY}" 256)"
+		log_pretty "INFO" "Final answer" "${direct_response}"
+		log "INFO" "Execution summary" "No tool runs"
 		return 0
 	fi
 

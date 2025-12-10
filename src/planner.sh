@@ -214,7 +214,7 @@ format_tool_example_line() {
 # Normalize noisy planner output into a clean PlannerPlan JSON array.
 # Reads from stdin, writes clean JSON array to stdout.
 normalize_planner_plan() {
-	local raw plan
+	local raw plan fallback_json
 
 	raw="$(cat)"
 
@@ -226,7 +226,16 @@ normalize_planner_plan() {
 
 	if [[ -z "${plan:-}" ]]; then
 		log "ERROR" "normalize_planner_plan: no JSON array found in planner output" "" >&2
-		return 1
+		fallback_json=$(printf '%s' "$raw" |
+			sed -E 's/^[[:space:]]*[0-9]+[.)][[:space:]]*//' |
+			sed -E 's/^[[:space:]-]+//' |
+			sed '/^[[:space:]]*$/d' |
+			jq -Rsc 'split("\n") | map(select(length > 0))') || fallback_json=""
+		if [[ -z "${fallback_json}" || "${fallback_json}" == "[]" ]]; then
+			return 1
+		fi
+		log "INFO" "normalize_planner_plan: derived plan from fallback outline" "${fallback_json}" >&2
+		plan="${fallback_json}"
 	fi
 
 	# Validate shape: array, >=1 items, every item non-empty string.
@@ -636,6 +645,7 @@ record_tool_execution() {
 	observation="$4"
 	step_index="$5"
 	record_history "${state_name}" "$(printf 'Step %s action %s query=%s\nObservation: %s' "${step_index}" "${tool}" "${query}" "${observation}")"
+	log "INFO" "Recorded tool execution" "$(printf 'step=%s tool=%s' "${step_index}" "${tool}")"
 }
 
 finalize_react_result() {
@@ -644,17 +654,19 @@ finalize_react_result() {
 	local state_name
 	state_name="$1"
 	if [[ -z "$(state_get "${state_name}" "final_answer")" ]]; then
+		log "ERROR" "Final answer missing; generating fallback" "${state_name}"
 		state_set "${state_name}" "final_answer" "$(respond_text "$(state_get "${state_name}" "user_query") $(state_get "${state_name}" "history")" 1000)"
 	fi
 
-	printf '%s\n' "$(state_get "${state_name}" "final_answer")"
+	log_pretty "INFO" "Final answer" "$(state_get "${state_name}" "final_answer")"
+
 	if [[ -n "$(state_get "${state_name}" "plan_outline")" ]]; then
-		printf 'Plan outline:\n%s\n' "$(state_get "${state_name}" "plan_outline")"
+		log_pretty "INFO" "Plan outline" "$(state_get "${state_name}" "plan_outline")"
 	fi
 	if [[ -z "$(state_get "${state_name}" "history")" ]]; then
-		printf 'Execution summary: no tool runs.\n'
+		log "INFO" "Execution summary" "No tool runs"
 	else
-		printf 'Execution summary:\n%s\n' "$(state_get "${state_name}" "history")"
+		log_pretty "INFO" "Execution summary" "$(state_get "${state_name}" "history")"
 	fi
 }
 

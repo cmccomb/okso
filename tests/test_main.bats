@@ -10,11 +10,12 @@ setup() {
 	cat >"${CONFIG_FILE}" <<EOF
 MODEL_SPEC="example/repo:demo.gguf"
 MODEL_BRANCH="main"
-VERBOSITY=0
+VERBOSITY=1
 APPROVE_ALL=false
 FORCE_CONFIRM=false
 EOF
 }
+load helpers/log_parsing
 
 @test "shows help text" {
 	run ./src/main.sh --help -- "example query"
@@ -42,61 +43,68 @@ EOF
 	run bash -lc "printf 'n\\n' | ./src/main.sh --config '${CONFIG_FILE}' -- 'list files'"
 	[ "$status" -eq 0 ]
 	[[ "$output" == *'Execute tool "terminal"? [y/N]:'* ]]
-	[[ "$output" == *"Responding directly to: list files"* ]]
+
+	final_answer="$(parse_json_logs <<<"${output}" | jq -r 'try (map(select(.message=="Final answer")) | .[0].detail) catch ""')"
+	[[ "${final_answer}" == *"Responding directly to: list files"* ]]
 }
 
 @test "--yes bypasses prompts" {
 	run ./src/main.sh --config "${CONFIG_FILE}" --yes -- "note something"
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"Suggested tools"* ]]
-	[[ "$output" == *"notes_create"* ]]
+	suggested_tools="$(parse_json_logs <<<"${output}" | jq -r 'try (map(select(.message=="Suggested tools")) | .[0].detail) catch ""')"
+
+	[[ "${suggested_tools}" == *"notes_create"* ]]
 }
 
 @test "--dry-run prints plan without execution" {
 	run ./src/main.sh --config "${CONFIG_FILE}" --dry-run --yes -- "note something"
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"Dry run: planned tool calls"* ]]
-	[[ "$output" == *"notes_create"* ]]
+	dry_run_plan="$(parse_json_logs <<<"${output}" | jq -r 'try (map(select(.message=="Dry run plan")) | .[0].detail) catch ""')"
+	[[ "${dry_run_plan}" == *"notes_create"* ]]
+	parse_json_logs <<<"${output}" | jq -e 'map(select(.message=="Planned query") | .detail | contains("something")) | any'
 }
 
 @test "--plan-only emits JSON plan" {
 	run ./src/main.sh --config "${CONFIG_FILE}" --plan-only -- "note something"
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"[{\"tool\""* ]]
-	[[ "$output" == *"\"query\""* ]]
+	plan_json="$(parse_json_logs <<<"${output}" | jq -r 'try (map(select(.message=="Plan JSON")) | .[0].detail) catch ""')"
+	[[ "${plan_json}" == *"\"tool\""* ]]
+	[[ "${plan_json}" == *"\"query\""* ]]
 }
 
 @test "casual prompts still finish with final_answer" {
 	run ./src/main.sh --config "${CONFIG_FILE}" --yes -- "tell me a joke"
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"Suggested tools:"* ]]
-	[[ "$output" == *"final_answer"* ]]
+	suggested_tools="$(parse_json_logs <<<"${output}" | jq -r 'try (map(select(.message=="Suggested tools")) | .[0].detail) catch ""')"
+	[[ "${suggested_tools}" == *"final_answer"* ]]
 }
 
 @test "conversational phrasing suggests terminal tool" {
 	run ./src/main.sh --config "${CONFIG_FILE}" --yes -- "could you take a quick look at the files in this folder?"
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"Suggested tools"* ]]
-	[[ "$output" == *"terminal"* ]]
+	suggested_tools="$(parse_json_logs <<<"${output}" | jq -r 'try (map(select(.message=="Suggested tools")) | .[0].detail) catch ""')"
+	[[ "${suggested_tools}" == *"terminal"* ]]
 }
 
 @test "reminder intent builds reminder plan" {
 	run ./src/main.sh --config "${CONFIG_FILE}" --plan-only -- "remind me to submit grades tomorrow"
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"reminders_create"* ]]
-	[[ "$output" == *"submit grades tomorrow"* ]]
+	plan_json="$(parse_json_logs <<<"${output}" | jq -r 'try (map(select(.message=="Plan JSON")) | .[0].detail) catch ""')"
+	[[ "${plan_json}" == *"reminders_create"* ]]
+	[[ "${plan_json}" == *"submit grades tomorrow"* ]]
 }
 
 @test "terminal plan uses targeted query" {
 	run ./src/main.sh --config "${CONFIG_FILE}" --plan-only -- "list files"
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"ls -la"* ]]
+	plan_json="$(parse_json_logs <<<"${output}" | jq -r 'try (map(select(.message=="Plan JSON")) | .[0].detail) catch ""')"
+	[[ "${plan_json}" == *"ls -la"* ]]
 }
 
 @test "todo search plans grep step" {
 	run ./src/main.sh --config "${CONFIG_FILE}" --dry-run --yes -- "find TODOs in this repo and summarize"
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"rg -n \"TODO\" ."* ]]
+	parse_json_logs <<<"${output}" | jq -e 'map(select(.message=="Planned query") | .detail | contains("rg -n \"TODO\" .")) | any'
 }
 
 @test "init writes configuration" {
@@ -119,5 +127,6 @@ EOF
 
 	run "${link_path}" --config "${CONFIG_FILE}" --yes -- "note something"
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"notes_create"* ]]
+	suggested_tools="$(parse_json_logs <<<"${output}" | jq -r 'try (map(select(.message=="Suggested tools")) | .[0].detail) catch ""')"
+	[[ "${suggested_tools}" == *"notes_create"* ]]
 }

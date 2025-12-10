@@ -12,6 +12,14 @@
 #   Inherits Bats semantics; individual tests assert script exit codes.
 
 bats_require_minimum_version 1.5.0
+load helpers/log_parsing
+
+setup() {
+	export HOME="${BATS_TMPDIR}/okso-modules"
+	mkdir -p "${HOME}/.cargo"
+	: >"${HOME}/.cargo/env"
+	export VERBOSITY=0
+}
 
 @test "parse_model_spec falls back to default file" {
 	run bash -lc 'source ./src/config.sh; parts=(); mapfile -t parts < <(parse_model_spec "example/repo" "fallback.gguf"); echo "${parts[0]}"; echo "${parts[1]}"'
@@ -98,8 +106,9 @@ EOF
         '
 
 	[ "$status" -eq 1 ]
-	[ "$(echo "${output}" | jq -r '.message')" = "AppleScript not available on this platform" ]
-	[ "$(echo "${output}" | jq -r '.detail')" = "demo query" ]
+	logs_json="$(printf '%s' "${output}" | parse_json_logs)"
+	[ "$(printf '%s' "${logs_json}" | jq -r 'try (.[0].message) catch ""')" = "AppleScript not available on this platform" ]
+	[ "$(printf '%s' "${logs_json}" | jq -r 'try (.[0].detail) catch ""')" = "demo query" ]
 }
 
 @test "assert_osascript_available flags missing binary on macOS" {
@@ -115,7 +124,8 @@ EOF
         '
 
 	[ "$status" -eq 1 ]
-	[ "$(echo "${output}" | jq -r '.message')" = "osascript missing; cannot execute AppleScript" ]
+	logs_json="$(printf '%s' "${output}" | parse_json_logs)"
+	[ "$(printf '%s' "${logs_json}" | jq -r 'try (.[0].message) catch ""')" = "osascript missing; cannot execute AppleScript" ]
 }
 
 @test "initialize_tools registers each module" {
@@ -129,7 +139,8 @@ EOF
 @test "log emits JSON with escaped fields" {
 	run bash -lc $'VERBOSITY=2; source ./src/logging.sh; log "INFO" $'"'"'quote\nline'"'"' "detail"'
 	[ "$status" -eq 0 ]
-	message=$(echo "${output}" | jq -r '.message')
+	logs_json="$(printf '%s' "${output}" | parse_json_logs)"
+	message=$(printf '%s' "${logs_json}" | jq -r 'try (.[0].message) catch ""')
 	[ "${message}" = $'quote\nline' ]
 }
 
@@ -251,6 +262,7 @@ exit 0
 EOF
 chmod +x "${tmpdir}/gum"
 PATH="${tmpdir}:$PATH"
+VERBOSITY=1
 source ./src/planner.sh
 demo_handler() { echo "ran ${TOOL_QUERY}"; }
 init_tool_registry
@@ -270,6 +282,7 @@ execute_tool_with_query "terminal" "echo hi"
 
 @test "execute_tool_with_query skips confirmation logging in preview modes" {
 	run bash -lc '
+VERBOSITY=1
 source ./src/planner.sh
 demo_handler() { echo "ran ${TOOL_QUERY}"; }
 init_tool_registry
@@ -282,7 +295,8 @@ execute_tool_with_query "terminal" "noop"
 '
 	[ "$status" -eq 0 ]
 	[[ "${output}" != *"Requesting tool confirmation"* ]]
-	[ "$(echo "${output}" | jq -r '.message')" = "Skipping execution in preview mode" ]
+	logs_json="$(printf '%s' "${output}" | parse_json_logs)"
+	[ "$(printf '%s' "${logs_json}" | jq -r 'try (.[0].message) catch ""')" = "Skipping execution in preview mode" ]
 }
 
 @test "show_help renders through gum when available" {
@@ -399,6 +413,7 @@ printf "LOG:%s\n" "$(cat "${LOG_FILE}")"
 	run bash -lc '
                 source ./src/respond.sh
                 LLAMA_AVAILABLE=true
+                LLAMA_BIN=""
 
                 llama_grammar_file="$(mktemp)"
                 llama_infer() {
@@ -501,6 +516,7 @@ printf "LOG:%s\n" "$(cat "${LOG_FILE}")"
 
 @test "finalize_react_result generates answer when none provided" {
 	run bash -lc '
+                VERBOSITY=1
                 source ./src/planner.sh
                 respond_text() { printf "%s" "stubbed response"; }
                 state_prefix=state
@@ -511,26 +527,33 @@ printf "LOG:%s\n" "$(cat "${LOG_FILE}")"
                 finalize_react_result "${state_prefix}"
         '
 	[ "$status" -eq 0 ]
-	[ "${lines[0]}" = "stubbed response" ]
-	[ "${lines[1]}" = "Plan outline:" ]
-	[ "${lines[2]}" = "1. terminal -> list" ]
-	[ "${lines[3]}" = "Execution summary:" ]
-	[ "${lines[4]}" = "Action terminal query=list" ]
-	[ "${lines[5]}" = "Observation: ok" ]
+	logs_json="$(printf '%s' "$output" | parse_json_logs)"
+	final_answer="$(jq -r 'try (map(select(.message=="Final answer")) | .[0].detail) catch ""' <<<"${logs_json}")"
+	plan_outline="$(jq -r 'try (map(select(.message=="Plan outline")) | .[0].detail) catch ""' <<<"${logs_json}")"
+	execution="$(jq -r 'try (map(select(.message=="Execution summary")) | .[0].detail) catch ""' <<<"${logs_json}")"
+
+	[ "${final_answer}" = "stubbed response" ]
+	[ "${plan_outline}" = "1. terminal -> list" ]
+	[[ "${execution}" == *"Action terminal query=list"* ]]
+	[[ "${execution}" == *"Observation: ok"* ]]
 }
 
 @test "react_loop returns final_answer tool output" {
 	run bash -lc '
+                VERBOSITY=1
                 source ./src/planner.sh
                 execute_tool_action() { printf "%s" "${2}"; }
                 react_loop "question" $'"'"'final_answer'"'"' "final_answer|done|5" $'"'"'1. final_answer -> done'"'"'
         '
 
 	[ "$status" -eq 0 ]
-	[ "${lines[0]}" = "done" ]
-	[ "${lines[1]}" = "Plan outline:" ]
-	[ "${lines[2]}" = "1. final_answer -> done" ]
-	[ "${lines[3]}" = "Execution summary:" ]
-	[ "${lines[4]}" = "Step 1 action final_answer query=done" ]
-	[ "${lines[5]}" = "Observation: done" ]
+	logs_json="$(printf '%s' "$output" | parse_json_logs)"
+	final_answer="$(jq -r 'try (map(select(.message=="Final answer")) | .[0].detail) catch ""' <<<"${logs_json}")"
+	plan_outline="$(jq -r 'try (map(select(.message=="Plan outline")) | .[0].detail) catch ""' <<<"${logs_json}")"
+	execution="$(jq -r 'try (map(select(.message=="Execution summary")) | .[0].detail) catch ""' <<<"${logs_json}")"
+
+	[ "${final_answer}" = "done" ]
+	[ "${plan_outline}" = "1. final_answer -> done" ]
+	[[ "${execution}" == *"Step 1 action final_answer query=done"* ]]
+	[[ "${execution}" == *"Observation: done"* ]]
 }

@@ -32,18 +32,24 @@ respond_text() {
 	number_of_tokens="$2"
 	concise_grammar_path="$(grammar_path concise_response)"
 
+	log "INFO" "Generating direct response" "${user_query}" >&2
+
 	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
-		log "WARN" "llama unavailable; returning deterministic response" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}"
+		log "INFO" "LLM unavailable; using deterministic response fallback" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}" >&2
+		log "ERROR" "Falling back to deterministic response" "${user_query}" >&2
 		printf 'LLM unavailable. Request received: %s\n' "${user_query}"
 		return 0
 	fi
 
 	if [[ "${LLAMA_BIN}" == *"mock_llama_relevance.sh" ]]; then
+		log "INFO" "Mock llama direct response path" "${user_query}" >&2
 		printf 'Responding directly to: %s\n' "${user_query}"
 		return 0
 	fi
 
 	prompt="$(build_concise_response_prompt "${user_query}")"
+	log "INFO" "Invoking llama inference" "$(printf 'tokens=%s grammar=%s' "${number_of_tokens}" "${concise_grammar_path}")" >&2
 	llama_infer "${prompt}" "" "${number_of_tokens}" "${concise_grammar_path}"
+	log "INFO" "Direct response generation finished" "${user_query}" >&2
 	return 0
 }
