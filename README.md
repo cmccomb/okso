@@ -8,7 +8,7 @@ A lightweight MCP-inspired planner that wraps a local `llama.cpp` binary, ranks 
 
 ## Installation
 
-Use the macOS installer to bootstrap dependencies and set up the CLI. See [installation details](docs/installation.md) for full options, hosted script usage, and manual setup notes.
+Use the macOS installer to bootstrap dependencies and set up the CLI. See [installation details](docs/user-guides/installation.md) for full options, hosted script usage, and manual setup notes.
 
 ## Basic usage
 
@@ -30,7 +30,9 @@ Write a config file up front with a custom model branch (defaults to `bartowski/
 ./src/main.sh init --model your-org/your-model:custom.gguf --model-branch release
 ```
 
-More scenarios and approval modes live in the [usage guide](docs/usage.md). Configuration keys are covered in [configuration](docs/configuration.md), and available tools are listed in [tools](docs/tools.md). Development and testing steps are in [development](docs/development.md).
+More scenarios and approval modes live in the [usage guide](docs/user-guides/usage.md). Configuration keys are covered in [configuration](docs/reference/configuration.md), and available tools are listed in [tools](docs/reference/tools.md). Development and testing steps are in [contributor docs](docs/contributor/development.md).
+
+See the [documentation index](docs/index.md) for a complete map of guides, references, and contributor notes.
 
 ### Offline and testing behavior
 

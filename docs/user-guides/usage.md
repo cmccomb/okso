@@ -39,4 +39,4 @@ Tool helpers for macOS clipboard access:
 ./src/main.sh -- tool clipboard_paste
 ```
 
-Refer to [configuration](configuration.md) for tuning defaults and [tools](tools.md) for supported handlers.
+Refer to [configuration](../reference/configuration.md) for tuning defaults and [tools](../reference/tools.md) for supported handlers.
