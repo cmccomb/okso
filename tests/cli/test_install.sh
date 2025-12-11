@@ -88,4 +88,3 @@ EOM_UNAME
 	[ -f "${TEST_ROOT}/prefix/bin/okso" ]
 	[ -L "${DO_LINK_DIR}/okso" ]
 }
-
