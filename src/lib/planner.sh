@@ -121,11 +121,15 @@ generate_plan_outline() {
 	local -a planner_tools=()
 	user_query="$1"
 
-	if declare -p TOOLS >/dev/null 2>&1; then
-		planner_tools=("${TOOLS[@]}")
-	else
-		mapfile -t planner_tools < <(tool_names)
-	fi
+        if declare -p TOOLS >/dev/null 2>&1; then
+                planner_tools=("${TOOLS[@]}")
+        else
+                planner_tools=()
+                while IFS= read -r tool_name; do
+                        [[ -z "${tool_name}" ]] && continue
+                        planner_tools+=("${tool_name}")
+                done < <(tool_names)
+        fi
 
 	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
 		log "WARN" "Using static plan outline because llama is unavailable" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}" >&2
