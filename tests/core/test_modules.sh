@@ -538,44 +538,125 @@ printf "LOG:%s\n" "$(cat "${LOG_FILE}")"
 
 @test "finalize_react_result generates answer when none provided" {
 	run bash -lc '
-                VERBOSITY=1
-                source ./src/lib/planner.sh
-                respond_text() { printf "%s" "stubbed response"; }
-                state_prefix=state
-                initialize_react_state "${state_prefix}" "demo question" "terminal" "" $'"'"'1. terminal -> list'"'"'
-                state_set "${state_prefix}" "history" $'"'"'Action terminal query=list\nObservation: ok'"'"'
-                state_set "${state_prefix}" "step" 2
-                state_set "${state_prefix}" "max_steps" 3
-                finalize_react_result "${state_prefix}"
-        '
+VERBOSITY=1
+source ./src/lib/planner.sh
+respond_text() { printf "%s" "stubbed response"; }
+state_prefix=state
+initialize_react_state "${state_prefix}" "demo question" "terminal" "" $'"'"'1. terminal -> list'"'"'
+state_set "${state_prefix}" "history" $'"'"'Action terminal query=list\nObservation: ok'"'"'
+state_set "${state_prefix}" "step" 2
+state_set "${state_prefix}" "max_steps" 3
+finalize_react_result "${state_prefix}"
+'
 	[ "$status" -eq 0 ]
 	logs_json="$(printf '%s' "$output" | parse_json_logs)"
 	final_answer="$(jq -r 'try (map(select(.message=="Final answer")) | .[0].detail) catch ""' <<<"${logs_json}")"
-	plan_outline="$(jq -r 'try (map(select(.message=="Plan outline")) | .[0].detail) catch ""' <<<"${logs_json}")"
 	execution="$(jq -r 'try (map(select(.message=="Execution summary")) | .[0].detail) catch ""' <<<"${logs_json}")"
+	plan_outline_logs="$(jq -r 'map(select(.message=="Plan outline")) | length' <<<"${logs_json}")"
 
 	[ "${final_answer}" = "stubbed response" ]
-	[ "${plan_outline}" = "1. terminal -> list" ]
 	[[ "${execution}" == *"Action terminal query=list"* ]]
 	[[ "${execution}" == *"Observation: ok"* ]]
+	[ "${plan_outline_logs}" -eq 0 ]
 }
 
 @test "react_loop returns final_answer tool output" {
 	run bash -lc '
-                VERBOSITY=1
-                source ./src/lib/planner.sh
-                execute_tool_action() { printf "%s" "${2}"; }
-                react_loop "question" $'"'"'final_answer'"'"' "final_answer|done|5" $'"'"'1. final_answer -> done'"'"'
-        '
+VERBOSITY=1
+source ./src/lib/planner.sh
+execute_tool_action() { printf "%s" "${2}"; }
+react_loop "question" $'"'"'final_answer'"'"' "final_answer|done|5" $'"'"'1. final_answer -> done'"'"'
+'
 
 	[ "$status" -eq 0 ]
 	logs_json="$(printf '%s' "$output" | parse_json_logs)"
 	final_answer="$(jq -r 'try (map(select(.message=="Final answer")) | .[0].detail) catch ""' <<<"${logs_json}")"
-	plan_outline="$(jq -r 'try (map(select(.message=="Plan outline")) | .[0].detail) catch ""' <<<"${logs_json}")"
 	execution="$(jq -r 'try (map(select(.message=="Execution summary")) | .[0].detail) catch ""' <<<"${logs_json}")"
+	plan_outline_logs="$(jq -r 'map(select(.message=="Plan outline")) | length' <<<"${logs_json}")"
 
 	[ "${final_answer}" = "done" ]
-	[ "${plan_outline}" = "1. final_answer -> done" ]
 	[[ "${execution}" == *"Step 1 action final_answer query=done"* ]]
 	[[ "${execution}" == *"Observation: done"* ]]
+	[ "${plan_outline_logs}" -eq 0 ]
+}
+
+@test "direct response logging follows execution order" {
+	run bash -lc '
+VERBOSITY=1
+source ./src/lib/planner.sh
+source ./src/lib/runtime.sh
+
+respond_text() { printf "%s" "direct reply"; }
+
+settings_prefix=settings
+settings_clear_namespace "${settings_prefix}"
+settings_set "${settings_prefix}" "plan_only" "false"
+settings_set "${settings_prefix}" "dry_run" "false"
+settings_set "${settings_prefix}" "user_query" "demo request"
+
+required_tools=""
+plan_entries=""
+plan_outline=$'"'"'1. final_answer -> reply'"'"'
+
+render_plan_outputs action "${settings_prefix}" "${required_tools}" "${plan_entries}" "${plan_outline}"
+select_response_strategy "${settings_prefix}" "${required_tools}" "${plan_entries}" "${plan_outline}"
+'
+
+	[ "$status" -eq 0 ]
+	logs_json="$(printf '%s' "$output" | parse_json_logs)"
+	messages="$(printf '%s' "${logs_json}" | jq -r '.[].message')"
+	readarray -t message_lines <<<"${messages}"
+	expected=(
+		"Suggested tools"
+		"Plan outline"
+		"No tools selected; responding directly"
+		"Planner emitted no tools; using direct response"
+		"Final answer"
+		"Execution summary"
+	)
+	[ "${#message_lines[@]}" -eq "${#expected[@]}" ]
+	for idx in "${!expected[@]}"; do
+		[ "${message_lines[${idx}]}" = "${expected[${idx}]}" ]
+	done
+}
+
+@test "react logging orders plan, actions, and summary" {
+	run bash -lc '
+VERBOSITY=1
+USE_REACT_LLAMA=false
+LLAMA_AVAILABLE=false
+source ./src/lib/planner.sh
+source ./src/lib/runtime.sh
+
+execute_tool_action() { printf "%s observation" "${2}"; }
+
+settings_prefix=settings
+settings_clear_namespace "${settings_prefix}"
+settings_set "${settings_prefix}" "plan_only" "false"
+settings_set "${settings_prefix}" "dry_run" "false"
+settings_set "${settings_prefix}" "user_query" "demo"
+
+required_tools=$'"'"'final_answer'"'"'
+plan_entries=$'"'"'final_answer|answer|1'"'"'
+plan_outline=$'"'"'1. final_answer -> answer'"'"'
+
+render_plan_outputs action "${settings_prefix}" "${required_tools}" "${plan_entries}" "${plan_outline}"
+react_loop "demo" "${required_tools}" "${plan_entries}" "${plan_outline}"
+'
+
+	[ "$status" -eq 0 ]
+	logs_json="$(printf '%s' "$output" | parse_json_logs)"
+	messages="$(printf '%s' "${logs_json}" | jq -r '.[].message')"
+	readarray -t message_lines <<<"${messages}"
+	expected=(
+		"Suggested tools"
+		"Plan outline"
+		"Recorded tool execution"
+		"Final answer"
+		"Execution summary"
+	)
+	[ "${#message_lines[@]}" -eq "${#expected[@]}" ]
+	for idx in "${!expected[@]}"; do
+		[ "${message_lines[${idx}]}" = "${expected[${idx}]}" ]
+	done
 }

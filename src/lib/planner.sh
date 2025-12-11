@@ -500,10 +500,6 @@ finalize_react_result() {
 	fi
 
 	log_pretty "INFO" "Final answer" "$(state_get "${state_name}" "final_answer")"
-
-	if [[ -n "$(state_get "${state_name}" "plan_outline")" ]]; then
-		log_pretty "INFO" "Plan outline" "$(state_get "${state_name}" "plan_outline")"
-	fi
 	if [[ -z "$(state_get "${state_name}" "history")" ]]; then
 		log "INFO" "Execution summary" "No tool runs"
 	else
