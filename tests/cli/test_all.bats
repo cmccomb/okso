@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 #
-# Usage: bats tests/cli/test_all.sh
+# Usage: bats tests/cli/test_all.bats
 #
 # Environment variables:
 #   LLAMA_BIN (string): path to llama.cpp binary or stub.
