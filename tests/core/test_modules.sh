@@ -299,6 +299,28 @@ execute_tool_with_query "terminal" "noop"
 	[ "$(printf '%s' "${logs_json}" | jq -r 'try (.[0].message) catch ""')" = "Skipping execution in preview mode" ]
 }
 
+@test "execute_tool_with_query captures stdout observation without stderr noise" {
+	run bash -lc '
+tmpdir=$(mktemp -d)
+err_log="${tmpdir}/stderr.log"
+VERBOSITY=1
+source ./src/lib/planner.sh
+demo_handler() { echo "stdout payload"; echo "stderr noise" >&2; }
+init_tool_registry
+register_tool terminal "demo" "echo" "safe" demo_handler
+FORCE_CONFIRM=false
+APPROVE_ALL=true
+DRY_RUN=false
+PLAN_ONLY=false
+observation="$(execute_tool_with_query "terminal" "demo" 2>"${err_log}")"
+printf "OBS:%s\n" "${observation}"
+printf "ERR:%s\n" "$(cat "${err_log}")"
+'
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "OBS:stdout payload" ]
+	[[ "${lines[1]}" == ERR:*"stderr noise"* ]]
+}
+
 @test "show_help renders through gum when available" {
 	run bash -lc '
 tmpdir=$(mktemp -d)

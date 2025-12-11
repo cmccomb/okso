@@ -310,13 +310,13 @@ execute_tool_with_query() {
 	fi
 
 	if [[ -z "${handler}" ]]; then
-		log "ERROR" "No handler registered for tool" "${tool_name}"
+		log "ERROR" "No handler registered for tool" "${tool_name}" >&2
 		return 1
 	fi
 
 	if [[ "${tool_name}" != "final_answer" ]]; then
 		if [[ "${requires_confirmation}" == true ]]; then
-			log "INFO" "Requesting tool confirmation" "$(printf 'tool=%s query=%s' "${tool_name}" "${tool_query}")"
+			log "INFO" "Requesting tool confirmation" "$(printf 'tool=%s query=%s' "${tool_name}" "${tool_query}")" >&2
 		fi
 
 		if ! confirm_tool "${tool_name}"; then
@@ -326,14 +326,26 @@ execute_tool_with_query() {
 	fi
 
 	if [[ "${DRY_RUN}" == true || "${PLAN_ONLY}" == true ]]; then
-		log "INFO" "Skipping execution in preview mode" "${tool_name}"
+		log "INFO" "Skipping execution in preview mode" "${tool_name}" >&2
 		return 0
 	fi
 
-	output="$(TOOL_QUERY="${tool_query}" ${handler} 2>&1)"
+	local stdout_file stderr_file stderr_output
+	stdout_file="$(mktemp)"
+	stderr_file="$(mktemp)"
+
+	TOOL_QUERY="${tool_query}" ${handler} >"${stdout_file}" 2>"${stderr_file}"
 	status=$?
+	output="$(cat "${stdout_file}")"
+	stderr_output="$(cat "${stderr_file}")"
+
+	rm -f "${stdout_file}" "${stderr_file}"
+
+	if [[ -n "${stderr_output}" ]]; then
+		log "INFO" "Tool emitted stderr" "$(printf 'tool=%s stderr=%s' "${tool_name}" "${stderr_output}")" >&2
+	fi
 	if ((status != 0)); then
-		log "WARN" "Tool reported non-zero exit" "${tool_name}"
+		log "WARN" "Tool reported non-zero exit" "${tool_name}" >&2
 	fi
 	printf '%s\n' "${output}"
 	return 0
