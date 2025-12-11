@@ -47,7 +47,10 @@ tool_mail_draft() {
 		return 1
 	fi
 
-	mapfile -t recipients < <(mail_build_recipient_args "${recipients_line}")
+        local -a recipients
+        while IFS= read -r recipient; do
+                recipients+=("${recipient}")
+        done < <(mail_build_recipient_args "${recipients_line}")
 
 	log "INFO" "Creating Apple Mail draft" "${subject}" || true
 	mail_run_script "${subject}" "${body}" "${recipients[@]}" <<'APPLESCRIPT'

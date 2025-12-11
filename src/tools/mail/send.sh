@@ -40,7 +40,10 @@ tool_mail_send() {
 		return 1
 	fi
 
-	mapfile -t recipients < <(mail_split_recipients "${recipients_line}")
+        local -a recipients
+        while IFS= read -r recipient; do
+                recipients+=("${recipient}")
+        done < <(mail_split_recipients "${recipients_line}")
 	if ((${#recipients[@]} == 0)); then
 		log "ERROR" "At least one recipient is required to send" "${TOOL_QUERY:-}" || true
 		return 1
