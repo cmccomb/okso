@@ -51,6 +51,10 @@ Set `TESTING_PASSTHROUGH=true` to disable llama.cpp calls during tests or offlin
 
 Set `LLAMA_TIMEOUT_SECONDS` to enforce a maximum runtime for llama.cpp invocations. When the limit is hit the subprocess is interrupted, the failure is logged with elapsed time metrics, and the calling step returns a non-zero status so plans can fall back or abort cleanly.
 
+### Output sanitization
+
+Responses coming back from `llama.cpp` are normalized before they reach logs or user-facing answers. Trailing whitespace is removed, tabs and Windows-style newlines are normalized, and stop markers such as `[end of text]` are stripped to keep planner JSON payloads and direct answers tidy.
+
 ### Logging-first output
 
 Runtime output is emitted as structured JSON logs from [`src/lib/logging.sh`](src/lib/logging.sh). Planning summaries, dry-run previews, and final answers all use the log channel, with INFO-level entries detailing suggested tools and execution flow and ERROR entries marking fallbacks or unexpected gaps. The final answer is pretty-printed for readability so operators can scan it without additional tooling while still benefiting from structured log parsing.

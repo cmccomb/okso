@@ -26,6 +26,20 @@ LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=./logging.sh disable=SC1091
 source "${LIB_DIR}/logging.sh"
 
+sanitize_llama_output() {
+	# Normalizes llama.cpp output before downstream usage.
+	# Arguments:
+	#   $1 - raw llama output (string)
+	local raw sanitized
+	raw="$1"
+	sanitized="${raw//$'\r\n'/$'\n'}"
+	sanitized="${sanitized//$'\r'/$'\n'}"
+	sanitized="${sanitized//$'\t'/ }"
+	sanitized="${sanitized//\[end of text\]/}"
+	sanitized="$(printf '%s' "${sanitized}" | sed -e 's/[[:space:]]\+$//')"
+	printf '%s' "${sanitized}"
+}
+
 llama_with_timeout() {
 	# Executes llama.cpp with an optional timeout.
 	# Arguments:
@@ -127,6 +141,7 @@ llama_infer() {
 		return "${exit_code}"
 	fi
 
+	llama_output="$(sanitize_llama_output "${llama_output}")"
 	printf '%s' "${llama_output}"
 	rm -f "${stderr_file}"
 }

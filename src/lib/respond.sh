@@ -53,7 +53,9 @@ respond_text() {
 
 	prompt="$(build_concise_response_prompt "${user_query}")"
 	log "INFO" "Invoking llama inference" "$(printf 'tokens=%s grammar=%s' "${number_of_tokens}" "${concise_grammar_path}")" >&2
-	llama_infer "${prompt}" "" "${number_of_tokens}" "${concise_grammar_path}"
+	local response_text
+	response_text="$(llama_infer "${prompt}" "" "${number_of_tokens}" "${concise_grammar_path}")"
+	printf '%s' "${response_text}"
 	log "INFO" "Direct response generation finished" "${user_query}" >&2
 	return 0
 }
