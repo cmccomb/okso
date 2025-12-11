@@ -11,6 +11,7 @@
 #   LLAMA_BIN (string): llama.cpp binary path.
 #   MODEL_REPO (string): Hugging Face repository name.
 #   MODEL_FILE (string): model file within the repository.
+#   TOOLS (array): optional array of tool names available to the planner.
 #   PLAN_ONLY, DRY_RUN (bool): control execution and preview behaviour.
 #   APPROVE_ALL, FORCE_CONFIRM (bool): confirmation toggles.
 #   VERBOSITY (int): log level.
@@ -121,15 +122,16 @@ generate_plan_outline() {
 	local -a planner_tools=()
 	user_query="$1"
 
-	if declare -p TOOLS >/dev/null 2>&1; then
-		planner_tools=("${TOOLS[@]}")
-	else
-		planner_tools=()
-		while IFS= read -r tool_name; do
-			[[ -z "${tool_name}" ]] && continue
-			planner_tools+=("${tool_name}")
-		done < <(tool_names)
-	fi
+        local tools_decl
+        if tools_decl=$(declare -p TOOLS 2>/dev/null) && grep -q 'declare -a' <<<"${tools_decl}"; then
+                planner_tools=("${TOOLS[@]}")
+        else
+                planner_tools=()
+                while IFS= read -r tool_name; do
+                        [[ -z "${tool_name}" ]] && continue
+                        planner_tools+=("${tool_name}")
+                done < <(tool_names)
+        fi
 
 	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
 		log "WARN" "Using static plan outline because llama is unavailable" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}" >&2
