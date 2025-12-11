@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Utilities for extracting structured JSON logs from mixed stdout/stderr streams.
 #
 # Usage:
