@@ -26,7 +26,7 @@
 }
 
 @test "llama_infer forwards JSON grammar content and stop arguments" {
-        run bash -lc '
+	run bash -lc '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 args_dir="$(mktemp -d)"
                 args_file="${args_dir}/args.txt"
@@ -50,7 +50,7 @@ SCRIPT
                 [[ "${args[*]}" == *"-r"* ]]
                 [[ "${args[*]}" == *"STOP"* ]]
         '
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "llama_infer uses grammar file flag for non-JSON grammars" {
@@ -126,15 +126,15 @@ SCRIPT
                 llama_infer "prompt" "" 4
         '
 	[ "$status" -eq 124 ]
-        message=$(printf '%s\n' "${output}" | jq -r '.message')
-        [[ "${message}" == "llama inference timed out" ]]
-        detail=$(printf '%s\n' "${output}" | jq -r '.detail')
-        [[ "${detail}" == *"timeout_seconds=1"* ]]
-        [[ "${detail}" == *"elapsed_ms="* ]]
+	message=$(printf '%s\n' "${output}" | jq -r '.message')
+	[[ "${message}" == "llama inference timed out" ]]
+	detail=$(printf '%s\n' "${output}" | jq -r '.detail')
+	[[ "${detail}" == *"timeout_seconds=1"* ]]
+	[[ "${detail}" == *"elapsed_ms="* ]]
 }
 
 @test "llama_infer fails when JSON schema cannot be read" {
-        run bash -lc '
+	run bash -lc '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 args_dir="$(mktemp -d)"
                 missing_schema="${args_dir}/missing.json"
@@ -152,9 +152,9 @@ SCRIPT
                 source ./src/lib/llama_client.sh
                 llama_infer "prompt" "" 8 "${missing_schema}"
         '
-        [ "$status" -eq 1 ]
-        message=$(printf '%s\n' "${output}" | jq -r '.message')
-        [[ "${message}" == "failed to read JSON schema" ]]
-        detail=$(printf '%s\n' "${output}" | jq -r '.detail')
-        [[ "${detail}" == *"${missing_schema}"* ]]
+	[ "$status" -eq 1 ]
+	message=$(printf '%s\n' "${output}" | jq -r '.message')
+	[[ "${message}" == "failed to read JSON schema" ]]
+	detail=$(printf '%s\n' "${output}" | jq -r '.detail')
+	[[ "${detail}" == *"${missing_schema}"* ]]
 }

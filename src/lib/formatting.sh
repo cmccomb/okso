@@ -67,16 +67,16 @@ render_box() {
 		width_limit=20
 	fi
 
-        lines=()
-        while IFS= read -r line || [ -n "${line}" ]; do
-                lines+=("${line}")
-        done <<EOF
+	lines=()
+	while IFS= read -r line || [ -n "${line}" ]; do
+		lines+=("${line}")
+	done <<EOF
 $(printf '%s\n' "${content}" | fold -s -w "${width_limit}")
 EOF
 
-        if ((${#lines[@]} == 0)); then
-                lines=("")
-        fi
+	if ((${#lines[@]} == 0)); then
+		lines=("")
+	fi
 
 	max_line_length=0
 	for line in "${lines[@]}"; do
