@@ -24,12 +24,40 @@
 #   LLAMA_BIN       llama.cpp binary (default: llama-cli).
 #
 # Dependencies:
-#   - bash 5+
+#   - bash 3.2+ (matches the macOS system baseline)
 #   - Optional: llama.cpp binary available on PATH for real scoring.
 #   - Optional: fd, rg for faster search tooling.
 #
 # Exit codes:
 #   0 on success, non-zero on argument or runtime errors.
+
+MIN_BASH_MAJOR=3
+MIN_BASH_MINOR=2
+MIN_BASH_VERSION_STRING="${MIN_BASH_MAJOR}.${MIN_BASH_MINOR}"
+
+if [[ -n "${OKSO_BASH_VERSION_OVERRIDE:-}" ]]; then
+        if [[ "${OKSO_BASH_VERSION_OVERRIDE}" =~ ^([0-9]+)\.([0-9]+) ]]; then
+                current_bash_major="${BASH_REMATCH[1]}"
+                current_bash_minor="${BASH_REMATCH[2]}"
+        else
+                printf 'okso requires a parsable bash version override (expected MAJOR.MINOR); received "%s".\n' "${OKSO_BASH_VERSION_OVERRIDE}" >&2
+                exit 1
+        fi
+else
+        if [[ -z "${BASH_VERSINFO[0]:-}" || -z "${BASH_VERSINFO[1]:-}" ]]; then
+                printf 'okso requires bash %s or newer (documented baseline for macOS); unable to detect the current shell version.\n' "${MIN_BASH_VERSION_STRING}" >&2
+                exit 1
+        fi
+
+        current_bash_major="${BASH_VERSINFO[0]}"
+        current_bash_minor="${BASH_VERSINFO[1]}"
+fi
+
+if (( current_bash_major < MIN_BASH_MAJOR || (current_bash_major == MIN_BASH_MAJOR && current_bash_minor < MIN_BASH_MINOR) )); then
+        printf 'okso requires bash %s or newer (documented baseline for macOS system shells); detected %s.%s. Please upgrade bash or run with the supported version.\n' "${MIN_BASH_VERSION_STRING}" "${current_bash_major}" "${current_bash_minor}" >&2
+        exit 1
+fi
+
 set -euo pipefail
 
 resolve_script_dir() {

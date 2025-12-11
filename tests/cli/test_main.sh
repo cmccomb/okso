@@ -17,11 +17,27 @@ EOF
 }
 load ../helpers/log_parsing.sh
 
+@test "allows macOS baseline bash version" {
+        run env OKSO_BASH_VERSION_OVERRIDE=3.2 ./src/bin/okso --help -- "example query"
+
+        [ "$status" -eq 0 ]
+        [[ "$output" == *"Usage: ./src/bin/okso"* ]]
+        [[ "$output" != *"requires bash"* ]]
+}
+
+@test "fails fast with descriptive message on too-old bash" {
+        run env OKSO_BASH_VERSION_OVERRIDE=3.1 ./src/bin/okso --help -- "example query"
+
+        [ "$status" -ne 0 ]
+        [[ "$output" == *"bash 3.2"* ]]
+        [[ "$output" == *"detected 3.1"* ]]
+}
+
 @test "shows help text" {
-	run ./src/bin/okso --help -- "example query"
-	[ "$status" -eq 0 ]
-	[[ "$output" == *"Usage: ./src/bin/okso"* ]]
-	[[ "$output" != *"DO_MODEL"* ]]
+        run ./src/bin/okso --help -- "example query"
+        [ "$status" -eq 0 ]
+        [[ "$output" == *"Usage: ./src/bin/okso"* ]]
+        [[ "$output" != *"DO_MODEL"* ]]
 }
 
 @test "includes default model spec in help" {
