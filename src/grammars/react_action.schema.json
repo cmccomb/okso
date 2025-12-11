@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": ["type", "tool", "query"],
   "properties": {
-    "action_type": {
+    "type": {
       "type": "string",
       "enum": ["tool"]
     },
