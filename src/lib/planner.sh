@@ -115,21 +115,32 @@ plan_json_to_outline() {
 }
 
 generate_plan_outline() {
-	# Arguments:
-	#   $1 - user query (string)
-	local user_query
-	user_query="$1"
+        # Arguments:
+        #   $1 - user query (string)
+        local user_query
+        local -a planner_tools=()
+        user_query="$1"
 
-	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
-		log "WARN" "Using static plan outline because llama is unavailable" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}" >&2
-		printf '1. Use final_answer to respond directly to the user request.'
-		return 0
-	fi
+        if declare -p TOOLS >/dev/null 2>&1; then
+                planner_tools=("${TOOLS[@]}")
+        else
+                mapfile -t planner_tools < <(tool_names)
+        fi
 
-	local prompt raw_plan planner_grammar_path plan_outline_json
-	local tool_lines
-	tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${TOOLS[@]}")" format_tool_summary_line)"
-	planner_grammar_path="$(grammar_path planner_plan)"
+        if [[ "${LLAMA_AVAILABLE}" != true ]]; then
+                log "WARN" "Using static plan outline because llama is unavailable" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}" >&2
+                printf '1. Use final_answer to respond directly to the user request.'
+                return 0
+        fi
+
+        local prompt raw_plan planner_grammar_path plan_outline_json
+        local tool_lines
+        if ((${#planner_tools[@]} > 0)); then
+                tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_summary_line)"
+        else
+                tool_lines=""
+        fi
+        planner_grammar_path="$(grammar_path planner_plan)"
 
 	prompt="$(build_planner_prompt "${user_query}" "${tool_lines}")"
 	raw_plan="$(llama_infer "${prompt}" '' 512 "${planner_grammar_path}")" || raw_plan="[]"

@@ -31,10 +31,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 prompt_lower=$(to_lowercase "${prompt}")
-user_request=${prompt#*User request: }
-if [[ "${user_request}" == "${prompt}" ]]; then
-	user_request=${prompt#*USER REQUEST: }
-fi
+user_request=$(printf '%s' "${prompt}" | awk 'tolower($0) ~ /^user request:/ {getline; print; exit}')
 user_request_lower=$(to_lowercase "${user_request}")
 
 if [[ "${prompt_lower}" == *"concise response"* ]]; then
