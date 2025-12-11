@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+arg1="${1-}"
+args="$*"
+
 # Simulate curl for installer metadata and connectivity checks.
-if [[ "$*" == *"brew.sh"* ]]; then
-	exit 0
-fi
+[[ "$args" == *"brew.sh"* ]] && exit 0
 
-if [[ "$1" == "-sI" ]]; then
+case "$arg1" in
+-sI)
 	printf 'HTTP/1.1 200 OK\nContent-Length: 15\n'
-	exit 0
-fi
-
-if [[ "$1" == "-fsL" ]]; then
+	;;
+-fsL)
 	printf '965e261385c7f1e8c7567e052cd56f4dc15530bf82a161140e8149338d10bbd5  model.gguf\n'
-	exit 0
-fi
+	;;
+*) ;;
+esac
 
-# Default success for other invocations.
 exit 0
