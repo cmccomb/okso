@@ -7,10 +7,17 @@
 #   scripts/install.sh [--prefix DIR] [--upgrade | --uninstall] [--dry-run] [--help]
 #
 # Environment variables:
-#   DO_LINK_DIR (string): Directory for the PATH symlink. Defaults to
+#   OKSO_LINK_DIR (string): Directory for the PATH symlink. Defaults to
 #       "/usr/local/bin".
-#   DO_INSTALLER_SKIP_SELF_TEST (bool): Set to "true" to bypass the post-install
+#   OKSO_INSTALLER_SKIP_SELF_TEST (bool): Set to "true" to bypass the post-install
 #       self-test (not recommended).
+#   OKSO_INSTALLER_ASSUME_OFFLINE (bool): Allow offline install; set a bundle base
+#       URL when using this flag.
+#   OKSO_INSTALLER_BASE_URL (string): Source bundle location when installing
+#       without a local checkout.
+#   Legacy aliases are honored for compatibility: DO_LINK_DIR,
+#       DO_INSTALLER_SKIP_SELF_TEST, DO_INSTALLER_ASSUME_OFFLINE,
+#       DO_INSTALLER_BASE_URL.
 #
 # Exit codes:
 #   0: Success
@@ -32,7 +39,7 @@ set -euo pipefail
 
 APP_NAME="okso"
 DEFAULT_PREFIX="/usr/local/${APP_NAME}"
-DEFAULT_LINK_DIR="${DO_LINK_DIR:-/usr/local/bin}"
+DEFAULT_LINK_DIR="${OKSO_LINK_DIR:-${DO_LINK_DIR:-/usr/local/bin}}"
 DEFAULT_LINK_PATH="${DEFAULT_LINK_DIR}/${APP_NAME}"
 DEFAULT_BASE_URL="https://cmccomb.github.io/okso"
 SCRIPT_SOURCE="${BASH_SOURCE[0]-${0-}}"
@@ -87,7 +94,7 @@ download_source_bundle() {
 	local destination base_url tarball_url tarball_path extracted_root
 
 	destination="$(mktemp -d)"
-	base_url="${DO_INSTALLER_BASE_URL:-${DEFAULT_BASE_URL}}"
+        base_url="${OKSO_INSTALLER_BASE_URL:-${DO_INSTALLER_BASE_URL:-${DEFAULT_BASE_URL}}}"
 	tarball_url="${base_url%/}/okso.tar.gz"
 	tarball_path="${destination}/okso.tar.gz"
 
@@ -123,10 +130,10 @@ resolve_source_root() {
 		return 0
 	fi
 
-	if [ "${DO_INSTALLER_ASSUME_OFFLINE:-false}" = "true" ] && [ -z "${DO_INSTALLER_BASE_URL:-}" ]; then
-		log "ERROR" "No source tree present and DO_INSTALLER_BASE_URL not set for offline install"
-		exit 2
-	fi
+        if [ "${OKSO_INSTALLER_ASSUME_OFFLINE:-${DO_INSTALLER_ASSUME_OFFLINE:-false}}" = "true" ] && [ -z "${OKSO_INSTALLER_BASE_URL:-${DO_INSTALLER_BASE_URL:-}}" ]; then
+                log "ERROR" "No source tree present and OKSO_INSTALLER_BASE_URL not set for offline install"
+                exit 2
+        fi
 
 	download_source_bundle
 }
@@ -410,11 +417,11 @@ main() {
 	copy_payload "${source_root}" "${INSTALL_PREFIX}"
 	link_binary "${INSTALL_PREFIX}"
 
-	if [ "${DO_INSTALLER_SKIP_SELF_TEST:-false}" != "true" ]; then
-		self_test_install "${INSTALL_PREFIX}"
-	else
-		log "WARN" "Skipping installer self-test due to DO_INSTALLER_SKIP_SELF_TEST"
-	fi
+        if [ "${OKSO_INSTALLER_SKIP_SELF_TEST:-${DO_INSTALLER_SKIP_SELF_TEST:-false}}" != "true" ]; then
+                self_test_install "${INSTALL_PREFIX}"
+        else
+                log "WARN" "Skipping installer self-test due to OKSO_INSTALLER_SKIP_SELF_TEST"
+        fi
 
 	log "INFO" "${APP_NAME} installer completed (${MODE})."
 }

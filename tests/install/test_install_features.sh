@@ -3,8 +3,9 @@
 # Usage: bats tests/install/test_install_features.bats
 #
 # Environment variables:
-#   DO_INSTALLER_SKIP_SELF_TEST (bool): skip installer self-test to speed tests.
-#   DO_LINK_DIR (string): directory for the generated CLI symlink.
+#   OKSO_INSTALLER_SKIP_SELF_TEST (bool): skip installer self-test to speed tests.
+#   OKSO_LINK_DIR (string): directory for the generated CLI symlink.
+#   Legacy DO_* aliases remain supported.
 #
 # Dependencies:
 #   - bats
@@ -19,8 +20,8 @@ setup() {
 	if [ "$(uname -s)" != "Darwin" ]; then
 		skip "Installer tests require macOS"
 	fi
-	export DO_INSTALLER_SKIP_SELF_TEST=true
-	export DO_LINK_DIR="${TEST_ROOT}/bin"
+        export OKSO_INSTALLER_SKIP_SELF_TEST=true
+        export OKSO_LINK_DIR="${TEST_ROOT}/bin"
 }
 
 teardown() {
@@ -32,7 +33,7 @@ teardown() {
 
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"Dry run enabled"* ]]
-	[ ! -L "${DO_LINK_DIR}/okso" ]
+        [ ! -L "${OKSO_LINK_DIR}/okso" ]
 }
 
 @test "fails when Homebrew is unavailable" {
@@ -49,6 +50,6 @@ teardown() {
 	run ./scripts/install.sh --prefix "${install_dir}"
 
 	[ "$status" -eq 0 ]
-	[ -L "${DO_LINK_DIR}/okso" ]
-	[ "$(readlink "${DO_LINK_DIR}/okso")" = "${install_dir}/bin/okso" ]
+        [ -L "${OKSO_LINK_DIR}/okso" ]
+        [ "$(readlink "${OKSO_LINK_DIR}/okso")" = "${install_dir}/bin/okso" ]
 }

@@ -8,13 +8,18 @@
 #
 # Environment variables:
 #   CONFIG_FILE (string): config path; default resolved in detect_config_file.
-#   MODEL_SPEC (string): HF repo[:file] spec; may be overridden by DO_MODEL.
-#   MODEL_BRANCH (string): HF branch; may be overridden by DO_MODEL_BRANCH.
+#   MODEL_SPEC (string): HF repo[:file] spec; may be overridden by OKSO_MODEL.
+#   MODEL_BRANCH (string): HF branch; may be overridden by OKSO_MODEL_BRANCH.
 #   TESTING_PASSTHROUGH (bool): forces llama calls off during tests.
 #   APPROVE_ALL (bool): skip prompts when true.
 #   FORCE_CONFIRM (bool): always prompt when true.
-#   VERBOSITY (int): logging verbosity.
+#   VERBOSITY (int): logging verbosity; may be overridden by OKSO_VERBOSITY.
 #   DEFAULT_MODEL_FILE (string): fallback file name for parsing model spec.
+#
+#   The following okso-branded variables take precedence over legacy aliases:
+#     OKSO_MODEL, OKSO_MODEL_BRANCH, OKSO_SUPERVISED, OKSO_VERBOSITY
+#   Legacy aliases retained for compatibility:
+#     DO_MODEL, DO_MODEL_BRANCH, DO_SUPERVISED, DO_VERBOSITY
 #
 # Dependencies:
 #   - bash 5+
@@ -73,27 +78,44 @@ load_config() {
 	APPROVE_ALL=${APPROVE_ALL:-false}
 	FORCE_CONFIRM=${FORCE_CONFIRM:-false}
 
-	if [[ -n "${DO_MODEL:-}" ]]; then
-		MODEL_SPEC="${DO_MODEL}"
-	fi
-	if [[ -n "${DO_MODEL_BRANCH:-}" ]]; then
-		MODEL_BRANCH="${DO_MODEL_BRANCH}"
-	fi
-	if [[ -n "${DO_SUPERVISED:-}" ]]; then
-		# DO_SUPERVISED mirrors the hosted behavior where "false" should allow
-		# automated tool execution without a prompt.
-		case "${DO_SUPERVISED}" in
-		false | False | FALSE | 0)
-			APPROVE_ALL=true
-			;;
-		*)
-			APPROVE_ALL=false
-			;;
-		esac
-	fi
-	if [[ -n "${DO_VERBOSITY:-}" ]]; then
-		VERBOSITY="${DO_VERBOSITY}"
-	fi
+        if [[ -n "${OKSO_MODEL:-}" ]]; then
+                MODEL_SPEC="${OKSO_MODEL}"
+        elif [[ -n "${DO_MODEL:-}" ]]; then
+                MODEL_SPEC="${DO_MODEL}"
+        fi
+        if [[ -n "${OKSO_MODEL_BRANCH:-}" ]]; then
+                MODEL_BRANCH="${OKSO_MODEL_BRANCH}"
+        elif [[ -n "${DO_MODEL_BRANCH:-}" ]]; then
+                MODEL_BRANCH="${DO_MODEL_BRANCH}"
+        fi
+        if [[ -n "${OKSO_SUPERVISED:-}" ]]; then
+                # OKSO_SUPERVISED mirrors the hosted behavior where "false" should allow
+                # automated tool execution without a prompt.
+                case "${OKSO_SUPERVISED}" in
+                false | False | FALSE | 0)
+                        APPROVE_ALL=true
+                        ;;
+                *)
+                        APPROVE_ALL=false
+                        ;;
+                esac
+        elif [[ -n "${DO_SUPERVISED:-}" ]]; then
+                # DO_SUPERVISED mirrors the hosted behavior where "false" should allow
+                # automated tool execution without a prompt.
+                case "${DO_SUPERVISED}" in
+                false | False | FALSE | 0)
+                        APPROVE_ALL=true
+                        ;;
+                *)
+                        APPROVE_ALL=false
+                        ;;
+                esac
+        fi
+        if [[ -n "${OKSO_VERBOSITY:-}" ]]; then
+                VERBOSITY="${OKSO_VERBOSITY}"
+        elif [[ -n "${DO_VERBOSITY:-}" ]]; then
+                VERBOSITY="${DO_VERBOSITY}"
+        fi
 }
 
 write_config_file() {

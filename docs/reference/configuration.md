@@ -16,4 +16,4 @@ The config file is a simple `key="value"` env-style document. Supported keys:
 - `FORCE_CONFIRM`: `true` to always prompt, even when `--yes` is set in the config.
 - `VERBOSITY`: `0` (quiet), `1` (info), `2` (debug).
 
-Legacy environment variables such as `DO_MODEL` and `DO_MODEL_BRANCH` are still honored when set for backward compatibility, but the CLI and config file are the primary configuration surfaces.
+Environment variables prefixed with `OKSO_` mirror the config keys and take precedence when set, including `OKSO_MODEL`, `OKSO_MODEL_BRANCH`, `OKSO_SUPERVISED`, and `OKSO_VERBOSITY`. Legacy `DO_*` aliases remain supported for backward compatibility but are deprecated in favor of the okso-prefixed names.
