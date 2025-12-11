@@ -22,4 +22,4 @@ Clipboard, Notes, Reminders, Calendar, and Mail helpers rely on `osascript` and 
 
 ## Ranking
 
-When `LLAMA_BIN` is available, the planner asks `llama.cpp` to score tools with names, descriptions, and commands in a single prompt. Without `LLAMA_BIN`, a deterministic keyword heuristic ranks the tools. The resulting ordering drives suggestions and execution.
+When `LLAMA_BIN` is available, the planner asks `llama.cpp` to score tools with names, descriptions, commands, and key safety notes in a single prompt. Without `LLAMA_BIN`, a deterministic keyword heuristic ranks the tools. The resulting ordering drives suggestions and execution.
