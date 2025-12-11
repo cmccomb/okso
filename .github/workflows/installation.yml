@@ -11,14 +11,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Setup Bats and bats libs
-        uses: bats-core/bats-action@3.0.0
         
       - name: Install dependencies
         run: |
           brew update
-          brew install shellcheck shfmt
+          brew install shellcheck shfmt bats-core
 
       - name: Lint installer
         run: |
