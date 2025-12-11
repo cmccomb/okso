@@ -57,27 +57,31 @@ llama_infer() {
 	#   $2 - stop string (optional)
 	#   $3 - max tokens (optional)
 	#   $4 - grammar file path (optional)
-	local prompt stop_string number_of_tokens grammar_file_path
-	prompt="$1"
-	stop_string="${2:-}"
-	number_of_tokens="${3:-256}"
-	grammar_file_path="${4:-}"
+        local prompt stop_string number_of_tokens grammar_file_path schema_content
+        prompt="$1"
+        stop_string="${2:-}"
+        number_of_tokens="${3:-256}"
+        grammar_file_path="${4:-}"
 
 	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
 		log "WARN" "llama unavailable; skipping inference" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}"
 		return 1
 	fi
 
-	local additional_args
-	additional_args=()
+        local additional_args
+        additional_args=()
 
-	if [[ -n "${grammar_file_path}" ]]; then
-		if [[ "${grammar_file_path}" == *.json ]]; then
-			additional_args+=(--json-schema-file "${grammar_file_path}")
-		else
-			additional_args+=(--grammar-file "${grammar_file_path}")
-		fi
-	fi
+        if [[ -n "${grammar_file_path}" ]]; then
+                if [[ "${grammar_file_path}" == *.json ]]; then
+                        if ! schema_content=$(cat -- "${grammar_file_path}" 2>/dev/null); then
+                                log "ERROR" "failed to read JSON schema" "path=${grammar_file_path}"
+                                return 1
+                        fi
+                        additional_args+=(--json-schema "${schema_content}")
+                else
+                        additional_args+=(--grammar-file "${grammar_file_path}")
+                fi
+        fi
 
 	local llama_args llama_arg_string stderr_file exit_code llama_stderr start_time_ns end_time_ns elapsed_ms llama_output
 	llama_args=(

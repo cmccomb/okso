@@ -25,12 +25,14 @@
 	[ "$status" -eq 1 ]
 }
 
-@test "llama_infer forwards grammar and stop arguments" {
-	run bash -lc '
+@test "llama_infer forwards JSON grammar content and stop arguments" {
+        run bash -lc '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 args_dir="$(mktemp -d)"
                 args_file="${args_dir}/args.txt"
                 mock_binary="${args_dir}/mock_llama.sh"
+                json_schema="${args_dir}/schema.json"
+                printf "{\"title\":\"sentinel-schema\"}" >"${json_schema}"
                 cat >"${mock_binary}" <<SCRIPT
 #!/usr/bin/env bash
 printf "%s\n" "\$@" >"${args_file}"
@@ -41,14 +43,14 @@ SCRIPT
                 export MODEL_REPO=demo/repo
                 export MODEL_FILE=model.gguf
                 source ./src/lib/llama_client.sh
-                llama_infer "example prompt" "STOP" 12 "${args_dir}/schema.json"
+                llama_infer "example prompt" "STOP" 12 "${json_schema}"
                 mapfile -t args <"${args_file}"
-                [[ "${args[*]}" == *"--json-schema-file"* ]]
-                [[ "${args[*]}" == *"${args_dir}/schema.json"* ]]
+                [[ "${args[*]}" == *"--json-schema"* ]]
+                [[ "${args[*]}" == *"sentinel-schema"* ]]
                 [[ "${args[*]}" == *"-r"* ]]
                 [[ "${args[*]}" == *"STOP"* ]]
         '
-	[ "$status" -eq 0 ]
+        [ "$status" -eq 0 ]
 }
 
 @test "llama_infer uses grammar file flag for non-JSON grammars" {
@@ -124,9 +126,35 @@ SCRIPT
                 llama_infer "prompt" "" 4
         '
 	[ "$status" -eq 124 ]
-	message=$(printf '%s\n' "${output}" | jq -r '.message')
-	[[ "${message}" == "llama inference timed out" ]]
-	detail=$(printf '%s\n' "${output}" | jq -r '.detail')
-	[[ "${detail}" == *"timeout_seconds=1"* ]]
-	[[ "${detail}" == *"elapsed_ms="* ]]
+        message=$(printf '%s\n' "${output}" | jq -r '.message')
+        [[ "${message}" == "llama inference timed out" ]]
+        detail=$(printf '%s\n' "${output}" | jq -r '.detail')
+        [[ "${detail}" == *"timeout_seconds=1"* ]]
+        [[ "${detail}" == *"elapsed_ms="* ]]
+}
+
+@test "llama_infer fails when JSON schema cannot be read" {
+        run bash -lc '
+                cd "$(git rev-parse --show-toplevel)" || exit 1
+                args_dir="$(mktemp -d)"
+                missing_schema="${args_dir}/missing.json"
+                mock_binary="${args_dir}/mock_llama.sh"
+                cat >"${mock_binary}" <<SCRIPT
+#!/usr/bin/env bash
+printf "%s\n" "should not run" >&2
+exit 99
+SCRIPT
+                chmod +x "${mock_binary}"
+                export LLAMA_AVAILABLE=true
+                export LLAMA_BIN="${mock_binary}"
+                export MODEL_REPO=demo/repo
+                export MODEL_FILE=model.gguf
+                source ./src/lib/llama_client.sh
+                llama_infer "prompt" "" 8 "${missing_schema}"
+        '
+        [ "$status" -eq 1 ]
+        message=$(printf '%s\n' "${output}" | jq -r '.message')
+        [[ "${message}" == "failed to read JSON schema" ]]
+        detail=$(printf '%s\n' "${output}" | jq -r '.detail')
+        [[ "${detail}" == *"${missing_schema}"* ]]
 }
