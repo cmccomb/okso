@@ -34,10 +34,10 @@ jobs:
       - name: Run Bats suite with coverage
         run: |
           bats \
-            tests/cli/test_main.bats \
+            tests/cli/test_main.sh \
             tests/cli/test_all.sh \
-            tests/cli/test_install.bats \
-            tests/install/test_install_features.bats
+            tests/cli/test_install.sh \
+            tests/install/test_install_features.sh
           ./scripts/coverage.sh
 
       - name: Upload coverage artifacts

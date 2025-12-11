@@ -7,7 +7,7 @@ Run the formatting and lint targets before executing the Bats suite:
 ```bash
 find src scripts tests -type f \( -name '*.sh' -o -name '*.bats' -o -name 'okso' \) -print0 | xargs -0 shfmt -w
 find src scripts tests -type f \( -name '*.sh' -o -name '*.bats' -o -name 'okso' \) -print0 | xargs -0 shellcheck
-bats tests/cli/test_all.sh tests/cli/test_install.sh tests/cli/test_main.sh tests/core/test_modules.bats tests/tools/test_notes.sh
+bats tests/cli/test_all.sh tests/cli/test_install.sh tests/cli/test_main.sh tests/core/test_modules.sh tests/tools/test_notes.sh
 ```
 
 The Bats suite covers CLI help/version output, confirmation prompts, deterministic mock scoring via `tests/fixtures/mock_llama.sh`, and graceful handling when `LLAMA_BIN` is missing.
