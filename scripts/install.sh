@@ -94,7 +94,7 @@ download_source_bundle() {
 	local destination base_url tarball_url tarball_path extracted_root
 
 	destination="$(mktemp -d)"
-        base_url="${OKSO_INSTALLER_BASE_URL:-${DO_INSTALLER_BASE_URL:-${DEFAULT_BASE_URL}}}"
+	base_url="${OKSO_INSTALLER_BASE_URL:-${DO_INSTALLER_BASE_URL:-${DEFAULT_BASE_URL}}}"
 	tarball_url="${base_url%/}/okso.tar.gz"
 	tarball_path="${destination}/okso.tar.gz"
 
@@ -130,10 +130,10 @@ resolve_source_root() {
 		return 0
 	fi
 
-        if [ "${OKSO_INSTALLER_ASSUME_OFFLINE:-${DO_INSTALLER_ASSUME_OFFLINE:-false}}" = "true" ] && [ -z "${OKSO_INSTALLER_BASE_URL:-${DO_INSTALLER_BASE_URL:-}}" ]; then
-                log "ERROR" "No source tree present and OKSO_INSTALLER_BASE_URL not set for offline install"
-                exit 2
-        fi
+	if [ "${OKSO_INSTALLER_ASSUME_OFFLINE:-${DO_INSTALLER_ASSUME_OFFLINE:-false}}" = "true" ] && [ -z "${OKSO_INSTALLER_BASE_URL:-${DO_INSTALLER_BASE_URL:-}}" ]; then
+		log "ERROR" "No source tree present and OKSO_INSTALLER_BASE_URL not set for offline install"
+		exit 2
+	fi
 
 	download_source_bundle
 }
@@ -417,11 +417,11 @@ main() {
 	copy_payload "${source_root}" "${INSTALL_PREFIX}"
 	link_binary "${INSTALL_PREFIX}"
 
-        if [ "${OKSO_INSTALLER_SKIP_SELF_TEST:-${DO_INSTALLER_SKIP_SELF_TEST:-false}}" != "true" ]; then
-                self_test_install "${INSTALL_PREFIX}"
-        else
-                log "WARN" "Skipping installer self-test due to OKSO_INSTALLER_SKIP_SELF_TEST"
-        fi
+	if [ "${OKSO_INSTALLER_SKIP_SELF_TEST:-${DO_INSTALLER_SKIP_SELF_TEST:-false}}" != "true" ]; then
+		self_test_install "${INSTALL_PREFIX}"
+	else
+		log "WARN" "Skipping installer self-test due to OKSO_INSTALLER_SKIP_SELF_TEST"
+	fi
 
 	log "INFO" "${APP_NAME} installer completed (${MODE})."
 }

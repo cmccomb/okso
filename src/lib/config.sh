@@ -78,44 +78,44 @@ load_config() {
 	APPROVE_ALL=${APPROVE_ALL:-false}
 	FORCE_CONFIRM=${FORCE_CONFIRM:-false}
 
-        if [[ -n "${OKSO_MODEL:-}" ]]; then
-                MODEL_SPEC="${OKSO_MODEL}"
-        elif [[ -n "${DO_MODEL:-}" ]]; then
-                MODEL_SPEC="${DO_MODEL}"
-        fi
-        if [[ -n "${OKSO_MODEL_BRANCH:-}" ]]; then
-                MODEL_BRANCH="${OKSO_MODEL_BRANCH}"
-        elif [[ -n "${DO_MODEL_BRANCH:-}" ]]; then
-                MODEL_BRANCH="${DO_MODEL_BRANCH}"
-        fi
-        if [[ -n "${OKSO_SUPERVISED:-}" ]]; then
-                # OKSO_SUPERVISED mirrors the hosted behavior where "false" should allow
-                # automated tool execution without a prompt.
-                case "${OKSO_SUPERVISED}" in
-                false | False | FALSE | 0)
-                        APPROVE_ALL=true
-                        ;;
-                *)
-                        APPROVE_ALL=false
-                        ;;
-                esac
-        elif [[ -n "${DO_SUPERVISED:-}" ]]; then
-                # DO_SUPERVISED mirrors the hosted behavior where "false" should allow
-                # automated tool execution without a prompt.
-                case "${DO_SUPERVISED}" in
-                false | False | FALSE | 0)
-                        APPROVE_ALL=true
-                        ;;
-                *)
-                        APPROVE_ALL=false
-                        ;;
-                esac
-        fi
-        if [[ -n "${OKSO_VERBOSITY:-}" ]]; then
-                VERBOSITY="${OKSO_VERBOSITY}"
-        elif [[ -n "${DO_VERBOSITY:-}" ]]; then
-                VERBOSITY="${DO_VERBOSITY}"
-        fi
+	if [[ -n "${OKSO_MODEL:-}" ]]; then
+		MODEL_SPEC="${OKSO_MODEL}"
+	elif [[ -n "${DO_MODEL:-}" ]]; then
+		MODEL_SPEC="${DO_MODEL}"
+	fi
+	if [[ -n "${OKSO_MODEL_BRANCH:-}" ]]; then
+		MODEL_BRANCH="${OKSO_MODEL_BRANCH}"
+	elif [[ -n "${DO_MODEL_BRANCH:-}" ]]; then
+		MODEL_BRANCH="${DO_MODEL_BRANCH}"
+	fi
+	if [[ -n "${OKSO_SUPERVISED:-}" ]]; then
+		# OKSO_SUPERVISED mirrors the hosted behavior where "false" should allow
+		# automated tool execution without a prompt.
+		case "${OKSO_SUPERVISED}" in
+		false | False | FALSE | 0)
+			APPROVE_ALL=true
+			;;
+		*)
+			APPROVE_ALL=false
+			;;
+		esac
+	elif [[ -n "${DO_SUPERVISED:-}" ]]; then
+		# DO_SUPERVISED mirrors the hosted behavior where "false" should allow
+		# automated tool execution without a prompt.
+		case "${DO_SUPERVISED}" in
+		false | False | FALSE | 0)
+			APPROVE_ALL=true
+			;;
+		*)
+			APPROVE_ALL=false
+			;;
+		esac
+	fi
+	if [[ -n "${OKSO_VERBOSITY:-}" ]]; then
+		VERBOSITY="${OKSO_VERBOSITY}"
+	elif [[ -n "${DO_VERBOSITY:-}" ]]; then
+		VERBOSITY="${DO_VERBOSITY}"
+	fi
 }
 
 write_config_file() {

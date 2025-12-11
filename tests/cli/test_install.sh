@@ -21,10 +21,10 @@ setup() {
 	if [ "$(uname -s)" != "Darwin" ]; then
 		skip "Installer tests require macOS"
 	fi
-        export OKSO_INSTALLER_ASSUME_OFFLINE=true
-        export OKSO_INSTALLER_SKIP_SELF_TEST=true
-        export OKSO_LINK_DIR="${TEST_ROOT}/bin"
-        mkdir -p "${OKSO_LINK_DIR}"
+	export OKSO_INSTALLER_ASSUME_OFFLINE=true
+	export OKSO_INSTALLER_SKIP_SELF_TEST=true
+	export OKSO_LINK_DIR="${TEST_ROOT}/bin"
+	mkdir -p "${OKSO_LINK_DIR}"
 }
 
 teardown() {
@@ -44,7 +44,7 @@ teardown() {
 }
 
 @test "supports stdin execution under bash" {
-        run bash -c "cat ./scripts/install.sh | OKSO_INSTALLER_ASSUME_OFFLINE=true bash -s -- --help"
+	run bash -c "cat ./scripts/install.sh | OKSO_INSTALLER_ASSUME_OFFLINE=true bash -s -- --help"
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"Usage: scripts/install.sh"* ]]
 }
@@ -68,8 +68,8 @@ EOM_UNAME
 	run ./scripts/install.sh --prefix "${TEST_ROOT}/prefix"
 	[ "$status" -eq 0 ]
 	[ -f "${TEST_ROOT}/prefix/bin/okso" ]
-        [ -L "${OKSO_LINK_DIR}/okso" ]
-        [ "$(readlink "${OKSO_LINK_DIR}/okso")" = "${TEST_ROOT}/prefix/bin/okso" ]
+	[ -L "${OKSO_LINK_DIR}/okso" ]
+	[ "$(readlink "${OKSO_LINK_DIR}/okso")" = "${TEST_ROOT}/prefix/bin/okso" ]
 	[[ "$output" == *"installer completed (install)"* ]]
 }
 
@@ -84,19 +84,19 @@ EOM_UNAME
 
 	cp scripts/install.sh "${remote_root}/scripts/install.sh"
 
-        run env OKSO_INSTALLER_BASE_URL="file://${bundle_dir}" bash "${remote_root}/scripts/install.sh" --prefix "${TEST_ROOT}/prefix"
-        [ "$status" -eq 0 ]
-        [ -f "${TEST_ROOT}/prefix/bin/okso" ]
-        [ -L "${OKSO_LINK_DIR}/okso" ]
+	run env OKSO_INSTALLER_BASE_URL="file://${bundle_dir}" bash "${remote_root}/scripts/install.sh" --prefix "${TEST_ROOT}/prefix"
+	[ "$status" -eq 0 ]
+	[ -f "${TEST_ROOT}/prefix/bin/okso" ]
+	[ -L "${OKSO_LINK_DIR}/okso" ]
 }
 
 @test "legacy DO_* environment variables remain supported" {
-        unset OKSO_LINK_DIR OKSO_INSTALLER_ASSUME_OFFLINE OKSO_INSTALLER_SKIP_SELF_TEST
-        export DO_LINK_DIR="${TEST_ROOT}/legacy-bin"
-        mkdir -p "${DO_LINK_DIR}"
-        run env DO_INSTALLER_ASSUME_OFFLINE=true DO_INSTALLER_SKIP_SELF_TEST=true ./scripts/install.sh --prefix "${TEST_ROOT}/legacy-prefix"
+	unset OKSO_LINK_DIR OKSO_INSTALLER_ASSUME_OFFLINE OKSO_INSTALLER_SKIP_SELF_TEST
+	export DO_LINK_DIR="${TEST_ROOT}/legacy-bin"
+	mkdir -p "${DO_LINK_DIR}"
+	run env DO_INSTALLER_ASSUME_OFFLINE=true DO_INSTALLER_SKIP_SELF_TEST=true ./scripts/install.sh --prefix "${TEST_ROOT}/legacy-prefix"
 
-        [ "$status" -eq 0 ]
-        [ -L "${DO_LINK_DIR}/okso" ]
-        [ "$(readlink "${DO_LINK_DIR}/okso")" = "${TEST_ROOT}/legacy-prefix/bin/okso" ]
+	[ "$status" -eq 0 ]
+	[ -L "${DO_LINK_DIR}/okso" ]
+	[ "$(readlink "${DO_LINK_DIR}/okso")" = "${TEST_ROOT}/legacy-prefix/bin/okso" ]
 }
