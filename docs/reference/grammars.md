@@ -1,15 +1,11 @@
 # Grammars
 
-The assistant enforces structured responses for plans, tool calls, and final answers. Grammar files live in `src/grammars/` and
-are passed directly to `llama.cpp` during inference to keep outputs predictable.
+Structured outputs keep planner interactions predictable. Grammar files live in `src/grammars/` and are passed directly to `llama.cpp` during inference.
 
 ## Available schemas
 
-- `planner_plan.schema.json`: describes the numbered outline that proposes tools and ends with `final_answer`.
-- `react_action.schema.json`: constrains the ReAct loop to a single tool call per turn with the tool name, arguments, and
-  optional planner context.
-- `concise_response.schema.json`: ensures the assistant can emit short, direct answers when no tools need to run.
+- `planner_plan.schema.json`: numbered outline that proposes tools and ends with `final_answer`.
+- `react_action.schema.json`: single tool call per ReAct turn with tool name, arguments, and optional planner context.
+- `concise_response.schema.json`: short direct answers when no tools should run.
 
-Each schema file documents its shape and intent inline so contributors can update fields without editing prompt text. When
-adding a new tool or output type, create an accompanying schema in `src/grammars/` and reference it from the prompt builders in
-`src/lib/prompts.sh`.
+Add new schemas alongside prompts in `src/lib/prompts.sh` when introducing new tool types or output formats.

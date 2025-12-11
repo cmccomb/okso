@@ -1,8 +1,8 @@
 # Installation
 
-This project ships with an idempotent macOS-only installer that bootstraps dependencies and installs the CLI without performing global Homebrew upgrades.
+The project ships a macOS-focused installer that bundles dependencies and places the `okso` CLI on your `PATH` without forcing a global Homebrew upgrade.
 
-## Local installer
+## Install from the repository
 
 Run the installer from the repository root to install, upgrade, or remove the CLI:
 
@@ -10,28 +10,35 @@ Run the installer from the repository root to install, upgrade, or remove the CL
 ./scripts/install.sh [--prefix /custom/path] [--upgrade | --uninstall]
 ```
 
-## Hosted installer
+- Use `--prefix` to pick the installation directory (defaults to `/usr/local/okso`).
+- Pass `--upgrade` to refresh an existing install with the latest files.
+- Pass `--uninstall` to remove the installation and symlink.
 
-CI publishes the installer and a project tarball to GitHub Pages. The hosted script re-execs itself under `bash`, so you can install directly with:
+## Install from the hosted script
+
+CI publishes the installer and project tarball to GitHub Pages. To bootstrap without cloning the repo:
 
 ```bash
 curl -fsSL https://cmccomb.github.io/okso/install.sh | bash
 ```
 
-## What the installer does
+The hosted script re-executes under `bash` and mirrors the local installer behavior.
 
-1. Verifies Homebrew is available (installing it if missing) without running `brew upgrade`.
-2. Ensures pinned CLI dependencies: `llama.cpp` binaries, `llama-tokenize`, `tesseract`, `pandoc`, `poppler` (`pdftotext`), `yq`, `bash`, `coreutils`, and `jq`.
-3. Copies the `src/` contents into `/usr/local/okso` (override with `--prefix`), and symlinks `okso` into your `PATH` (default: `/usr/local/bin`).
-4. Relies on llama.cpp's built-in Hugging Face caching; models download on demand using `--hf-repo`/`--hf-file` flags instead of manual cache paths.
-5. Offers `--upgrade` (refresh files) and `--uninstall` flows, refusing to run on non-macOS hosts.
+## What the installer configures
+
+1. Checks for Homebrew and installs it if missing (without running `brew upgrade`).
+2. Ensures pinned dependencies such as `llama.cpp`, `llama-tokenize`, `tesseract`, `pandoc`, `poppler` (`pdftotext`), `yq`, `bash`, `coreutils`, and `jq`.
+3. Copies the `src/` contents into the install prefix and symlinks `okso` into your `PATH` (default: `/usr/local/bin`).
+4. Uses llama.cpp's Hugging Face cache for models; download happens on demand through `--model`/`--model-branch` flags rather than manual cache setup.
+5. Refuses to run on non-macOS hosts so platform assumptions stay consistent.
 
 ## Manual setup
 
-For manual setups, ensure the system `bash` is available (the scripts avoid associative-array features so the macOS 3.2 build works out of the box), `llama.cpp` (the `llama-cli` binary, optional for heuristic mode), `fd`, and `rg` are on your `PATH`, then run the script directly with:
+If you prefer to manage dependencies yourself:
 
-```bash
-./src/bin/okso
-```
-
-Invoke the installed symlink directly (for example, `/usr/local/bin/okso --help`).
+1. Ensure `bash`, `jq`, `rg`, `fd`, and a `llama.cpp` binary are on your `PATH`.
+2. Clone the repository and run the CLI directly:
+   ```bash
+   ./src/bin/okso --help
+   ```
+3. Use `./src/bin/okso init` to write `${XDG_CONFIG_HOME:-~/.config}/okso/config.env` with your preferred defaults.

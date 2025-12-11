@@ -1,8 +1,8 @@
 # Development
 
-## Testing and linting
+## Formatting, linting, and tests
 
-Run the formatting and lint targets before executing the Bats suite:
+Run the format and lint steps before the Bats suite:
 
 ```bash
 find src scripts tests -type f \( -name '*.sh' -o -name '*.bats' -o -name 'okso' \) -print0 | xargs -0 shfmt -w
@@ -10,13 +10,9 @@ find src scripts tests -type f \( -name '*.sh' -o -name '*.bats' -o -name 'okso'
 bats tests/cli/test_all.sh tests/cli/test_install.sh tests/cli/test_main.sh tests/core/test_modules.sh tests/tools/test_notes.sh
 ```
 
-The Bats suite covers CLI help/version output, confirmation prompts, deterministic mock scoring via `tests/fixtures/mock_llama.sh`, and graceful handling when `LLAMA_BIN` is missing.
+The suite covers CLI help/version output, confirmation prompts, deterministic mock scoring via `tests/fixtures/mock_llama.sh`, and graceful handling when `LLAMA_BIN` is missing. Set `TESTING_PASSTHROUGH=true` to bypass llama.cpp during tests while keeping deterministic planner behavior.
 
-Sourcing runtime helpers now enforces the presence of `jq` and will exit with a structured dependency error when the binary is unavailable; ensure your development environment installs `jq` before running the scripts.
-
-Set `TESTING_PASSTHROUGH=true` when running the suite to disable llama.cpp invocation and surface test-only code paths without muting runtime errors that depend on llama availability.
-
-### Coverage collection
+### Coverage
 
 Generate HTML, JSON, and Cobertura coverage reports with bashcov:
 
@@ -24,13 +20,17 @@ Generate HTML, JSON, and Cobertura coverage reports with bashcov:
 ./scripts/coverage.sh
 ```
 
-Artifacts are written to `coverage/` (HTML + XML + JSON). Set `COVERAGE_THRESHOLD=75` to warn when totals dip below 75%, and enable `COVERAGE_STRICT=true` to fail the run when the threshold is not met. The script defaults to `TESTING_PASSTHROUGH=false` while pointing `LLAMA_BIN` at the mocked binary used in tests.
+Artifacts are written to `coverage/`. Set `COVERAGE_THRESHOLD=75` to warn when totals dip below 75%, and enable `COVERAGE_STRICT=true` to fail the run when the threshold is not met.
 
 ## Planning workflow
 
-The planner now drives execution through an explicit, tool-aware outline:
+The planner drives execution through an outline:
 
-1. `generate_plan_outline` prompts the model with the full tool catalog to produce a numbered, high-level plan that explicitly names tools and always ends with `final_answer`.
-2. `extract_tools_from_plan` reads that outline to build the allowed tool list (ensuring `final_answer` is available for the final handoff).
-3. `build_plan_entries_from_tools` derives concrete tool queries for the React loop while preserving the outline for agent guidance.
-4. The React loop executes tools in sequence, adapting after each observation until the `final_answer` tool is invoked.
+1. `generate_plan_outline` prompts the model with the tool catalog to produce a numbered plan that ends with `final_answer`.
+2. `extract_tools_from_plan` reads the outline to build the allowed tool list.
+3. `build_plan_entries_from_tools` derives concrete tool queries for the ReAct loop while preserving the outline.
+4. The ReAct loop executes tools in order and finishes when the `final_answer` tool runs.
+
+### Dependencies
+
+Runtime helpers require `jq` and exit with a structured dependency error when it is unavailable. Install `jq` locally before running scripts.
