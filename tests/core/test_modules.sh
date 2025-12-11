@@ -145,7 +145,7 @@ EOF
 }
 
 @test "generate_plan_outline adds final answer step" {
-        run bash -lc '
+	run bash -lc '
                 source ./src/lib/planner.sh
                 initialize_tools
                 VERBOSITY=0
@@ -156,12 +156,12 @@ EOF
                 generate_plan_outline "list files"
         '
 	[ "$status" -eq 0 ]
-        [[ "${output}" == *"terminal"* ]]
-        [[ "${output}" == *"final_answer"* ]]
+	[[ "${output}" == *"terminal"* ]]
+	[[ "${output}" == *"final_answer"* ]]
 }
 
 @test "generate_plan_outline tolerates missing TOOLS under set -u" {
-        run bash -lc '
+	run bash -lc '
                 set -u
                 source ./src/lib/planner.sh
                 init_tool_registry
@@ -174,14 +174,14 @@ EOF
                 plan="$(generate_plan_outline "list files")"
                 printf "%s" "${plan}"
         '
-        [ "$status" -eq 0 ]
-        [[ "${output}" == *"terminal"* ]]
-        [[ "${output}" == *"final_answer"* ]]
+	[ "$status" -eq 0 ]
+	[[ "${output}" == *"terminal"* ]]
+	[[ "${output}" == *"final_answer"* ]]
 }
 
 @test "generate_plan_outline bypasses llama when unavailable" {
-        # shellcheck disable=SC2016
-        run --separate-stderr bash -lc '
+	# shellcheck disable=SC2016
+	run --separate-stderr bash -lc '
 tmpdir=$(mktemp -d)
 export MOCK_LLAMA_LOG="${tmpdir}/llama.log"
 export LLAMA_BIN="./tests/fixtures/mock_llama.sh"

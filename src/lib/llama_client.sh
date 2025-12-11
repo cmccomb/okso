@@ -86,7 +86,6 @@ llama_infer() {
 		--hf-file "${MODEL_FILE}"
 		-no-cnv --no-display-prompt --simple-io --verbose
 		-n "${number_of_tokens}"
-		-p "${prompt}"
 	)
 
 	if [[ -n "${stop_string}" ]]; then
@@ -94,6 +93,8 @@ llama_infer() {
 	fi
 
 	llama_args+=("${additional_args[@]}")
+
+	llama_args+=("-p ${prompt}")
 
 	llama_arg_string=$(printf '%s ' "${llama_args[@]:1}")
 	llama_arg_string=${llama_arg_string% }
