@@ -55,6 +55,8 @@ Set `LLAMA_TIMEOUT_SECONDS` to enforce a maximum runtime for llama.cpp invocatio
 
 Runtime output is emitted as structured JSON logs from [`src/lib/logging.sh`](src/lib/logging.sh). Planning summaries, dry-run previews, and final answers all use the log channel, with INFO-level entries detailing suggested tools and execution flow and ERROR entries marking fallbacks or unexpected gaps. The final answer is pretty-printed for readability so operators can scan it without additional tooling while still benefiting from structured log parsing.
 
+After execution completes, the CLI renders a boxed summary that captures the original query, the planner outline, every tool invocation, and the final answer. The summary uses simple box-drawing characters so it remains legible in plain terminals while still supporting richer formatting when [`gum`](https://github.com/charmbracelet/gum) is available.
+
 ## Prompt catalogue
 
 All prompts used by the assistant are centralized in [`src/lib/prompts.sh`](src/lib/prompts.sh) for easier maintenance. The file exposes prompt builders for direct responses, plan generation, and ReAct steps so updates to tone, structure, or schema can be made in one place.

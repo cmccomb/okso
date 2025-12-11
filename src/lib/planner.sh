@@ -38,6 +38,8 @@ source "${LIB_DIR}/respond.sh"
 source "${LIB_DIR}/prompts.sh"
 # shellcheck source=./grammar.sh disable=SC1091
 source "${LIB_DIR}/grammar.sh"
+# shellcheck source=./formatting.sh disable=SC1091
+source "${LIB_DIR}/formatting.sh"
 # shellcheck source=./state.sh disable=SC1091
 source "${LIB_DIR}/state.sh"
 # shellcheck source=./llama_client.sh disable=SC1091
@@ -494,17 +496,23 @@ finalize_react_result() {
 	#   $1 - state prefix
 	local state_name
 	state_name="$1"
-	if [[ -z "$(state_get "${state_name}" "final_answer")" ]]; then
-		log "ERROR" "Final answer missing; generating fallback" "${state_name}"
-		state_set "${state_name}" "final_answer" "$(respond_text "$(state_get "${state_name}" "user_query") $(state_get "${state_name}" "history")" 1000)"
-	fi
+        if [[ -z "$(state_get "${state_name}" "final_answer")" ]]; then
+                log "ERROR" "Final answer missing; generating fallback" "${state_name}"
+                state_set "${state_name}" "final_answer" "$(respond_text "$(state_get "${state_name}" "user_query") $(state_get "${state_name}" "history")" 1000)"
+        fi
 
-	log_pretty "INFO" "Final answer" "$(state_get "${state_name}" "final_answer")"
-	if [[ -z "$(state_get "${state_name}" "history")" ]]; then
-		log "INFO" "Execution summary" "No tool runs"
-	else
-		log_pretty "INFO" "Execution summary" "$(state_get "${state_name}" "history")"
-	fi
+        log_pretty "INFO" "Final answer" "$(state_get "${state_name}" "final_answer")"
+        if [[ -z "$(state_get "${state_name}" "history")" ]]; then
+                log "INFO" "Execution summary" "No tool runs"
+        else
+                log_pretty "INFO" "Execution summary" "$(state_get "${state_name}" "history")"
+        fi
+
+        emit_boxed_summary \
+                "$(state_get "${state_name}" "user_query")" \
+                "$(state_get "${state_name}" "plan_outline")" \
+                "$(state_get "${state_name}" "history")" \
+                "$(state_get "${state_name}" "final_answer")"
 }
 
 react_loop() {
