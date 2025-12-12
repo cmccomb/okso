@@ -56,58 +56,58 @@ if ! command -v jq >/dev/null 2>&1; then
 fi
 
 settings_namespace_json_var() {
-        # Arguments:
-        #   $1 - settings namespace prefix (string)
-        json_state_namespace_var "$@"
+	# Arguments:
+	#   $1 - settings namespace prefix (string)
+	json_state_namespace_var "$@"
 }
 
 settings_get_json_document() {
-        # Arguments:
-        #   $1 - settings namespace prefix (string)
-        json_state_get_document "$1" '{}'
+	# Arguments:
+	#   $1 - settings namespace prefix (string)
+	json_state_get_document "$1" '{}'
 }
 
 settings_set_json_document() {
-        # Arguments:
-        #   $1 - settings namespace prefix (string)
-        #   $2 - JSON document (string)
-        json_state_set_document "$@"
+	# Arguments:
+	#   $1 - settings namespace prefix (string)
+	#   $2 - JSON document (string)
+	json_state_set_document "$@"
 }
 
 settings_clear_namespace() {
-        # Arguments:
-        #   $1 - settings namespace prefix (string)
-        settings_set_json_document "$1" '{}'
+	# Arguments:
+	#   $1 - settings namespace prefix (string)
+	settings_set_json_document "$1" '{}'
 }
 
 settings_set() {
-        # Arguments:
-        #   $1 - settings namespace prefix (string)
-        #   $2 - logical key (string)
-        #   $3 - value (string)
-        settings_set_json "$1" "$2" "$3"
+	# Arguments:
+	#   $1 - settings namespace prefix (string)
+	#   $2 - logical key (string)
+	#   $3 - value (string)
+	settings_set_json "$1" "$2" "$3"
 }
 
 settings_get() {
-        # Arguments:
-        #   $1 - settings namespace prefix (string)
-        #   $2 - logical key (string)
-        settings_get_json "$1" "$2"
+	# Arguments:
+	#   $1 - settings namespace prefix (string)
+	#   $2 - logical key (string)
+	settings_get_json "$1" "$2"
 }
 
 settings_set_json() {
-        # Arguments:
-        #   $1 - settings namespace prefix (string)
-        #   $2 - logical key (string)
-        #   $3 - value (string)
-        json_state_set_key "$@"
+	# Arguments:
+	#   $1 - settings namespace prefix (string)
+	#   $2 - logical key (string)
+	#   $3 - value (string)
+	json_state_set_key "$@"
 }
 
 settings_get_json() {
-        # Arguments:
-        #   $1 - settings namespace prefix (string)
-        #   $2 - logical key (string)
-        json_state_get_key "$@"
+	# Arguments:
+	#   $1 - settings namespace prefix (string)
+	#   $2 - logical key (string)
+	json_state_get_key "$@"
 }
 
 set_by_name() {
@@ -130,7 +130,7 @@ create_default_settings() {
 	config_file="${config_dir}/config.env"
 	model_spec="${DEFAULT_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-4B-GGUF:${default_model_file}}"
 
-        new_settings_json=$(jq -c -n \
+	new_settings_json=$(jq -c -n \
 		--arg version "0.1.0" \
 		--arg llama_bin "${LLAMA_BIN:-llama-cli}" \
 		--arg default_model_file "${default_model_file}" \
@@ -139,7 +139,7 @@ create_default_settings() {
 		--arg model_spec "${model_spec}" \
 		--arg model_branch "${DEFAULT_MODEL_BRANCH_BASE:-main}" \
 		--arg notes_dir "${HOME}/.okso" \
-                --arg use_react_llama "${USE_REACT_LLAMA:-true}" \
+		--arg use_react_llama "${USE_REACT_LLAMA:-true}" \
 		'{
                         version: $version,
                         llama_bin: $llama_bin,

@@ -22,53 +22,53 @@ LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${LIB_DIR}/json_state.sh"
 
 state_namespace_json_var() {
-        # Arguments:
-        #   $1 - state prefix (string)
-        json_state_namespace_var "$@"
+	# Arguments:
+	#   $1 - state prefix (string)
+	json_state_namespace_var "$@"
 }
 
 state_get_json_document() {
-        # Arguments:
-        #   $1 - state prefix (string)
-        json_state_get_document "$1" '{}'
+	# Arguments:
+	#   $1 - state prefix (string)
+	json_state_get_document "$1" '{}'
 }
 
 state_set_json_document() {
-        # Arguments:
-        #   $1 - state prefix (string)
-        #   $2 - JSON document (string)
-        json_state_set_document "$@"
+	# Arguments:
+	#   $1 - state prefix (string)
+	#   $2 - JSON document (string)
+	json_state_set_document "$@"
 }
 
 state_set() {
-        # Arguments:
-        #   $1 - state prefix (string)
-        #   $2 - key (string)
-        #   $3 - value (string)
-        json_state_set_key "$@"
+	# Arguments:
+	#   $1 - state prefix (string)
+	#   $2 - key (string)
+	#   $3 - value (string)
+	json_state_set_key "$@"
 }
 
 state_get() {
-        # Arguments:
-        #   $1 - state prefix (string)
-        #   $2 - key (string)
-        local prefix key
-        prefix="$1"
-        key="$2"
-        jq -r --arg key "${key}" '(.[$key] // "") | (if type == "array" then join("\n") else tostring end)' <<<"$(state_get_json_document "${prefix}")"
+	# Arguments:
+	#   $1 - state prefix (string)
+	#   $2 - key (string)
+	local prefix key
+	prefix="$1"
+	key="$2"
+	jq -r --arg key "${key}" '(.[$key] // "") | (if type == "array" then join("\n") else tostring end)' <<<"$(state_get_json_document "${prefix}")"
 }
 
 state_increment() {
-        # Arguments:
-        #   $1 - state prefix (string)
-        #   $2 - key (string)
-        #   $3 - increment amount (int, optional; defaults to 1)
-        json_state_increment_key "$@"
+	# Arguments:
+	#   $1 - state prefix (string)
+	#   $2 - key (string)
+	#   $3 - increment amount (int, optional; defaults to 1)
+	json_state_increment_key "$@"
 }
 
 state_append_history() {
-        # Arguments:
-        #   $1 - state prefix (string)
-        #   $2 - entry to append (string)
-        json_state_append_history "$@"
+	# Arguments:
+	#   $1 - state prefix (string)
+	#   $2 - entry to append (string)
+	json_state_append_history "$@"
 }
