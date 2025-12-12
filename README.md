@@ -2,7 +2,7 @@
 [![Installation](https://github.com/cmccomb/do/actions/workflows/installation.yml/badge.svg)](https://github.com/cmccomb/do/actions/workflows/installation.yml)
 [![Deploy Installer](https://github.com/cmccomb/do/actions/workflows/deploy_installer.yml/badge.svg)](https://github.com/cmccomb/do/actions/workflows/deploy_installer.yml)
 
-# okso
+# `okso`, let's go to work
 
 A lightweight planner that runs against a local `llama.cpp` binary and executes registered tools with explicit approvals.
 
