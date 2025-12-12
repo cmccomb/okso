@@ -132,9 +132,10 @@ initialize_tools() {
 		return 1
 	fi
 
-	register_terminal
-	register_file_search
-	register_clipboard_copy
+        register_terminal
+        register_python_repl
+        register_file_search
+        register_clipboard_copy
 	register_clipboard_paste
 	register_notes_suite
 	register_reminders_suite
