@@ -41,9 +41,74 @@ readonly DEFAULT_MODEL_FILE_BASE="Qwen_Qwen3-4B-Q4_K_M.gguf"
 readonly DEFAULT_MODEL_SPEC_BASE="${DEFAULT_MODEL_REPO_BASE}:${DEFAULT_MODEL_FILE_BASE}"
 readonly DEFAULT_MODEL_BRANCH_BASE="main"
 
+resolve_env_alias_pair() {
+        # Arguments:
+        #   $1 - primary environment variable name (string)
+        #   $2 - secondary environment variable name (string)
+        local primary secondary
+        primary="$1"
+        secondary="$2"
+
+        if [[ -n "${!primary:-}" ]]; then
+                printf '%s' "${!primary}"
+                return 0
+        fi
+
+        if [[ -n "${!secondary:-}" ]]; then
+                printf '%s' "${!secondary}"
+                return 0
+        fi
+
+        return 1
+}
+
+normalize_boolean_input() {
+        # Arguments:
+        #   $1 - input value (string)
+        #   $2 - fallback value when input is invalid (string; defaults to "false")
+        local value fallback
+        value="$1"
+        fallback="${2:-false}"
+
+        case "${value}" in
+        true | True | TRUE | 1)
+                printf 'true'
+                ;;
+        false | False | FALSE | 0)
+                printf 'false'
+                ;;
+        *)
+                printf '%s' "${fallback}"
+                ;;
+        esac
+}
+
+apply_supervised_overrides() {
+        local supervised_raw supervised
+        if ! supervised_raw=$(resolve_env_alias_pair OKSO_SUPERVISED DO_SUPERVISED); then
+                return 0
+        fi
+
+        supervised=$(normalize_boolean_input "${supervised_raw}" "true")
+        if [[ "${supervised}" == false ]]; then
+                APPROVE_ALL=true
+        else
+                APPROVE_ALL=false
+        fi
+}
+
+apply_verbosity_overrides() {
+        local verbosity_override
+        if ! verbosity_override=$(resolve_env_alias_pair OKSO_VERBOSITY DO_VERBOSITY); then
+                return 0
+        fi
+
+        VERBOSITY="${verbosity_override}"
+}
+
 detect_config_file() {
-	# Parse the config path early so subsequent helpers can honor user-provided
-	# locations before any other arguments are interpreted.
+        # Parse the config path early so subsequent helpers can honor user-provided
+        # locations before any other arguments are interpreted.
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
 		--config)
@@ -65,57 +130,30 @@ detect_config_file() {
 }
 
 load_config() {
-	# Load file-backed configuration first so environment overrides and CLI flags
-	# can layer on top in a predictable order.
-	if [[ -f "${CONFIG_FILE}" ]]; then
-		# shellcheck source=/dev/null
-		source "${CONFIG_FILE}"
-	fi
+        # Load file-backed configuration first so environment overrides and CLI flags
+        # can layer on top in a predictable order.
+        local model_spec_override model_branch_override
+        if [[ -f "${CONFIG_FILE}" ]]; then
+                # shellcheck source=/dev/null
+                source "${CONFIG_FILE}"
+        fi
 
 	MODEL_SPEC=${MODEL_SPEC:-"${DEFAULT_MODEL_SPEC_BASE}"}
-	MODEL_BRANCH=${MODEL_BRANCH:-${DEFAULT_MODEL_BRANCH_BASE}}
-	VERBOSITY=${VERBOSITY:-1}
-	APPROVE_ALL=${APPROVE_ALL:-false}
-	FORCE_CONFIRM=${FORCE_CONFIRM:-false}
+        MODEL_BRANCH=${MODEL_BRANCH:-${DEFAULT_MODEL_BRANCH_BASE}}
+        VERBOSITY=${VERBOSITY:-1}
+        APPROVE_ALL=${APPROVE_ALL:-false}
+        FORCE_CONFIRM=${FORCE_CONFIRM:-false}
 
-	if [[ -n "${OKSO_MODEL:-}" ]]; then
-		MODEL_SPEC="${OKSO_MODEL}"
-	elif [[ -n "${DO_MODEL:-}" ]]; then
-		MODEL_SPEC="${DO_MODEL}"
-	fi
-	if [[ -n "${OKSO_MODEL_BRANCH:-}" ]]; then
-		MODEL_BRANCH="${OKSO_MODEL_BRANCH}"
-	elif [[ -n "${DO_MODEL_BRANCH:-}" ]]; then
-		MODEL_BRANCH="${DO_MODEL_BRANCH}"
-	fi
-	if [[ -n "${OKSO_SUPERVISED:-}" ]]; then
-		# OKSO_SUPERVISED mirrors the hosted behavior where "false" should allow
-		# automated tool execution without a prompt.
-		case "${OKSO_SUPERVISED}" in
-		false | False | FALSE | 0)
-			APPROVE_ALL=true
-			;;
-		*)
-			APPROVE_ALL=false
-			;;
-		esac
-	elif [[ -n "${DO_SUPERVISED:-}" ]]; then
-		# DO_SUPERVISED mirrors the hosted behavior where "false" should allow
-		# automated tool execution without a prompt.
-		case "${DO_SUPERVISED}" in
-		false | False | FALSE | 0)
-			APPROVE_ALL=true
-			;;
-		*)
-			APPROVE_ALL=false
-			;;
-		esac
-	fi
-	if [[ -n "${OKSO_VERBOSITY:-}" ]]; then
-		VERBOSITY="${OKSO_VERBOSITY}"
-	elif [[ -n "${DO_VERBOSITY:-}" ]]; then
-		VERBOSITY="${DO_VERBOSITY}"
-	fi
+        if model_spec_override=$(resolve_env_alias_pair OKSO_MODEL DO_MODEL); then
+                MODEL_SPEC="${model_spec_override}"
+        fi
+
+        if model_branch_override=$(resolve_env_alias_pair OKSO_MODEL_BRANCH DO_MODEL_BRANCH); then
+                MODEL_BRANCH="${model_branch_override}"
+        fi
+
+        apply_supervised_overrides
+        apply_verbosity_overrides
 }
 
 write_config_file() {

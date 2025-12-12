@@ -48,86 +48,66 @@ LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${LIB_DIR}/errors.sh"
 # shellcheck source=./formatting.sh disable=SC1091
 source "${LIB_DIR}/formatting.sh"
+# shellcheck source=./json_state.sh disable=SC1091
+source "${LIB_DIR}/json_state.sh"
 
 if ! command -v jq >/dev/null 2>&1; then
 	die runtime dependency "Missing jq dependency. Install jq with your package manager (e.g., apt-get install jq or brew install jq) and re-run."
 fi
 
-# Simple namespaced settings helpers backed by JSON blobs to avoid
-# associative-array dependencies on macOS's legacy Bash 3.2. All values are
-# stored on ${namespace}_json and accessed via jq for durability.
 settings_namespace_json_var() {
-	# Arguments:
-	#   $1 - settings namespace prefix (string)
-	printf '%s_json' "$1"
+        # Arguments:
+        #   $1 - settings namespace prefix (string)
+        json_state_namespace_var "$@"
 }
 
 settings_get_json_document() {
-	# Arguments:
-	#   $1 - settings namespace prefix (string)
-	local json_var
-	json_var=$(settings_namespace_json_var "$1")
-	if [[ -z "${!json_var+x}" ]]; then
-		printf '{}'
-		return
-	fi
-
-	printf '%s' "${!json_var}"
+        # Arguments:
+        #   $1 - settings namespace prefix (string)
+        json_state_get_document "$1" '{}'
 }
 
 settings_set_json_document() {
-	# Arguments:
-	#   $1 - settings namespace prefix (string)
-	#   $2 - JSON document (string)
-	local json_var sanitized
-	json_var=$(settings_namespace_json_var "$1")
-	sanitized=$(printf '%s' "$2" | jq -c '.') || return 1
-	printf -v "${json_var}" '%s' "${sanitized}"
+        # Arguments:
+        #   $1 - settings namespace prefix (string)
+        #   $2 - JSON document (string)
+        json_state_set_document "$@"
 }
 
 settings_clear_namespace() {
-	# Arguments:
-	#   $1 - settings namespace prefix (string)
-	settings_set_json_document "$1" '{}'
+        # Arguments:
+        #   $1 - settings namespace prefix (string)
+        settings_set_json_document "$1" '{}'
 }
 
 settings_set() {
-	# Arguments:
-	#   $1 - settings namespace prefix (string)
-	#   $2 - logical key (string)
-	#   $3 - value (string)
-	settings_set_json "$1" "$2" "$3"
+        # Arguments:
+        #   $1 - settings namespace prefix (string)
+        #   $2 - logical key (string)
+        #   $3 - value (string)
+        settings_set_json "$1" "$2" "$3"
 }
 
 settings_get() {
-	# Arguments:
-	#   $1 - settings namespace prefix (string)
-	#   $2 - logical key (string)
-	settings_get_json "$1" "$2"
+        # Arguments:
+        #   $1 - settings namespace prefix (string)
+        #   $2 - logical key (string)
+        settings_get_json "$1" "$2"
 }
 
 settings_set_json() {
-	# Arguments:
-	#   $1 - settings namespace prefix (string)
-	#   $2 - logical key (string)
-	#   $3 - value (string)
-	local settings_prefix key value current updated
-	settings_prefix="$1"
-	key="$2"
-	value="$3"
-	current="$(settings_get_json_document "${settings_prefix}")"
-	updated=$(jq -c --arg key "${key}" --arg value "${value}" '.[$key] = $value' <<<"${current}")
-	settings_set_json_document "${settings_prefix}" "${updated}"
+        # Arguments:
+        #   $1 - settings namespace prefix (string)
+        #   $2 - logical key (string)
+        #   $3 - value (string)
+        json_state_set_key "$@"
 }
 
 settings_get_json() {
-	# Arguments:
-	#   $1 - settings namespace prefix (string)
-	#   $2 - logical key (string)
-	local settings_prefix key
-	settings_prefix="$1"
-	key="$2"
-	jq -r --arg key "${key}" '.[$key] // ""' <<<"$(settings_get_json_document "${settings_prefix}")"
+        # Arguments:
+        #   $1 - settings namespace prefix (string)
+        #   $2 - logical key (string)
+        json_state_get_key "$@"
 }
 
 set_by_name() {
