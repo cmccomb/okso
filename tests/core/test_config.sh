@@ -84,3 +84,29 @@ setup() {
 	[[ "${MODEL_SPEC}" == "primary/model" ]]
 	[[ "${VERBOSITY}" == "1" ]]
 }
+
+@test "load_config wires default MCP settings" {
+	cd "${REPO_ROOT}" || exit 1
+	source ./src/lib/config.sh
+	CONFIG_FILE="${BATS_TEST_TMPDIR}/config-mcp-defaults.env"
+	: >"${CONFIG_FILE}"
+	load_config
+	[[ "${MCP_HUGGINGFACE_URL}" == "" ]]
+	[[ "${MCP_HUGGINGFACE_TOKEN_ENV}" == "HUGGINGFACEHUB_API_TOKEN" ]]
+	[[ "${MCP_LOCAL_SOCKET}" == "${TMPDIR:-/tmp}/okso-mcp.sock" ]]
+}
+
+@test "load_config honors MCP overrides" {
+	cd "${REPO_ROOT}" || exit 1
+	source ./src/lib/config.sh
+	CONFIG_FILE="${BATS_TEST_TMPDIR}/config-mcp-overrides.env"
+	cat >"${CONFIG_FILE}" <<'EOF'
+MCP_HUGGINGFACE_URL="https://demo.example/mcp"
+MCP_HUGGINGFACE_TOKEN_ENV="CUSTOM_TOKEN"
+MCP_LOCAL_SOCKET="/var/run/okso.sock"
+EOF
+	load_config
+	[[ "${MCP_HUGGINGFACE_URL}" == "https://demo.example/mcp" ]]
+	[[ "${MCP_HUGGINGFACE_TOKEN_ENV}" == "CUSTOM_TOKEN" ]]
+	[[ "${MCP_LOCAL_SOCKET}" == "/var/run/okso.sock" ]]
+}

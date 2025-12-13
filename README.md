@@ -44,6 +44,21 @@ Initialize a config file with your preferred model settings:
 
 More scenarios and reference material live in the [docs/](docs/index.md).
 
+### MCP endpoints
+
+okso can forward queries to MCP-style endpoints alongside its built-in tools. Two
+registrations ship with the CLI:
+
+- `mcp_huggingface` forwards the current tool query to a remote Hugging Face
+  endpoint. Configure the target URL and token variable through `MCP_HUGGINGFACE_URL`
+  and `MCP_HUGGINGFACE_TOKEN_ENV` (defaults to `HUGGINGFACEHUB_API_TOKEN`).
+- `mcp_local_server` targets a bundled local server over a unix socket set in
+  `MCP_LOCAL_SOCKET` (default: `${TMPDIR:-/tmp}/okso-mcp.sock`).
+
+Configure these values in your config file or export them before running
+`okso`; the handlers emit JSON connection descriptors without printing token
+values.
+
 ## Execution model
 
 okso separates high-level planning from step-by-step execution:
