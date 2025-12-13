@@ -69,43 +69,78 @@ EOF
 }
 
 mcp_endpoints_json_from_toml() {
-	# Arguments:
-	#   $1 - TOML document describing MCP endpoints
-	local toml_payload
-	toml_payload="$1"
+        # Arguments:
+        #   $1 - TOML document describing MCP endpoints
+        local toml_payload
+        toml_payload="$1"
 
-	MCP_ENDPOINTS_TOML_PAYLOAD="${toml_payload}" python3 - <<'PY'
+        MCP_ENDPOINTS_TOML_PAYLOAD="${toml_payload}" python3 - <<'PY'
+"""Convert MCP endpoint TOML into JSON without requiring tomllib."""
+
 import json
 import os
 import sys
+from typing import Any, Dict
 
-try:
-    import tomllib
-except ModuleNotFoundError as exc:  # pragma: no cover - standard in 3.11+
-    sys.stderr.write(f"Missing tomllib for MCP parsing: {exc}\n")
-    sys.exit(1)
 
-raw = os.environ.get("MCP_ENDPOINTS_TOML_PAYLOAD", "")
-if not raw.strip():
-    json.dump([], sys.stdout)
-    sys.exit(0)
+def load_toml_parser():
+    """Load a TOML parser, preferring the standard library.
 
-try:
-    document = tomllib.loads(raw)
-except tomllib.TOMLDecodeError as exc:  # pragma: no cover - surfaced in tests
-    sys.stderr.write(f"Failed to parse MCP endpoints TOML: {exc}\n")
-    sys.exit(1)
+    The parser first uses `tomllib` when available (Python 3.11+). When
+    unavailable or explicitly bypassed via `OKSO_FORCE_TOML_FALLBACK`, it falls
+    back to the `pip` vendored `tomli` module so deployments do not require an
+    extra install.
+    """
 
-mcp_section = document.get("mcp", {})
-endpoints = mcp_section.get("endpoints", [])
-if endpoints is None:
-    endpoints = []
+    force_fallback = os.environ.get("OKSO_FORCE_TOML_FALLBACK") == "1"
+    if not force_fallback:
+        try:  # pragma: no cover - exercised implicitly on 3.11+
+            import tomllib  # type: ignore
 
-if not isinstance(endpoints, list):
-    sys.stderr.write("MCP endpoints must be an array in TOML\n")
-    sys.exit(1)
+            return tomllib
+        except ModuleNotFoundError:
+            pass
 
-json.dump(endpoints, sys.stdout)
+    try:
+        from pip._vendor import tomli as tomllib  # type: ignore
+
+        return tomllib
+    except ModuleNotFoundError as exc:  # pragma: no cover - pip unavailable
+        sys.stderr.write(
+            "TOML parsing requires either tomllib (Python 3.11+) or the pip vendored tomli: "
+            f"{exc}\n",
+        )
+        sys.exit(1)
+
+
+def main() -> None:
+    raw = os.environ.get("MCP_ENDPOINTS_TOML_PAYLOAD", "")
+    if not raw.strip():
+        json.dump([], sys.stdout)
+        return
+
+    toml_parser = load_toml_parser()
+
+    try:
+        document: Dict[str, Any] = toml_parser.loads(raw)
+    except toml_parser.TOMLDecodeError as exc:  # type: ignore[attr-defined]
+        sys.stderr.write(f"Failed to parse MCP endpoints TOML: {exc}\n")
+        sys.exit(1)
+
+    mcp_section = document.get("mcp", {})
+    endpoints = mcp_section.get("endpoints", [])
+    if endpoints is None:
+        endpoints = []
+
+    if not isinstance(endpoints, list):
+        sys.stderr.write("MCP endpoints must be an array in TOML\n")
+        sys.exit(1)
+
+    json.dump(endpoints, sys.stdout)
+
+
+if __name__ == "__main__":
+    main()
 PY
 }
 
