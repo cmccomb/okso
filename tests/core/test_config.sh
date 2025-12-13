@@ -147,7 +147,7 @@ PY
 	run env CONFIG_FILE="${CONFIG_FILE}" bash -lc '
                 source ./src/lib/config.sh
                 load_config
-                [[ "${MCP_ENDPOINTS_TOML}" == *"mcp_huggingface"* ]]
+                [[ "${MCP_ENDPOINTS_TOML}" == *"mcp_huggingface_models"* ]]
                 [[ "${MCP_ENDPOINTS_ALLOW_PARTIAL_DEFAULT}" == "true" ]]
         '
 

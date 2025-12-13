@@ -56,8 +56,10 @@ TOOL_NAME_ALLOWLIST_STATIC=(
 	"python_repl"
 	"feedback"
 	"final_answer"
-	"mcp_huggingface"
-	"mcp_local_server"
+        "mcp_huggingface_models"
+        "mcp_huggingface_datasets"
+        "mcp_huggingface_inference"
+        "mcp_local_server"
 )
 TOOL_NAME_ALLOWLIST=("${TOOL_NAME_ALLOWLIST_STATIC[@]}")
 TOOL_WRITABLE_DIRECTORY_ALLOWLIST=(
