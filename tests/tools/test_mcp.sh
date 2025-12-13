@@ -18,7 +18,8 @@ setup() {
 
 @test "register_mcp_endpoints registers default endpoints" {
 	cd "${REPO_ROOT}" || exit 1
-	run bash -lc '
+        run bash -lc '
+                MCP_SKIP_USAGE_DISCOVERY=true
                 source ./src/tools/registry.sh
                 source ./src/tools/mcp.sh
                 TOOL_NAME_ALLOWLIST=(mcp_huggingface_models mcp_huggingface_datasets mcp_huggingface_inference mcp_local_server)
@@ -34,7 +35,8 @@ setup() {
 
 @test "register_mcp_endpoints falls back when tomllib is missing" {
 	cd "${REPO_ROOT}" || exit 1
-	run bash -lc '
+        run bash -lc '
+                MCP_SKIP_USAGE_DISCOVERY=true
                 source ./src/tools/registry.sh
                 source ./src/tools/mcp.sh
                 TOOL_NAME_ALLOWLIST=(mcp_huggingface_models mcp_huggingface_datasets mcp_huggingface_inference mcp_local_server)
@@ -48,7 +50,8 @@ setup() {
 
 @test "tool_mcp_huggingface fails when token missing" {
 	cd "${REPO_ROOT}" || exit 1
-	run bash -lc '
+        run bash -lc '
+                MCP_SKIP_USAGE_DISCOVERY=true
                 source ./src/tools/registry.sh
                 source ./src/tools/mcp.sh
                 TOOL_NAME_ALLOWLIST=(mcp_huggingface_models mcp_huggingface_datasets mcp_huggingface_inference mcp_local_server)
@@ -64,7 +67,8 @@ setup() {
 
 @test "tool_mcp_huggingface emits connection descriptor" {
 	cd "${REPO_ROOT}" || exit 1
-	run bash -lc '
+        run bash -lc '
+                MCP_SKIP_USAGE_DISCOVERY=true
                 source ./src/tools/registry.sh
                 source ./src/tools/mcp.sh
                 TOOL_NAME_ALLOWLIST=(mcp_huggingface_models mcp_huggingface_datasets mcp_huggingface_inference mcp_local_server)
@@ -99,8 +103,9 @@ setup() {
 }
 
 @test "register_mcp_endpoints honors MCP_ENDPOINTS_JSON" {
-	cd "${REPO_ROOT}" || exit 1
-	run bash -lc '
+        cd "${REPO_ROOT}" || exit 1
+        run bash -lc '
+                MCP_SKIP_USAGE_DISCOVERY=true
                 source ./src/lib/tools.sh
                 TOOL_NAME_ALLOWLIST=(terminal)
                 MCP_ENDPOINTS_JSON='"'"'[
@@ -135,26 +140,99 @@ setup() {
                 [[ "$(tool_description custom_http)" == "Custom HTTP endpoint" ]]
                 [[ "$(tool_description custom_unix)" == "Custom unix endpoint" ]]
         '
-	[ "$status" -eq 0 ]
+        [ "$status" -eq 0 ]
+}
+
+@test "register_mcp_endpoints infers usage when missing" {
+        cd "${REPO_ROOT}" || exit 1
+        run bash -lc '
+                set -e
+                MCP_SKIP_USAGE_DISCOVERY=false
+                source ./src/tools/registry.sh
+                source ./src/tools/mcp.sh
+
+                PORT_FILE="${BATS_TEST_TMPDIR}/mcp-tools-port"
+                export PORT_FILE
+                python3 - <<'PY' &
+import http.server
+import json
+import os
+import socketserver
+
+
+class Handler(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path.startswith("/tools"):
+            body = json.dumps({"tools": [{"name": "echo", "description": "Echo input"}]})
+            encoded = body.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(encoded)))
+            self.end_headers()
+            self.wfile.write(encoded)
+            return
+
+        self.send_response(404)
+        self.end_headers()
+
+    def log_message(self, *_: object) -> None:  # pragma: no cover - silence test server
+        return
+
+
+with socketserver.TCPServer(("127.0.0.1", 0), Handler) as httpd:
+    port = httpd.server_address[1]
+    with open(os.environ["PORT_FILE"], "w", encoding="utf-8") as handle:
+        handle.write(str(port))
+    httpd.serve_forever()
+PY
+                server_pid=$!
+                trap "kill ${server_pid}" EXIT
+
+                attempts=0
+                while [[ ! -f "${PORT_FILE}" && ${attempts} -lt 50 ]]; do
+                        sleep 0.1
+                        attempts=$((attempts + 1))
+                done
+
+                if [[ ! -f "${PORT_FILE}" ]]; then
+                        echo "tool listing server failed to start" >&2
+                        exit 1
+                fi
+
+                MCP_PORT=$(cat "${PORT_FILE}")
+
+                TOOL_NAME_ALLOWLIST=(mcp_demo_http)
+                MCP_ENDPOINTS_JSON="[{\"name\":\"mcp_demo_http\",\"provider\":\"demo\",\"description\":\"Demo MCP\",\"safety\":\"Token required\",\"transport\":\"http\",\"endpoint\":\"http://127.0.0.1:${MCP_PORT}\",\"token_env\":\"DEMO_TOKEN\"}]"
+                DEMO_TOKEN=dummy
+
+                init_tool_registry
+                register_mcp_endpoints
+
+                inferred_usage="$(tool_command mcp_demo_http)"
+                [[ "${inferred_usage}" == *"Available tools"* ]]
+        '
+        [ "$status" -eq 0 ]
 }
 
 @test "register_mcp_endpoints fails for invalid configuration" {
-	cd "${REPO_ROOT}" || exit 1
-	run bash -lc '
+        cd "${REPO_ROOT}" || exit 1
+        run bash -lc '
+                MCP_SKIP_USAGE_DISCOVERY=true
                 source ./src/tools/registry.sh
                 source ./src/tools/mcp.sh
                 TOOL_NAME_ALLOWLIST=(broken_entry)
-                MCP_ENDPOINTS_JSON='"'"'[{"name": "broken_entry", "provider": "bad", "description": "Bad", "usage": "bad <q>", "safety": "", "transport": "http"}]'"'"'
+                MCP_ENDPOINTS_JSON='"'"'[{"name": "broken_entry", "provider": "bad", "description": "Bad", "usage": "bad <q>", "safety": "Check credentials", "transport": "http", "endpoint": "https://example.test/mcp"}]'"'"'
                 init_tool_registry
                 register_mcp_endpoints
         '
-	[ "$status" -eq 1 ]
-	[[ "${output}" == *"missing fields"* ]]
+        [ "$status" -eq 1 ]
+        [[ "${output}" == *"token_env missing"* ]]
 }
 
 @test "merge_tool_allowlist_with_mcp extends allowlist prior to registry setup" {
 	cd "${REPO_ROOT}" || exit 1
-	run bash -lc '
+        run bash -lc '
+                MCP_SKIP_USAGE_DISCOVERY=true
                 source ./src/lib/tools.sh
                 TOOL_NAME_ALLOWLIST=(terminal)
                 MCP_ENDPOINTS_JSON='"'"'[
