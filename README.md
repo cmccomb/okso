@@ -85,7 +85,9 @@ If no custom value is supplied, okso synthesizes the above defaults using
 `HUGGINGFACEHUB_API_TOKEN`), and `MCP_LOCAL_SOCKET` (default:
 `${TMPDIR:-/tmp}/okso-mcp.sock`). The TOML block round-trips through
 `./src/bin/okso init`, and the loader translates it into the
-`MCP_ENDPOINTS_JSON` runtime format for MCP registration.
+`MCP_ENDPOINTS_JSON` runtime format for MCP registration. TOML parsing prefers
+the Python 3.11+ `tomllib` module and automatically falls back to the `pip`
+vendored `tomli`, so no extra dependency installation is required.
 
 ## Execution model
 

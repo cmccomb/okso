@@ -54,3 +54,6 @@ EOF_MCP
 
 If the block is omitted, okso synthesizes defaults using
 `MCP_HUGGINGFACE_URL`, `MCP_HUGGINGFACE_TOKEN_ENV`, and `MCP_LOCAL_SOCKET`.
+TOML parsing favors the standard library `tomllib` module (Python 3.11+), and
+falls back to the `pip` vendored `tomli` when needed, so deployments do not
+need to install a separate TOML library.
