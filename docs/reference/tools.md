@@ -3,7 +3,7 @@
 The planner registers these tools (each implemented under `src/tools/<name>.sh`):
 
 - `terminal`: persistent working directory with `pwd`, `ls`, `cd`, `find`, `grep`, `stat`, `wc`, `du`, `base64 encode|decode`, and guarded mutations (`rm -i`, `mkdir`, `mv`, `cp`, `touch`). Uses `open` on macOS.
-- `python_repl`: run Python snippets in an ephemeral sandbox using `python -i` and startup guards that confine writes.
+- `python_repl`: run Python snippets in an ephemeral sandbox using quiet `python -i` startup guards that confine writes.
 - `file_search`: search for files and contents using `fd`/`rg` fallbacks.
 - `clipboard_copy` / `clipboard_paste`: macOS clipboard helpers.
 - `notes_*`: create, append, list, read, or search Apple Notes entries.
@@ -19,7 +19,7 @@ The `terminal` tool keeps a per-query working directory so subsequent calls shar
 
 ## Python REPL tool
 
-`python_repl` feeds `TOOL_QUERY` to `python -i` after installing a startup hook that changes into a temporary sandbox directory and wraps `open` so write modes only succeed inside that sandbox. On success it returns the interpreter output; uncaught exceptions exit non-zero and surface the traceback. Prefer short, single-purpose statements; long-running interpreters will be torn down once the session exits.
+`python_repl` feeds `TOOL_QUERY` to quiet `python -i` after installing a startup hook that changes into a temporary sandbox directory and wraps `open` so write modes only succeed inside that sandbox. On success it returns the interpreter output; uncaught exceptions exit non-zero and surface the traceback. Prefer short, single-purpose statements; long-running interpreters will be torn down once the session exits.
 
 ## macOS helpers
 

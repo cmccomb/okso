@@ -110,13 +110,13 @@ tool_python_repl() {
 	repl_input=$(python_repl_wrap_query "${query}")
 	repl_input+=$'\n\nexit()\n'
 
-	PYTHONSTARTUP="${startup_file}" \
-		PYTHON_REPL_SANDBOX="${sandbox_dir}" \
-		PYTHONNOUSERSITE=1 \
-		python3 -i <<<"${repl_input}"
-	status=$?
-	rm -rf "${sandbox_dir}"
-	return "${status}"
+        PYTHONSTARTUP="${startup_file}" \
+                PYTHON_REPL_SANDBOX="${sandbox_dir}" \
+                PYTHONNOUSERSITE=1 \
+                python3 -iq <<<"${repl_input}"
+        status=$?
+        rm -rf "${sandbox_dir}"
+        return "${status}"
 }
 
 register_python_repl() {

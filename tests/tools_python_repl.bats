@@ -14,7 +14,7 @@
 #   Inherits Bats semantics; assertions verify interpreter behavior.
 
 @test "executes code inside sandbox directory" {
-	run bash -lc '
+        run bash -lc '
                 set -e
                 source ./src/tools/python_repl.sh
                 VERBOSITY=0
@@ -24,11 +24,23 @@
 	[ "$status" -eq 0 ]
 	sandbox_path=$(printf '%s\n' "${output}" | grep "Python REPL sandbox:" | head -n1 | awk '{print $4}')
 	[[ -n "${sandbox_path}" ]]
-	printf '%s\n' "${output}" | grep -F "${sandbox_path}" >/dev/null
+        printf '%s\n' "${output}" | grep -F "${sandbox_path}" >/dev/null
+}
+
+@test "starts quietly without Python banner" {
+        run bash -lc '
+                source ./src/tools/python_repl.sh
+                VERBOSITY=0
+                TOOL_QUERY=$'"'"'print("ok")'"'"'
+                tool_python_repl
+        '
+        [ "$status" -eq 0 ]
+        [[ "${output}" != *"Type \"help\""* ]]
+        [[ ! "${output}" =~ ^Python\ [0-9] ]]
 }
 
 @test "returns non-zero on Python errors" {
-	run bash -lc '
+        run bash -lc '
                 source ./src/tools/python_repl.sh
                 VERBOSITY=0
                 TOOL_QUERY=$'"'"'raise RuntimeError("boom")'"'"'
