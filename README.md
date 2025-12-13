@@ -48,7 +48,9 @@ More scenarios and reference material live in the [docs/](docs/index.md).
 
 okso can forward queries to MCP-style endpoints alongside its built-in tools.
 Registrations are configuration-driven so planners automatically see any user
-definitions without code changes. Provide an environment variable or config file
+definitions without code changes. MCP tool names are merged into the runtime
+allowlist before the registry initializes, keeping the planner and dispatcher
+in sync with user configuration. Provide an environment variable or config file
 entry for `MCP_ENDPOINTS_JSON` containing a JSON array of endpoint definitions.
 
 Example:

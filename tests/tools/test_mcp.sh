@@ -83,10 +83,9 @@ setup() {
 
 @test "register_mcp_endpoints honors MCP_ENDPOINTS_JSON" {
 	cd "${REPO_ROOT}" || exit 1
-	run bash -lc '
-                source ./src/tools/registry.sh
-                source ./src/tools/mcp.sh
-                TOOL_NAME_ALLOWLIST=(custom_http custom_unix)
+        run bash -lc '
+                source ./src/lib/tools.sh
+                TOOL_NAME_ALLOWLIST=(terminal)
                 MCP_ENDPOINTS_JSON='"'"'[
                         {
                                 "name": "custom_http",
@@ -109,6 +108,7 @@ setup() {
                         }
                 ]'"'"'
 
+                merge_tool_allowlist_with_mcp
                 init_tool_registry
                 register_mcp_endpoints
                 CUSTOM_TOKEN="token"
@@ -123,7 +123,7 @@ setup() {
 
 @test "register_mcp_endpoints fails for invalid configuration" {
 	cd "${REPO_ROOT}" || exit 1
-	run bash -lc '
+        run bash -lc '
                 source ./src/tools/registry.sh
                 source ./src/tools/mcp.sh
                 TOOL_NAME_ALLOWLIST=(broken_entry)
@@ -131,6 +131,35 @@ setup() {
                 init_tool_registry
                 register_mcp_endpoints
         '
-	[ "$status" -eq 1 ]
-	[[ "${output}" == *"missing fields"* ]]
+        [ "$status" -eq 1 ]
+        [[ "${output}" == *"missing fields"* ]]
+}
+
+@test "merge_tool_allowlist_with_mcp extends allowlist prior to registry setup" {
+        cd "${REPO_ROOT}" || exit 1
+        run bash -lc '
+                source ./src/lib/tools.sh
+                TOOL_NAME_ALLOWLIST=(terminal)
+                MCP_ENDPOINTS_JSON='"'"'[
+                        {
+                                "name": "mcp_extension",
+                                "provider": "demo",
+                                "description": "Extension endpoint",
+                                "usage": "mcp_extension <query>",
+                                "safety": "Check credentials before use",
+                                "transport": "http",
+                                "endpoint": "https://example.test/mcp",
+                                "token_env": "EXT_TOKEN"
+                        }
+                ]'"'"'
+
+                merge_tool_allowlist_with_mcp
+                [[ " ${TOOL_NAME_ALLOWLIST[*]} " == *" mcp_extension "* ]]
+                init_tool_registry
+                register_mcp_endpoints
+                EXT_TOKEN="token"
+                TOOL_QUERY="status"
+                tool_mcp_extension
+        '
+        [ "$status" -eq 0 ]
 }
