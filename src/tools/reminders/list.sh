@@ -54,10 +54,10 @@ APPLESCRIPT
 }
 
 register_reminders_list() {
-	register_tool \
-		"reminders_list" \
-		"List incomplete Apple Reminders in the configured list." \
-		"osascript -e 'name of reminders of list <name> whose completed is false'" \
-		"Requires macOS Apple Reminders access; reminder titles are read." \
-		tool_reminders_list
+        register_tool \
+                "reminders_list" \
+                "List incomplete Apple Reminders in the configured list." \
+                "reminders_list" \
+                "Requires macOS Apple Reminders access; reminder titles are read." \
+                tool_reminders_list
 }
