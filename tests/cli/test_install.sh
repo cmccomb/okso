@@ -6,7 +6,6 @@
 # Environment variables:
 #   OKSO_INSTALLER_ASSUME_OFFLINE (bool): force offline mode to skip network calls.
 #   OKSO_LINK_DIR (string): directory for the generated CLI symlink.
-#   Legacy DO_* aliases remain supported and are covered by compatibility tests.
 #
 # Dependencies:
 #   - bats
@@ -90,13 +89,13 @@ EOM_UNAME
 	[ -L "${OKSO_LINK_DIR}/okso" ]
 }
 
-@test "legacy DO_* environment variables remain supported" {
-	unset OKSO_LINK_DIR OKSO_INSTALLER_ASSUME_OFFLINE OKSO_INSTALLER_SKIP_SELF_TEST
-	export DO_LINK_DIR="${TEST_ROOT}/legacy-bin"
-	mkdir -p "${DO_LINK_DIR}"
-	run env DO_INSTALLER_ASSUME_OFFLINE=true DO_INSTALLER_SKIP_SELF_TEST=true ./scripts/install.sh --prefix "${TEST_ROOT}/legacy-prefix"
+@test "ignores legacy DO_* environment variables" {
+        export DO_LINK_DIR="${TEST_ROOT}/legacy-bin"
+        mkdir -p "${DO_LINK_DIR}" "${OKSO_LINK_DIR}"
 
-	[ "$status" -eq 0 ]
-	[ -L "${DO_LINK_DIR}/okso" ]
-	[ "$(readlink "${DO_LINK_DIR}/okso")" = "${TEST_ROOT}/legacy-prefix/bin/okso" ]
+        run env DO_INSTALLER_ASSUME_OFFLINE=true DO_INSTALLER_SKIP_SELF_TEST=true ./scripts/install.sh --prefix "${TEST_ROOT}/prefix"
+
+        [ "$status" -eq 0 ]
+        [ -L "${OKSO_LINK_DIR}/okso" ]
+        [ ! -e "${DO_LINK_DIR}/okso" ]
 }

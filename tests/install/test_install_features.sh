@@ -5,7 +5,6 @@
 # Environment variables:
 #   OKSO_INSTALLER_SKIP_SELF_TEST (bool): skip installer self-test to speed tests.
 #   OKSO_LINK_DIR (string): directory for the generated CLI symlink.
-#   Legacy DO_* aliases remain supported.
 #
 # Dependencies:
 #   - bats
