@@ -96,6 +96,22 @@ okso separates high-level planning from step-by-step execution:
 If llama.cpp is unavailable or `USE_REACT_LLAMA=false` is set, okso falls back to a
 deterministic sequence that feeds the original user query to each planned tool.
 
+## Capturing feedback
+
+The bundled `feedback` tool records a 1-5 rating and optional comments for the
+current plan item. Provide a JSON context payload describing the step and
+observation summary:
+
+```bash
+TOOL_QUERY='{"plan_item":"Summarize notes","observations":"Draft complete"}' \
+  FEEDBACK_NONINTERACTIVE_INPUT="5|Clear summary" \
+  bash -lc 'source ./src/tools/feedback.sh; tool_feedback'
+```
+
+Interactive prompts are enabled by default. Set `FEEDBACK_ENABLED=false` to
+skip prompting entirely or `FEEDBACK_OUTPUT_PATH=${HOME}/.okso/feedback.json` to
+persist the captured payload within the writable allowlist.
+
 ## Prompt assets
 
 Prompt templates live alongside grammar definitions to keep the assistant behaviour easy to review.
