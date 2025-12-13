@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 #
-# File and content search tool using fd/rg fallbacks.
+# File and content search tool using macOS Spotlight or fd/rg fallbacks.
 #
 # Usage:
 #   source "${BASH_SOURCE[0]%/tools/file_search.sh}/tools/file_search.sh"
@@ -11,6 +11,7 @@
 #
 # Dependencies:
 #   - bash 5+
+#   - mdfind (macOS, preferred when available)
 #   - fd (optional)
 #   - ripgrep (optional)
 #   - logging helpers from logging.sh
@@ -29,11 +30,17 @@ tool_file_search() {
 	query=${TOOL_QUERY:-""}
 	log "INFO" "Searching files" "${query}"
 
-	if command -v fd >/dev/null 2>&1; then
-		fd --hidden --color=never --max-depth 5 "${query:-.}" . || true
-	else
-		find . -maxdepth 5 -iname "*${query}*" || true
-	fi
+        if [[ "${IS_MACOS:-false}" == true ]] && command -v mdfind >/dev/null 2>&1; then
+                if [[ -n "${query}" ]]; then
+                        mdfind -onlyin "${PWD}" "${query}" || true
+                else
+                        mdfind -onlyin "${PWD}" "*" || true
+                fi
+        elif command -v fd >/dev/null 2>&1; then
+                fd --hidden --color=never --max-depth 5 "${query:-.}" . || true
+        else
+                find . -maxdepth 5 -iname "*${query}*" || true
+        fi
 
 	if command -v rg >/dev/null 2>&1 && [[ -n "${query}" ]]; then
 		rg --line-number --hidden --color=never "${query}" || true
