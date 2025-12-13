@@ -69,10 +69,10 @@ APPLESCRIPT
 }
 
 register_notes_search() {
-	register_tool \
-		"notes_search" \
-		"Search Apple Notes titles and bodies for a phrase." \
-		"osascript -e 'notes whose body contains \"<term>\"'" \
-		"Requires macOS Apple Notes access; read-only." \
-		tool_notes_search
+        register_tool \
+                "notes_search" \
+                "Search Apple Notes titles and bodies for a phrase." \
+                "notes_search 'search term' (matches titles or bodies containing the phrase)" \
+                "Requires macOS Apple Notes access; read-only." \
+                tool_notes_search
 }

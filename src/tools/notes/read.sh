@@ -68,10 +68,10 @@ APPLESCRIPT
 }
 
 register_notes_read() {
-	register_tool \
-		"notes_read" \
-		"Read an Apple Note's content by title." \
-		"osascript -e 'get body of note \"<title>\"'" \
-		"Requires macOS Apple Notes access; read-only." \
-		tool_notes_read
+        register_tool \
+                "notes_read" \
+                "Read an Apple Note's content by title." \
+                "notes_read 'Title' (returns the title and body separated by a newline)" \
+                "Requires macOS Apple Notes access; read-only." \
+                tool_notes_read
 }

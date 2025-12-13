@@ -83,10 +83,10 @@ APPLESCRIPT
 }
 
 register_notes_create() {
-	register_tool \
-		"notes_create" \
-		"Create a new Apple Note using the first line as the title." \
-		"osascript -e 'make new note with {name:<title>, body:<body>}'" \
-		"Requires macOS Apple Notes access; content is sent to Notes." \
-		tool_notes_create
+        register_tool \
+                "notes_create" \
+                "Create a new Apple Note using the first line as the title." \
+                "notes_create 'Title\nBody' (first line is title, remaining lines are note body)" \
+                "Requires macOS Apple Notes access; content is sent to Notes." \
+                tool_notes_create
 }
