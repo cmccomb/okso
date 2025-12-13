@@ -76,27 +76,79 @@ setup() {
 }
 
 @test "load_config wires default MCP settings" {
-	cd "${REPO_ROOT}" || exit 1
-	source ./src/lib/config.sh
-	CONFIG_FILE="${BATS_TEST_TMPDIR}/config-mcp-defaults.env"
-	: >"${CONFIG_FILE}"
-	load_config
-	[[ "${MCP_HUGGINGFACE_URL}" == "" ]]
-	[[ "${MCP_HUGGINGFACE_TOKEN_ENV}" == "HUGGINGFACEHUB_API_TOKEN" ]]
-	[[ "${MCP_LOCAL_SOCKET}" == "${TMPDIR:-/tmp}/okso-mcp.sock" ]]
+        cd "${REPO_ROOT}" || exit 1
+        source ./src/lib/config.sh
+        CONFIG_FILE="${BATS_TEST_TMPDIR}/config-mcp-defaults.env"
+        : >"${CONFIG_FILE}"
+        load_config
+        [[ "${MCP_HUGGINGFACE_URL}" == "" ]]
+        [[ "${MCP_HUGGINGFACE_TOKEN_ENV}" == "HUGGINGFACEHUB_API_TOKEN" ]]
+        [[ "${MCP_LOCAL_SOCKET}" == "${TMPDIR:-/tmp}/okso-mcp.sock" ]]
+        [[ "${MCP_ENDPOINTS_ALLOW_PARTIAL_DEFAULT}" == "true" ]]
+        [[ "${MCP_ENDPOINTS_TOML}" == *"mcp_local_server"* ]]
 }
 
 @test "load_config honors MCP overrides" {
-	cd "${REPO_ROOT}" || exit 1
-	source ./src/lib/config.sh
+        cd "${REPO_ROOT}" || exit 1
+        source ./src/lib/config.sh
 	CONFIG_FILE="${BATS_TEST_TMPDIR}/config-mcp-overrides.env"
 	cat >"${CONFIG_FILE}" <<'EOF'
 MCP_HUGGINGFACE_URL="https://demo.example/mcp"
 MCP_HUGGINGFACE_TOKEN_ENV="CUSTOM_TOKEN"
 MCP_LOCAL_SOCKET="/var/run/okso.sock"
 EOF
-	load_config
-	[[ "${MCP_HUGGINGFACE_URL}" == "https://demo.example/mcp" ]]
-	[[ "${MCP_HUGGINGFACE_TOKEN_ENV}" == "CUSTOM_TOKEN" ]]
-	[[ "${MCP_LOCAL_SOCKET}" == "/var/run/okso.sock" ]]
+        load_config
+        [[ "${MCP_HUGGINGFACE_URL}" == "https://demo.example/mcp" ]]
+        [[ "${MCP_HUGGINGFACE_TOKEN_ENV}" == "CUSTOM_TOKEN" ]]
+        [[ "${MCP_LOCAL_SOCKET}" == "/var/run/okso.sock" ]]
+}
+
+@test "load_config builds MCP endpoint JSON from TOML" {
+        cd "${REPO_ROOT}" || exit 1
+        source ./src/lib/config.sh
+        CONFIG_FILE="${BATS_TEST_TMPDIR}/config-mcp-toml.env"
+        cat >"${CONFIG_FILE}" <<'EOF'
+MCP_ENDPOINTS_TOML=$(cat <<'EOF_MCP'
+[[mcp.endpoints]]
+name = "custom_http"
+provider = "alpha"
+description = "Custom HTTP endpoint"
+usage = "custom_http <query>"
+safety = "Use the provided token"
+transport = "http"
+endpoint = "https://example.test/http"
+token_env = "CUSTOM_HTTP_TOKEN"
+EOF_MCP
+)
+EOF
+
+        load_config
+
+        [[ "${MCP_ENDPOINTS_ALLOW_PARTIAL_DEFAULT}" == "false" ]]
+        custom_endpoint=$(MCP_ENDPOINTS_JSON="${MCP_ENDPOINTS_JSON}" python3 - <<'PY'
+import json
+import os
+
+payload = json.loads(os.environ["MCP_ENDPOINTS_JSON"])
+print(payload[0]["name"], payload[0]["token_env"])
+PY
+)
+        [[ "${custom_endpoint}" == "custom_http CUSTOM_HTTP_TOKEN" ]]
+}
+
+@test "write_config_file persists structured MCP configuration" {
+        cd "${REPO_ROOT}" || exit 1
+        source ./src/lib/config.sh
+        CONFIG_FILE="${BATS_TEST_TMPDIR}/config-roundtrip.env"
+        load_config
+        write_config_file
+
+        run env CONFIG_FILE="${CONFIG_FILE}" bash -lc '
+                source ./src/lib/config.sh
+                load_config
+                [[ "${MCP_ENDPOINTS_TOML}" == *"mcp_huggingface"* ]]
+                [[ "${MCP_ENDPOINTS_ALLOW_PARTIAL_DEFAULT}" == "true" ]]
+        '
+
+        [ "$status" -eq 0 ]
 }

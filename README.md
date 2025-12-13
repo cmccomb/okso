@@ -50,40 +50,42 @@ okso can forward queries to MCP-style endpoints alongside its built-in tools.
 Registrations are configuration-driven so planners automatically see any user
 definitions without code changes. MCP tool names are merged into the runtime
 allowlist before the registry initializes, keeping the planner and dispatcher
-in sync with user configuration. Provide an environment variable or config file
-entry for `MCP_ENDPOINTS_JSON` containing a JSON array of endpoint definitions.
+in sync with user configuration. Add endpoint blocks to the `MCP_ENDPOINTS_TOML`
+section in `${XDG_CONFIG_HOME:-~/.config}/okso/config.env` to extend the tool
+registry without editing code.
 
 Example:
 
-```json
-[
-  {
-    "name": "mcp_huggingface",
-    "provider": "huggingface",
-    "description": "Connect to the configured Hugging Face MCP endpoint with the provided query.",
-    "usage": "mcp_huggingface <query>",
-    "safety": "Requires a valid Hugging Face token; do not print secrets in tool calls.",
-    "transport": "http",
-    "endpoint": "https://example.test/mcp",
-    "token_env": "MCP_TOKEN"
-  },
-  {
-    "name": "mcp_local_server",
-    "provider": "local_demo",
-    "description": "Connect to the bundled local MCP server over a unix socket.",
-    "usage": "mcp_local_server <query>",
-    "safety": "Uses a local socket; ensure the path is trusted before writing.",
-    "transport": "unix",
-    "socket": "/tmp/okso-mcp.sock"
-  }
-]
+```toml
+MCP_ENDPOINTS_TOML=$(cat <<'EOF_MCP'
+[[mcp.endpoints]]
+name = "mcp_huggingface"
+provider = "huggingface"
+description = "Connect to the configured Hugging Face MCP endpoint with the provided query."
+usage = "mcp_huggingface <query>"
+safety = "Requires a valid Hugging Face token; do not print secrets in tool calls."
+transport = "http"
+endpoint = "https://example.test/mcp"
+token_env = "MCP_TOKEN"
+
+[[mcp.endpoints]]
+name = "mcp_local_server"
+provider = "local_demo"
+description = "Connect to the bundled local MCP server over a unix socket."
+usage = "mcp_local_server <query>"
+safety = "Uses a local socket; ensure the path is trusted before writing."
+transport = "unix"
+socket = "/tmp/okso-mcp.sock"
+EOF_MCP
+)
 ```
 
 If no custom value is supplied, okso synthesizes the above defaults using
 `MCP_HUGGINGFACE_URL`, `MCP_HUGGINGFACE_TOKEN_ENV` (default:
 `HUGGINGFACEHUB_API_TOKEN`), and `MCP_LOCAL_SOCKET` (default:
-`${TMPDIR:-/tmp}/okso-mcp.sock`). Handlers emit JSON connection descriptors
-without printing token values.
+`${TMPDIR:-/tmp}/okso-mcp.sock`). The TOML block round-trips through
+`./src/bin/okso init`, and the loader translates it into the
+`MCP_ENDPOINTS_JSON` runtime format for MCP registration.
 
 ## Execution model
 

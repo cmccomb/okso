@@ -18,6 +18,8 @@
 #   MCP_HUGGINGFACE_URL (string): remote MCP endpoint for Hugging Face tools.
 #   MCP_HUGGINGFACE_TOKEN_ENV (string): env var holding the Hugging Face token.
 #   MCP_LOCAL_SOCKET (string): path or socket for a local MCP server.
+#   MCP_ENDPOINTS_ALLOW_PARTIAL_DEFAULT (bool): allow default MCP entries without endpoints.
+#   MCP_ENDPOINTS_TOML (string): TOML definition of MCP endpoints to register.
 #   MCP_ENDPOINTS_JSON (string): JSON array describing MCP endpoints to register.
 #
 #   okso-branded overrides (legacy DO_* aliases are ignored):
@@ -42,6 +44,70 @@ readonly DEFAULT_MODEL_FILE_BASE="Qwen_Qwen3-4B-Q4_K_M.gguf"
 #readonly DEFAULT_MODEL_FILE_BASE="Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
 readonly DEFAULT_MODEL_SPEC_BASE="${DEFAULT_MODEL_REPO_BASE}:${DEFAULT_MODEL_FILE_BASE}"
 readonly DEFAULT_MODEL_BRANCH_BASE="main"
+
+mcp_default_endpoints_toml() {
+        cat <<EOF
+[[mcp.endpoints]]
+name = "mcp_huggingface"
+provider = "huggingface"
+description = "Connect to the configured Hugging Face MCP endpoint with the provided query."
+usage = "mcp_huggingface <query>"
+safety = "Requires a valid Hugging Face token; do not print secrets in tool calls."
+transport = "http"
+endpoint = "${MCP_HUGGINGFACE_URL:-}"
+token_env = "${MCP_HUGGINGFACE_TOKEN_ENV:-HUGGINGFACEHUB_API_TOKEN}"
+
+[[mcp.endpoints]]
+name = "mcp_local_server"
+provider = "local_demo"
+description = "Connect to the bundled local MCP server over a unix socket."
+usage = "mcp_local_server <query>"
+safety = "Uses a local socket; ensure the path is trusted before writing."
+transport = "unix"
+socket = "${MCP_LOCAL_SOCKET:-${TMPDIR:-/tmp}/okso-mcp.sock}"
+EOF
+}
+
+mcp_endpoints_json_from_toml() {
+        # Arguments:
+        #   $1 - TOML document describing MCP endpoints
+        local toml_payload
+        toml_payload="$1"
+
+        MCP_ENDPOINTS_TOML_PAYLOAD="${toml_payload}" python3 - <<'PY'
+import json
+import os
+import sys
+
+try:
+    import tomllib
+except ModuleNotFoundError as exc:  # pragma: no cover - standard in 3.11+
+    sys.stderr.write(f"Missing tomllib for MCP parsing: {exc}\n")
+    sys.exit(1)
+
+raw = os.environ.get("MCP_ENDPOINTS_TOML_PAYLOAD", "")
+if not raw.strip():
+    json.dump([], sys.stdout)
+    sys.exit(0)
+
+try:
+    document = tomllib.loads(raw)
+except tomllib.TOMLDecodeError as exc:  # pragma: no cover - surfaced in tests
+    sys.stderr.write(f"Failed to parse MCP endpoints TOML: {exc}\n")
+    sys.exit(1)
+
+mcp_section = document.get("mcp", {})
+endpoints = mcp_section.get("endpoints", [])
+if endpoints is None:
+    endpoints = []
+
+if not isinstance(endpoints, list):
+    sys.stderr.write("MCP endpoints must be an array in TOML\n")
+    sys.exit(1)
+
+json.dump(endpoints, sys.stdout)
+PY
+}
 
 normalize_boolean_input() {
 	# Arguments:
@@ -126,9 +192,21 @@ load_config() {
 	VERBOSITY=${VERBOSITY:-1}
 	APPROVE_ALL=${APPROVE_ALL:-false}
 	FORCE_CONFIRM=${FORCE_CONFIRM:-false}
-	MCP_HUGGINGFACE_URL=${MCP_HUGGINGFACE_URL:-""}
-	MCP_HUGGINGFACE_TOKEN_ENV=${MCP_HUGGINGFACE_TOKEN_ENV:-"HUGGINGFACEHUB_API_TOKEN"}
-	MCP_LOCAL_SOCKET=${MCP_LOCAL_SOCKET:-"${TMPDIR:-/tmp}/okso-mcp.sock"}
+        MCP_HUGGINGFACE_URL=${MCP_HUGGINGFACE_URL:-""}
+        MCP_HUGGINGFACE_TOKEN_ENV=${MCP_HUGGINGFACE_TOKEN_ENV:-"HUGGINGFACEHUB_API_TOKEN"}
+        MCP_LOCAL_SOCKET=${MCP_LOCAL_SOCKET:-"${TMPDIR:-/tmp}/okso-mcp.sock"}
+
+        MCP_ENDPOINTS_ALLOW_PARTIAL_DEFAULT=${MCP_ENDPOINTS_ALLOW_PARTIAL_DEFAULT:-false}
+        if [[ -z "${MCP_ENDPOINTS_TOML:-}" ]]; then
+                MCP_ENDPOINTS_TOML="$(mcp_default_endpoints_toml)"
+                MCP_ENDPOINTS_ALLOW_PARTIAL_DEFAULT=true
+        fi
+
+        if [[ -z "${MCP_ENDPOINTS_JSON:-}" ]]; then
+                if ! MCP_ENDPOINTS_JSON="$(mcp_endpoints_json_from_toml "${MCP_ENDPOINTS_TOML}")"; then
+                        die config validation "Failed to parse MCP endpoint configuration"
+                fi
+        fi
 
 	if [[ -n "${OKSO_MODEL:-}" ]]; then
 		model_spec_override="${OKSO_MODEL}"
@@ -155,8 +233,13 @@ FORCE_CONFIRM=${FORCE_CONFIRM}
 MCP_HUGGINGFACE_URL="${MCP_HUGGINGFACE_URL}"
 MCP_HUGGINGFACE_TOKEN_ENV="${MCP_HUGGINGFACE_TOKEN_ENV}"
 MCP_LOCAL_SOCKET="${MCP_LOCAL_SOCKET}"
+MCP_ENDPOINTS_ALLOW_PARTIAL_DEFAULT=${MCP_ENDPOINTS_ALLOW_PARTIAL_DEFAULT}
+MCP_ENDPOINTS_TOML=\$(cat <<'EOF_MCP'
+${MCP_ENDPOINTS_TOML}
+EOF_MCP
+)
 EOF_CONFIG
-	printf 'Wrote config to %s\n' "${CONFIG_FILE}"
+        printf 'Wrote config to %s\n' "${CONFIG_FILE}"
 }
 
 parse_model_spec() {

@@ -160,14 +160,14 @@ JSON
 }
 
 mcp_resolved_endpoint_definitions() {
-	local raw_json
-	raw_json="${MCP_ENDPOINTS_JSON:-}" # string JSON array
-	local allow_partial_default
-	allow_partial_default=false
+        local raw_json
+        raw_json="${MCP_ENDPOINTS_JSON:-}" # string JSON array
+        local allow_partial_default
+        allow_partial_default=${MCP_ENDPOINTS_ALLOW_PARTIAL_DEFAULT:-false}
 
-	if [[ -z "${raw_json// /}" ]]; then
-		raw_json="$(mcp_default_endpoints_json)"
-		allow_partial_default=true
+        if [[ -z "${raw_json// /}" ]]; then
+                raw_json="$(mcp_default_endpoints_json)"
+                allow_partial_default=true
 	fi
 
 	MCP_ENDPOINTS_PAYLOAD="${raw_json}" MCP_ENDPOINTS_ALLOW_PARTIAL_DEFAULT="${allow_partial_default}" python3 - <<'PY'
