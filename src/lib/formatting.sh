@@ -178,12 +178,13 @@ format_tool_history() {
 	#   $1 - tool invocation history (newline-delimited string)
 	# Returns:
 	#   Grouped, human-friendly bullet list of tool runs (string)
-	local tool_history line current_step current_action current_observation
+	local tool_history line current_step current_action current_observation collecting_observation
 	local -a output_lines=()
 	tool_history="$1"
 	current_step=""
 	current_action=""
 	current_observation=""
+	collecting_observation=false
 
 	append_current_entry() {
 		if [[ -z "${current_step}" ]]; then
@@ -195,12 +196,13 @@ format_tool_history() {
 			output_lines+=("   action: ${current_action}")
 		fi
 		if [[ -n "${current_observation}" ]]; then
-			output_lines+=("   observation: ${current_observation}")
+			output_lines+=("   observation: ${current_observation//$'\n'/$'\n'"   "}")
 		fi
 
 		current_step=""
 		current_action=""
 		current_observation=""
+		collecting_observation=false
 	}
 
 	while IFS= read -r line || [ -n "${line}" ]; do
@@ -215,16 +217,25 @@ format_tool_history() {
 			current_action="${current_action#action: }"
 			current_action="${current_action#Action }"
 			current_action="${current_action#Action: }"
+			collecting_observation=false
 			continue
 		fi
-
-		if [[ "${line}" =~ ^[[:space:]]*Observation:[[:space:]]*(.*)$ ]]; then
+		if [[ "${line}" =~ ^[[:space:]]*[Oo][Bb][Ss][Ee][Rr][Vv][Aa][Tt][Ii][Oo][Nn]:[[:space:]]*(.*)$ ]]; then
 			current_observation="${BASH_REMATCH[1]}"
+			collecting_observation=true
 			continue
 		fi
-
 		if [[ -z "${current_step}" ]]; then
 			output_lines+=(" - ${line}")
+			continue
+		fi
+
+		if [[ "${collecting_observation}" == true ]]; then
+			if [[ -n "${current_observation}" ]]; then
+				current_observation+=$'\n'"${line}"
+			else
+				current_observation="${line}"
+			fi
 			continue
 		fi
 
