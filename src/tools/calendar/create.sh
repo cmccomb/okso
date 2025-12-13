@@ -75,10 +75,10 @@ APPLESCRIPT
 }
 
 register_calendar_create() {
-	register_tool \
-		"calendar_create" \
-		"Create a new Apple Calendar event (line 1: title; line 2: start time)." \
-		"osascript -e 'make new event with {summary:<title>, start date:date \"<time>\"}'" \
-		"Requires macOS Calendar access; event details are sent to Calendar." \
-		tool_calendar_create
+        register_tool \
+                "calendar_create" \
+                "Create a new Apple Calendar event (line 1: title; line 2: start time)." \
+                "calendar_create 'Title\\nStart time'" \
+                "Requires macOS Calendar access; event details are sent to Calendar." \
+                tool_calendar_create
 }

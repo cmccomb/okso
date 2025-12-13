@@ -73,10 +73,10 @@ APPLESCRIPT
 }
 
 register_calendar_list() {
-	register_tool \
-		"calendar_list" \
-		"List upcoming Apple Calendar events from the configured calendar." \
-		"osascript -e 'events of calendar <name> starting today'" \
-		"Requires macOS Calendar access; read-only." \
-		tool_calendar_list
+        register_tool \
+                "calendar_list" \
+                "List upcoming Apple Calendar events from the configured calendar." \
+                "calendar_list" \
+                "Requires macOS Calendar access; read-only." \
+                tool_calendar_list
 }
