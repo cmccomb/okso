@@ -90,12 +90,12 @@ EOM_UNAME
 }
 
 @test "honors okso-branded installer environment overrides" {
-        export OKSO_LINK_DIR="${TEST_ROOT}/custom-bin"
-        mkdir -p "${OKSO_LINK_DIR}"
+	export OKSO_LINK_DIR="${TEST_ROOT}/custom-bin"
+	mkdir -p "${OKSO_LINK_DIR}"
 
-        run env OKSO_INSTALLER_ASSUME_OFFLINE=true OKSO_INSTALLER_SKIP_SELF_TEST=true ./scripts/install.sh --prefix "${TEST_ROOT}/prefix"
+	run env OKSO_INSTALLER_ASSUME_OFFLINE=true OKSO_INSTALLER_SKIP_SELF_TEST=true ./scripts/install.sh --prefix "${TEST_ROOT}/prefix"
 
-        [ "$status" -eq 0 ]
-        [ -L "${OKSO_LINK_DIR}/okso" ]
-        [[ "$output" == *"installer completed (install)"* ]]
+	[ "$status" -eq 0 ]
+	[ -L "${OKSO_LINK_DIR}/okso" ]
+	[[ "$output" == *"installer completed (install)"* ]]
 }

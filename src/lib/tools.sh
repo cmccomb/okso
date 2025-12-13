@@ -32,31 +32,31 @@ source "${LIB_DIR}/logging.sh"
 source "${TOOLS_DIR}/registry.sh"
 # shellcheck disable=SC2034
 TOOL_NAME_ALLOWLIST_STATIC=(
-        "terminal"
-        "file_search"
-        "clipboard_copy"
-        "clipboard_paste"
-        "notes_create"
-        "notes_append"
-        "notes_list"
-        "notes_search"
-        "notes_read"
-        "reminders_create"
-        "reminders_list"
-        "reminders_complete"
-        "calendar_create"
-        "calendar_list"
-        "calendar_search"
-        "mail_draft"
-        "mail_send"
-        "mail_search"
-        "mail_list_inbox"
-        "mail_list_unread"
-        "applescript"
-        "python_repl"
-        "final_answer"
-        "mcp_huggingface"
-        "mcp_local_server"
+	"terminal"
+	"file_search"
+	"clipboard_copy"
+	"clipboard_paste"
+	"notes_create"
+	"notes_append"
+	"notes_list"
+	"notes_search"
+	"notes_read"
+	"reminders_create"
+	"reminders_list"
+	"reminders_complete"
+	"calendar_create"
+	"calendar_list"
+	"calendar_search"
+	"mail_draft"
+	"mail_send"
+	"mail_search"
+	"mail_list_inbox"
+	"mail_list_unread"
+	"applescript"
+	"python_repl"
+	"final_answer"
+	"mcp_huggingface"
+	"mcp_local_server"
 )
 TOOL_NAME_ALLOWLIST=("${TOOL_NAME_ALLOWLIST_STATIC[@]}")
 TOOL_WRITABLE_DIRECTORY_ALLOWLIST=(
@@ -87,22 +87,22 @@ source "${TOOLS_DIR}/mcp.sh"
 source "${TOOLS_DIR}/final_answer.sh"
 
 merge_tool_allowlist_with_mcp() {
-        local base_allowlist definitions_json
-        base_allowlist=("${TOOL_NAME_ALLOWLIST[@]:-${TOOL_NAME_ALLOWLIST_STATIC[@]}}");
+	local base_allowlist definitions_json
+	base_allowlist=("${TOOL_NAME_ALLOWLIST[@]:-${TOOL_NAME_ALLOWLIST_STATIC[@]}}")
 
-        if ! definitions_json="$(mcp_resolved_endpoint_definitions)"; then
-                log "ERROR" "Failed to resolve MCP endpoints for allowlist" ""
-                return 1
-        fi
+	if ! definitions_json="$(mcp_resolved_endpoint_definitions)"; then
+		log "ERROR" "Failed to resolve MCP endpoints for allowlist" ""
+		return 1
+	fi
 
-        mapfile -t TOOL_NAME_ALLOWLIST < <(
-                {
-                        printf '%s\n' "${base_allowlist[@]}"
-                        jq -r '.[].name' <<<"${definitions_json}"
-                } |
-                        awk 'NF' |
-                        sort -u
-        )
+	mapfile -t TOOL_NAME_ALLOWLIST < <(
+		{
+			printf '%s\n' "${base_allowlist[@]}"
+			jq -r '.[].name' <<<"${definitions_json}"
+		} |
+			awk 'NF' |
+			sort -u
+	)
 }
 
 tools_normalize_path() {
