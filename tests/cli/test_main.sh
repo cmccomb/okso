@@ -1,11 +1,12 @@
 #!/usr/bin/env bats
 
 setup() {
-	TEST_ROOT="${BATS_TMPDIR}/okso-main"
-	export HOME="${TEST_ROOT}/home"
-	export CONFIG_FILE="${TEST_ROOT}/config.env"
-	export LLAMA_BIN="${BATS_TEST_DIRNAME}/../fixtures/mock_llama_relevance.sh"
-	mkdir -p "${HOME}"
+        TEST_ROOT="${BATS_TMPDIR}/okso-main"
+        export HOME="${TEST_ROOT}/home"
+        export CONFIG_FILE="${TEST_ROOT}/config.env"
+        export LLAMA_BIN="${BATS_TEST_DIRNAME}/../fixtures/mock_llama_relevance.sh"
+        export USE_REACT_LLAMA=false
+        mkdir -p "${HOME}"
 
 	cat >"${CONFIG_FILE}" <<EOF
 MODEL_SPEC="example/repo:demo.gguf"
