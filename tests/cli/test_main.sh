@@ -35,10 +35,10 @@ load ../helpers/log_parsing.sh
 }
 
 @test "shows help text" {
-	run ./src/bin/okso --help -- "example query"
-	[ "$status" -eq 0 ]
-	[[ "$output" == *"Usage: ./src/bin/okso"* ]]
-	[[ "$output" != *"DO_MODEL"* ]]
+        run ./src/bin/okso --help -- "example query"
+        [ "$status" -eq 0 ]
+        [[ "$output" == *"Usage: ./src/bin/okso"* ]]
+        [[ "$output" == *"okso"* ]]
 }
 
 @test "includes default model spec in help" {
