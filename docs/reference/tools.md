@@ -4,7 +4,7 @@ The planner registers these tools (each implemented under `src/tools/<name>.sh`)
 
 - `terminal`: persistent working directory with `pwd`, `ls`, `cd`, `find`, `grep`, `stat`, `wc`, `du`, `base64 encode|decode`, and guarded mutations (`rm -i`, `mkdir`, `mv`, `cp`, `touch`). Uses `open` on macOS.
 - `python_repl`: run Python snippets in an ephemeral sandbox using quiet `python -i` startup guards that confine writes.
-- `file_search`: search for files and contents using `fd`/`rg` fallbacks.
+- `file_search`: search for files and contents using `mdfind` on macOS with `fd`/`rg` fallbacks elsewhere.
 - `clipboard_copy` / `clipboard_paste`: macOS clipboard helpers.
 - `notes_*`: create, append, list, read, or search Apple Notes entries.
 - `reminders_*`: create, list, or complete Apple Reminders.
