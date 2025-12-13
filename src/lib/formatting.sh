@@ -134,25 +134,25 @@ EOF
 }
 
 render_boxed_summary() {
-	# Arguments:
-	#   $1 - user query (string)
-	#   $2 - planner outline (string)
-	#   $3 - tool invocation history (newline-delimited string)
-	#   $4 - final answer (string)
-	local user_query plan_outline tool_history final_answer formatted_tools formatted_content
-	user_query="$1"
-	plan_outline="$2"
-	tool_history="$3"
-	final_answer="$4"
+        # Arguments:
+        #   $1 - user query (string)
+        #   $2 - planner outline (string)
+        #   $3 - tool invocation history (newline-delimited string)
+        #   $4 - final answer (string)
+        local user_query plan_outline tool_history final_answer formatted_tools formatted_content
+        user_query="$1"
+        plan_outline="$2"
+        tool_history="$3"
+        final_answer="$4"
 
-	if [[ -z "${tool_history}" ]]; then
-		formatted_tools="(none)"
-	else
-		formatted_tools="$(printf '%s\n' "${tool_history}" | sed '/^$/d; s/^/ - /')"
-	fi
+        if [[ -z "${tool_history}" ]]; then
+                formatted_tools="(none)"
+        else
+                formatted_tools="$(format_tool_history "${tool_history}")"
+        fi
 
-	formatted_content=$(
-		cat <<EOF
+        formatted_content=$(
+                cat <<EOF
 Query:
 ${user_query}
 
@@ -165,12 +165,79 @@ ${formatted_tools}
 Final answer:
 ${final_answer}
 EOF
-	)
-	if command -v gum >/dev/null 2>&1; then
-		formatted_content="$(printf '%s\n' "${formatted_content}" | gum format)"
-	fi
+        )
+        if command -v gum >/dev/null 2>&1; then
+                formatted_content="$(printf '%s\n' "${formatted_content}" | gum format)"
+        fi
 
-	render_box "${formatted_content}"
+        render_box "${formatted_content}"
+}
+
+format_tool_history() {
+        # Arguments:
+        #   $1 - tool invocation history (newline-delimited string)
+        # Returns:
+        #   Grouped, human-friendly bullet list of tool runs (string)
+        local tool_history line current_step current_action current_observation
+        local -a output_lines=()
+        tool_history="$1"
+        current_step=""
+        current_action=""
+        current_observation=""
+
+        append_current_entry() {
+                if [[ -z "${current_step}" ]]; then
+                        return
+                fi
+
+                output_lines+=(" - Step ${current_step}")
+                if [[ -n "${current_action}" ]]; then
+                        output_lines+=("   action: ${current_action}")
+                fi
+                if [[ -n "${current_observation}" ]]; then
+                        output_lines+=("   observation: ${current_observation}")
+                fi
+
+                current_step=""
+                current_action=""
+                current_observation=""
+        }
+
+        while IFS= read -r line || [ -n "${line}" ]; do
+                if [[ "${line}" =~ ^[[:space:]]*Step[[:space:]]+([0-9]+)[[:space:]]*(.*)$ ]]; then
+                        append_current_entry
+
+                        current_step="${BASH_REMATCH[1]}"
+                        current_action="${BASH_REMATCH[2]}"
+                        current_action="${current_action#"${current_action%%[![:space:]]*}"}"
+                        current_action="${current_action%"${current_action##*[![:space:]]}"}"
+                        current_action="${current_action#action }"
+                        current_action="${current_action#action: }"
+                        current_action="${current_action#Action }"
+                        current_action="${current_action#Action: }"
+                        continue
+                fi
+
+                if [[ "${line}" =~ ^[[:space:]]*Observation:[[:space:]]*(.*)$ ]]; then
+                        current_observation="${BASH_REMATCH[1]}"
+                        continue
+                fi
+
+                if [[ -z "${current_step}" ]]; then
+                        output_lines+=(" - ${line}")
+                        continue
+                fi
+
+                if [[ -n "${current_action}" ]]; then
+                        current_action+=" ${line}"
+                else
+                        current_action="${line}"
+                fi
+        done <<<"${tool_history}"
+
+        append_current_entry
+
+        printf '%s\n' "${output_lines[@]}"
 }
 
 emit_boxed_summary() {
