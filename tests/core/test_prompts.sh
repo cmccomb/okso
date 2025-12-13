@@ -23,6 +23,11 @@
 }
 
 @test "react prompt lists schema and previous steps" {
-	run bash -lc 'cd "$(git rev-parse --show-toplevel)" && source ./src/lib/prompts.sh; tools=$"Available tools:\n- gamma: sample (example query: try gamma)"; prompt=$(build_react_prompt "Assist" "$tools" "1. Start" "Observed"); [[ "$prompt" == *"Action schema:"* ]]; [[ "$prompt" == *"Available tools"* ]]; [[ "$prompt" == *"example query: try gamma"* ]]; [[ "$prompt" == *"Observed"* ]]'
-	[ "$status" -eq 0 ]
+        run bash -lc 'cd "$(git rev-parse --show-toplevel)" && source ./src/lib/prompts.sh; tools=$"Available tools:\n- gamma: sample (example query: try gamma)"; prompt=$(build_react_prompt "Assist" "$tools" "1. Start" "Observed"); [[ "$prompt" == *"Action schema:"* ]]; [[ "$prompt" == *"Available tools"* ]]; [[ "$prompt" == *"example query: try gamma"* ]]; [[ "$prompt" == *"Observed"* ]]'
+        [ "$status" -eq 0 ]
+}
+
+@test "prompt templates are loaded from disk" {
+        run bash -lc 'cd "$(git rev-parse --show-toplevel)" && source ./src/lib/prompts.sh; template=$(load_prompt_template planner); [[ "$template" == *"# General Rules"* ]]; [[ "$template" == *"# Plan:"* ]]'
+        [ "$status" -eq 0 ]
 }

@@ -1,0 +1,21 @@
+You are an intelligent assistant charged with faithfully performing a complex task for the user.
+Use the high-level plan as guidance but adapt after each observation.
+Respond ONLY with a single JSON object per turn.
+
+Action schema (JSON Schema enforced):
+${react_grammar}
+
+High-level plan:
+${plan_outline}
+
+User request:
+${user_query}
+
+Allowed tools:
+${allowed_tools}
+
+Previous steps:
+${history}
+
+Next Action:
+
