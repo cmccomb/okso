@@ -64,15 +64,15 @@ setup() {
 }
 
 @test "load_config ignores legacy DO_* variables" {
-        cd "${REPO_ROOT}" || exit 1
-        source ./src/lib/config.sh
-        CONFIG_FILE="${BATS_TEST_TMPDIR}/config-legacy.env"
-        printf "MODEL_SPEC=base/model\nMODEL_BRANCH=dev\n" >"${CONFIG_FILE}"
-        DO_MODEL="legacy/model" DO_MODEL_BRANCH="legacy-branch" DO_VERBOSITY=0 DO_SUPERVISED=false load_config
-        [[ "${MODEL_SPEC}" == "base/model" ]]
-        [[ "${MODEL_BRANCH}" == "dev" ]]
-        [[ "${VERBOSITY}" == "1" ]]
-        [[ "${APPROVE_ALL}" == "false" ]]
+	cd "${REPO_ROOT}" || exit 1
+	source ./src/lib/config.sh
+	CONFIG_FILE="${BATS_TEST_TMPDIR}/config-legacy.env"
+	printf "MODEL_SPEC=base/model\nMODEL_BRANCH=dev\n" >"${CONFIG_FILE}"
+	DO_MODEL="legacy/model" DO_MODEL_BRANCH="legacy-branch" DO_VERBOSITY=0 DO_SUPERVISED=false load_config
+	[[ "${MODEL_SPEC}" == "base/model" ]]
+	[[ "${MODEL_BRANCH}" == "dev" ]]
+	[[ "${VERBOSITY}" == "1" ]]
+	[[ "${APPROVE_ALL}" == "false" ]]
 }
 
 @test "load_config wires default MCP settings" {

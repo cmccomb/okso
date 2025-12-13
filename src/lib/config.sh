@@ -65,11 +65,11 @@ normalize_boolean_input() {
 }
 
 apply_supervised_overrides() {
-        local supervised_raw supervised
-        supervised_raw="${OKSO_SUPERVISED:-}"
-        if [[ -z "${supervised_raw}" ]]; then
-                return 0
-        fi
+	local supervised_raw supervised
+	supervised_raw="${OKSO_SUPERVISED:-}"
+	if [[ -z "${supervised_raw}" ]]; then
+		return 0
+	fi
 
 	supervised=$(normalize_boolean_input "${supervised_raw}" "true")
 	if [[ "${supervised}" == false ]]; then
@@ -80,11 +80,11 @@ apply_supervised_overrides() {
 }
 
 apply_verbosity_overrides() {
-        local verbosity_override
-        verbosity_override="${OKSO_VERBOSITY:-}"
-        if [[ -z "${verbosity_override}" ]]; then
-                return 0
-        fi
+	local verbosity_override
+	verbosity_override="${OKSO_VERBOSITY:-}"
+	if [[ -z "${verbosity_override}" ]]; then
+		return 0
+	fi
 
 	VERBOSITY="${verbosity_override}"
 }
@@ -130,15 +130,15 @@ load_config() {
 	MCP_HUGGINGFACE_TOKEN_ENV=${MCP_HUGGINGFACE_TOKEN_ENV:-"HUGGINGFACEHUB_API_TOKEN"}
 	MCP_LOCAL_SOCKET=${MCP_LOCAL_SOCKET:-"${TMPDIR:-/tmp}/okso-mcp.sock"}
 
-        if [[ -n "${OKSO_MODEL:-}" ]]; then
-                model_spec_override="${OKSO_MODEL}"
-                MODEL_SPEC="${model_spec_override}"
-        fi
+	if [[ -n "${OKSO_MODEL:-}" ]]; then
+		model_spec_override="${OKSO_MODEL}"
+		MODEL_SPEC="${model_spec_override}"
+	fi
 
-        if [[ -n "${OKSO_MODEL_BRANCH:-}" ]]; then
-                model_branch_override="${OKSO_MODEL_BRANCH}"
-                MODEL_BRANCH="${model_branch_override}"
-        fi
+	if [[ -n "${OKSO_MODEL_BRANCH:-}" ]]; then
+		model_branch_override="${OKSO_MODEL_BRANCH}"
+		MODEL_BRANCH="${model_branch_override}"
+	fi
 
 	apply_supervised_overrides
 	apply_verbosity_overrides
