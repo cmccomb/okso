@@ -32,7 +32,7 @@ source "${LIB_DIR}/logging.sh"
 source "${TOOLS_DIR}/registry.sh"
 # shellcheck disable=SC2034
 TOOL_NAME_ALLOWLIST=(
-        "terminal"
+	"terminal"
 	"file_search"
 	"clipboard_copy"
 	"clipboard_paste"
@@ -53,10 +53,10 @@ TOOL_NAME_ALLOWLIST=(
 	"mail_list_inbox"
 	"mail_list_unread"
 	"applescript"
-        "python_repl"
-        "final_answer"
-        "mcp_huggingface"
-        "mcp_local_server"
+	"python_repl"
+	"final_answer"
+	"mcp_huggingface"
+	"mcp_local_server"
 )
 TOOL_WRITABLE_DIRECTORY_ALLOWLIST=(
 	"${HOME}/.okso"
@@ -146,9 +146,9 @@ initialize_tools() {
 	register_clipboard_paste
 	register_notes_suite
 	register_reminders_suite
-        register_calendar_suite
-        register_mail_suite
-        register_applescript
-        register_mcp_endpoints
-        register_final_answer
+	register_calendar_suite
+	register_mail_suite
+	register_applescript
+	register_mcp_endpoints
+	register_final_answer
 }

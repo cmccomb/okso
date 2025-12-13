@@ -76,37 +76,37 @@ setup() {
 }
 
 @test "OKSO_* variables take precedence over DO_* equivalents" {
-        cd "${REPO_ROOT}" || exit 1
-        source ./src/lib/config.sh
-        CONFIG_FILE="${BATS_TEST_TMPDIR}/config-mixed.env"
-        printf "MODEL_SPEC=base/model\nMODEL_BRANCH=dev\n" >"${CONFIG_FILE}"
-        OKSO_MODEL="primary/model" DO_MODEL="legacy/model" OKSO_VERBOSITY=1 DO_VERBOSITY=2 load_config
-        [[ "${MODEL_SPEC}" == "primary/model" ]]
-        [[ "${VERBOSITY}" == "1" ]]
+	cd "${REPO_ROOT}" || exit 1
+	source ./src/lib/config.sh
+	CONFIG_FILE="${BATS_TEST_TMPDIR}/config-mixed.env"
+	printf "MODEL_SPEC=base/model\nMODEL_BRANCH=dev\n" >"${CONFIG_FILE}"
+	OKSO_MODEL="primary/model" DO_MODEL="legacy/model" OKSO_VERBOSITY=1 DO_VERBOSITY=2 load_config
+	[[ "${MODEL_SPEC}" == "primary/model" ]]
+	[[ "${VERBOSITY}" == "1" ]]
 }
 
 @test "load_config wires default MCP settings" {
-        cd "${REPO_ROOT}" || exit 1
-        source ./src/lib/config.sh
-        CONFIG_FILE="${BATS_TEST_TMPDIR}/config-mcp-defaults.env"
-        : >"${CONFIG_FILE}"
-        load_config
-        [[ "${MCP_HUGGINGFACE_URL}" == "" ]]
-        [[ "${MCP_HUGGINGFACE_TOKEN_ENV}" == "HUGGINGFACEHUB_API_TOKEN" ]]
-        [[ "${MCP_LOCAL_SOCKET}" == "${TMPDIR:-/tmp}/okso-mcp.sock" ]]
+	cd "${REPO_ROOT}" || exit 1
+	source ./src/lib/config.sh
+	CONFIG_FILE="${BATS_TEST_TMPDIR}/config-mcp-defaults.env"
+	: >"${CONFIG_FILE}"
+	load_config
+	[[ "${MCP_HUGGINGFACE_URL}" == "" ]]
+	[[ "${MCP_HUGGINGFACE_TOKEN_ENV}" == "HUGGINGFACEHUB_API_TOKEN" ]]
+	[[ "${MCP_LOCAL_SOCKET}" == "${TMPDIR:-/tmp}/okso-mcp.sock" ]]
 }
 
 @test "load_config honors MCP overrides" {
-        cd "${REPO_ROOT}" || exit 1
-        source ./src/lib/config.sh
-        CONFIG_FILE="${BATS_TEST_TMPDIR}/config-mcp-overrides.env"
-        cat >"${CONFIG_FILE}" <<'EOF'
+	cd "${REPO_ROOT}" || exit 1
+	source ./src/lib/config.sh
+	CONFIG_FILE="${BATS_TEST_TMPDIR}/config-mcp-overrides.env"
+	cat >"${CONFIG_FILE}" <<'EOF'
 MCP_HUGGINGFACE_URL="https://demo.example/mcp"
 MCP_HUGGINGFACE_TOKEN_ENV="CUSTOM_TOKEN"
 MCP_LOCAL_SOCKET="/var/run/okso.sock"
 EOF
-        load_config
-        [[ "${MCP_HUGGINGFACE_URL}" == "https://demo.example/mcp" ]]
-        [[ "${MCP_HUGGINGFACE_TOKEN_ENV}" == "CUSTOM_TOKEN" ]]
-        [[ "${MCP_LOCAL_SOCKET}" == "/var/run/okso.sock" ]]
+	load_config
+	[[ "${MCP_HUGGINGFACE_URL}" == "https://demo.example/mcp" ]]
+	[[ "${MCP_HUGGINGFACE_TOKEN_ENV}" == "CUSTOM_TOKEN" ]]
+	[[ "${MCP_LOCAL_SOCKET}" == "/var/run/okso.sock" ]]
 }

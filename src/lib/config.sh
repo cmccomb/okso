@@ -133,10 +133,10 @@ detect_config_file() {
 }
 
 load_config() {
-        # Load file-backed configuration first so environment overrides and CLI flags
-        # can layer on top in a predictable order.
-        local model_spec_override model_branch_override
-        if [[ -f "${CONFIG_FILE}" ]]; then
+	# Load file-backed configuration first so environment overrides and CLI flags
+	# can layer on top in a predictable order.
+	local model_spec_override model_branch_override
+	if [[ -f "${CONFIG_FILE}" ]]; then
 		# shellcheck source=/dev/null
 		source "${CONFIG_FILE}"
 	fi
@@ -145,10 +145,10 @@ load_config() {
 	MODEL_BRANCH=${MODEL_BRANCH:-${DEFAULT_MODEL_BRANCH_BASE}}
 	VERBOSITY=${VERBOSITY:-1}
 	APPROVE_ALL=${APPROVE_ALL:-false}
-        FORCE_CONFIRM=${FORCE_CONFIRM:-false}
-        MCP_HUGGINGFACE_URL=${MCP_HUGGINGFACE_URL:-""}
-        MCP_HUGGINGFACE_TOKEN_ENV=${MCP_HUGGINGFACE_TOKEN_ENV:-"HUGGINGFACEHUB_API_TOKEN"}
-        MCP_LOCAL_SOCKET=${MCP_LOCAL_SOCKET:-"${TMPDIR:-/tmp}/okso-mcp.sock"}
+	FORCE_CONFIRM=${FORCE_CONFIRM:-false}
+	MCP_HUGGINGFACE_URL=${MCP_HUGGINGFACE_URL:-""}
+	MCP_HUGGINGFACE_TOKEN_ENV=${MCP_HUGGINGFACE_TOKEN_ENV:-"HUGGINGFACEHUB_API_TOKEN"}
+	MCP_LOCAL_SOCKET=${MCP_LOCAL_SOCKET:-"${TMPDIR:-/tmp}/okso-mcp.sock"}
 
 	if model_spec_override=$(resolve_env_alias_pair OKSO_MODEL DO_MODEL); then
 		MODEL_SPEC="${model_spec_override}"
@@ -163,8 +163,8 @@ load_config() {
 }
 
 write_config_file() {
-        mkdir -p "$(dirname "${CONFIG_FILE}")"
-        cat >"${CONFIG_FILE}" <<EOF_CONFIG
+	mkdir -p "$(dirname "${CONFIG_FILE}")"
+	cat >"${CONFIG_FILE}" <<EOF_CONFIG
         MODEL_SPEC="${MODEL_SPEC}"
         MODEL_BRANCH="${MODEL_BRANCH}"
 VERBOSITY=${VERBOSITY}
@@ -174,7 +174,7 @@ MCP_HUGGINGFACE_URL="${MCP_HUGGINGFACE_URL}"
 MCP_HUGGINGFACE_TOKEN_ENV="${MCP_HUGGINGFACE_TOKEN_ENV}"
 MCP_LOCAL_SOCKET="${MCP_LOCAL_SOCKET}"
 EOF_CONFIG
-        printf 'Wrote config to %s\n' "${CONFIG_FILE}"
+	printf 'Wrote config to %s\n' "${CONFIG_FILE}"
 }
 
 parse_model_spec() {
