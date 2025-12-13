@@ -59,10 +59,10 @@ APPLESCRIPT
 }
 
 register_mail_list_unread() {
-	register_tool \
-		"mail_list_unread" \
-		"List unread Apple Mail inbox messages." \
-		"osascript -e 'get messages of inbox whose unread is true'" \
-		"Requires macOS Apple Mail access; returns metadata only." \
-		tool_mail_list_unread
+        register_tool \
+                "mail_list_unread" \
+                "List unread Apple Mail inbox messages." \
+                "mail_list_unread" \
+                "Requires macOS Apple Mail access; returns metadata only." \
+                tool_mail_list_unread
 }

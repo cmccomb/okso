@@ -67,10 +67,10 @@ APPLESCRIPT
 }
 
 register_mail_search() {
-	register_tool \
-		"mail_search" \
-		"Search Apple Mail inbox messages by subject, sender, or content." \
-		"osascript -e 'messages of inbox whose subject contains <term>'" \
-		"Requires macOS Apple Mail access; returns metadata only." \
-		tool_mail_search
+        register_tool \
+                "mail_search" \
+                "Search Apple Mail inbox messages by subject, sender, or content." \
+                "mail_search 'term'" \
+                "Requires macOS Apple Mail access; returns metadata only." \
+                tool_mail_search
 }

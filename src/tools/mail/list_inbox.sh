@@ -59,10 +59,10 @@ APPLESCRIPT
 }
 
 register_mail_list_inbox() {
-	register_tool \
-		"mail_list_inbox" \
-		"List recent Apple Mail inbox messages." \
-		"osascript -e 'get messages of inbox'" \
-		"Requires macOS Apple Mail access; returns metadata only." \
-		tool_mail_list_inbox
+        register_tool \
+                "mail_list_inbox" \
+                "List recent Apple Mail inbox messages." \
+                "mail_list_inbox" \
+                "Requires macOS Apple Mail access; returns metadata only." \
+                tool_mail_list_inbox
 }
