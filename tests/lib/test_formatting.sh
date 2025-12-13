@@ -41,16 +41,16 @@ EOF
 }
 
 @test "format_tool_descriptions rejects unknown formatter" {
-        run bash -lc '
+	run bash -lc '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 source ./src/lib/formatting.sh
                 format_tool_descriptions "demo" missing_formatter
         '
-        [ "$status" -eq 1 ]
+	[ "$status" -eq 1 ]
 }
 
 @test "format_tool_history collects multi-line observations case-insensitively" {
-        run bash -lc '
+	run bash -lc '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 source ./src/lib/formatting.sh
 
@@ -66,5 +66,5 @@ EOF
                 [[ "${output}" == *"observation: done"* ]]
                 [[ "${output}" != *"action: search query=weather first line"* ]]
         '
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
