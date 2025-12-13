@@ -63,26 +63,16 @@ setup() {
 	[[ "${VERBOSITY}" == "2" ]]
 }
 
-@test "load_config retains DO_* compatibility when OKSO_* unset" {
-	cd "${REPO_ROOT}" || exit 1
-	source ./src/lib/config.sh
-	CONFIG_FILE="${BATS_TEST_TMPDIR}/config-legacy.env"
-	printf "MODEL_SPEC=base/model\nMODEL_BRANCH=dev\n" >"${CONFIG_FILE}"
-	DO_MODEL="legacy/model" DO_MODEL_BRANCH="legacy-branch" DO_VERBOSITY=0 DO_SUPERVISED=false load_config
-	[[ "${MODEL_SPEC}" == "legacy/model" ]]
-	[[ "${MODEL_BRANCH}" == "legacy-branch" ]]
-	[[ "${VERBOSITY}" == "0" ]]
-	[[ "${APPROVE_ALL}" == "true" ]]
-}
-
-@test "OKSO_* variables take precedence over DO_* equivalents" {
-	cd "${REPO_ROOT}" || exit 1
-	source ./src/lib/config.sh
-	CONFIG_FILE="${BATS_TEST_TMPDIR}/config-mixed.env"
-	printf "MODEL_SPEC=base/model\nMODEL_BRANCH=dev\n" >"${CONFIG_FILE}"
-	OKSO_MODEL="primary/model" DO_MODEL="legacy/model" OKSO_VERBOSITY=1 DO_VERBOSITY=2 load_config
-	[[ "${MODEL_SPEC}" == "primary/model" ]]
-	[[ "${VERBOSITY}" == "1" ]]
+@test "load_config ignores legacy DO_* variables" {
+        cd "${REPO_ROOT}" || exit 1
+        source ./src/lib/config.sh
+        CONFIG_FILE="${BATS_TEST_TMPDIR}/config-legacy.env"
+        printf "MODEL_SPEC=base/model\nMODEL_BRANCH=dev\n" >"${CONFIG_FILE}"
+        DO_MODEL="legacy/model" DO_MODEL_BRANCH="legacy-branch" DO_VERBOSITY=0 DO_SUPERVISED=false load_config
+        [[ "${MODEL_SPEC}" == "base/model" ]]
+        [[ "${MODEL_BRANCH}" == "dev" ]]
+        [[ "${VERBOSITY}" == "1" ]]
+        [[ "${APPROVE_ALL}" == "false" ]]
 }
 
 @test "load_config wires default MCP settings" {

@@ -19,10 +19,8 @@
 #   MCP_HUGGINGFACE_TOKEN_ENV (string): env var holding the Hugging Face token.
 #   MCP_LOCAL_SOCKET (string): path or socket for a local MCP server.
 #
-#   The following okso-branded variables take precedence over legacy aliases:
+#   okso-branded overrides (legacy DO_* aliases are ignored):
 #     OKSO_MODEL, OKSO_MODEL_BRANCH, OKSO_SUPERVISED, OKSO_VERBOSITY
-#   Legacy aliases retained for compatibility:
-#     DO_MODEL, DO_MODEL_BRANCH, DO_SUPERVISED, DO_VERBOSITY
 #
 # Dependencies:
 #   - bash 5+
@@ -43,27 +41,6 @@ readonly DEFAULT_MODEL_FILE_BASE="Qwen_Qwen3-4B-Q4_K_M.gguf"
 #readonly DEFAULT_MODEL_FILE_BASE="Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
 readonly DEFAULT_MODEL_SPEC_BASE="${DEFAULT_MODEL_REPO_BASE}:${DEFAULT_MODEL_FILE_BASE}"
 readonly DEFAULT_MODEL_BRANCH_BASE="main"
-
-resolve_env_alias_pair() {
-	# Arguments:
-	#   $1 - primary environment variable name (string)
-	#   $2 - secondary environment variable name (string)
-	local primary secondary
-	primary="$1"
-	secondary="$2"
-
-	if [[ -n "${!primary:-}" ]]; then
-		printf '%s' "${!primary}"
-		return 0
-	fi
-
-	if [[ -n "${!secondary:-}" ]]; then
-		printf '%s' "${!secondary}"
-		return 0
-	fi
-
-	return 1
-}
 
 normalize_boolean_input() {
 	# Arguments:
@@ -87,10 +64,11 @@ normalize_boolean_input() {
 }
 
 apply_supervised_overrides() {
-	local supervised_raw supervised
-	if ! supervised_raw=$(resolve_env_alias_pair OKSO_SUPERVISED DO_SUPERVISED); then
-		return 0
-	fi
+        local supervised_raw supervised
+        supervised_raw="${OKSO_SUPERVISED:-}"
+        if [[ -z "${supervised_raw}" ]]; then
+                return 0
+        fi
 
 	supervised=$(normalize_boolean_input "${supervised_raw}" "true")
 	if [[ "${supervised}" == false ]]; then
@@ -101,10 +79,11 @@ apply_supervised_overrides() {
 }
 
 apply_verbosity_overrides() {
-	local verbosity_override
-	if ! verbosity_override=$(resolve_env_alias_pair OKSO_VERBOSITY DO_VERBOSITY); then
-		return 0
-	fi
+        local verbosity_override
+        verbosity_override="${OKSO_VERBOSITY:-}"
+        if [[ -z "${verbosity_override}" ]]; then
+                return 0
+        fi
 
 	VERBOSITY="${verbosity_override}"
 }
@@ -150,13 +129,15 @@ load_config() {
 	MCP_HUGGINGFACE_TOKEN_ENV=${MCP_HUGGINGFACE_TOKEN_ENV:-"HUGGINGFACEHUB_API_TOKEN"}
 	MCP_LOCAL_SOCKET=${MCP_LOCAL_SOCKET:-"${TMPDIR:-/tmp}/okso-mcp.sock"}
 
-	if model_spec_override=$(resolve_env_alias_pair OKSO_MODEL DO_MODEL); then
-		MODEL_SPEC="${model_spec_override}"
-	fi
+        if [[ -n "${OKSO_MODEL:-}" ]]; then
+                model_spec_override="${OKSO_MODEL}"
+                MODEL_SPEC="${model_spec_override}"
+        fi
 
-	if model_branch_override=$(resolve_env_alias_pair OKSO_MODEL_BRANCH DO_MODEL_BRANCH); then
-		MODEL_BRANCH="${model_branch_override}"
-	fi
+        if [[ -n "${OKSO_MODEL_BRANCH:-}" ]]; then
+                model_branch_override="${OKSO_MODEL_BRANCH}"
+                MODEL_BRANCH="${model_branch_override}"
+        fi
 
 	apply_supervised_overrides
 	apply_verbosity_overrides

@@ -16,4 +16,4 @@ The config file is `KEY="value"` style. Supported keys:
 - `FORCE_CONFIRM`: `true` to always prompt, even when approvals are automatic.
 - `VERBOSITY`: `0` (quiet), `1` (info), `2` (debug).
 
-Environment variables prefixed with `OKSO_` mirror the config keys and take precedence. Legacy `DO_*` aliases remain available for compatibility but prefer the `OKSO_*` names.
+Environment variables prefixed with `OKSO_` mirror the config keys and take precedence over file values.
