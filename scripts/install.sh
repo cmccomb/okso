@@ -13,8 +13,8 @@
 #       self-test (not recommended).
 #   OKSO_INSTALLER_ASSUME_OFFLINE (bool): Allow offline install; set a bundle base
 #       URL when using this flag.
-#   OKSO_INSTALLER_BASE_URL (string): Source bundle location when installing
-#       without a local checkout.
+#   OKSO_INSTALLER_BASE_URL (string): Git repository URL when installing without
+#       a local checkout.
 #
 # Exit codes:
 #   0: Success
@@ -38,7 +38,7 @@ APP_NAME="okso"
 DEFAULT_PREFIX="/usr/local/${APP_NAME}"
 DEFAULT_LINK_DIR="${OKSO_LINK_DIR:-/usr/local/bin}"
 DEFAULT_LINK_PATH="${DEFAULT_LINK_DIR}/${APP_NAME}"
-DEFAULT_BASE_URL="https://cmccomb.github.io/okso"
+DEFAULT_BASE_URL="https://github.com/cmccomb/okso"
 SCRIPT_SOURCE="${BASH_SOURCE[0]-${0-}}"
 if [ -z "${SCRIPT_SOURCE}" ] || [ "${SCRIPT_SOURCE}" = "-" ] || [ ! -f "${SCRIPT_SOURCE}" ]; then
 	SCRIPT_DIR="${PWD}"
@@ -88,34 +88,18 @@ detect_source_root() {
 }
 
 download_source_bundle() {
-	local destination base_url tarball_url tarball_path extracted_root
+        local destination base_url clone_dir
 
-	destination="$(mktemp -d)"
-	base_url="${OKSO_INSTALLER_BASE_URL:-${DEFAULT_BASE_URL}}"
-	tarball_url="${base_url%/}/okso.tar.gz"
-	tarball_path="${destination}/okso.tar.gz"
+        destination="$(mktemp -d)"
+        base_url="${OKSO_INSTALLER_BASE_URL:-${DEFAULT_BASE_URL}}"
+        clone_dir="${destination}/okso"
 
-	if ! curl -fsSL -o "${tarball_path}" "${tarball_url}"; then
-		log "ERROR" "Failed to download okso bundle from ${tarball_url}"
-		exit 2
-	fi
+        if ! git clone --depth 1 "${base_url}" "${clone_dir}"; then
+                log "ERROR" "Failed to clone okso repository from ${base_url}"
+                exit 2
+        fi
 
-	if ! tar -xzf "${tarball_path}" -C "${destination}"; then
-		log "ERROR" "Failed to extract okso bundle"
-		exit 2
-	fi
-
-	extracted_root="${destination}"
-	if [ ! -d "${extracted_root}/src" ]; then
-		extracted_root="$(find "${destination}" -maxdepth 2 -type d -name src -print0 2>/dev/null | xargs -0 dirname 2>/dev/null || true)"
-	fi
-
-	if [ -z "${extracted_root}" ] || [ ! -d "${extracted_root}/src" ]; then
-		log "ERROR" "Extracted bundle is missing source tree"
-		exit 2
-	fi
-
-	printf '%s\n' "${extracted_root}"
+        printf '%s\n' "${clone_dir}"
 }
 
 resolve_source_root() {
