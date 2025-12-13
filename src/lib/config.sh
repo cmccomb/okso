@@ -18,6 +18,7 @@
 #   MCP_HUGGINGFACE_URL (string): remote MCP endpoint for Hugging Face tools.
 #   MCP_HUGGINGFACE_TOKEN_ENV (string): env var holding the Hugging Face token.
 #   MCP_LOCAL_SOCKET (string): path or socket for a local MCP server.
+#   MCP_ENDPOINTS_JSON (string): JSON array describing MCP endpoints to register.
 #
 #   The following okso-branded variables take precedence over legacy aliases:
 #     OKSO_MODEL, OKSO_MODEL_BRANCH, OKSO_SUPERVISED, OKSO_VERBOSITY

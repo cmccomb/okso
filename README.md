@@ -46,18 +46,42 @@ More scenarios and reference material live in the [docs/](docs/index.md).
 
 ### MCP endpoints
 
-okso can forward queries to MCP-style endpoints alongside its built-in tools. Two
-registrations ship with the CLI:
+okso can forward queries to MCP-style endpoints alongside its built-in tools.
+Registrations are configuration-driven so planners automatically see any user
+definitions without code changes. Provide an environment variable or config file
+entry for `MCP_ENDPOINTS_JSON` containing a JSON array of endpoint definitions.
 
-- `mcp_huggingface` forwards the current tool query to a remote Hugging Face
-  endpoint. Configure the target URL and token variable through `MCP_HUGGINGFACE_URL`
-  and `MCP_HUGGINGFACE_TOKEN_ENV` (defaults to `HUGGINGFACEHUB_API_TOKEN`).
-- `mcp_local_server` targets a bundled local server over a unix socket set in
-  `MCP_LOCAL_SOCKET` (default: `${TMPDIR:-/tmp}/okso-mcp.sock`).
+Example:
 
-Configure these values in your config file or export them before running
-`okso`; the handlers emit JSON connection descriptors without printing token
-values.
+```json
+[
+  {
+    "name": "mcp_huggingface",
+    "provider": "huggingface",
+    "description": "Connect to the configured Hugging Face MCP endpoint with the provided query.",
+    "usage": "mcp_huggingface <query>",
+    "safety": "Requires a valid Hugging Face token; do not print secrets in tool calls.",
+    "transport": "http",
+    "endpoint": "https://example.test/mcp",
+    "token_env": "MCP_TOKEN"
+  },
+  {
+    "name": "mcp_local_server",
+    "provider": "local_demo",
+    "description": "Connect to the bundled local MCP server over a unix socket.",
+    "usage": "mcp_local_server <query>",
+    "safety": "Uses a local socket; ensure the path is trusted before writing.",
+    "transport": "unix",
+    "socket": "/tmp/okso-mcp.sock"
+  }
+]
+```
+
+If no custom value is supplied, okso synthesizes the above defaults using
+`MCP_HUGGINGFACE_URL`, `MCP_HUGGINGFACE_TOKEN_ENV` (default:
+`HUGGINGFACEHUB_API_TOKEN`), and `MCP_LOCAL_SOCKET` (default:
+`${TMPDIR:-/tmp}/okso-mcp.sock`). Handlers emit JSON connection descriptors
+without printing token values.
 
 ## Execution model
 
