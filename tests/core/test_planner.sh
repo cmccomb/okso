@@ -13,7 +13,7 @@
 #   Inherits Bats semantics; individual tests assert helper outcomes.
 
 @test "derive_allowed_tools_from_plan expands react fallback" {
-        run bash -lc '
+	run bash -lc '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 source ./src/lib/planner.sh
                 tool_names() { printf "%s\n" "terminal" "notes_create" "final_answer"; }
@@ -24,16 +24,16 @@
                 [[ "${tools[1]}" == "notes_create" ]]
                 [[ "${tools[2]}" == "final_answer" ]]
         '
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "append_final_answer_step emits array with final step" {
-        run bash -lc 'cd "$(git rev-parse --show-toplevel)" && source ./src/lib/planner.sh; plan_json=$'"'"'[{"tool":"alpha","args":{},"thought":"alpha via terminal"}]'"'"'; with_final=$(append_final_answer_step "${plan_json}"); outline=$(plan_json_to_outline "${with_final}"); [[ "${outline}" == *"1. alpha via terminal"* ]]; [[ "${outline}" == *"Summarize the result for the user."* ]]'
-        [ "$status" -eq 0 ]
+	run bash -lc 'cd "$(git rev-parse --show-toplevel)" && source ./src/lib/planner.sh; plan_json=$'"'"'[{"tool":"alpha","args":{},"thought":"alpha via terminal"}]'"'"'; with_final=$(append_final_answer_step "${plan_json}"); outline=$(plan_json_to_outline "${with_final}"); [[ "${outline}" == *"1. alpha via terminal"* ]]; [[ "${outline}" == *"Summarize the result for the user."* ]]'
+	[ "$status" -eq 0 ]
 }
 
 @test "normalize_planner_plan converts bullet outlines to react fallback" {
-        run bash -lc '
+	run bash -lc '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 source ./src/lib/planner.sh
 
@@ -42,18 +42,18 @@
                 [[ "${plan_json}" == *"react_fallback"* ]]
         '
 
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "normalize_planner_plan rejects malformed objects" {
-        run bash -lc "
+	run bash -lc "
                 cd \"$(git rev-parse --show-toplevel)\" || exit 1
                 source ./src/lib/planner.sh
 
                 printf '[{\"thought\":\"missing tool\"}]' | normalize_planner_plan
         "
 
-        [ "$status" -eq 1 ]
+	[ "$status" -eq 1 ]
 }
 
 @test "should_prompt_for_tool respects execution toggles" {
