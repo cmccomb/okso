@@ -84,15 +84,15 @@ build_concise_response_prompt() {
 }
 
 build_planner_prompt() {
-	# Arguments:
-	#   $1 - user query (string)
-	#   $2 - formatted tool descriptions (string)
-	local user_query tool_lines planner_grammar
-	user_query="$1"
-	tool_lines="$2"
-	planner_grammar="$(load_grammar_text planner_plan)"
+        # Arguments:
+        #   $1 - user query (string)
+        #   $2 - formatted tool descriptions (string)
+        local user_query tool_lines planner_grammar
+        user_query="$1"
+        tool_lines="$2"
+        planner_grammar="$(load_grammar_text planner_plan)"
 
-	render_prompt_template "planner" \
+        render_prompt_template "planner" \
 		user_query "${user_query}" \
 		tool_lines "${tool_lines}" \
 		planner_grammar "${planner_grammar}"

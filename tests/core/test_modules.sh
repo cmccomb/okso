@@ -195,23 +195,24 @@ exit 1
 fi
 printf "%s" "${plan}"
 '
-	[ "$status" -eq 0 ]
-	[ "${output}" = "1. Use final_answer to respond directly to the user request." ]
-	# shellcheck disable=SC2154
-	[[ "${stderr}" == *"Using static plan outline"* ]]
+        [ "$status" -eq 0 ]
+        [ "${output}" = "1. Respond directly to the user request." ]
+        # shellcheck disable=SC2154
+        [[ "${stderr}" == *"Using static plan"* ]]
 }
 
-@test "extract_tools_from_plan returns ordered list" {
-	run bash -lc '
+@test "derive_allowed_tools_from_plan returns ordered list" {
+        run bash -lc '
                 source ./src/lib/planner.sh
                 initialize_tools
-                plan_text=$'"'"'1. Use notes_create to capture details.\n2. Use terminal to list files.\n3. Use final_answer to wrap up.'"'"'
-                extract_tools_from_plan "${plan_text}"
+                plan_json='"'"'[{"tool":"notes_create","args":{},"thought":"capture"},{"tool":"terminal","args":{},"thought":"list"}]'"'"'
+                mapfile -t tools < <(derive_allowed_tools_from_plan "${plan_json}")
+                printf "%s\n" "${tools[@]}"
         '
-	[ "$status" -eq 0 ]
-	[ "${lines[0]}" = "notes_create" ]
-	[ "${lines[1]}" = "terminal" ]
-	[ "${lines[2]}" = "final_answer" ]
+        [ "$status" -eq 0 ]
+        [ "${lines[0]}" = "notes_create" ]
+        [ "${lines[1]}" = "terminal" ]
+        [ "${lines[2]}" = "final_answer" ]
 }
 
 @test "emit_plan_json builds valid array" {
