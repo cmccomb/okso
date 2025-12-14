@@ -616,9 +616,8 @@ schema_doc = {
     "description": "ReAct tool call constrained to the provided allowed tools.",
     "type": "object",
     "additionalProperties": False,
-    "required": ["type", "thought", "tool", "args"],
+    "required": ["thought", "tool", "args"],
     "properties": {
-        "type": {"const": "tool"},
         "thought": {"type": "string", "minLength": 1},
         "tool": {"type": "string", "enum": tool_enum},
         "args": {"type": "object"},
@@ -668,15 +667,16 @@ except Exception as exc:  # noqa: BLE001
     print(f"Schema load failed: {exc}", file=sys.stderr)
     sys.exit(1)
 
-required_keys = ("type", "thought", "tool", "args")
+required_keys = ("thought", "tool", "args")
 for key in required_keys:
     if key not in action:
         print(f"Missing field: {key}", file=sys.stderr)
         sys.exit(1)
 
-if action.get("type") != "tool":
-    print('type must be "tool"', file=sys.stderr)
-    sys.exit(1)
+for key in action:
+    if key not in required_keys:
+        print(f"Unexpected field: {key}", file=sys.stderr)
+        sys.exit(1)
 
 thought = action.get("thought")
 if not isinstance(thought, str) or not thought.strip():
@@ -736,7 +736,6 @@ for key, value in args.items():
             sys.exit(1)
 
 print(json.dumps({
-    "type": "tool",
     "thought": thought.strip(),
     "tool": tool,
     "args": args,
@@ -788,22 +787,23 @@ select_next_action() {
 		return
 	fi
 
-        plan_index="$(state_get "${state_name}" "plan_index")"
-        plan_index=${plan_index:-0}
-        planned_entry=$(printf '%s\n' "$(state_get "${state_name}" "plan_entries")" | sed -n "$((plan_index + 1))p")
+	plan_index="$(state_get "${state_name}" "plan_index")"
+	plan_index=${plan_index:-0}
+	planned_entry=$(printf '%s\n' "$(state_get "${state_name}" "plan_entries")" | sed -n "$((plan_index + 1))p")
 
-        if [[ -n "${planned_entry}" ]]; then
-                tool="$(printf '%s' "${planned_entry}" | jq -r '.tool // empty' 2>/dev/null || printf '')"
-                args_json="$(printf '%s' "${planned_entry}" | jq -c '.args // {}' 2>/dev/null || printf '{}')"
-                query="$(extract_tool_query "${tool}" "${args_json}")"
-                state_increment "${state_name}" "plan_index" 1 >/dev/null
-                next_action_payload="$(jq -nc --arg thought "Following planned step" --arg tool "${tool}" --argjson args "${args_json}" '{type:"tool", thought:$thought, tool:$tool, args:$args}')"
-        else
-                local final_query
-                final_query="$(respond_text "$(state_get "${state_name}" "user_query") $(state_get "${state_name}" "history")" 512)"
-                args_json="$(format_tool_args "final_answer" "${final_query}")"
-                next_action_payload="$(jq -nc --arg thought "Providing final answer" --arg tool "final_answer" --argjson args "${args_json}" '{type:"tool", thought:$thought, tool:$tool, args:$args}')"
-        fi
+	if [[ -n "${planned_entry}" ]]; then
+		tool="${planned_entry%%|*}"
+		query="${planned_entry#*|}"
+		query="${query%%|*}"
+		state_increment "${state_name}" "plan_index" 1 >/dev/null
+		args_json="$(format_tool_args "${tool}" "${query}")"
+		next_action_payload="$(jq -nc --arg thought "Following planned step" --arg tool "${tool}" --argjson args "${args_json}" '{thought:$thought, tool:$tool, args:$args}')"
+	else
+		local final_query
+		final_query="$(respond_text "$(state_get "${state_name}" "user_query") $(state_get "${state_name}" "history")" 512)"
+		args_json="$(format_tool_args "final_answer" "${final_query}")"
+		next_action_payload="$(jq -nc --arg thought "Providing final answer" --arg tool "final_answer" --argjson args "${args_json}" '{thought:$thought, tool:$tool, args:$args}')"
+	fi
 
 	if [[ -n "${output_name}" ]]; then
 		printf -v "${output_name}" '%s' "${next_action_payload}"
@@ -914,7 +914,7 @@ finalize_react_result() {
 }
 
 react_loop() {
-	local user_query allowed_tools plan_entries plan_outline action_json action_type tool query observation current_step thought args_json action_context
+	local user_query allowed_tools plan_entries plan_outline action_json tool query observation current_step thought args_json action_context
 	local state_prefix
 	user_query="$1"
 	allowed_tools="$2"
@@ -929,18 +929,11 @@ react_loop() {
 		current_step=$(($(state_get "${state_prefix}" "step") + 1))
 
 		select_next_action "${state_prefix}" action_json
-		action_type="$(printf '%s' "${action_json}" | jq -r '.type // empty' 2>/dev/null || true)"
 		tool="$(printf '%s' "${action_json}" | jq -r '.tool // empty' 2>/dev/null || true)"
 		thought="$(printf '%s' "${action_json}" | jq -r '.thought // empty' 2>/dev/null || true)"
 		args_json="$(printf '%s' "${action_json}" | jq -c '.args // {}' 2>/dev/null || printf '{}')"
 		query="$(extract_tool_query "${tool}" "${args_json}")"
 		action_context="$(format_action_context "${thought}" "${tool}" "${args_json}")"
-
-		if [[ "${action_type}" != "tool" ]]; then
-			record_history "${state_prefix}" "$(printf 'Step %s unusable action: %s' "${current_step}" "${action_json}")"
-			state_set "${state_prefix}" "step" "${current_step}"
-			continue
-		fi
 
 		if ! validate_tool_permission "${state_prefix}" "${tool}"; then
 			state_set "${state_prefix}" "step" "${current_step}"

@@ -150,6 +150,7 @@ EOF_MCP
 	load_config
 	write_config_file
 
+	# shellcheck disable=SC2016
 	run env CONFIG_FILE="${CONFIG_FILE}" bash -lc '
                 source ./src/lib/config.sh
                 load_config

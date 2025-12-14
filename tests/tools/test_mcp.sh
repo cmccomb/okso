@@ -180,6 +180,7 @@ setup() {
 
 @test "register_mcp_endpoints infers usage when missing" {
 	cd "${REPO_ROOT}" || exit 1
+	# shellcheck disable=SC2026
 	run bash -lc '
                 set -e
                 MCP_SKIP_USAGE_DISCOVERY=false

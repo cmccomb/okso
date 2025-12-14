@@ -21,7 +21,7 @@
 #   1: Invalid usage
 #   2: Dependency installation failed
 #   3: Unsupported platform (non-macOS)
-#   5: Filesystem permission error
+#   5: Filesystem permission error :(
 #
 # Dependencies:
 #   - bash 5+
@@ -245,6 +245,17 @@ ensure_link_dir_writable() {
 	exit 5
 }
 
+prefix_writable() {
+	local dir="$1" probe
+	[ -d "${dir}" ] || return 1
+	probe="${dir}/.okso-installer-probe.$$"
+	if (: >"${probe}") 2>/dev/null; then
+		rm -f "${probe}" >/dev/null 2>&1 || true
+		return 0
+	fi
+	return 1
+}
+
 link_binary() {
 	# $1: installation prefix
 	local prefix="$1"
@@ -272,19 +283,53 @@ link_binary() {
 
 copy_payload() {
 	# $1: source root, $2: installation prefix
-	local source_root="$1" prefix="$2" copy_target
+	local source_root="$1" prefix="$2" copy_target sudo_cmd probe
 
 	copy_target="${prefix}"
-	mkdir -p "${copy_target}"
+	sudo_cmd=""
 
-	if command -v rsync >/dev/null 2>&1; then
-		rsync -a --delete "${source_root}/" "${copy_target}/"
-	else
-		tar -cf - -C "${source_root}" . | tar -xf - -C "${copy_target}"
+	# Ensure destination exists.
+	if ! mkdir -p "${copy_target}" 2>/dev/null; then
+		if command -v sudo >/dev/null 2>&1; then
+			sudo_cmd="sudo"
+			sudo mkdir -p "${copy_target}"
+		else
+			log "ERROR" "Insufficient permissions to create ${copy_target}. Re-run with sudo or pass --prefix to a writable directory."
+			exit 5
+		fi
 	fi
 
-	mkdir -p "${prefix}/bin"
-	ln -sf "${prefix}/src/bin/${APP_NAME}" "${prefix}/bin/${APP_NAME}"
+	# Determine whether we can write into the destination; if not, use sudo for the payload copy.
+	if ! prefix_writable "${copy_target}"; then
+		if command -v sudo >/dev/null 2>&1; then
+			sudo_cmd="sudo"
+		else
+			log "ERROR" "Insufficient permissions to write into ${copy_target}. Re-run with sudo or pass --prefix to a writable directory."
+			exit 5
+		fi
+	fi
+
+	if command -v rsync >/dev/null 2>&1; then
+		if [ -n "${sudo_cmd}" ]; then
+			sudo rsync -a --delete "${source_root}/" "${copy_target}/"
+		else
+			rsync -a --delete "${source_root}/" "${copy_target}/"
+		fi
+	else
+		if [ -n "${sudo_cmd}" ]; then
+			tar -cf - -C "${source_root}" . | sudo tar -xf - -C "${copy_target}"
+		else
+			tar -cf - -C "${source_root}" . | tar -xf - -C "${copy_target}"
+		fi
+	fi
+
+	if [ -n "${sudo_cmd}" ]; then
+		sudo mkdir -p "${prefix}/bin"
+		sudo ln -sf "${prefix}/src/bin/${APP_NAME}" "${prefix}/bin/${APP_NAME}"
+	else
+		mkdir -p "${prefix}/bin"
+		ln -sf "${prefix}/src/bin/${APP_NAME}" "${prefix}/bin/${APP_NAME}"
+	fi
 }
 
 self_test_install() {
@@ -383,6 +428,7 @@ main() {
 	require_macos
 
 	if [ "${DRY_RUN}" = "true" ]; then
+		log "INFO" "Dry run enabled; no changes will be made."
 		local local_root base_url
 		local_root="$(detect_source_root)"
 		base_url="${OKSO_INSTALLER_BASE_URL:-${DEFAULT_BASE_URL}}"
@@ -402,8 +448,15 @@ main() {
 	if [ "${MODE}" = "uninstall" ]; then
 		remove_symlink
 		if [ -d "${INSTALL_PREFIX}" ]; then
-			rm -rf "${INSTALL_PREFIX}"
-			log "INFO" "Removed ${INSTALL_PREFIX}"
+			if rm -rf "${INSTALL_PREFIX}" 2>/dev/null; then
+				log "INFO" "Removed ${INSTALL_PREFIX}"
+			elif command -v sudo >/dev/null 2>&1; then
+				sudo rm -rf "${INSTALL_PREFIX}"
+				log "INFO" "Removed ${INSTALL_PREFIX}"
+			else
+				log "ERROR" "Cannot remove ${INSTALL_PREFIX}; insufficient permissions."
+				exit 5
+			fi
 		fi
 		log "INFO" "${APP_NAME} installer completed (uninstall)."
 		exit 0

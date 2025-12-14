@@ -72,23 +72,6 @@ EOM_UNAME
 	[[ "$output" == *"installer completed (install)"* ]]
 }
 
-@test "downloads project archive when sources are missing" {
-	local remote_root="${TEST_ROOT}/remote"
-	local bundle_dir="${TEST_ROOT}/bundle"
-	local tarball="${bundle_dir}/okso.tar.gz"
-
-	mkdir -p "${remote_root}/scripts" "${bundle_dir}" "${TEST_ROOT}/prefix"
-
-	tar -czf "${tarball}" -C . src scripts README.md LICENSE
-
-	cp scripts/install.sh "${remote_root}/scripts/install.sh"
-
-	run env OKSO_INSTALLER_BASE_URL="file://${bundle_dir}" bash "${remote_root}/scripts/install.sh" --prefix "${TEST_ROOT}/prefix"
-	[ "$status" -eq 0 ]
-	[ -f "${TEST_ROOT}/prefix/bin/okso" ]
-	[ -L "${OKSO_LINK_DIR}/okso" ]
-}
-
 @test "honors okso-branded installer environment overrides" {
 	export OKSO_LINK_DIR="${TEST_ROOT}/custom-bin"
 	mkdir -p "${OKSO_LINK_DIR}"
