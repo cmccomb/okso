@@ -1,6 +1,7 @@
 #!/usr/bin/env bats
 
 setup() {
+	#shellcheck disable=SC2155
 	export REPO_ROOT="$(git rev-parse --show-toplevel)"
 }
 
