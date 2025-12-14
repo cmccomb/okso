@@ -3,10 +3,9 @@
   "title": "ReactActionBase",
   "description": "Base ReAct action shape; runtime grammars are generated from the tool registry and allowed tool list.",
   "type": "object",
-  "required": ["type", "thought", "tool", "args"],
+  "required": ["thought", "tool", "args"],
   "additionalProperties": false,
   "properties": {
-    "type": { "const": "tool" },
     "thought": { "type": "string", "minLength": 1 },
     "tool": { "type": "string", "minLength": 1 },
     "args": { "type": "object" }
