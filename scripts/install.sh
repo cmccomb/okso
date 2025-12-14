@@ -21,7 +21,7 @@
 #   1: Invalid usage
 #   2: Dependency installation failed
 #   3: Unsupported platform (non-macOS)
-#   5: Filesystem permission error
+#   5: Filesystem permission error :(
 #
 # Dependencies:
 #   - bash 5+
