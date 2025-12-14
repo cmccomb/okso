@@ -13,7 +13,7 @@
       "Use final_answer to respond directly to the user."
     ],
     [
-      "Use note_create to jot down key points",
+      "Use note_create to jot down key points as requested by user",
       "Use final_answer to summarize for user"
     ],
     [
