@@ -8,10 +8,9 @@
 #
 # Environment variables:
 #   TOOL_QUERY (string): human query to forward to the MCP endpoint.
-#   MCP_HUGGINGFACE_URL (string): remote Hugging Face MCP endpoint URL.
-#   MCP_HUGGINGFACE_TOKEN_ENV (string): env var that stores the Hugging Face token.
 #   MCP_LOCAL_SOCKET (string): unix socket or filesystem path for a local MCP server.
 #   MCP_ENDPOINTS_JSON (string): JSON array of MCP endpoint definitions.
+#   MCP_SKIP_USAGE_DISCOVERY (bool): skip HTTP usage discovery when true.
 #
 # Dependencies:
 #   - bash 5+
@@ -133,43 +132,103 @@ mcp_dispatch_endpoint() {
 	esac
 }
 
-mcp_default_endpoints_json() {
-	cat <<JSON
-[
-  {
-    "name": "mcp_huggingface",
-    "provider": "huggingface",
-    "description": "Connect to the configured Hugging Face MCP endpoint with the provided query.",
-    "usage": "mcp_huggingface <query>",
-    "safety": "Requires a valid Hugging Face token; do not print secrets in tool calls.",
-    "transport": "http",
-    "endpoint": "https://huggingface.co/mcp",
-  },
-  {
-    "name": "mcp_local_server",
-    "provider": "local_demo",
-    "description": "Connect to the bundled local MCP server over a unix socket.",
-    "usage": "mcp_local_server <query>",
-    "safety": "Uses a local socket; ensure the path is trusted before writing.",
-    "transport": "unix",
-    "socket": "${MCP_LOCAL_SOCKET:-${TMPDIR:-/tmp}/okso-mcp.sock}"
-  }
-]
-JSON
+mcp_render_usage_from_tool_listing() {
+        # Generate a concise usage string from a remote MCP tool listing.
+        # Arguments:
+        #   $1 - JSON payload returned by a tools endpoint (string)
+        local tools_json
+        tools_json="$1"
+
+        MCP_TOOLS_PAYLOAD="${tools_json}" python3 - <<'PY'
+"""Summarize a tools listing into a human-readable usage string."""
+
+import json
+import os
+import sys
+from typing import Iterable, Tuple
+
+
+def extract_tools(payload: dict) -> Iterable[Tuple[str, str]]:
+    tools = payload.get("tools")
+    if isinstance(tools, list):
+        for entry in tools:
+            name = entry.get("name") if isinstance(entry, dict) else None
+            description = entry.get("description", "") if isinstance(entry, dict) else ""
+            if name:
+                yield name, description
+        return
+
+    # fall back to direct list
+    if isinstance(payload, list):
+        for entry in payload:
+            name = entry.get("name") if isinstance(entry, dict) else None
+            description = entry.get("description", "") if isinstance(entry, dict) else ""
+            if name:
+                yield name, description
+
+
+def main() -> None:
+    raw = os.environ.get("MCP_TOOLS_PAYLOAD", "").strip()
+    if not raw:
+        return
+
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError:
+        return
+
+    entries = list(extract_tools(payload))
+    if not entries:
+        return
+
+    formatted = "; ".join(
+        f"{name}: {description}" if description else name for name, description in entries
+    )
+    sys.stdout.write(f"Available tools -> {formatted}")
+
+
+if __name__ == "__main__":
+    main()
+PY
+}
+
+mcp_infer_usage_from_http() {
+        # Attempt to derive a usage string from a remote MCP HTTP endpoint.
+        # Arguments:
+        #   $1 - base HTTP endpoint URL (string)
+        #   $2 - token environment variable name (string)
+        local endpoint token_env url auth_header
+        endpoint="$1"
+        token_env="$2"
+
+        if [[ -z "${endpoint}" ]]; then
+                return 1
+        fi
+
+        url="${endpoint%/}/tools"
+        auth_header=()
+
+        if [[ -n "${token_env}" && -n "${!token_env:-}" ]]; then
+                auth_header=(-H "Authorization: Bearer ${!token_env}")
+        fi
+
+        local listing
+        if ! listing=$(curl -sfSL --connect-timeout 2 --max-time 5 "${auth_header[@]}" "${url}"); then
+                return 1
+        fi
+
+        mcp_render_usage_from_tool_listing "${listing}"
 }
 
 mcp_resolved_endpoint_definitions() {
-	local raw_json
-	raw_json="${MCP_ENDPOINTS_JSON:-}" # string JSON array
-	local allow_partial_default
-	allow_partial_default=${MCP_ENDPOINTS_ALLOW_PARTIAL_DEFAULT:-false}
+        local raw_json
+        raw_json="${MCP_ENDPOINTS_JSON:-}" # string JSON array
 
-	if [[ -z "${raw_json// /}" ]]; then
-		raw_json="$(mcp_default_endpoints_json)"
-		allow_partial_default=true
-	fi
+        if [[ -z "${raw_json// /}" ]]; then
+                raw_json="[]"
+        fi
 
-	MCP_ENDPOINTS_PAYLOAD="${raw_json}" MCP_ENDPOINTS_ALLOW_PARTIAL_DEFAULT="${allow_partial_default}" python3 - <<'PY'
+        MCP_ENDPOINTS_PAYLOAD="${raw_json}" python3 - <<'PY'
 import json
 import os
 import re
@@ -177,8 +236,8 @@ import sys
 
 raw = os.environ.get("MCP_ENDPOINTS_PAYLOAD", "").strip()
 if not raw:
-    sys.stderr.write("Empty MCP endpoint configuration\n")
-    sys.exit(1)
+    json.dump([], sys.stdout)
+    sys.exit(0)
 
 try:
     definitions = json.loads(raw)
@@ -192,14 +251,13 @@ if not isinstance(definitions, list):
 
 name_pattern = re.compile(r"^[a-z0-9_]+$")
 normalized = []
-allow_partial = os.environ.get("MCP_ENDPOINTS_ALLOW_PARTIAL_DEFAULT", "").lower() == "true"
 
 for index, entry in enumerate(definitions):
     if not isinstance(entry, dict):
         sys.stderr.write(f"Entry {index} is not an object\n")
         sys.exit(1)
 
-    required = ["name", "provider", "description", "usage", "safety", "transport"]
+    required = ["name", "provider", "description", "safety", "transport"]
     missing = [field for field in required if not entry.get(field)]
     if missing:
         sys.stderr.write(f"Entry {index} missing fields: {', '.join(missing)}\n")
@@ -215,14 +273,14 @@ for index, entry in enumerate(definitions):
         sys.exit(1)
 
     if transport == "http":
-        if not entry.get("endpoint") and not allow_partial:
+        if not entry.get("endpoint"):
             sys.stderr.write(f"HTTP endpoint missing for {entry['name']}\n")
             sys.exit(1)
         if not entry.get("token_env"):
             sys.stderr.write(f"token_env missing for {entry['name']}\n")
             sys.exit(1)
     elif transport == "unix":
-        if not entry.get("socket") and not allow_partial:
+        if not entry.get("socket"):
             sys.stderr.write(f"socket missing for {entry['name']}\n")
             sys.exit(1)
 
@@ -231,7 +289,7 @@ for index, entry in enumerate(definitions):
             "name": entry["name"],
             "provider": entry["provider"],
             "description": entry["description"],
-            "usage": entry["usage"],
+            "usage": entry.get("usage", ""),
             "safety": entry["safety"],
             "transport": transport,
             "endpoint": entry.get("endpoint", ""),
@@ -251,14 +309,14 @@ mcp_register_endpoint_from_definition() {
 	definition_json="$1"
 
 	name="$(jq -r '.name' <<<"${definition_json}")"
-	provider="$(jq -r '.provider' <<<"${definition_json}")"
-	description="$(jq -r '.description' <<<"${definition_json}")"
-	usage="$(jq -r '.usage' <<<"${definition_json}")"
-	safety="$(jq -r '.safety' <<<"${definition_json}")"
-	transport="$(jq -r '.transport' <<<"${definition_json}")"
-	endpoint="$(jq -r '.endpoint' <<<"${definition_json}")"
-	socket_path="$(jq -r '.socket' <<<"${definition_json}")"
-	token_env="$(jq -r '.token_env' <<<"${definition_json}")"
+        provider="$(jq -r '.provider' <<<"${definition_json}")"
+        description="$(jq -r '.description' <<<"${definition_json}")"
+        usage="$(jq -r '.usage' <<<"${definition_json}")"
+        safety="$(jq -r '.safety' <<<"${definition_json}")"
+        transport="$(jq -r '.transport' <<<"${definition_json}")"
+        endpoint="$(jq -r '.endpoint' <<<"${definition_json}")"
+        socket_path="$(jq -r '.socket' <<<"${definition_json}")"
+        token_env="$(jq -r '.token_env' <<<"${definition_json}")"
 
 	handler_name="tool_${name}"
 
@@ -267,7 +325,20 @@ mcp_register_endpoint_from_definition() {
 
 	eval "${handler_name}() { ${handler_body}; }"
 
-	register_tool "${name}" "${description}" "${usage}" "${safety}" "${handler_name}"
+        local skip_usage_discovery
+        skip_usage_discovery=${MCP_SKIP_USAGE_DISCOVERY:-false}
+
+        if [[ -z "${usage}" && "${skip_usage_discovery}" != true && "${skip_usage_discovery}" != 1 ]]; then
+                if [[ "${transport}" == "http" ]]; then
+                        usage="$(mcp_infer_usage_from_http "${endpoint}" "${token_env}" 2>/dev/null)" || usage=""
+                fi
+        fi
+
+        if [[ -z "${usage}" ]]; then
+                usage="${name} <query>"
+        fi
+
+        register_tool "${name}" "${description}" "${usage}" "${safety}" "${handler_name}"
 }
 
 register_mcp_endpoints() {

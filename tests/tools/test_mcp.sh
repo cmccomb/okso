@@ -16,88 +16,76 @@ setup() {
 	REPO_ROOT="$(git rev-parse --show-toplevel)"
 }
 
-@test "register_mcp_endpoints registers default endpoints" {
-	cd "${REPO_ROOT}" || exit 1
-	run bash -lc '
+@test "tool_mcp_remote fails when token missing" {
+        cd "${REPO_ROOT}" || exit 1
+        run bash -lc '
+                MCP_SKIP_USAGE_DISCOVERY=true
                 source ./src/tools/registry.sh
                 source ./src/tools/mcp.sh
-                TOOL_NAME_ALLOWLIST=(mcp_huggingface mcp_local_server)
+                TOOL_NAME_ALLOWLIST=(mcp_remote_demo)
                 init_tool_registry
-                register_mcp_endpoints
-                [[ -n "$(tool_description mcp_huggingface)" ]] && [[ -n "$(tool_description mcp_local_server)" ]]
-        '
-	[ "$status" -eq 0 ]
-}
-
-@test "register_mcp_endpoints falls back when tomllib is missing" {
-	cd "${REPO_ROOT}" || exit 1
-	run bash -lc '
-                source ./src/tools/registry.sh
-                source ./src/tools/mcp.sh
-                TOOL_NAME_ALLOWLIST=(mcp_huggingface mcp_local_server)
-                OKSO_FORCE_TOML_FALLBACK=1
-                init_tool_registry
-                register_mcp_endpoints
-                [[ -n "$(tool_description mcp_huggingface)" ]] && [[ -n "$(tool_description mcp_local_server)" ]]
-        '
-	[ "$status" -eq 0 ]
-}
-
-@test "tool_mcp_huggingface fails when token missing" {
-	cd "${REPO_ROOT}" || exit 1
-	run bash -lc '
-                source ./src/tools/registry.sh
-                source ./src/tools/mcp.sh
-                TOOL_NAME_ALLOWLIST=(mcp_huggingface mcp_local_server)
-                init_tool_registry
-                MCP_HUGGINGFACE_URL="https://example.test/mcp"
-                MCP_HUGGINGFACE_TOKEN_ENV="MCP_TOKEN"
+                MCP_ENDPOINTS_JSON='"'"'[{"name":"mcp_remote_demo","provider":"demo","description":"Demo","usage":"","safety":"Token required","transport":"http","endpoint":"https://example.test/mcp","token_env":"MCP_TOKEN"}]'"'"'
                 register_mcp_endpoints
                 TOOL_QUERY="ping"
-                tool_mcp_huggingface
+                tool_mcp_remote_demo
         '
-	[ "$status" -eq 1 ]
+        [ "$status" -eq 1 ]
 }
 
-@test "tool_mcp_huggingface emits connection descriptor" {
-	cd "${REPO_ROOT}" || exit 1
-	run bash -lc '
+@test "tool_mcp_remote emits connection descriptor" {
+        cd "${REPO_ROOT}" || exit 1
+        run bash -lc '
+                MCP_SKIP_USAGE_DISCOVERY=true
                 source ./src/tools/registry.sh
                 source ./src/tools/mcp.sh
-                TOOL_NAME_ALLOWLIST=(mcp_huggingface mcp_local_server)
+                TOOL_NAME_ALLOWLIST=(mcp_remote_demo)
                 init_tool_registry
-                MCP_HUGGINGFACE_URL="https://example.test/mcp"
-                MCP_HUGGINGFACE_TOKEN_ENV="MCP_TOKEN"
+                MCP_ENDPOINTS_JSON='"'"'[{"name":"mcp_remote_demo","provider":"demo","description":"Demo","usage":"","safety":"Token required","transport":"http","endpoint":"https://example.test/mcp","token_env":"MCP_TOKEN"}]'"'"'
                 MCP_TOKEN="secret"
                 register_mcp_endpoints
                 TOOL_QUERY="list tools"
-                tool_mcp_huggingface
+                tool_mcp_remote_demo
         '
-	[ "$status" -eq 0 ]
-	[[ "${output}" == *'"provider":"huggingface"'* ]]
-	[[ "${output}" == *'"token_env":"MCP_TOKEN"'* ]]
+        [ "$status" -eq 0 ]
+        [[ "${output}" == *'"provider":"demo"'* ]]
+        [[ "${output}" == *'"token_env":"MCP_TOKEN"'* ]]
 }
 
-@test "tool_mcp_local_server emits connection descriptor" {
-	cd "${REPO_ROOT}" || exit 1
-	expected_socket="${TMPDIR:-/tmp}/okso-mcp.sock"
-	run bash -lc '
+@test "register_mcp_endpoints is a no-op when no endpoints configured" {
+        cd "${REPO_ROOT}" || exit 1
+        run bash -lc '
+                MCP_SKIP_USAGE_DISCOVERY=true
                 source ./src/tools/registry.sh
                 source ./src/tools/mcp.sh
-                TOOL_NAME_ALLOWLIST=(mcp_huggingface mcp_local_server)
+                TOOL_NAME_ALLOWLIST=()
                 init_tool_registry
-                MCP_LOCAL_SOCKET="${TMPDIR:-/tmp}/okso-mcp.sock"
+                register_mcp_endpoints
+                [[ -z "$(compgen -A function | grep "^tool_mcp")" ]]
+        '
+        [ "$status" -eq 0 ]
+}
+
+@test "tool_mcp_local_server emits connection descriptor when configured" {
+        cd "${REPO_ROOT}" || exit 1
+        expected_socket="${TMPDIR:-/tmp}/okso-mcp.sock"
+        run bash -lc '
+                source ./src/tools/registry.sh
+                source ./src/tools/mcp.sh
+                TOOL_NAME_ALLOWLIST=(mcp_local_server)
+                MCP_ENDPOINTS_JSON=$(printf '"'"'[{"name":"mcp_local_server","provider":"local_demo","description":"Connect over local socket","usage":"","safety":"Uses unix socket","transport":"unix","socket":"%s"}]'"'"' "${TMPDIR:-/tmp}/okso-mcp.sock")
+                init_tool_registry
                 register_mcp_endpoints
                 TOOL_QUERY="status"
                 tool_mcp_local_server
         '
-	[ "$status" -eq 0 ]
-	[[ "${output}" == *"\"socket\":\"${expected_socket}\""* ]]
+        [ "$status" -eq 0 ]
+        [[ "${output}" == *"\"socket\":\"${expected_socket}\""* ]]
 }
 
 @test "register_mcp_endpoints honors MCP_ENDPOINTS_JSON" {
-	cd "${REPO_ROOT}" || exit 1
-	run bash -lc '
+        cd "${REPO_ROOT}" || exit 1
+        run bash -lc '
+                MCP_SKIP_USAGE_DISCOVERY=true
                 source ./src/lib/tools.sh
                 TOOL_NAME_ALLOWLIST=(terminal)
                 MCP_ENDPOINTS_JSON='"'"'[
@@ -132,26 +120,99 @@ setup() {
                 [[ "$(tool_description custom_http)" == "Custom HTTP endpoint" ]]
                 [[ "$(tool_description custom_unix)" == "Custom unix endpoint" ]]
         '
-	[ "$status" -eq 0 ]
+        [ "$status" -eq 0 ]
+}
+
+@test "register_mcp_endpoints infers usage when missing" {
+        cd "${REPO_ROOT}" || exit 1
+        run bash -lc '
+                set -e
+                MCP_SKIP_USAGE_DISCOVERY=false
+                source ./src/tools/registry.sh
+                source ./src/tools/mcp.sh
+
+                PORT_FILE="${BATS_TEST_TMPDIR}/mcp-tools-port"
+                export PORT_FILE
+                python3 - <<'PY' &
+import http.server
+import json
+import os
+import socketserver
+
+
+class Handler(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path.startswith("/tools"):
+            body = json.dumps({"tools": [{"name": "echo", "description": "Echo input"}]})
+            encoded = body.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(encoded)))
+            self.end_headers()
+            self.wfile.write(encoded)
+            return
+
+        self.send_response(404)
+        self.end_headers()
+
+    def log_message(self, *_: object) -> None:  # pragma: no cover - silence test server
+        return
+
+
+with socketserver.TCPServer(("127.0.0.1", 0), Handler) as httpd:
+    port = httpd.server_address[1]
+    with open(os.environ["PORT_FILE"], "w", encoding="utf-8") as handle:
+        handle.write(str(port))
+    httpd.serve_forever()
+PY
+                server_pid=$!
+                trap "kill ${server_pid}" EXIT
+
+                attempts=0
+                while [[ ! -f "${PORT_FILE}" && ${attempts} -lt 50 ]]; do
+                        sleep 0.1
+                        attempts=$((attempts + 1))
+                done
+
+                if [[ ! -f "${PORT_FILE}" ]]; then
+                        echo "tool listing server failed to start" >&2
+                        exit 1
+                fi
+
+                MCP_PORT=$(cat "${PORT_FILE}")
+
+                TOOL_NAME_ALLOWLIST=(mcp_demo_http)
+                MCP_ENDPOINTS_JSON="[{\"name\":\"mcp_demo_http\",\"provider\":\"demo\",\"description\":\"Demo MCP\",\"safety\":\"Token required\",\"transport\":\"http\",\"endpoint\":\"http://127.0.0.1:${MCP_PORT}\",\"token_env\":\"DEMO_TOKEN\"}]"
+                DEMO_TOKEN=dummy
+
+                init_tool_registry
+                register_mcp_endpoints
+
+                inferred_usage="$(tool_command mcp_demo_http)"
+                [[ "${inferred_usage}" == *"Available tools"* ]]
+        '
+        [ "$status" -eq 0 ]
 }
 
 @test "register_mcp_endpoints fails for invalid configuration" {
-	cd "${REPO_ROOT}" || exit 1
-	run bash -lc '
+        cd "${REPO_ROOT}" || exit 1
+        run bash -lc '
+                MCP_SKIP_USAGE_DISCOVERY=true
                 source ./src/tools/registry.sh
                 source ./src/tools/mcp.sh
                 TOOL_NAME_ALLOWLIST=(broken_entry)
-                MCP_ENDPOINTS_JSON='"'"'[{"name": "broken_entry", "provider": "bad", "description": "Bad", "usage": "bad <q>", "safety": "", "transport": "http"}]'"'"'
+                MCP_ENDPOINTS_JSON='"'"'[{"name": "broken_entry", "provider": "bad", "description": "Bad", "usage": "bad <q>", "safety": "Check credentials", "transport": "http", "endpoint": "https://example.test/mcp"}]'"'"'
                 init_tool_registry
                 register_mcp_endpoints
         '
-	[ "$status" -eq 1 ]
-	[[ "${output}" == *"missing fields"* ]]
+        [ "$status" -eq 1 ]
+        [[ "${output}" == *"token_env missing"* ]]
 }
 
 @test "merge_tool_allowlist_with_mcp extends allowlist prior to registry setup" {
 	cd "${REPO_ROOT}" || exit 1
-	run bash -lc '
+        run bash -lc '
+                MCP_SKIP_USAGE_DISCOVERY=true
                 source ./src/lib/tools.sh
                 TOOL_NAME_ALLOWLIST=(terminal)
                 MCP_ENDPOINTS_JSON='"'"'[

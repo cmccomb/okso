@@ -88,12 +88,33 @@ detect_source_root() {
 }
 
 download_source_bundle() {
-	local destination base_url clone_dir
+	local destination base_url clone_dir tarball_url tarball_path
 
 	destination="$(mktemp -d)"
 	base_url="${OKSO_INSTALLER_BASE_URL:-${DEFAULT_BASE_URL}}"
 	clone_dir="${destination}/okso"
+	tarball_path="${destination}/okso.tar.gz"
 
+	if [[ "${base_url}" == *.tar.gz || "${base_url}" == *.tgz || "${base_url}" == *.tar ]]; then
+		tarball_url="${base_url}"
+	else
+		tarball_url="${base_url%/}/okso.tar.gz"
+	fi
+
+	mkdir -p "${clone_dir}"
+	if curl -fL --connect-timeout 5 --retry 2 --retry-delay 1 "${tarball_url}" -o "${tarball_path}" >/dev/null 2>&1; then
+		if tar -xzf "${tarball_path}" -C "${clone_dir}" >/dev/null 2>&1; then
+			printf '%s\n' "${clone_dir}"
+			return 0
+		fi
+	fi
+
+	if [ "${OKSO_INSTALLER_ASSUME_OFFLINE:-false}" = "true" ]; then
+		log "ERROR" "Failed to retrieve source bundle from ${tarball_url}"
+		exit 2
+	fi
+
+	rm -rf "${clone_dir}"
 	if ! git clone --depth 1 "${base_url}" "${clone_dir}"; then
 		log "ERROR" "Failed to clone okso repository from ${base_url}"
 		exit 2

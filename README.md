@@ -20,6 +20,10 @@ You can also install directly from the hosted script:
 curl -fsSL https://cmccomb.github.io/okso/install.sh | bash
 ```
 
+For offline deployments, set `OKSO_INSTALLER_ASSUME_OFFLINE=true` and point
+`OKSO_INSTALLER_BASE_URL` to a directory or URL containing `okso.tar.gz`; the
+installer will expand the archive instead of cloning the repository.
+
 See [docs/user-guides/installation.md](docs/user-guides/installation.md) for additional options and manual setup notes.
 
 ## Basic usage
@@ -59,11 +63,10 @@ Example:
 ```toml
 MCP_ENDPOINTS_TOML=$(cat <<'EOF_MCP'
 [[mcp.endpoints]]
-name = "mcp_huggingface"
-provider = "huggingface"
-description = "Connect to the configured Hugging Face MCP endpoint with the provided query."
-usage = "mcp_huggingface <query>"
-safety = "Requires a valid Hugging Face token; do not print secrets in tool calls."
+name = "mcp_remote_demo"
+provider = "remote_vendor"
+description = "Connect to a remote MCP endpoint for tool execution."
+safety = "Requires a token; avoid logging sensitive inputs."
 transport = "http"
 endpoint = "https://example.test/mcp"
 token_env = "MCP_TOKEN"
@@ -71,8 +74,7 @@ token_env = "MCP_TOKEN"
 [[mcp.endpoints]]
 name = "mcp_local_server"
 provider = "local_demo"
-description = "Connect to the bundled local MCP server over a unix socket."
-usage = "mcp_local_server <query>"
+description = "Connect to a local MCP server over a unix socket."
 safety = "Uses a local socket; ensure the path is trusted before writing."
 transport = "unix"
 socket = "/tmp/okso-mcp.sock"
@@ -80,14 +82,15 @@ EOF_MCP
 )
 ```
 
-If no custom value is supplied, okso synthesizes the above defaults using
-`MCP_HUGGINGFACE_URL`, `MCP_HUGGINGFACE_TOKEN_ENV` (default:
-`HUGGINGFACEHUB_API_TOKEN`), and `MCP_LOCAL_SOCKET` (default:
-`${TMPDIR:-/tmp}/okso-mcp.sock`). The TOML block round-trips through
-`./src/bin/okso init`, and the loader translates it into the
-`MCP_ENDPOINTS_JSON` runtime format for MCP registration. TOML parsing prefers
-the Python 3.11+ `tomllib` module and automatically falls back to the `pip`
-vendored `tomli`, so no extra dependency installation is required.
+No MCP endpoints are registered unless you supply definitions like the above.
+When `usage` is omitted from an HTTP definition, okso queries the endpoint's
+`/tools` route to synthesize planner-friendly usage hints automatically.
+
+The TOML block round-trips through `./src/bin/okso init`, and the loader
+translates it into the `MCP_ENDPOINTS_JSON` runtime format for MCP
+registration. TOML parsing prefers the Python 3.11+ `tomllib` module and
+automatically falls back to the `pip` vendored `tomli`, so no extra dependency
+installation is required.
 
 ## Execution model
 
