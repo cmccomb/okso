@@ -405,9 +405,9 @@ printf "LOG:%s\n" "$(cat "${LOG_FILE}")"
                 select_next_action "${state_prefix}" action_json
 
                 llama_arg_count="$(cat "${llama_arg_file}")"
-                tool_enum="$(jq -c '.properties.tool.enum' "${llama_grammar_copy}" 2>/dev/null)"
-                required_terminal="$(jq -r '.["$defs"].args_by_tool.terminal.required[0]' "${llama_grammar_copy}" 2>/dev/null)"
-                terminal_min_length="$(jq -r '.["$defs"].args_by_tool.terminal.properties.command.minLength' "${llama_grammar_copy}" 2>/dev/null)"
+                tool_enum="$(jq -c '"'"'.properties.tool.enum'"'"' "${llama_grammar_copy}" 2>/dev/null)"
+                required_terminal="$(jq -r '"'"'.["$defs"].args_by_tool.terminal.required[0]'"'"' "${llama_grammar_copy}" 2>/dev/null)"
+                terminal_min_length="$(jq -r '"'"'.["$defs"].args_by_tool.terminal.properties.command.minLength'"'"' "${llama_grammar_copy}" 2>/dev/null)"
                 required_terminal=${required_terminal:-command}
                 terminal_min_length=${terminal_min_length:-1}
                 printf "%s\n" "${action_json}" "COUNT:${llama_arg_count}" "TOOLS:${tool_enum}" "REQUIRED:${required_terminal}" "MIN:${terminal_min_length}"
