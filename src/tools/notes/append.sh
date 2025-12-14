@@ -37,13 +37,13 @@ derive_notes_append_query() {
 tool_notes_append() {
 	local title body folder_script
 
-        if ! notes_require_platform; then
-                return 0
-        fi
+	if ! notes_require_platform; then
+		return 0
+	fi
 
-        if ! { IFS= read -r -d '' title && IFS= read -r -d '' body; } < <(notes_extract_title_and_body); then
-                return 1
-        fi
+	if ! { IFS= read -r -d '' title && IFS= read -r -d '' body; } < <(notes_extract_title_and_body); then
+		return 1
+	fi
 
 	folder_script="$(notes_resolve_folder_script)"
 
@@ -69,14 +69,15 @@ APPLESCRIPT
 register_notes_append() {
 	local args_schema
 
-        args_schema=$(cat <<'JSON'
+	args_schema=$(
+		cat <<'JSON'
 {"type":"object","required":["title"],"properties":{"title":{"type":"string","minLength":1},"body":{"type":"string"}},"additionalProperties":false}
 JSON
-        )
-        register_tool \
-                "notes_append" \
-                "Append text to an existing Apple Note matched by title." \
-                "notes_append {\"title\":\"Title\",\"body\":\"Additional text\"}" \
+	)
+	register_tool \
+		"notes_append" \
+		"Append text to an existing Apple Note matched by title." \
+		"notes_append {\"title\":\"Title\",\"body\":\"Additional text\"}" \
 		"Requires macOS Apple Notes access; updates existing note content." \
 		tool_notes_append \
 		"${args_schema}"

@@ -58,13 +58,13 @@ derive_notes_create_query() {
 tool_notes_create() {
 	local title body folder_script
 
-        if ! notes_require_platform; then
-                return 0
-        fi
+	if ! notes_require_platform; then
+		return 0
+	fi
 
-        if ! { IFS= read -r -d '' title && IFS= read -r -d '' body; } < <(notes_extract_title_and_body); then
-                return 1
-        fi
+	if ! { IFS= read -r -d '' title && IFS= read -r -d '' body; } < <(notes_extract_title_and_body); then
+		return 1
+	fi
 
 	folder_script="$(notes_resolve_folder_script)"
 
@@ -85,15 +85,16 @@ APPLESCRIPT
 register_notes_create() {
 	local args_schema
 
-        args_schema=$(cat <<'JSON'
+	args_schema=$(
+		cat <<'JSON'
 {"type":"object","required":["title"],"properties":{"title":{"type":"string","minLength":1},"body":{"type":"string"}},"additionalProperties":false}
 JSON
-        )
-        register_tool \
-                "notes_create" \
-                "Create a new Apple Note using structured fields." \
-                "notes_create {\"title\":\"Title\",\"body\":\"Body text\"}" \
-                "Requires macOS Apple Notes access; content is sent to Notes." \
-                tool_notes_create \
-                "${args_schema}"
+	)
+	register_tool \
+		"notes_create" \
+		"Create a new Apple Note using structured fields." \
+		"notes_create {\"title\":\"Title\",\"body\":\"Body text\"}" \
+		"Requires macOS Apple Notes access; content is sent to Notes." \
+		tool_notes_create \
+		"${args_schema}"
 }

@@ -33,36 +33,36 @@ notes_folder_name() {
 }
 
 notes_require_platform() {
-        # Ensures Apple Notes tools only run on macOS with osascript available.
-        if ! assert_osascript_available \
-                "Apple Notes is only available on macOS" \
-                "osascript missing; cannot reach Apple Notes" \
-                "${NOTES_OSASCRIPT_BIN:-osascript}" \
-                "${TOOL_ARGS:-}"; then
-                return 1
-        fi
+	# Ensures Apple Notes tools only run on macOS with osascript available.
+	if ! assert_osascript_available \
+		"Apple Notes is only available on macOS" \
+		"osascript missing; cannot reach Apple Notes" \
+		"${NOTES_OSASCRIPT_BIN:-osascript}" \
+		"${TOOL_ARGS:-}"; then
+		return 1
+	fi
 
-        return 0
+	return 0
 }
 
 notes_extract_title_and_body() {
-        # Splits TOOL_ARGS into a title (first line) and body (remaining lines).
-        # Emits two lines to stdout: title then body.
-        local title body
+	# Splits TOOL_ARGS into a title (first line) and body (remaining lines).
+	# Emits two lines to stdout: title then body.
+	local title body
 
-        title=$(jq -er '.title // empty' <<<"${TOOL_ARGS:-{}}" 2>/dev/null || true)
-        body=$(jq -er '.body // ""' <<<"${TOOL_ARGS:-{}}" 2>/dev/null || true)
+	title=$(jq -er '.title // empty' <<<"${TOOL_ARGS:-{}}" 2>/dev/null || true)
+	body=$(jq -er '.body // ""' <<<"${TOOL_ARGS:-{}}" 2>/dev/null || true)
 
-        if [[ -z "${title//[[:space:]]/}" && -z "${body//[[:space:]]/}" ]]; then
-                log "ERROR" "Note content is required" "" || true
-                return 1
-        fi
+	if [[ -z "${title//[[:space:]]/}" && -z "${body//[[:space:]]/}" ]]; then
+		log "ERROR" "Note content is required" "" || true
+		return 1
+	fi
 
-        if [[ -z "${title//[[:space:]]/}" ]]; then
-                title="Untitled note $(date -Iseconds)"
-        fi
+	if [[ -z "${title//[[:space:]]/}" ]]; then
+		title="Untitled note $(date -Iseconds)"
+	fi
 
-        printf '%s\0%s\0' "${title}" "${body}"
+	printf '%s\0%s\0' "${title}" "${body}"
 }
 
 notes_run_script() {

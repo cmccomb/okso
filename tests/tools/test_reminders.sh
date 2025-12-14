@@ -12,7 +12,7 @@
 #   Inherits Bats semantics; individual tests assert script exit codes.
 
 @test "reminders tools warn when run off macOS" {
-        run bash -lc 'source ./src/tools/reminders/index.sh; IS_MACOS=false; VERBOSITY=1; TOOL_ARGS="{\"title\":\"Title\",\"notes\":\"Body\"}"; tool_reminders_create'
+	run bash -lc 'source ./src/tools/reminders/index.sh; IS_MACOS=false; VERBOSITY=1; TOOL_ARGS="{\"title\":\"Title\",\"notes\":\"Body\"}"; tool_reminders_create'
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"Apple Reminders is only available on macOS"* ]]
 }
@@ -50,7 +50,7 @@
 }
 
 @test "reminders tools validate missing title" {
-        run bash -lc '
+	run bash -lc '
                 export REMINDERS_OSASCRIPT_BIN="/bin/echo"
                 export IS_MACOS=true
                 export VERBOSITY=0
@@ -58,5 +58,5 @@
                 source ./src/tools/reminders/index.sh
                 tool_reminders_create
         '
-        [ "$status" -eq 1 ]
+	[ "$status" -eq 1 ]
 }

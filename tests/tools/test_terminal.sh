@@ -12,43 +12,43 @@
 #   Inherits Bats semantics; individual tests assert script exit codes.
 
 @test "status default exposes allowed commands" {
-        run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TOOL_ARGS="{}"; tool_terminal'
+	run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TOOL_ARGS="{}"; tool_terminal'
 	[ "$status" -eq 0 ]
 	[[ "${lines[0]}" == Session:* ]]
 	[[ "${output}" == *"Allowed commands:"* ]]
 }
 
 @test "cd updates persistent working directory" {
-        run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TERMINAL_WORKDIR="$(pwd)"; TOOL_ARGS="{\"command\":\"cd\",\"args\":[\"tests\"]}"; tool_terminal; TOOL_ARGS="{\"command\":\"pwd\",\"args\":[]}"; tool_terminal'
+	run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TERMINAL_WORKDIR="$(pwd)"; TOOL_ARGS="{\"command\":\"cd\",\"args\":[\"tests\"]}"; tool_terminal; TOOL_ARGS="{\"command\":\"pwd\",\"args\":[]}"; tool_terminal'
 	[ "$status" -eq 0 ]
 	last_index=$((${#lines[@]} - 1))
 	[[ "${lines[$last_index]}" == *"/tests" ]]
 }
 
 @test "unknown command falls back to status" {
-        run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TOOL_ARGS="{\"command\":\"launch\",\"args\":[\"rockets\"]}"; tool_terminal'
+	run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TOOL_ARGS="{\"command\":\"launch\",\"args\":[\"rockets\"]}"; tool_terminal'
 	[ "$status" -eq 0 ]
 	[[ "${output}" == *"Allowed commands:"* ]]
 }
 
 @test "mkdir and rmdir operate within working directory" {
-        run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TERMINAL_WORKDIR="$(mktemp -d)"; TOOL_ARGS="{\"command\":\"mkdir\",\"args\":[\"sandbox\"]}"; tool_terminal; TOOL_ARGS="{\"command\":\"rmdir\",\"args\":[\"sandbox\"]}"; tool_terminal; ls "${TERMINAL_WORKDIR}"'
+	run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TERMINAL_WORKDIR="$(mktemp -d)"; TOOL_ARGS="{\"command\":\"mkdir\",\"args\":[\"sandbox\"]}"; tool_terminal; TOOL_ARGS="{\"command\":\"rmdir\",\"args\":[\"sandbox\"]}"; tool_terminal; ls "${TERMINAL_WORKDIR}"'
 	[ "$status" -eq 0 ]
 	[[ -z "${output}" ]]
 }
 
 @test "mkdir errors without target" {
-        run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TOOL_ARGS="{\"command\":\"mkdir\"}"; tool_terminal'
+	run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TOOL_ARGS="{\"command\":\"mkdir\"}"; tool_terminal'
 	[ "$status" -eq 1 ]
 	[[ "${output}" == *"mkdir requires a target directory"* ]]
 }
 
 @test "mv and cp require source and destination" {
-        run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TOOL_ARGS="{\"command\":\"mv\",\"args\":[\"source-only\"]}"; tool_terminal'
+	run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TOOL_ARGS="{\"command\":\"mv\",\"args\":[\"source-only\"]}"; tool_terminal'
 	[ "$status" -eq 1 ]
 	[[ "${output}" == *"mv requires a source and destination"* ]]
 
-        run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TOOL_ARGS="{\"command\":\"cp\"}"; tool_terminal'
+	run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TOOL_ARGS="{\"command\":\"cp\"}"; tool_terminal'
 	[ "$status" -eq 1 ]
 	[[ "${output}" == *"cp requires a source and destination"* ]]
 }
@@ -80,7 +80,7 @@
         '
 	[ "$status" -eq 0 ]
 
-        run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TOOL_ARGS="{\"command\":\"touch\"}"; tool_terminal'
+	run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TOOL_ARGS="{\"command\":\"touch\"}"; tool_terminal'
 	[ "$status" -eq 1 ]
 	[[ "${output}" == *"touch requires at least one target"* ]]
 }
@@ -98,17 +98,17 @@
 }
 
 @test "rm emits error when no target provided" {
-        run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TOOL_ARGS="{\"command\":\"rm\"}"; tool_terminal'
+	run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TOOL_ARGS="{\"command\":\"rm\"}"; tool_terminal'
 	[ "$status" -eq 1 ]
 	[[ "${output}" == *"rm requires a target"* ]]
 }
 
 @test "stat and wc validate targets" {
-        run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TOOL_ARGS="{\"command\":\"stat\"}"; tool_terminal'
+	run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TOOL_ARGS="{\"command\":\"stat\"}"; tool_terminal'
 	[ "$status" -eq 1 ]
 	[[ "${output}" == *"stat requires a target"* ]]
 
-        run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TOOL_ARGS="{\"command\":\"wc\"}"; tool_terminal'
+	run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TOOL_ARGS="{\"command\":\"wc\"}"; tool_terminal'
 	[ "$status" -eq 1 ]
 	[[ "${output}" == *"wc requires at least one target"* ]]
 }
@@ -128,7 +128,7 @@
 }
 
 @test "du defaults to human-readable summary" {
-        run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TERMINAL_WORKDIR="$(mktemp -d)"; TOOL_ARGS="{\"command\":\"du\"}"; tool_terminal'
+	run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TERMINAL_WORKDIR="$(mktemp -d)"; TOOL_ARGS="{\"command\":\"du\"}"; tool_terminal'
 	[ "$status" -eq 0 ]
 	[[ "${lines[0]}" == *"." ]]
 }
@@ -149,23 +149,23 @@
 }
 
 @test "base64 validates modes and arguments" {
-        run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TOOL_ARGS="{\"command\":\"base64\"}"; tool_terminal'
-        [ "$status" -eq 1 ]
-        [[ "${output}" == *"base64 requires a mode"* ]]
+	run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TOOL_ARGS="{\"command\":\"base64\"}"; tool_terminal'
+	[ "$status" -eq 1 ]
+	[[ "${output}" == *"base64 requires a mode"* ]]
 
-        run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TOOL_ARGS="{\"command\":\"base64\",\"args\":[\"transform\",\"file\"]}"; tool_terminal'
-        [ "$status" -eq 1 ]
-        [[ "${output}" == *"base64 mode must be encode or decode"* ]]
+	run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TOOL_ARGS="{\"command\":\"base64\",\"args\":[\"transform\",\"file\"]}"; tool_terminal'
+	[ "$status" -eq 1 ]
+	[[ "${output}" == *"base64 mode must be encode or decode"* ]]
 }
 
 @test "terminal args require array input" {
-        run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TOOL_ARGS="{\"command\":\"ls\",\"args\":\"bad\"}"; tool_terminal'
-        [ "$status" -eq 1 ]
-        [[ "${output}" == *"terminal args must supply an array for args"* ]]
+	run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TOOL_ARGS="{\"command\":\"ls\",\"args\":\"bad\"}"; tool_terminal'
+	[ "$status" -eq 1 ]
+	[[ "${output}" == *"terminal args must supply an array for args"* ]]
 }
 
 @test "open warns on non-macOS hosts" {
-    run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; IS_MACOS=false; TOOL_ARGS="{\"command\":\"open\",\"args\":[\"README.md\"]}"; tool_terminal'
+	run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; IS_MACOS=false; TOOL_ARGS="{\"command\":\"open\",\"args\":[\"README.md\"]}"; tool_terminal'
 	[ "$status" -eq 0 ]
 	[[ "${output}" == *"macOS-only"* ]]
 }

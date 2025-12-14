@@ -12,7 +12,7 @@
 #   Inherits Bats semantics; individual tests assert script exit codes.
 
 @test "notes tools warn when run off macOS" {
-        run bash -lc 'source ./src/tools/notes/index.sh; IS_MACOS=false; VERBOSITY=1; TOOL_ARGS="{\"title\":\"Title\",\"body\":\"Body\"}"; tool_notes_create'
+	run bash -lc 'source ./src/tools/notes/index.sh; IS_MACOS=false; VERBOSITY=1; TOOL_ARGS="{\"title\":\"Title\",\"body\":\"Body\"}"; tool_notes_create'
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"Apple Notes is only available on macOS"* ]]
 }
@@ -34,7 +34,7 @@
 }
 
 @test "notes tools validate missing title" {
-        run bash -lc '
+	run bash -lc '
                 export NOTES_OSASCRIPT_BIN="/bin/echo"
                 export IS_MACOS=true
                 export VERBOSITY=0
@@ -42,5 +42,5 @@
                 source ./src/tools/notes/index.sh
                 tool_notes_create
         '
-        [ "$status" -eq 1 ]
+	[ "$status" -eq 1 ]
 }

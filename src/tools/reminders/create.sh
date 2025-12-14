@@ -66,13 +66,13 @@ derive_reminders_create_query() {
 tool_reminders_create() {
 	local title body list_script
 
-        if ! reminders_require_platform; then
-                return 0
-        fi
+	if ! reminders_require_platform; then
+		return 0
+	fi
 
-        if ! { IFS= read -r -d '' title && IFS= read -r -d '' body; } < <(reminders_extract_title_and_body); then
-                return 1
-        fi
+	if ! { IFS= read -r -d '' title && IFS= read -r -d '' body; } < <(reminders_extract_title_and_body); then
+		return 1
+	fi
 
 	list_script="$(reminders_resolve_list_script)"
 
@@ -93,15 +93,16 @@ APPLESCRIPT
 register_reminders_create() {
 	local args_schema
 
-        args_schema=$(cat <<'JSON'
+	args_schema=$(
+		cat <<'JSON'
 {"type":"object","required":["title"],"properties":{"title":{"type":"string","minLength":1},"time":{"type":"string"},"notes":{"type":"string"}},"additionalProperties":false}
 JSON
-        )
-        register_tool \
-                "reminders_create" \
-                "Create a new Apple Reminder using structured details." \
-                "reminders_create {\"title\":\"Take out trash\",\"time\":\"tonight\",\"notes\":\"before 9pm\"}" \
-                "Requires macOS Apple Reminders access; content is sent to Reminders." \
-                tool_reminders_create \
-                "${args_schema}"
+	)
+	register_tool \
+		"reminders_create" \
+		"Create a new Apple Reminder using structured details." \
+		"reminders_create {\"title\":\"Take out trash\",\"time\":\"tonight\",\"notes\":\"before 9pm\"}" \
+		"Requires macOS Apple Reminders access; content is sent to Reminders." \
+		tool_reminders_create \
+		"${args_schema}"
 }
