@@ -29,7 +29,7 @@ COVERAGE_DIR="${COVERAGE_DIR:-${ROOT_DIR}/coverage}"
 COVERAGE_THRESHOLD="${COVERAGE_THRESHOLD:-0}"
 COVERAGE_STRICT="${COVERAGE_STRICT:-false}"
 if [[ -z "${COVERAGE_TARGETS:-}" ]]; then
-	COVERAGE_TARGETS="$(find tests -type f \( -name '*.bats' -o -name 'test_*.sh' \) -print | sort | tr '\n' ' ')"
+  COVERAGE_TARGETS="$(find tests -type f \( -name '*.bats' -o -name 'test_*.sh' \) -print | sort | tr '\n' ' ')"
 fi
 
 export COVERAGE_DIR
