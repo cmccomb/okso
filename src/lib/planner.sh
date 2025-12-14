@@ -52,29 +52,36 @@ lowercase() {
 	printf '%s' "$1" | tr '[:upper:]' '[:lower:]'
 }
 
-# Normalize noisy planner output into a clean PlannerPlan JSON array.
+# Normalize noisy planner output into a clean PlannerPlan JSON array of objects.
 # Reads from stdin, writes clean JSON array to stdout.
 normalize_planner_plan() {
 	local raw plan_candidate fallback_json normalized
 
 	raw="$(cat)"
-	plan_candidate="$(printf '%s' "$raw" | jq -ec 'select(type=="array")' 2>/dev/null || true)"
+	plan_candidate="$(jq -ec '.' <<<"${raw}" 2>/dev/null || true)"
 
 	fallback_json=$(printf '%s' "$raw" |
 		sed -E 's/^[[:space:]]*[0-9]+[.)][[:space:]]*//' |
 		sed -E 's/^[[:space:]-]+//' |
 		sed '/^[[:space:]]*$/d' |
-		jq -Rsc 'split("\n") | map(select(length > 0))') || fallback_json=""
+		jq -Rsc 'split("\n") | map(select(length > 0)) | map({tool:"react_fallback",thought:.,args:{}})') || fallback_json=""
 
-	if [[ -n "${plan_candidate:-}" ]]; then
-		normalized=$(printf '%s' "$plan_candidate" | jq -ec 'if type == "array" then [.. | select(type == "string" and length > 0)] else empty end | select(length > 0)' 2>/dev/null) || normalized=""
-		if [[ -n "${normalized}" ]]; then
+	if [[ -n "${plan_candidate:-}" ]] && jq -e 'type == "array"' <<<"${plan_candidate}" >/dev/null 2>&1; then
+		normalized=$(jq -ec '
+                        map(select(type=="object"))
+                        | map({tool: (.tool // ""), args: (.args // {}), thought: (.thought // "")})
+                        | map(select((.tool | type) == "string" and (.tool | length) > 0))
+                        ' <<<"${plan_candidate}" 2>/dev/null || true)
+		if [[ -n "${normalized}" && "${normalized}" != "[]" ]]; then
 			printf '%s' "$normalized" | jq -c '.'
 			return 0
 		fi
+
+		log "ERROR" "normalize_planner_plan: invalid structured plan" "${plan_candidate}" >&2
+		return 1
 	fi
 
-	if [[ -n "${fallback_json}" && "${fallback_json}" != "[]" ]]; then
+	if [[ -z "${plan_candidate:-}" && -n "${fallback_json}" && "${fallback_json}" != "[]" ]]; then
 		log "INFO" "normalize_planner_plan: derived plan from fallback outline" "${fallback_json}" >&2
 		printf '%s' "$fallback_json" | jq -c '.'
 		return 0
@@ -91,15 +98,15 @@ append_final_answer_step() {
 	local plan_json has_final updated_plan
 	plan_json="${1:-[]}"
 
-	plan_clean="$(printf '%s' "$plan_json" | normalize_planner_plan)"
+	plan_clean="$(printf '%s' "$plan_json" | normalize_planner_plan)" || return 1
 
-	has_final="$(jq -r 'map(ascii_downcase | contains("final_answer")) | any' <<<"${plan_clean}" 2>/dev/null || echo false)"
+	has_final="$(jq -r 'map((.tool // "") | ascii_downcase == "final_answer") | any' <<<"${plan_clean}" 2>/dev/null || echo false)"
 	if [[ "${has_final}" == "true" ]]; then
 		printf '%s' "${plan_clean}"
 		return 0
 	fi
 
-	updated_plan="$(jq -c '. + ["Use final_answer to summarize the result for the user."]' <<<"${plan_clean}" 2>/dev/null || printf '%s' "${plan_json}")"
+	updated_plan="$(jq -c '. + [{tool:"final_answer",thought:"Summarize the result for the user.",args:{}}]' <<<"${plan_clean}" 2>/dev/null || printf '%s' "${plan_json}")"
 	printf '%s' "${updated_plan}"
 }
 
@@ -110,12 +117,15 @@ plan_json_to_outline() {
 	local plan_json
 	plan_json="${1:-[]}"
 
-	plan_clean="$(printf '%s' "$plan_json" | normalize_planner_plan)"
+	plan_clean="$(printf '%s' "$plan_json" | normalize_planner_plan)" || return 1
+	if [[ -z "${plan_clean}" ]]; then
+		return 1
+	fi
 
-	jq -r 'to_entries | map("\(.key + 1). \(.value)") | join("\n")' <<<"${plan_clean}"
+	jq -r 'to_entries | map("\(.key + 1). " + (if (.value.thought // "") != "" then (.value.thought // "") else "Use " + (.value.tool // "unknown") end)) | join("\n")' <<<"${plan_clean}"
 }
 
-generate_plan_outline() {
+generate_plan_json() {
 	# Arguments:
 	#   $1 - user query (string)
 	local user_query
@@ -134,12 +144,12 @@ generate_plan_outline() {
 	fi
 
 	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
-		log "WARN" "Using static plan outline because llama is unavailable" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}" >&2
-		printf '1. Use final_answer to respond directly to the user request.'
+		log "WARN" "Using static plan because llama is unavailable" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}" >&2
+		printf '%s' '[{"tool":"final_answer","args":{},"thought":"Respond directly to the user request."}]'
 		return 0
 	fi
 
-	local prompt raw_plan planner_grammar_path plan_outline_json
+	local prompt raw_plan planner_grammar_path plan_json
 	local tool_lines
 	if ((${#planner_tools[@]} > 0)); then
 		tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_summary_line)"
@@ -151,8 +161,16 @@ generate_plan_outline() {
 	prompt="$(build_planner_prompt "${user_query}" "${tool_lines}")"
 	log "DEBUG" "Generated planner prompt" "${prompt}" >&2
 	raw_plan="$(llama_infer "${prompt}" '' 512 "${planner_grammar_path}")" || raw_plan="[]"
-	plan_outline_json="$(append_final_answer_step "${raw_plan}")" || plan_outline_json="${raw_plan}"
-	plan_json_to_outline "${plan_outline_json}" || printf '%s' "${plan_outline_json}"
+	plan_json="$(append_final_answer_step "${raw_plan}")" || plan_json="${raw_plan}"
+	printf '%s' "${plan_json}"
+}
+
+generate_plan_outline() {
+	# Arguments:
+	#   $1 - user query (string)
+	local plan_json
+	plan_json="$(generate_plan_json "$1")"
+	plan_json_to_outline "${plan_json}"
 }
 
 tool_query_deriver() {
@@ -221,29 +239,32 @@ emit_plan_json() {
 		jq -sc 'map(select(type=="object"))'
 }
 
-extract_tools_from_plan() {
+derive_allowed_tools_from_plan() {
 	# Arguments:
-	#   $1 - plan outline text (string)
-	local plan_text lower_line tool tool_list
-	local seen
+	#   $1 - plan JSON array (string)
+	local plan_json tool seen allow_all
+	plan_json="${1:-[]}"
+	allow_all=false
+
+	if jq -e 'map((.tool // "") == "react_fallback") | any' <<<"${plan_json}" >/dev/null 2>&1; then
+		allow_all=true
+	fi
+
+	if [[ "${allow_all}" == true ]]; then
+		tool_names
+		return 0
+	fi
+
 	seen=""
 	local -a required=()
-	plan_text="$1"
-	tool_list="$(tool_names)"
-
-	while IFS= read -r line; do
-		lower_line="$(lowercase "${line}")"
-		while IFS= read -r tool; do
-			[[ -z "${tool}" ]] && continue
-			if grep -Fxq "${tool}" <<<"${seen}"; then
-				continue
-			fi
-			if [[ "${lower_line}" == *"$(lowercase "${tool}")"* ]]; then
-				required+=("${tool}")
-				seen+="${tool}"$'\n'
-			fi
-		done <<<"${tool_list}"
-	done <<<"${plan_text}"
+	while IFS= read -r tool; do
+		[[ -z "${tool}" ]] && continue
+		if grep -Fxq "${tool}" <<<"${seen}"; then
+			continue
+		fi
+		required+=("${tool}")
+		seen+="${tool}"$'\n'
+	done < <(jq -r '.[] | .tool // empty' <<<"${plan_json}" 2>/dev/null || true)
 
 	if ! grep -Fxq "final_answer" <<<"${seen}"; then
 		required+=("final_answer")
@@ -252,27 +273,10 @@ extract_tools_from_plan() {
 	printf '%s\n' "${required[@]}"
 }
 
-build_plan_entries_from_tools() {
-	# Arguments:
-	#   $1 - newline-delimited tool names
-	#   $2 - user query (string)
-	local tool_list user_query plan query args_json plan_entry
-	tool_list="$1"
-	user_query="$2"
-	plan=""
-
-	while IFS= read -r tool; do
-		[[ -z "${tool}" ]] && continue
-		if [[ "${tool}" == "final_answer" ]]; then
-			continue
-		fi
-		query="$(derive_tool_query "${tool}" "${user_query}")"
-		args_json="$(format_tool_args "${tool}" "${query}")"
-		plan_entry="$(jq -nc --arg tool "${tool}" --argjson args "${args_json}" '{tool:$tool,args:$args}')"
-		plan+="${plan_entry}"$'\n'
-	done <<<"${tool_list}"
-
-	printf '%s' "${plan}"
+plan_json_to_entries() {
+	local plan_json
+	plan_json="$1"
+	printf '%s' "${plan_json}" | jq -cr '.[]'
 }
 
 should_prompt_for_tool() {
@@ -753,10 +757,28 @@ select_next_action() {
 	# Arguments:
 	#   $1 - state prefix
 	#   $2 - (optional) name of variable to receive JSON action output
-	local state_name output_name react_prompt plan_index planned_entry tool query next_action_payload allowed_tool_descriptions allowed_tool_lines args_json allowed_tools react_grammar_path
+	local state_name output_name react_prompt plan_index planned_entry tool query next_action_payload allowed_tool_descriptions allowed_tool_lines args_json allowed_tools react_grammar_path invoke_llama thought
 	state_name="$1"
 	output_name="${2:-}"
+
+	plan_index="$(state_get "${state_name}" "plan_index")"
+	plan_index=${plan_index:-0}
+	planned_entry=$(printf '%s\n' "$(state_get "${state_name}" "plan_entries")" | sed -n "$((plan_index + 1))p")
+	tool=""
+	if [[ -n "${planned_entry}" ]]; then
+		tool="$(printf '%s' "${planned_entry}" | jq -r '.tool // empty' 2>/dev/null || printf '')"
+	fi
+
+	invoke_llama=false
 	if [[ "${USE_REACT_LLAMA:-false}" == true && "${LLAMA_AVAILABLE}" == true ]]; then
+		invoke_llama=true
+	fi
+	if [[ "${tool}" == "react_fallback" && "${LLAMA_AVAILABLE}" == true ]]; then
+		invoke_llama=true
+		state_increment "${state_name}" "plan_index" 1 >/dev/null
+	fi
+
+	if [[ "${invoke_llama}" == true ]]; then
 		allowed_tools="$(state_get "${state_name}" "allowed_tools")"
 		allowed_tool_lines="$(format_tool_descriptions "${allowed_tools}" format_tool_example_line)"
 		allowed_tool_descriptions="Available tools:"
@@ -793,17 +815,12 @@ select_next_action() {
 		return
 	fi
 
-	plan_index="$(state_get "${state_name}" "plan_index")"
-	plan_index=${plan_index:-0}
-	planned_entry=$(printf '%s\n' "$(state_get "${state_name}" "plan_entries")" | sed -n "$((plan_index + 1))p")
-
 	if [[ -n "${planned_entry}" ]]; then
-		tool="${planned_entry%%|*}"
-		query="${planned_entry#*|}"
-		query="${query%%|*}"
 		state_increment "${state_name}" "plan_index" 1 >/dev/null
-		args_json="$(format_tool_args "${tool}" "${query}")"
-		next_action_payload="$(jq -nc --arg thought "Following planned step" --arg tool "${tool}" --argjson args "${args_json}" '{thought:$thought, tool:$tool, args:$args}')"
+		tool="$(printf '%s' "${planned_entry}" | jq -r '.tool // empty' 2>/dev/null || printf '')"
+		thought="$(printf '%s' "${planned_entry}" | jq -r '.thought // "Following planned step"' 2>/dev/null || printf '')"
+		args_json="$(printf '%s' "${planned_entry}" | jq -c '.args // {}' 2>/dev/null || printf '{}')"
+		next_action_payload="$(jq -nc --arg thought "${thought}" --arg tool "${tool}" --argjson args "${args_json}" '{thought:$thought, tool:$tool, args:$args}')"
 	else
 		local final_query
 		final_query="$(respond_text "$(state_get "${state_name}" "user_query") $(state_get "${state_name}" "history")" 512)"

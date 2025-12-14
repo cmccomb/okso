@@ -100,7 +100,7 @@ source "${LIB_DIR}/runtime.sh"
 
 main() {
 	local settings_prefix
-	local plan_outline required_tools plan_entries plan_action
+	local plan_outline required_tools plan_entries plan_action plan_json
 
 	settings_prefix="settings"
 
@@ -118,10 +118,11 @@ main() {
 	# 1. Generate an outline, 2. identify tools, 3. build concrete plan entries
 	# for execution, then 4. render plan outputs before proceeding.
 	log "INFO" "Starting plan generation" "$(settings_get "${settings_prefix}" "user_query")"
-	plan_outline="$(generate_plan_outline "$(settings_get "${settings_prefix}" "user_query")")"
-	required_tools="$(extract_tools_from_plan "${plan_outline}")"
+	plan_json="$(generate_plan_json "$(settings_get "${settings_prefix}" "user_query")")"
+	plan_outline="$(plan_json_to_outline "${plan_json}")"
+	required_tools="$(derive_allowed_tools_from_plan "${plan_json}")"
 	log "INFO" "Planner identified tools" "${required_tools}"
-	plan_entries="$(build_plan_entries_from_tools "${required_tools}" "$(settings_get "${settings_prefix}" "user_query")")"
+	plan_entries="$(plan_json_to_entries "${plan_json}")"
 
 	render_plan_outputs plan_action "${settings_prefix}" "${required_tools}" "${plan_entries}" "${plan_outline}"
 	if [[ "${plan_action}" == "exit" ]]; then

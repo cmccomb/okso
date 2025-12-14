@@ -3,23 +3,56 @@
   "title": "PlannerPlan",
   "type": "array",
   "items": {
-    "type": "string",
-    "minLength": 10
+    "type": "object",
+    "required": ["tool"],
+    "additionalProperties": false,
+    "properties": {
+      "tool": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Name of the tool to invoke for this step. Use react_fallback to defer tool choice to ReAct."
+      },
+      "args": {
+        "type": "object",
+        "description": "Structured arguments for the tool. Leave empty for react_fallback entries when arguments are unknown.",
+        "default": {}
+      },
+      "thought": {
+        "type": "string",
+        "description": "Short reasoning blurb about why this tool/arguments are chosen.",
+        "minLength": 1
+      }
+    }
   },
   "minItems": 1,
-  "description": "Ordered list of high-level plan steps.",
+  "description": "Ordered list of high-level plan steps represented as objects with tool, args, and thought fields.",
   "examples": [
     [
-      "Use final_answer to respond directly to the user."
+      {
+        "tool": "react_fallback",
+        "args": {},
+        "thought": "Explore tools interactively when the right arguments are unclear."
+      },
+      {
+        "tool": "final_answer",
+        "args": {},
+        "thought": "Summarize findings for the user."
+      }
     ],
     [
-      "Use note_create to jot down key points as requested by user",
-      "Use final_answer to summarize for user"
-    ],
-    [
-      "Use terminal to run tests",
-      "Use terminal to review failures",
-      "Use final_answer to report findings"
+      {
+        "tool": "notes_create",
+        "args": {
+          "title": "Research notes",
+          "body": "Capture key points while reviewing sources"
+        },
+        "thought": "Record the requested notes."
+      },
+      {
+        "tool": "final_answer",
+        "args": {},
+        "thought": "Share the notes back to the user."
+      }
     ]
   ]
 }

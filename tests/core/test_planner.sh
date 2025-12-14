@@ -12,13 +12,13 @@
 # Exit codes:
 #   Inherits Bats semantics; individual tests assert helper outcomes.
 
-@test "extract_tools_from_plan dedupes and enforces final_answer" {
+@test "derive_allowed_tools_from_plan expands react fallback" {
 	run bash -lc '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 source ./src/lib/planner.sh
-                initialize_tools
-                plan=$'"'"'1. Use Terminal to inspect files.\n2. Use notes_create to capture details.\n3. Use terminal to verify outputs.'"'"'
-                mapfile -t tools < <(extract_tools_from_plan "${plan}")
+                tool_names() { printf "%s\n" "terminal" "notes_create" "final_answer"; }
+                plan_json='"'"'[{"tool":"react_fallback","args":{},"thought":"Need interactive choice"},{"tool":"notes_create","args":{},"thought":"Capture"}]'"'"'
+                mapfile -t tools < <(derive_allowed_tools_from_plan "${plan_json}")
                 [[ ${#tools[@]} -eq 3 ]]
                 [[ "${tools[0]}" == "terminal" ]]
                 [[ "${tools[1]}" == "notes_create" ]]
@@ -28,37 +28,32 @@
 }
 
 @test "append_final_answer_step emits array with final step" {
-	run bash -lc 'cd "$(git rev-parse --show-toplevel)" && source ./src/lib/planner.sh; plan_json=$"[\"alpha via terminal\"]"; with_final=$(append_final_answer_step "${plan_json}"); outline=$(plan_json_to_outline "${with_final}"); [[ "${outline}" == *"1. alpha via terminal"* ]]; [[ "${outline}" == *"Use final_answer to summarize the result for the user."* ]]'
+	run bash -lc 'cd "$(git rev-parse --show-toplevel)" && source ./src/lib/planner.sh; plan_json=$'"'"'[{"tool":"alpha","args":{},"thought":"alpha via terminal"}]'"'"'; with_final=$(append_final_answer_step "${plan_json}"); outline=$(plan_json_to_outline "${with_final}"); [[ "${outline}" == *"1. alpha via terminal"* ]]; [[ "${outline}" == *"Summarize the result for the user."* ]]'
 	[ "$status" -eq 0 ]
 }
 
-@test "normalize_planner_plan falls back when no JSON array present" {
+@test "normalize_planner_plan converts bullet outlines to react fallback" {
 	run bash -lc '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 source ./src/lib/planner.sh
 
                 plan_json="$(printf "1) First thing\n- second thing\n" | normalize_planner_plan)"
 
-                [[ "${plan_json}" == "[\"First thing\",\"second thing\"]" ]]
+                [[ "${plan_json}" == *"react_fallback"* ]]
         '
 
 	[ "$status" -eq 0 ]
 }
 
-@test "normalize_planner_plan fails when fallback outline is empty" {
-	run bash -lc '
-                cd "$(git rev-parse --show-toplevel)" || exit 1
+@test "normalize_planner_plan rejects malformed objects" {
+	run bash -lc "
+                cd \"$(git rev-parse --show-toplevel)\" || exit 1
                 source ./src/lib/planner.sh
 
-                printf "\n\n" | normalize_planner_plan
-        '
+                printf '[{\"thought\":\"missing tool\"}]' | normalize_planner_plan
+        "
 
 	[ "$status" -eq 1 ]
-}
-
-@test "build_plan_entries_from_tools omits final_answer" {
-	run bash -lc 'cd "$(git rev-parse --show-toplevel)" && source ./src/lib/planner.sh; entries=$(build_plan_entries_from_tools $'"'"'alpha\nbeta\nfinal_answer'"'"' "Tell me"); mapfile -t lines <<<"$(printf "%s" "${entries}" | sed '/^[[:space:]]*$/d')"; [[ ${#lines[@]} -eq 2 ]]; first_tool=$(printf "%s" "${lines[0]}" | jq -r ".tool"); second_tool=$(printf "%s" "${lines[1]}" | jq -r ".tool"); first_message=$(printf "%s" "${lines[0]}" | jq -r ".args.message"); second_message=$(printf "%s" "${lines[1]}" | jq -r ".args.message"); [[ "${first_tool}" == "alpha" ]]; [[ "${second_tool}" == "beta" ]]; [[ "${first_message}" == "Tell me" ]]; [[ "${second_message}" == "Tell me" ]]'
-	[ "$status" -eq 0 ]
 }
 
 @test "should_prompt_for_tool respects execution toggles" {

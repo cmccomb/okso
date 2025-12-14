@@ -20,7 +20,7 @@
 
                 LLAMA_AVAILABLE=false
                 output="$(generate_plan_outline "Summarize request")"
-                [[ "${output}" == "1. Use final_answer to respond directly to the user request." ]]
+                [[ "${output}" == "1. Respond directly to the user request." ]]
         '
 	[ "$status" -eq 0 ]
 }
@@ -37,7 +37,7 @@ tool_names() { printf "%s\n" "fallback_tool" "secondary_tool"; }
 format_tool_descriptions() { printf "%s" "$1"; }
 build_planner_prompt() { printf "TOOLS<<%s>>" "$2"; }
 grammar_path() { printf "/tmp/grammar"; }
-llama_infer() { printf "%s" "$1" > /tmp/planner_prompt; printf "[\"step\"]"; }
+llama_infer() { printf "%s" "$1" > /tmp/planner_prompt; printf '[{"tool":"alpha","args":{},"thought":"step"}]'; }
 
 LLAMA_AVAILABLE=true
 unset TOOLS
@@ -50,7 +50,7 @@ actual_prompt="$(cat /tmp/planner_prompt)"
 
 [[ "${actual_prompt}" == "${expected_prompt}" ]]
 [[ "${output}" == $'1. step
-2. Use final_answer to summarize the result for the user.' ]]
+2. Summarize the result for the user.' ]]
 INNERSCRIPT
 	)"
 	[ "$status" -eq 0 ]
@@ -68,7 +68,7 @@ tool_names() { printf "%s\n" "fallback_tool"; }
 format_tool_descriptions() { printf "%s" "$1"; }
 build_planner_prompt() { printf "TOOLS<<%s>>" "$2"; }
 grammar_path() { printf "/tmp/grammar"; }
-llama_infer() { printf "%s" "$1" > /tmp/planner_prompt; printf "[\"step\"]"; }
+llama_infer() { printf "%s" "$1" > /tmp/planner_prompt; printf '[{"tool":"alpha","args":{},"thought":"step"}]'; }
 
 LLAMA_AVAILABLE=true
 TOOLS="scalar_tool"
@@ -80,7 +80,7 @@ actual_prompt="$(cat /tmp/planner_prompt)"
 
 [[ "${actual_prompt}" == "${expected_prompt}" ]]
 [[ "${output}" == $'1. step
-2. Use final_answer to summarize the result for the user.' ]]
+2. Summarize the result for the user.' ]]
 INNERSCRIPT
 	)"
 	[ "$status" -eq 0 ]
@@ -98,7 +98,7 @@ tool_names() { printf "%s\n" "fallback_tool"; }
 format_tool_descriptions() { printf "%s" "$1"; }
 build_planner_prompt() { printf "TOOLS<<%s>>" "$2"; }
 grammar_path() { printf "/tmp/grammar"; }
-llama_infer() { printf "%s" "$1" > /tmp/planner_prompt; printf "[\"step\"]"; }
+llama_infer() { printf "%s" "$1" > /tmp/planner_prompt; printf '[{"tool":"alpha","args":{},"thought":"step"}]'; }
 
 LLAMA_AVAILABLE=true
 declare -a TOOLS=("preferred_tool" "support_tool")
@@ -111,7 +111,7 @@ actual_prompt="$(cat /tmp/planner_prompt)"
 
 [[ "${actual_prompt}" == "${expected_prompt}" ]]
 [[ "${output}" == $'1. step
-2. Use final_answer to summarize the result for the user.' ]]
+2. Summarize the result for the user.' ]]
 INNERSCRIPT
 	)"
 	[ "$status" -eq 0 ]
