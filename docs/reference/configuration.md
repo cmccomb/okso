@@ -59,9 +59,6 @@ When `usage` is omitted from an HTTP endpoint definition, okso calls the MCP
 server's `/tools` route to build a planner-friendly summary of the available
 tools. This keeps configuration terse while still giving the model concrete
 capabilities to select. Set `MCP_SKIP_USAGE_DISCOVERY=true` to fall back to
-`<tool> <query>` usage strings without hitting remote endpoints.
-
-MCP endpoints are merged into the tool allowlist automatically when
-`register_mcp_endpoints` runs. Operators no longer need to call
-`merge_tool_allowlist_with_mcp` explicitly; MCP tools become eligible for
-registration as soon as their definitions are present.
+`<tool> <query>` usage strings without hitting remote endpoints. All discovered
+MCP tools are available to the planner automatically—no separate allowlist or
+pre-registration step is required.

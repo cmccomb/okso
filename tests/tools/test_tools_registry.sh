@@ -27,7 +27,7 @@
 	[ "$status" -eq 0 ]
 }
 
-@test "register_tool enforces allowlist" {
-	run bash -lc 'cd "$(git rev-parse --show-toplevel)" && source ./src/tools/registry.sh; TOOL_NAME_ALLOWLIST=(alpha); register_tool beta "describe" "cmd" "safe" handler_beta'
-	[ "$status" -eq 1 ]
+@test "register_tool does not gate names behind allowlists" {
+        run bash -lc 'cd "$(git rev-parse --show-toplevel)" && source ./src/tools/registry.sh; TOOL_NAME_ALLOWLIST=(alpha); register_tool beta "describe" "cmd" "safe" handler_beta'
+        [ "$status" -eq 0 ]
 }

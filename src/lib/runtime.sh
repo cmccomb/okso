@@ -250,12 +250,9 @@ prepare_environment_with_settings() {
 	settings_prefix="$1"
 
 	apply_settings_to_globals "${settings_prefix}"
-	init_environment
-	if ! merge_tool_allowlist_with_mcp; then
-		return 1
-	fi
-	init_tool_registry
-	initialize_tools
+        init_environment
+        init_tool_registry
+        initialize_tools
 	# Capture any mutations (e.g., resolved model paths, OS flags) back into the
 	# settings structure for downstream consumers.
 	capture_globals_into_settings "${settings_prefix}"
