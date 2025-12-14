@@ -7,7 +7,7 @@
     "minLength": 10
   },
   "minItems": 1,
-  "description": "Ordered list of high-level plan steps. Each item will be numbered downstream before execution.",
+  "description": "Ordered list of high-level plan steps.",
   "examples": [
     [
       "Use final_answer to respond directly to the user."
