@@ -149,6 +149,7 @@ generate_plan_outline() {
 	planner_grammar_path="$(grammar_path planner_plan)"
 
 	prompt="$(build_planner_prompt "${user_query}" "${tool_lines}")"
+	log "DEBUG" "Generated planner prompt" "${prompt}" >&2
 	raw_plan="$(llama_infer "${prompt}" '' 512 "${planner_grammar_path}")" || raw_plan="[]"
 	plan_outline_json="$(append_final_answer_step "${raw_plan}")" || plan_outline_json="${raw_plan}"
 	plan_json_to_outline "${plan_outline_json}" || printf '%s' "${plan_outline_json}"

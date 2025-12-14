@@ -82,7 +82,7 @@ register_tool() {
 		return 1
 	fi
 
-        TOOL_REGISTRY_JSON=$(jq -c \
+	TOOL_REGISTRY_JSON=$(jq -c \
 		--arg name "${name}" \
 		--arg description "$2" \
 		--arg command "$3" \

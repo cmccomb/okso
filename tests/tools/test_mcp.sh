@@ -18,7 +18,7 @@ setup() {
 
 @test "tool_mcp_remote fails when token missing" {
 	cd "${REPO_ROOT}" || exit 1
-        run bash -lc '
+	run bash -lc '
                 MCP_SKIP_USAGE_DISCOVERY=true
                 source ./src/tools/registry.sh
                 source ./src/tools/mcp.sh
@@ -33,7 +33,7 @@ setup() {
 
 @test "tool_mcp_remote emits connection descriptor" {
 	cd "${REPO_ROOT}" || exit 1
-        run bash -lc '
+	run bash -lc '
                 MCP_SKIP_USAGE_DISCOVERY=true
                 source ./src/tools/registry.sh
                 source ./src/tools/mcp.sh
@@ -51,7 +51,7 @@ setup() {
 
 @test "register_mcp_endpoints is a no-op when no endpoints configured" {
 	cd "${REPO_ROOT}" || exit 1
-        run bash -lc '
+	run bash -lc '
                 MCP_SKIP_USAGE_DISCOVERY=true
                 source ./src/tools/registry.sh
                 source ./src/tools/mcp.sh
@@ -65,7 +65,7 @@ setup() {
 @test "tool_mcp_local_server emits connection descriptor when configured" {
 	cd "${REPO_ROOT}" || exit 1
 	expected_socket="${TMPDIR:-/tmp}/okso-mcp.sock"
-        run bash -lc '
+	run bash -lc '
                 source ./src/tools/registry.sh
                 source ./src/tools/mcp.sh
                 MCP_ENDPOINTS_JSON=$(printf '"'"'[{"name":"mcp_local_server","provider":"local_demo","description":"Connect over local socket","usage":"","safety":"Uses unix socket","transport":"unix","socket":"%s"}]'"'"' "${TMPDIR:-/tmp}/okso-mcp.sock")
@@ -79,8 +79,8 @@ setup() {
 }
 
 @test "register_mcp_endpoints honors MCP_ENDPOINTS_JSON" {
-        cd "${REPO_ROOT}" || exit 1
-        run bash -lc '
+	cd "${REPO_ROOT}" || exit 1
+	run bash -lc '
                 MCP_SKIP_USAGE_DISCOVERY=true
                 source ./src/lib/tools.sh
                 MCP_ENDPOINTS_JSON='"'"'[
@@ -113,12 +113,12 @@ setup() {
                 [[ "$(tool_description custom_http)" == "Custom HTTP endpoint" ]]
                 [[ "$(tool_description custom_unix)" == "Custom unix endpoint" ]]
         '
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "register_mcp_endpoints registers MCP endpoints without prerequisites" {
-        cd "${REPO_ROOT}" || exit 1
-        run bash -lc '
+	cd "${REPO_ROOT}" || exit 1
+	run bash -lc '
                 MCP_SKIP_USAGE_DISCOVERY=true
                 source ./src/tools/registry.sh
                 source ./src/tools/mcp.sh
@@ -142,8 +142,8 @@ setup() {
                 tool_automerge_mcp
         '
 
-        [ "$status" -eq 0 ]
-        [[ "${output}" == *"\"provider\":\"demo\""* ]]
+	[ "$status" -eq 0 ]
+	[[ "${output}" == *"\"provider\":\"demo\""* ]]
 }
 
 @test "register_mcp_endpoints merges allowlist implicitly" {
@@ -179,8 +179,8 @@ setup() {
 }
 
 @test "register_mcp_endpoints infers usage when missing" {
-        cd "${REPO_ROOT}" || exit 1
-        run bash -lc '
+	cd "${REPO_ROOT}" || exit 1
+	run bash -lc '
                 set -e
                 MCP_SKIP_USAGE_DISCOVERY=false
                 source ./src/tools/registry.sh
@@ -250,7 +250,7 @@ PY
 
 @test "register_mcp_endpoints fails for invalid configuration" {
 	cd "${REPO_ROOT}" || exit 1
-        run bash -lc '
+	run bash -lc '
                 MCP_SKIP_USAGE_DISCOVERY=true
                 source ./src/tools/registry.sh
                 source ./src/tools/mcp.sh
@@ -258,6 +258,6 @@ PY
                 init_tool_registry
                 register_mcp_endpoints
         '
-        [ "$status" -eq 1 ]
-        [[ "${output}" == *"token_env missing"* ]]
+	[ "$status" -eq 1 ]
+	[[ "${output}" == *"token_env missing"* ]]
 }

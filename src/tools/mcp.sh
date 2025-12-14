@@ -342,16 +342,16 @@ mcp_register_endpoint_from_definition() {
 }
 
 register_mcp_endpoints() {
-        local definitions_json definitions_count
-        if ! definitions_json="$(mcp_resolved_endpoint_definitions)"; then
-                log "ERROR" "Failed to parse MCP endpoint definitions" ""
-                return 1
-        fi
+	local definitions_json definitions_count
+	if ! definitions_json="$(mcp_resolved_endpoint_definitions)"; then
+		log "ERROR" "Failed to parse MCP endpoint definitions" ""
+		return 1
+	fi
 
-        definitions_count="$(jq 'length' <<<"${definitions_json}")"
+	definitions_count="$(jq 'length' <<<"${definitions_json}")"
 
-        local index
-        for index in $(seq 0 $((definitions_count - 1))); do
+	local index
+	for index in $(seq 0 $((definitions_count - 1))); do
 		if ! mcp_register_endpoint_from_definition "$(jq -c --argjson i "${index}" '.[$i]' <<<"${definitions_json}")"; then
 			return 1
 		fi

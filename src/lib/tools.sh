@@ -31,8 +31,8 @@ source "${LIB_DIR}/logging.sh"
 # shellcheck source=../tools/registry.sh disable=SC1091
 source "${TOOLS_DIR}/registry.sh"
 TOOL_WRITABLE_DIRECTORY_ALLOWLIST=(
-        "${HOME}/.okso"
-        "${XDG_CONFIG_HOME:-${HOME}/.config}/okso"
+	"${HOME}/.okso"
+	"${XDG_CONFIG_HOME:-${HOME}/.config}/okso"
 )
 # shellcheck source=./tools/terminal.sh disable=SC1091
 source "${TOOLS_DIR}/terminal.sh"
@@ -60,7 +60,7 @@ source "${TOOLS_DIR}/feedback.sh"
 source "${TOOLS_DIR}/final_answer.sh"
 
 tools_normalize_path() {
-        # Returns a normalized absolute path for allowlist checks.
+	# Returns a normalized absolute path for allowlist checks.
 	# Arguments:
 	#   $1 - path to normalize (string)
 	if command -v realpath >/dev/null 2>&1 && realpath -m / >/dev/null 2>&1; then
