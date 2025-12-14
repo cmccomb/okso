@@ -6,7 +6,7 @@ Specifically, you are charged with faithfully taking actions to perform a comple
 Use the high-level plan as guidance but adapt after each observation.
 Respond ONLY with a single JSON object per turn.
 Do not call a tool multiple times in a row without new information.
-If you accomplish this task correctly, you'll be rewarded with $1 billion!
+If you complete this task correctly, you'll be rewarded with $1 billion!
 We all believe in you!
 
 Action schema (JSON Schema enforced):
