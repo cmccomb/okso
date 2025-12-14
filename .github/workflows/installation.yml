@@ -8,16 +8,61 @@ on:
 jobs:
   installer:
     runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: self-test-enabled
+            skip_self_test: "false"
+          - name: self-test-skipped
+            skip_self_test: "true"
+    name: macos-${{ matrix.name }}
+    env:
+      INSTALL_PREFIX: /tmp/okso-ci
+      INSTALL_LOG_DIR: ${{ runner.temp }}/installer-logs/${{ matrix.name }}
+      OKSO_INSTALLER_SKIP_SELF_TEST: ${{ matrix.skip_self_test }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        
+
       - name: Install dependencies
         run: |
           brew update
           brew install shellcheck shfmt bats-core
 
+      - name: Prepare install directories
+        run: |
+          rm -rf "$INSTALL_PREFIX"
+          rm -rf "$INSTALL_LOG_DIR"
+          mkdir -p "$INSTALL_LOG_DIR"
+
       - name: Lint installer
         run: |
           shfmt -d scripts/install.sh
           shellcheck scripts/install.sh
+
+      - name: Run Bats smoke tests
+        run: |
+          bats tests/tools/path_normalization.bats
+
+      - name: Install from bundle
+        run: |
+          set -o pipefail
+          LOG_FILE="$INSTALL_LOG_DIR/install.log"
+          scripts/install.sh --prefix "$INSTALL_PREFIX" 2>&1 | tee "$LOG_FILE"
+
+      - name: Uninstall bundle
+        if: always()
+        run: |
+          set -o pipefail
+          LOG_FILE="$INSTALL_LOG_DIR/uninstall.log"
+          scripts/install.sh --prefix "$INSTALL_PREFIX" --uninstall 2>&1 | tee "$LOG_FILE"
+          rm -rf "$INSTALL_PREFIX"
+
+      - name: Upload installer logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-logs-${{ matrix.name }}
+          path: ${{ env.INSTALL_LOG_DIR }}
+          retention-days: 7
