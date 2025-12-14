@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 #
-# Create a new Apple Notes entry using the first query line as the title.
+# Create a new Apple Notes entry using structured title and body fields.
 #
 # Usage:
 #   source "${BASH_SOURCE[0]%/notes/create.sh}/notes/create.sh"
 #
 # Environment variables:
-#   TOOL_QUERY (string): note content; first line becomes the title.
+#   TOOL_ARGS (json): {"title": string, "body": string}
 #   NOTES_FOLDER (string): target folder within Apple Notes.
 #   IS_MACOS (bool): indicates whether macOS-specific tooling should run.
 #
@@ -58,13 +58,13 @@ derive_notes_create_query() {
 tool_notes_create() {
 	local title body folder_script
 
-	if ! notes_require_platform; then
-		return 0
-	fi
+        if ! notes_require_platform; then
+                return 0
+        fi
 
-	if ! { IFS= read -r -d '' title && IFS= read -r -d '' body; } < <(notes_extract_title_and_body); then
-		return 0
-	fi
+        if ! { IFS= read -r -d '' title && IFS= read -r -d '' body; } < <(notes_extract_title_and_body); then
+                return 1
+        fi
 
 	folder_script="$(notes_resolve_folder_script)"
 
@@ -85,16 +85,15 @@ APPLESCRIPT
 register_notes_create() {
 	local args_schema
 
-	args_schema=$(
-		cat <<'JSON'
-{"type":"object","required":["content"],"properties":{"content":{"type":"string","minLength":1}},"additionalProperties":false}
+        args_schema=$(cat <<'JSON'
+{"type":"object","required":["title"],"properties":{"title":{"type":"string","minLength":1},"body":{"type":"string"}},"additionalProperties":false}
 JSON
-	)
-	register_tool \
-		"notes_create" \
-		"Create a new Apple Note using the first line as the title." \
-		"notes_create 'Title\nBody' (first line is title, remaining lines are note body)" \
-		"Requires macOS Apple Notes access; content is sent to Notes." \
-		tool_notes_create \
-		"${args_schema}"
+        )
+        register_tool \
+                "notes_create" \
+                "Create a new Apple Note using structured fields." \
+                "notes_create {\"title\":\"Title\",\"body\":\"Body text\"}" \
+                "Requires macOS Apple Notes access; content is sent to Notes." \
+                tool_notes_create \
+                "${args_schema}"
 }

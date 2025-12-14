@@ -12,6 +12,7 @@ Do NOT include fully executable shell commands; keep the guidance conceptual.
 Select only from the provided list of available tools.
 Each action must clearly indicate which tool will be used.
 If a query involves any kind of calculation, recommend a calculation tool.
+When describing tool usage, reference the structured argument fields each tool expects (for example terminal => {command, args}, notes_create => {title, body}, reminders_create => {title, time, notes}).
 
 # Output Format
 Respond ONLY with a JSON array of strings.

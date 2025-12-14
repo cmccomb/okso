@@ -7,7 +7,7 @@
 #   source "${BASH_SOURCE[0]%/notes/read.sh}/notes/read.sh"
 #
 # Environment variables:
-#   TOOL_QUERY (string): title of the note to read.
+#   TOOL_ARGS (json): {"title": string}
 #   NOTES_FOLDER (string): target folder within Apple Notes.
 #   IS_MACOS (bool): indicates whether macOS-specific tooling should run.
 #
@@ -35,17 +35,17 @@ derive_notes_read_query() {
 }
 
 tool_notes_read() {
-	local title folder_script
-	title=${TOOL_QUERY:-""}
+        local title folder_script
+        title=$(jq -er '.title // empty' <<<"${TOOL_ARGS:-{}}" 2>/dev/null || true)
 
 	if ! notes_require_platform; then
 		return 0
 	fi
 
-	if [[ -z "${title//[[:space:]]/}" ]]; then
-		log "ERROR" "Note title is required to read a note" "" || true
-		return 0
-	fi
+        if [[ -z "${title//[[:space:]]/}" ]]; then
+                log "ERROR" "Note title is required to read a note" "" || true
+                return 1
+        fi
 
 	folder_script="$(notes_resolve_folder_script)"
 

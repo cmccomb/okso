@@ -320,11 +320,17 @@ confirm_tool() {
 }
 
 execute_tool_with_query() {
-	local tool_name tool_query context handler output status
-	tool_name="$1"
-	tool_query="$2"
-	context="$3"
-	handler="$(tool_handler "${tool_name}")"
+        # Arguments:
+        #   $1 - tool name
+        #   $2 - tool query (legacy string)
+        #   $3 - human-readable context
+        #   $4 - structured args JSON
+        local tool_name tool_query context handler output status tool_args_json
+        tool_name="$1"
+        tool_query="$2"
+        context="$3"
+        tool_args_json="$4"
+        handler="$(tool_handler "${tool_name}")"
 
 	local requires_confirmation
 	requires_confirmation=false
@@ -357,7 +363,7 @@ execute_tool_with_query() {
 	stdout_file="$(mktemp)"
 	stderr_file="$(mktemp)"
 
-	TOOL_QUERY="${tool_query}" ${handler} >"${stdout_file}" 2>"${stderr_file}"
+        TOOL_QUERY="${tool_query}" TOOL_ARGS="${tool_args_json}" ${handler} >"${stdout_file}" 2>"${stderr_file}"
 	status=$?
 	output="$(cat "${stdout_file}")"
 	stderr_output="$(cat "${stderr_file}")"
@@ -413,103 +419,127 @@ record_history() {
 }
 
 format_tool_args() {
-	# Arguments:
-	#   $1 - tool name
-	#   $2 - primary payload string
-	local tool payload
-	tool="$1"
-	payload="$2"
-	case "${tool}" in
-	terminal)
-		jq -nc --arg command "${payload}" '{command:$command}'
-		;;
-	python_repl)
-		jq -nc --arg code "${payload}" '{code:$code}'
-		;;
-	file_search | notes_search | calendar_search | mail_search)
-		jq -nc --arg query "${payload}" '{query:$query}'
-		;;
-	clipboard_copy)
-		jq -nc --arg text "${payload}" '{text:$text}'
-		;;
-	clipboard_paste | notes_list | reminders_list | calendar_list | mail_list_inbox | mail_list_unread)
-		jq -nc '{}'
-		;;
-	notes_create | notes_append)
-		jq -nc --arg content "${payload}" '{content:$content}'
-		;;
-	notes_read | reminders_complete)
-		jq -nc --arg title "${payload}" '{title:$title}'
-		;;
-	reminders_create)
-		jq -nc --arg content "${payload}" '{content:$content}'
-		;;
-	calendar_create)
-		jq -nc --arg details "${payload}" '{details:$details}'
-		;;
-	mail_draft | mail_send)
-		jq -nc --arg envelope "${payload}" '{envelope:$envelope}'
-		;;
-	applescript)
-		jq -nc --arg script "${payload}" '{script:$script}'
-		;;
-	feedback | final_answer)
-		jq -nc --arg message "${payload}" '{message:$message}'
-		;;
-	*)
-		jq -nc --arg message "${payload}" '{message:$message}'
-		;;
-	esac
+        # Arguments:
+        #   $1 - tool name
+        #   $2 - primary payload string
+        # Returns JSON describing structured args for the tool.
+        local tool payload
+        tool="$1"
+        payload="$2"
+        case "${tool}" in
+        terminal)
+                read -r -a terminal_tokens <<<"${payload}"
+                if ((${#terminal_tokens[@]} == 0)); then
+                        terminal_tokens=("status")
+                fi
+                jq -nc --arg command "${terminal_tokens[0]}" --argjson args "$(printf '%s\n' "${terminal_tokens[@]:1}" | jq -Rcs 'split("\n") | map(select(length > 0))')" '{command:$command,args:$args}'
+                ;;
+        python_repl)
+                jq -nc --arg code "${payload}" '{code:$code}'
+                ;;
+        file_search | notes_search | calendar_search | mail_search)
+                jq -nc --arg query "${payload}" '{query:$query}'
+                ;;
+        clipboard_copy)
+                jq -nc --arg text "${payload}" '{text:$text}'
+                ;;
+        clipboard_paste | notes_list | reminders_list | calendar_list | mail_list_inbox | mail_list_unread)
+                jq -nc '{}'
+                ;;
+        notes_create | notes_append)
+                local title body
+                title=${payload%%$'\n'*}
+                body=${payload#"${title}"}
+                body=${body#$'\n'}
+                jq -nc --arg title "${title}" --arg body "${body}" '{title:$title,body:$body}'
+                ;;
+        notes_read)
+                jq -nc --arg title "${payload}" '{title:$title}'
+                ;;
+        reminders_create)
+                local title notes time
+                title=${payload%%$'\n'*}
+                notes=${payload#"${title}"}
+                notes=${notes#$'\n'}
+                time=""
+                jq -nc --arg title "${title}" --arg time "${time}" --arg notes "${notes}" '{title:$title,time:$time,notes:$notes}'
+                ;;
+        reminders_complete)
+                jq -nc --arg title "${payload}" '{title:$title}'
+                ;;
+        calendar_create)
+                local title start_time location
+                title=${payload%%$'\n'*}
+                start_time=${payload#"${title}"}
+                start_time=${start_time#$'\n'}
+                location=${start_time#*$'\n'}
+                start_time=${start_time%%$'\n'*}
+                jq -nc --arg title "${title}" --arg start_time "${start_time}" --arg location "${location}" '{title:$title,start_time:$start_time,location:$location}'
+                ;;
+        mail_draft | mail_send)
+                jq -nc --arg envelope "${payload}" '{envelope:$envelope}'
+                ;;
+        applescript)
+                jq -nc --arg script "${payload}" '{script:$script}'
+                ;;
+        feedback | final_answer)
+                jq -nc --arg message "${payload}" '{message:$message}'
+                ;;
+        *)
+                jq -nc --arg message "${payload}" '{message:$message}'
+                ;;
+        esac
 }
 
 extract_tool_query() {
-	# Arguments:
-	#   $1 - tool name
-	#   $2 - args JSON
-	local tool args_json
-	tool="$1"
-	args_json="$2"
-	case "${tool}" in
-	terminal)
-		jq -r '(.command // "")' <<<"${args_json}" 2>/dev/null || printf ''
-		;;
-	python_repl)
-		jq -r '(.code // "")' <<<"${args_json}" 2>/dev/null || printf ''
-		;;
-	file_search | notes_search | calendar_search | mail_search)
-		jq -r '(.query // "")' <<<"${args_json}" 2>/dev/null || printf ''
-		;;
-	clipboard_copy)
-		jq -r '(.text // "")' <<<"${args_json}" 2>/dev/null || printf ''
-		;;
-	clipboard_paste | notes_list | reminders_list | calendar_list | mail_list_inbox | mail_list_unread)
-		printf ''
-		;;
-	notes_create | notes_append)
-		jq -r '(.content // "")' <<<"${args_json}" 2>/dev/null || printf ''
-		;;
-	notes_read | reminders_complete)
-		jq -r '(.title // "")' <<<"${args_json}" 2>/dev/null || printf ''
-		;;
-	reminders_create)
-		jq -r '(.content // "")' <<<"${args_json}" 2>/dev/null || printf ''
-		;;
-	calendar_create)
-		jq -r '(.details // "")' <<<"${args_json}" 2>/dev/null || printf ''
-		;;
-	mail_draft | mail_send)
-		jq -r '(.envelope // "")' <<<"${args_json}" 2>/dev/null || printf ''
-		;;
-	applescript)
-		jq -r '(.script // "")' <<<"${args_json}" 2>/dev/null || printf ''
-		;;
-	feedback | final_answer)
-		jq -r '(.message // "")' <<<"${args_json}" 2>/dev/null || printf ''
-		;;
-	*)
-		jq -r '(.message // .query // "")' <<<"${args_json}" 2>/dev/null || printf ''
-		;;
-	esac
+        # Arguments:
+        #   $1 - tool name
+        #   $2 - args JSON
+        # Returns a human-readable summary derived from structured args.
+        local tool args_json
+        tool="$1"
+        args_json="$2"
+        case "${tool}" in
+        terminal)
+                jq -r '(.command // "") as $cmd | ($cmd + " " + ((.args // []) | map(tostring) | join(" ")))|rtrimstr(" ")' <<<"${args_json}" 2>/dev/null || printf ''
+                ;;
+        notes_create | notes_append)
+                jq -r '[(.title // ""), (.body // "")] | map(select(length>0)) | join("\n")' <<<"${args_json}" 2>/dev/null || printf ''
+                ;;
+        reminders_create)
+                jq -r '[(.title // ""), (.time // ""), (.notes // "")] | map(select(length>0)) | join("\n")' <<<"${args_json}" 2>/dev/null || printf ''
+                ;;
+        notes_read | reminders_complete)
+                jq -r '(.title // "")' <<<"${args_json}" 2>/dev/null || printf ''
+                ;;
+        calendar_create)
+                jq -r '[(.title // ""), (.start_time // ""), (.location // "")] | map(select(length>0)) | join("\n")' <<<"${args_json}" 2>/dev/null || printf ''
+                ;;
+        python_repl)
+                jq -r '(.code // "")' <<<"${args_json}" 2>/dev/null || printf ''
+                ;;
+        file_search | notes_search | calendar_search | mail_search)
+                jq -r '(.query // "")' <<<"${args_json}" 2>/dev/null || printf ''
+                ;;
+        clipboard_copy)
+                jq -r '(.text // "")' <<<"${args_json}" 2>/dev/null || printf ''
+                ;;
+        mail_draft | mail_send)
+                jq -r '(.envelope // "")' <<<"${args_json}" 2>/dev/null || printf ''
+                ;;
+        applescript)
+                jq -r '(.script // "")' <<<"${args_json}" 2>/dev/null || printf ''
+                ;;
+        feedback | final_answer)
+                jq -r '(.message // "")' <<<"${args_json}" 2>/dev/null || printf ''
+                ;;
+        clipboard_paste | notes_list | reminders_list | calendar_list | mail_list_inbox | mail_list_unread)
+                printf ''
+                ;;
+        *)
+                jq -r '(.message // .query // "")' <<<"${args_json}" 2>/dev/null || printf ''
+                ;;
+        esac
 }
 
 format_action_context() {
@@ -798,15 +828,17 @@ validate_tool_permission() {
 }
 
 execute_tool_action() {
-	# Arguments:
-	#   $1 - tool name
-	#   $2 - tool query
-	#   $3 - human-readable context (optional)
-	local tool query context
-	tool="$1"
-	query="$2"
-	context="$3"
-	execute_tool_with_query "${tool}" "${query}" "${context}" || true
+        # Arguments:
+        #   $1 - tool name
+        #   $2 - tool query
+        #   $3 - human-readable context (optional)
+        #   $4 - structured args JSON (optional)
+        local tool query context args_json
+        tool="$1"
+        query="$2"
+        context="$3"
+        args_json="$4"
+        execute_tool_with_query "${tool}" "${query}" "${context}" "${args_json}" || true
 }
 
 record_tool_execution() {
@@ -914,7 +946,7 @@ react_loop() {
 			continue
 		fi
 
-		observation="$(execute_tool_action "${tool}" "${query}" "${action_context}")"
+                observation="$(execute_tool_action "${tool}" "${query}" "${action_context}" "${args_json}")"
 		record_tool_execution "${state_prefix}" "${tool}" "${thought}" "${args_json}" "${observation}" "${current_step}"
 
 		state_set "${state_prefix}" "step" "${current_step}"

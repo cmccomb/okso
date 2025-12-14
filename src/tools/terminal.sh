@@ -54,33 +54,58 @@ TERMINAL_SESSION_ID="${TERMINAL_SESSION_ID:-}" # string session identifier
 TERMINAL_WORKDIR="${TERMINAL_WORKDIR:-}"       # string working directory for the persistent session
 
 derive_terminal_query() {
-	# Arguments:
-	#   $1 - user query (string)
-	local user_query lower_query
-	user_query="$1"
-	lower_query=$(printf '%s' "${user_query}" | tr '[:upper:]' '[:lower:]')
+        # Arguments:
+        #   $1 - user query (string)
+        local user_query lower_query
+        user_query="$1"
+        lower_query=$(printf '%s' "${user_query}" | tr '[:upper:]' '[:lower:]')
 
-	if [[ "${user_query}" =~ \`([^\`]+)\` ]]; then
-		printf '%s\n' "${BASH_REMATCH[1]}"
-		return
-	fi
+        if [[ "${user_query}" =~ \`([^\`]+)\` ]]; then
+                printf '%s\n' "${BASH_REMATCH[1]}"
+                return
+        fi
 
-	if [[ "${lower_query}" == *"todo"* ]]; then
-		printf 'rg -n "TODO" .\n'
-		return
-	fi
+        if [[ "${lower_query}" == *"todo"* ]]; then
+                printf 'rg -n "TODO" .\n'
+                return
+        fi
 
-	if [[ "${lower_query}" == *"list files"* || "${lower_query}" == *"show directory"* || "${lower_query}" == *"show folder"* ]]; then
-		printf 'ls -la\n'
-		return
-	fi
+        if [[ "${lower_query}" == *"list files"* || "${lower_query}" == *"show directory"* || "${lower_query}" == *"show folder"* ]]; then
+                printf 'ls -la\n'
+                return
+        fi
 
-	if [[ "${user_query}" =~ (^|[[:space:]])(ls|cd|cat|grep|find|pwd|rg)([[:space:]]|$) ]]; then
-		printf '%s\n' "${BASH_REMATCH[2]}"
-		return
-	fi
+        if [[ "${user_query}" =~ (^|[[:space:]])(ls|cd|cat|grep|find|pwd|rg)([[:space:]]|$) ]]; then
+                printf '%s\n' "${BASH_REMATCH[2]}"
+                return
+        fi
 
-	printf 'status\n'
+        printf 'status\n'
+}
+
+terminal_args_from_json() {
+        # Parses TOOL_ARGS into a command and argument array.
+        # Sets two global variables:
+        #   TERMINAL_CMD (string)
+        #   TERMINAL_CMD_ARGS (array)
+        local args_json
+        args_json=${TOOL_ARGS:-"{}"}
+
+        if ! TERMINAL_CMD=$(jq -er '(.command // "")' <<<"${args_json}" 2>/dev/null || true); then
+                TERMINAL_CMD=""
+        fi
+
+        if ! jq -e '(.args == null) or (.args | type=="array")' <<<"${args_json}" >/dev/null 2>&1; then
+                log "ERROR" "terminal args must supply an array for args" "${args_json}" || true
+                return 1
+        fi
+
+        if [[ -z "${TERMINAL_CMD}" ]]; then
+                TERMINAL_CMD="status"
+        fi
+
+        mapfile -t TERMINAL_CMD_ARGS < <(jq -r '(.args // []) | map(tostring) | .[]' <<<"${args_json}" 2>/dev/null || true)
+        return 0
 }
 
 terminal_init_session() {
@@ -148,16 +173,14 @@ terminal_print_status() {
 }
 
 tool_terminal() {
-	local query raw_args command args mode shifted_args has_interactive rm_args
-	terminal_init_session
+        local command args mode shifted_args has_interactive rm_args
+        terminal_init_session
 
-	query=${TOOL_QUERY:-""}
-	read -r -a raw_args <<<"${query}"
-	command=${raw_args[0]:-status}
-	args=()
-	if [[ ${#raw_args[@]} -gt 1 ]]; then
-		args=("${raw_args[@]:1}")
-	fi
+        if ! terminal_args_from_json; then
+                return 1
+        fi
+        command="${TERMINAL_CMD}"
+        args=("${TERMINAL_CMD_ARGS[@]}")
 
 	if ! terminal_allowed "${command}"; then
 		log "WARN" "Unknown terminal command; showing status" "${command}"

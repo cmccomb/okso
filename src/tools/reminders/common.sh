@@ -34,40 +34,38 @@ reminders_list_name() {
 }
 
 reminders_require_platform() {
-	# Ensures Apple Reminders tools only run on macOS with osascript available.
-	if [[ "${IS_MACOS}" != true ]]; then
-		log "WARN" "Apple Reminders is only available on macOS" "${TOOL_QUERY:-}" || true
-		return 1
-	fi
+        # Ensures Apple Reminders tools only run on macOS with osascript available.
+        if [[ "${IS_MACOS}" != true ]]; then
+                log "WARN" "Apple Reminders is only available on macOS" "${TOOL_ARGS:-}" || true
+                return 1
+        fi
 
-	if ! command -v "${REMINDERS_OSASCRIPT_BIN:-osascript}" >/dev/null 2>&1; then
-		log "WARN" "osascript missing; cannot reach Apple Reminders" "${TOOL_QUERY:-}" || true
-		return 1
-	fi
+        if ! command -v "${REMINDERS_OSASCRIPT_BIN:-osascript}" >/dev/null 2>&1; then
+                log "WARN" "osascript missing; cannot reach Apple Reminders" "${TOOL_ARGS:-}" || true
+                return 1
+        fi
 
-	return 0
+        return 0
 }
 
 reminders_extract_title_and_body() {
-	# Splits TOOL_QUERY into a title (first line) and body (remaining lines).
-	# Emits two NUL-delimited fields: title then body.
-	local query title body
-	query=${TOOL_QUERY:-""}
+        # Splits TOOL_ARGS into a title (first line) and body (remaining lines).
+        # Emits two NUL-delimited fields: title then body.
+        local title notes
 
-	if [[ -z "${query//[[:space:]]/}" ]]; then
-		log "ERROR" "Reminder content is required" "" || true
-		return 1
-	fi
+        title=$(jq -er '.title // empty' <<<"${TOOL_ARGS:-{}}" 2>/dev/null || true)
+        notes=$(jq -er '.notes // ""' <<<"${TOOL_ARGS:-{}}" 2>/dev/null || true)
 
-	title=${query%%$'\n'*}
-	body=${query#"${title}"}
-	body=${body#$'\n'}
+        if [[ -z "${title//[[:space:]]/}" && -z "${notes//[[:space:]]/}" ]]; then
+                log "ERROR" "Reminder content is required" "" || true
+                return 1
+        fi
 
-	if [[ -z "${title//[[:space:]]/}" ]]; then
-		title="Untitled reminder $(date -Iseconds)"
-	fi
+        if [[ -z "${title//[[:space:]]/}" ]]; then
+                title="Untitled reminder $(date -Iseconds)"
+        fi
 
-	printf '%s\0%s\0' "${title}" "${body}"
+        printf '%s\0%s\0' "${title}" "${notes}"
 }
 
 reminders_run_script() {

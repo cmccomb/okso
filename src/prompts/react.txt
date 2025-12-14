@@ -12,6 +12,8 @@ We all believe in you!
 Action schema (JSON Schema enforced):
 ${react_grammar}
 
+Tool arguments must be well-formed JSON objects that match each tool's fields (e.g., terminal {command:string, args:[]}, notes_create {title:string, body:string}, reminders_create {title:string, time:string, notes:string}). Do not collapse fields into a single string.
+
 High-level plan:
 ${plan_outline}
 
