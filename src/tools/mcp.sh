@@ -8,8 +8,6 @@
 #
 # Environment variables:
 #   TOOL_QUERY (string): human query to forward to the MCP endpoint.
-#   MCP_HUGGINGFACE_URL (string): remote Hugging Face MCP endpoint URL.
-#   MCP_HUGGINGFACE_TOKEN_ENV (string): env var that stores the Hugging Face token.
 #   MCP_LOCAL_SOCKET (string): unix socket or filesystem path for a local MCP server.
 #   MCP_ENDPOINTS_JSON (string): JSON array of MCP endpoint definitions.
 #   MCP_SKIP_USAGE_DISCOVERY (bool): skip HTTP usage discovery when true.
@@ -137,36 +135,6 @@ mcp_dispatch_endpoint() {
 mcp_default_endpoints_json() {
         cat <<JSON
 [
-  {
-    "name": "mcp_huggingface_models",
-    "provider": "huggingface",
-    "description": "Use the Hugging Face MCP endpoint for model metadata, search, and file lookups.",
-    "usage": "",
-    "safety": "Requires a valid Hugging Face token; do not print secrets in tool calls.",
-    "transport": "http",
-    "endpoint": "https://huggingface.co/mcp",
-    "token_env": "${MCP_HUGGINGFACE_TOKEN_ENV:-HUGGINGFACEHUB_API_TOKEN}"
-  },
-  {
-    "name": "mcp_huggingface_datasets",
-    "provider": "huggingface",
-    "description": "Use the Hugging Face MCP endpoint for dataset discovery and previews.",
-    "usage": "",
-    "safety": "Requires a valid Hugging Face token; avoid printing dataset tokens or credentials.",
-    "transport": "http",
-    "endpoint": "https://huggingface.co/mcp",
-    "token_env": "${MCP_HUGGINGFACE_TOKEN_ENV:-HUGGINGFACEHUB_API_TOKEN}"
-  },
-  {
-    "name": "mcp_huggingface_inference",
-    "provider": "huggingface",
-    "description": "Use the Hugging Face MCP endpoint to run hosted pipelines for generation or embeddings.",
-    "usage": "",
-    "safety": "Requires a valid Hugging Face token; do not echo prompts or secrets into logs.",
-    "transport": "http",
-    "endpoint": "https://huggingface.co/mcp",
-    "token_env": "${MCP_HUGGINGFACE_TOKEN_ENV:-HUGGINGFACEHUB_API_TOKEN}"
-  },
   {
     "name": "mcp_local_server",
     "provider": "local_demo",

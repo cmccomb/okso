@@ -15,8 +15,6 @@
 #   FORCE_CONFIRM (bool): always prompt when true.
 #   VERBOSITY (int): logging verbosity; may be overridden by OKSO_VERBOSITY.
 #   DEFAULT_MODEL_FILE (string): fallback file name for parsing model spec.
-#   MCP_HUGGINGFACE_URL (string): remote MCP endpoint for Hugging Face tools.
-#   MCP_HUGGINGFACE_TOKEN_ENV (string): env var holding the Hugging Face token.
 #   MCP_LOCAL_SOCKET (string): path or socket for a local MCP server.
 #   MCP_ENDPOINTS_ALLOW_PARTIAL_DEFAULT (bool): allow default MCP entries without endpoints.
 #   MCP_ENDPOINTS_TOML (string): TOML definition of MCP endpoints to register.
@@ -46,34 +44,7 @@ readonly DEFAULT_MODEL_SPEC_BASE="${DEFAULT_MODEL_REPO_BASE}:${DEFAULT_MODEL_FIL
 readonly DEFAULT_MODEL_BRANCH_BASE="main"
 
 mcp_default_endpoints_toml() {
-	cat <<EOF
-[[mcp.endpoints]]
-name = "mcp_huggingface_models"
-provider = "huggingface"
-description = "Use the Hugging Face MCP endpoint for model metadata, search, and file lookups."
-safety = "Requires a valid Hugging Face token; do not print secrets in tool calls."
-transport = "http"
-endpoint = "https://huggingface.co/mcp"
-token_env = "${MCP_HUGGINGFACE_TOKEN_ENV:-HUGGINGFACEHUB_API_TOKEN}"
-
-[[mcp.endpoints]]
-name = "mcp_huggingface_datasets"
-provider = "huggingface"
-description = "Use the Hugging Face MCP endpoint for dataset discovery and previews."
-safety = "Requires a valid Hugging Face token; avoid printing dataset tokens or credentials."
-transport = "http"
-endpoint = "https://huggingface.co/mcp"
-token_env = "${MCP_HUGGINGFACE_TOKEN_ENV:-HUGGINGFACEHUB_API_TOKEN}"
-
-[[mcp.endpoints]]
-name = "mcp_huggingface_inference"
-provider = "huggingface"
-description = "Use the Hugging Face MCP endpoint to run hosted pipelines for generation or embeddings."
-safety = "Requires a valid Hugging Face token; do not echo prompts or secrets into logs."
-transport = "http"
-endpoint = "https://huggingface.co/mcp"
-token_env = "${MCP_HUGGINGFACE_TOKEN_ENV:-HUGGINGFACEHUB_API_TOKEN}"
-
+        cat <<EOF
 [[mcp.endpoints]]
 name = "mcp_local_server"
 provider = "local_demo"
@@ -243,9 +214,7 @@ load_config() {
 	VERBOSITY=${VERBOSITY:-1}
 	APPROVE_ALL=${APPROVE_ALL:-false}
 	FORCE_CONFIRM=${FORCE_CONFIRM:-false}
-	MCP_HUGGINGFACE_URL=${MCP_HUGGINGFACE_URL:-""}
-	MCP_HUGGINGFACE_TOKEN_ENV=${MCP_HUGGINGFACE_TOKEN_ENV:-"HUGGINGFACEHUB_API_TOKEN"}
-	MCP_LOCAL_SOCKET=${MCP_LOCAL_SOCKET:-"${TMPDIR:-/tmp}/okso-mcp.sock"}
+        MCP_LOCAL_SOCKET=${MCP_LOCAL_SOCKET:-"${TMPDIR:-/tmp}/okso-mcp.sock"}
 
 	MCP_ENDPOINTS_ALLOW_PARTIAL_DEFAULT=${MCP_ENDPOINTS_ALLOW_PARTIAL_DEFAULT:-false}
 	if [[ -z "${MCP_ENDPOINTS_TOML:-}" ]]; then
@@ -281,8 +250,6 @@ write_config_file() {
 VERBOSITY=${VERBOSITY}
 APPROVE_ALL=${APPROVE_ALL}
 FORCE_CONFIRM=${FORCE_CONFIRM}
-MCP_HUGGINGFACE_URL="${MCP_HUGGINGFACE_URL}"
-MCP_HUGGINGFACE_TOKEN_ENV="${MCP_HUGGINGFACE_TOKEN_ENV}"
 MCP_LOCAL_SOCKET="${MCP_LOCAL_SOCKET}"
 MCP_ENDPOINTS_ALLOW_PARTIAL_DEFAULT=${MCP_ENDPOINTS_ALLOW_PARTIAL_DEFAULT}
 MCP_ENDPOINTS_TOML=\$(cat <<'EOF_MCP'

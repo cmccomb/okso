@@ -31,28 +31,10 @@ MCP endpoints without touching code. The loader converts this structure into
 ```toml
 MCP_ENDPOINTS_TOML=$(cat <<'EOF_MCP'
 [[mcp.endpoints]]
-name = "mcp_huggingface_models"
-provider = "huggingface"
-description = "Use the Hugging Face MCP endpoint for model metadata, search, and file lookups."
-safety = "Requires a valid Hugging Face token; do not print secrets in tool calls."
-transport = "http"
-endpoint = "https://example.test/mcp"
-token_env = "MCP_TOKEN"
-
-[[mcp.endpoints]]
-name = "mcp_huggingface_datasets"
-provider = "huggingface"
-description = "Use the Hugging Face MCP endpoint for dataset discovery and previews."
-safety = "Requires a valid Hugging Face token; avoid printing dataset tokens or credentials."
-transport = "http"
-endpoint = "https://example.test/mcp"
-token_env = "MCP_TOKEN"
-
-[[mcp.endpoints]]
-name = "mcp_huggingface_inference"
-provider = "huggingface"
-description = "Use the Hugging Face MCP endpoint to run hosted pipelines for generation or embeddings."
-safety = "Requires a valid Hugging Face token; do not echo prompts or secrets into logs."
+name = "mcp_remote_demo"
+provider = "remote_vendor"
+description = "Connect to a remote MCP endpoint for tool execution."
+safety = "Requires a token; avoid logging sensitive inputs."
 transport = "http"
 endpoint = "https://example.test/mcp"
 token_env = "MCP_TOKEN"
@@ -68,9 +50,8 @@ EOF_MCP
 )
 ```
 
-If the block is omitted, okso synthesizes defaults using
-`MCP_HUGGINGFACE_URL`, `MCP_HUGGINGFACE_TOKEN_ENV`, and `MCP_LOCAL_SOCKET`.
-TOML parsing favors the standard library `tomllib` module (Python 3.11+), and
+If the block is omitted, okso synthesizes a local MCP socket definition using
+`MCP_LOCAL_SOCKET`. TOML parsing favors the standard library `tomllib` module (Python 3.11+), and
 falls back to the `pip` vendored `tomli` when needed, so deployments do not
 need to install a separate TOML library.
 

@@ -76,31 +76,25 @@ setup() {
 }
 
 @test "load_config wires default MCP settings" {
-	cd "${REPO_ROOT}" || exit 1
-	source ./src/lib/config.sh
-	CONFIG_FILE="${BATS_TEST_TMPDIR}/config-mcp-defaults.env"
-	: >"${CONFIG_FILE}"
-	load_config
-	[[ "${MCP_HUGGINGFACE_URL}" == "" ]]
-	[[ "${MCP_HUGGINGFACE_TOKEN_ENV}" == "HUGGINGFACEHUB_API_TOKEN" ]]
-	[[ "${MCP_LOCAL_SOCKET}" == "${TMPDIR:-/tmp}/okso-mcp.sock" ]]
-	[[ "${MCP_ENDPOINTS_ALLOW_PARTIAL_DEFAULT}" == "true" ]]
-	[[ "${MCP_ENDPOINTS_TOML}" == *"mcp_local_server"* ]]
+        cd "${REPO_ROOT}" || exit 1
+        source ./src/lib/config.sh
+        CONFIG_FILE="${BATS_TEST_TMPDIR}/config-mcp-defaults.env"
+        : >"${CONFIG_FILE}"
+        load_config
+        [[ "${MCP_LOCAL_SOCKET}" == "${TMPDIR:-/tmp}/okso-mcp.sock" ]]
+        [[ "${MCP_ENDPOINTS_ALLOW_PARTIAL_DEFAULT}" == "true" ]]
+        [[ "${MCP_ENDPOINTS_TOML}" == *"mcp_local_server"* ]]
 }
 
 @test "load_config honors MCP overrides" {
-	cd "${REPO_ROOT}" || exit 1
-	source ./src/lib/config.sh
-	CONFIG_FILE="${BATS_TEST_TMPDIR}/config-mcp-overrides.env"
-	cat >"${CONFIG_FILE}" <<'EOF'
-MCP_HUGGINGFACE_URL="https://demo.example/mcp"
-MCP_HUGGINGFACE_TOKEN_ENV="CUSTOM_TOKEN"
+        cd "${REPO_ROOT}" || exit 1
+        source ./src/lib/config.sh
+        CONFIG_FILE="${BATS_TEST_TMPDIR}/config-mcp-overrides.env"
+        cat >"${CONFIG_FILE}" <<'EOF'
 MCP_LOCAL_SOCKET="/var/run/okso.sock"
 EOF
-	load_config
-	[[ "${MCP_HUGGINGFACE_URL}" == "https://demo.example/mcp" ]]
-	[[ "${MCP_HUGGINGFACE_TOKEN_ENV}" == "CUSTOM_TOKEN" ]]
-	[[ "${MCP_LOCAL_SOCKET}" == "/var/run/okso.sock" ]]
+        load_config
+        [[ "${MCP_LOCAL_SOCKET}" == "/var/run/okso.sock" ]]
 }
 
 @test "load_config builds MCP endpoint JSON from TOML" {
@@ -144,12 +138,12 @@ PY
 	load_config
 	write_config_file
 
-	run env CONFIG_FILE="${CONFIG_FILE}" bash -lc '
+        run env CONFIG_FILE="${CONFIG_FILE}" bash -lc '
                 source ./src/lib/config.sh
                 load_config
-                [[ "${MCP_ENDPOINTS_TOML}" == *"mcp_huggingface_models"* ]]
+                [[ "${MCP_ENDPOINTS_TOML}" == *"mcp_local_server"* ]]
                 [[ "${MCP_ENDPOINTS_ALLOW_PARTIAL_DEFAULT}" == "true" ]]
         '
 
-	[ "$status" -eq 0 ]
+        [ "$status" -eq 0 ]
 }
