@@ -342,16 +342,32 @@ mcp_register_endpoint_from_definition() {
 }
 
 register_mcp_endpoints() {
-	local definitions_json definitions_count
-	if ! definitions_json="$(mcp_resolved_endpoint_definitions)"; then
-		log "ERROR" "Failed to parse MCP endpoint definitions" ""
-		return 1
-	fi
+        local definitions_json definitions_count
+        if ! definitions_json="$(mcp_resolved_endpoint_definitions)"; then
+                log "ERROR" "Failed to parse MCP endpoint definitions" ""
+                return 1
+        fi
 
-	definitions_count="$(jq 'length' <<<"${definitions_json}")"
+        if declare -F merge_tool_allowlist_with_mcp >/dev/null 2>&1; then
+                if ! merge_tool_allowlist_with_mcp; then
+                        log "ERROR" "Failed to merge MCP tools into allowlist" ""
+                        return 1
+                fi
+        else
+                mapfile -t TOOL_NAME_ALLOWLIST < <(
+                        {
+                                printf '%s\n' "${TOOL_NAME_ALLOWLIST[@]}"
+                                jq -r '.[].name' <<<"${definitions_json}"
+                        } |
+                                awk 'NF' |
+                                sort -u
+                )
+        fi
 
-	local index
-	for index in $(seq 0 $((definitions_count - 1))); do
+        definitions_count="$(jq 'length' <<<"${definitions_json}")"
+
+        local index
+        for index in $(seq 0 $((definitions_count - 1))); do
 		if ! mcp_register_endpoint_from_definition "$(jq -c --argjson i "${index}" '.[$i]' <<<"${definitions_json}")"; then
 			return 1
 		fi
