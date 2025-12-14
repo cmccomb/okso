@@ -33,12 +33,6 @@ jobs:
 
       - name: Run Bats suite with coverage
         run: |
-          find tests -type f \
-            \( -name 'test_*.sh' -o -name 'test_*.bats' \) \
-            -not -name '*install*' \
-            -print0 \
-            | sort -z \
-            | xargs -0 bats
           ./scripts/coverage.sh
 
       - name: Upload coverage artifacts
