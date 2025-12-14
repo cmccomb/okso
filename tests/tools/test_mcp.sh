@@ -17,8 +17,8 @@ setup() {
 }
 
 @test "tool_mcp_remote fails when token missing" {
-        cd "${REPO_ROOT}" || exit 1
-        run bash -lc '
+	cd "${REPO_ROOT}" || exit 1
+	run bash -lc '
                 MCP_SKIP_USAGE_DISCOVERY=true
                 source ./src/tools/registry.sh
                 source ./src/tools/mcp.sh
@@ -29,12 +29,12 @@ setup() {
                 TOOL_QUERY="ping"
                 tool_mcp_remote_demo
         '
-        [ "$status" -eq 1 ]
+	[ "$status" -eq 1 ]
 }
 
 @test "tool_mcp_remote emits connection descriptor" {
-        cd "${REPO_ROOT}" || exit 1
-        run bash -lc '
+	cd "${REPO_ROOT}" || exit 1
+	run bash -lc '
                 MCP_SKIP_USAGE_DISCOVERY=true
                 source ./src/tools/registry.sh
                 source ./src/tools/mcp.sh
@@ -46,14 +46,14 @@ setup() {
                 TOOL_QUERY="list tools"
                 tool_mcp_remote_demo
         '
-        [ "$status" -eq 0 ]
-        [[ "${output}" == *'"provider":"demo"'* ]]
-        [[ "${output}" == *'"token_env":"MCP_TOKEN"'* ]]
+	[ "$status" -eq 0 ]
+	[[ "${output}" == *'"provider":"demo"'* ]]
+	[[ "${output}" == *'"token_env":"MCP_TOKEN"'* ]]
 }
 
 @test "register_mcp_endpoints is a no-op when no endpoints configured" {
-        cd "${REPO_ROOT}" || exit 1
-        run bash -lc '
+	cd "${REPO_ROOT}" || exit 1
+	run bash -lc '
                 MCP_SKIP_USAGE_DISCOVERY=true
                 source ./src/tools/registry.sh
                 source ./src/tools/mcp.sh
@@ -62,13 +62,13 @@ setup() {
                 register_mcp_endpoints
                 [[ -z "$(compgen -A function | grep "^tool_mcp")" ]]
         '
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "tool_mcp_local_server emits connection descriptor when configured" {
-        cd "${REPO_ROOT}" || exit 1
-        expected_socket="${TMPDIR:-/tmp}/okso-mcp.sock"
-        run bash -lc '
+	cd "${REPO_ROOT}" || exit 1
+	expected_socket="${TMPDIR:-/tmp}/okso-mcp.sock"
+	run bash -lc '
                 source ./src/tools/registry.sh
                 source ./src/tools/mcp.sh
                 TOOL_NAME_ALLOWLIST=(mcp_local_server)
@@ -78,13 +78,13 @@ setup() {
                 TOOL_QUERY="status"
                 tool_mcp_local_server
         '
-        [ "$status" -eq 0 ]
-        [[ "${output}" == *"\"socket\":\"${expected_socket}\""* ]]
+	[ "$status" -eq 0 ]
+	[[ "${output}" == *"\"socket\":\"${expected_socket}\""* ]]
 }
 
 @test "register_mcp_endpoints honors MCP_ENDPOINTS_JSON" {
-        cd "${REPO_ROOT}" || exit 1
-        run bash -lc '
+	cd "${REPO_ROOT}" || exit 1
+	run bash -lc '
                 MCP_SKIP_USAGE_DISCOVERY=true
                 source ./src/lib/tools.sh
                 TOOL_NAME_ALLOWLIST=(terminal)
@@ -120,12 +120,12 @@ setup() {
                 [[ "$(tool_description custom_http)" == "Custom HTTP endpoint" ]]
                 [[ "$(tool_description custom_unix)" == "Custom unix endpoint" ]]
         '
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "register_mcp_endpoints infers usage when missing" {
-        cd "${REPO_ROOT}" || exit 1
-        run bash -lc '
+	cd "${REPO_ROOT}" || exit 1
+	run bash -lc '
                 set -e
                 MCP_SKIP_USAGE_DISCOVERY=false
                 source ./src/tools/registry.sh
@@ -191,12 +191,12 @@ PY
                 inferred_usage="$(tool_command mcp_demo_http)"
                 [[ "${inferred_usage}" == *"Available tools"* ]]
         '
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "register_mcp_endpoints fails for invalid configuration" {
-        cd "${REPO_ROOT}" || exit 1
-        run bash -lc '
+	cd "${REPO_ROOT}" || exit 1
+	run bash -lc '
                 MCP_SKIP_USAGE_DISCOVERY=true
                 source ./src/tools/registry.sh
                 source ./src/tools/mcp.sh
@@ -205,13 +205,13 @@ PY
                 init_tool_registry
                 register_mcp_endpoints
         '
-        [ "$status" -eq 1 ]
-        [[ "${output}" == *"token_env missing"* ]]
+	[ "$status" -eq 1 ]
+	[[ "${output}" == *"token_env missing"* ]]
 }
 
 @test "merge_tool_allowlist_with_mcp extends allowlist prior to registry setup" {
 	cd "${REPO_ROOT}" || exit 1
-        run bash -lc '
+	run bash -lc '
                 MCP_SKIP_USAGE_DISCOVERY=true
                 source ./src/lib/tools.sh
                 TOOL_NAME_ALLOWLIST=(terminal)

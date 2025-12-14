@@ -133,13 +133,13 @@ mcp_dispatch_endpoint() {
 }
 
 mcp_render_usage_from_tool_listing() {
-        # Generate a concise usage string from a remote MCP tool listing.
-        # Arguments:
-        #   $1 - JSON payload returned by a tools endpoint (string)
-        local tools_json
-        tools_json="$1"
+	# Generate a concise usage string from a remote MCP tool listing.
+	# Arguments:
+	#   $1 - JSON payload returned by a tools endpoint (string)
+	local tools_json
+	tools_json="$1"
 
-        MCP_TOOLS_PAYLOAD="${tools_json}" python3 - <<'PY'
+	MCP_TOOLS_PAYLOAD="${tools_json}" python3 - <<'PY'
 """Summarize a tools listing into a human-readable usage string."""
 
 import json
@@ -193,42 +193,42 @@ PY
 }
 
 mcp_infer_usage_from_http() {
-        # Attempt to derive a usage string from a remote MCP HTTP endpoint.
-        # Arguments:
-        #   $1 - base HTTP endpoint URL (string)
-        #   $2 - token environment variable name (string)
-        local endpoint token_env url auth_header
-        endpoint="$1"
-        token_env="$2"
+	# Attempt to derive a usage string from a remote MCP HTTP endpoint.
+	# Arguments:
+	#   $1 - base HTTP endpoint URL (string)
+	#   $2 - token environment variable name (string)
+	local endpoint token_env url auth_header
+	endpoint="$1"
+	token_env="$2"
 
-        if [[ -z "${endpoint}" ]]; then
-                return 1
-        fi
+	if [[ -z "${endpoint}" ]]; then
+		return 1
+	fi
 
-        url="${endpoint%/}/tools"
-        auth_header=()
+	url="${endpoint%/}/tools"
+	auth_header=()
 
-        if [[ -n "${token_env}" && -n "${!token_env:-}" ]]; then
-                auth_header=(-H "Authorization: Bearer ${!token_env}")
-        fi
+	if [[ -n "${token_env}" && -n "${!token_env:-}" ]]; then
+		auth_header=(-H "Authorization: Bearer ${!token_env}")
+	fi
 
-        local listing
-        if ! listing=$(curl -sfSL --connect-timeout 2 --max-time 5 "${auth_header[@]}" "${url}"); then
-                return 1
-        fi
+	local listing
+	if ! listing=$(curl -sfSL --connect-timeout 2 --max-time 5 "${auth_header[@]}" "${url}"); then
+		return 1
+	fi
 
-        mcp_render_usage_from_tool_listing "${listing}"
+	mcp_render_usage_from_tool_listing "${listing}"
 }
 
 mcp_resolved_endpoint_definitions() {
-        local raw_json
-        raw_json="${MCP_ENDPOINTS_JSON:-}" # string JSON array
+	local raw_json
+	raw_json="${MCP_ENDPOINTS_JSON:-}" # string JSON array
 
-        if [[ -z "${raw_json// /}" ]]; then
-                raw_json="[]"
-        fi
+	if [[ -z "${raw_json// /}" ]]; then
+		raw_json="[]"
+	fi
 
-        MCP_ENDPOINTS_PAYLOAD="${raw_json}" python3 - <<'PY'
+	MCP_ENDPOINTS_PAYLOAD="${raw_json}" python3 - <<'PY'
 import json
 import os
 import re
@@ -309,14 +309,14 @@ mcp_register_endpoint_from_definition() {
 	definition_json="$1"
 
 	name="$(jq -r '.name' <<<"${definition_json}")"
-        provider="$(jq -r '.provider' <<<"${definition_json}")"
-        description="$(jq -r '.description' <<<"${definition_json}")"
-        usage="$(jq -r '.usage' <<<"${definition_json}")"
-        safety="$(jq -r '.safety' <<<"${definition_json}")"
-        transport="$(jq -r '.transport' <<<"${definition_json}")"
-        endpoint="$(jq -r '.endpoint' <<<"${definition_json}")"
-        socket_path="$(jq -r '.socket' <<<"${definition_json}")"
-        token_env="$(jq -r '.token_env' <<<"${definition_json}")"
+	provider="$(jq -r '.provider' <<<"${definition_json}")"
+	description="$(jq -r '.description' <<<"${definition_json}")"
+	usage="$(jq -r '.usage' <<<"${definition_json}")"
+	safety="$(jq -r '.safety' <<<"${definition_json}")"
+	transport="$(jq -r '.transport' <<<"${definition_json}")"
+	endpoint="$(jq -r '.endpoint' <<<"${definition_json}")"
+	socket_path="$(jq -r '.socket' <<<"${definition_json}")"
+	token_env="$(jq -r '.token_env' <<<"${definition_json}")"
 
 	handler_name="tool_${name}"
 
@@ -325,20 +325,20 @@ mcp_register_endpoint_from_definition() {
 
 	eval "${handler_name}() { ${handler_body}; }"
 
-        local skip_usage_discovery
-        skip_usage_discovery=${MCP_SKIP_USAGE_DISCOVERY:-false}
+	local skip_usage_discovery
+	skip_usage_discovery=${MCP_SKIP_USAGE_DISCOVERY:-false}
 
-        if [[ -z "${usage}" && "${skip_usage_discovery}" != true && "${skip_usage_discovery}" != 1 ]]; then
-                if [[ "${transport}" == "http" ]]; then
-                        usage="$(mcp_infer_usage_from_http "${endpoint}" "${token_env}" 2>/dev/null)" || usage=""
-                fi
-        fi
+	if [[ -z "${usage}" && "${skip_usage_discovery}" != true && "${skip_usage_discovery}" != 1 ]]; then
+		if [[ "${transport}" == "http" ]]; then
+			usage="$(mcp_infer_usage_from_http "${endpoint}" "${token_env}" 2>/dev/null)" || usage=""
+		fi
+	fi
 
-        if [[ -z "${usage}" ]]; then
-                usage="${name} <query>"
-        fi
+	if [[ -z "${usage}" ]]; then
+		usage="${name} <query>"
+	fi
 
-        register_tool "${name}" "${description}" "${usage}" "${safety}" "${handler_name}"
+	register_tool "${name}" "${description}" "${usage}" "${safety}" "${handler_name}"
 }
 
 register_mcp_endpoints() {

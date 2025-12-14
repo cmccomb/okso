@@ -76,25 +76,25 @@ setup() {
 }
 
 @test "load_config leaves MCP endpoints empty by default" {
-        cd "${REPO_ROOT}" || exit 1
-        source ./src/lib/config.sh
-        CONFIG_FILE="${BATS_TEST_TMPDIR}/config-mcp-defaults.env"
-        : >"${CONFIG_FILE}"
-        load_config
-        [[ "${MCP_LOCAL_SOCKET}" == "${TMPDIR:-/tmp}/okso-mcp.sock" ]]
-        [[ -z "${MCP_ENDPOINTS_TOML:-}" ]]
-        [[ "${MCP_ENDPOINTS_JSON}" == "[]" ]]
+	cd "${REPO_ROOT}" || exit 1
+	source ./src/lib/config.sh
+	CONFIG_FILE="${BATS_TEST_TMPDIR}/config-mcp-defaults.env"
+	: >"${CONFIG_FILE}"
+	load_config
+	[[ "${MCP_LOCAL_SOCKET}" == "${TMPDIR:-/tmp}/okso-mcp.sock" ]]
+	[[ -z "${MCP_ENDPOINTS_TOML:-}" ]]
+	[[ "${MCP_ENDPOINTS_JSON}" == "[]" ]]
 }
 
 @test "load_config honors MCP overrides" {
-        cd "${REPO_ROOT}" || exit 1
-        source ./src/lib/config.sh
-        CONFIG_FILE="${BATS_TEST_TMPDIR}/config-mcp-overrides.env"
-        cat >"${CONFIG_FILE}" <<'EOF'
+	cd "${REPO_ROOT}" || exit 1
+	source ./src/lib/config.sh
+	CONFIG_FILE="${BATS_TEST_TMPDIR}/config-mcp-overrides.env"
+	cat >"${CONFIG_FILE}" <<'EOF'
 MCP_LOCAL_SOCKET="/var/run/okso.sock"
 EOF
-        load_config
-        [[ "${MCP_LOCAL_SOCKET}" == "/var/run/okso.sock" ]]
+	load_config
+	[[ "${MCP_LOCAL_SOCKET}" == "/var/run/okso.sock" ]]
 }
 
 @test "load_config builds MCP endpoint JSON from TOML" {
@@ -118,8 +118,8 @@ EOF
 
 	load_config
 
-        custom_endpoint=$(
-                MCP_ENDPOINTS_JSON="${MCP_ENDPOINTS_JSON}" python3 - <<'PY'
+	custom_endpoint=$(
+		MCP_ENDPOINTS_JSON="${MCP_ENDPOINTS_JSON}" python3 - <<'PY'
 import json
 import os
 
@@ -131,10 +131,11 @@ PY
 }
 
 @test "write_config_file persists structured MCP configuration" {
-        cd "${REPO_ROOT}" || exit 1
-        source ./src/lib/config.sh
-        CONFIG_FILE="${BATS_TEST_TMPDIR}/config-roundtrip.env"
-        MCP_ENDPOINTS_TOML=$(cat <<'EOF_MCP'
+	cd "${REPO_ROOT}" || exit 1
+	source ./src/lib/config.sh
+	CONFIG_FILE="${BATS_TEST_TMPDIR}/config-roundtrip.env"
+	MCP_ENDPOINTS_TOML=$(
+		cat <<'EOF_MCP'
 [[mcp.endpoints]]
 name = "roundtrip_http"
 provider = "roundtrip"
@@ -144,17 +145,17 @@ transport = "http"
 endpoint = "https://example.test/mcp"
 token_env = "ROUNDTRIP_TOKEN"
 EOF_MCP
-)
+	)
 
-        load_config
-        write_config_file
+	load_config
+	write_config_file
 
-        run env CONFIG_FILE="${CONFIG_FILE}" bash -lc '
+	run env CONFIG_FILE="${CONFIG_FILE}" bash -lc '
                 source ./src/lib/config.sh
                 load_config
                 [[ "${MCP_ENDPOINTS_JSON}" == *"roundtrip_http"* ]]
                 [[ "${MCP_ENDPOINTS_TOML}" == *"roundtrip_http"* ]]
         '
 
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }

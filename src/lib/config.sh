@@ -41,8 +41,8 @@ readonly DEFAULT_MODEL_SPEC_BASE="${DEFAULT_MODEL_REPO_BASE}:${DEFAULT_MODEL_FIL
 readonly DEFAULT_MODEL_BRANCH_BASE="main"
 
 mcp_endpoints_json_from_toml() {
-        # Arguments:
-        #   $1 - TOML document describing MCP endpoints
+	# Arguments:
+	#   $1 - TOML document describing MCP endpoints
 	local toml_payload
 	toml_payload="$1"
 
@@ -199,13 +199,13 @@ load_config() {
 	VERBOSITY=${VERBOSITY:-1}
 	APPROVE_ALL=${APPROVE_ALL:-false}
 	FORCE_CONFIRM=${FORCE_CONFIRM:-false}
-        MCP_LOCAL_SOCKET=${MCP_LOCAL_SOCKET:-"${TMPDIR:-/tmp}/okso-mcp.sock"}
+	MCP_LOCAL_SOCKET=${MCP_LOCAL_SOCKET:-"${TMPDIR:-/tmp}/okso-mcp.sock"}
 
-        if [[ -z "${MCP_ENDPOINTS_JSON:-}" ]]; then
-                if ! MCP_ENDPOINTS_JSON="$(mcp_endpoints_json_from_toml "${MCP_ENDPOINTS_TOML:-}")"; then
-                        die config validation "Failed to parse MCP endpoint configuration"
-                fi
-        fi
+	if [[ -z "${MCP_ENDPOINTS_JSON:-}" ]]; then
+		if ! MCP_ENDPOINTS_JSON="$(mcp_endpoints_json_from_toml "${MCP_ENDPOINTS_TOML:-}")"; then
+			die config validation "Failed to parse MCP endpoint configuration"
+		fi
+	fi
 
 	if [[ -n "${OKSO_MODEL:-}" ]]; then
 		model_spec_override="${OKSO_MODEL}"
@@ -223,7 +223,7 @@ load_config() {
 
 write_config_file() {
 	mkdir -p "$(dirname "${CONFIG_FILE}")"
-        cat >"${CONFIG_FILE}" <<EOF_CONFIG
+	cat >"${CONFIG_FILE}" <<EOF_CONFIG
         MODEL_SPEC="${MODEL_SPEC}"
         MODEL_BRANCH="${MODEL_BRANCH}"
 VERBOSITY=${VERBOSITY}
