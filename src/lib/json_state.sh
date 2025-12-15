@@ -23,18 +23,35 @@ json_state_namespace_var() {
 }
 
 json_state_get_document() {
-	# Arguments:
-	#   $1 - namespace prefix (string)
-	#   $2 - fallback JSON document (string, optional; defaults to '{}')
-	local prefix fallback json_var
-	prefix="$1"
-	fallback="${2:-{}}"
-	json_var=$(json_state_namespace_var "${prefix}")
-	if [[ -z "${!json_var+x}" ]]; then
-		printf '%s' "${fallback}"
-	else
-		printf '%s' "${!json_var}"
-	fi
+        # Arguments:
+        #   $1 - namespace prefix (string)
+        #   $2 - fallback JSON document (string, optional; defaults to '{}')
+        # Behavior:
+        #   Returns the fallback when the namespaced variable is unset or contains
+        #   invalid JSON, preventing downstream jq errors.
+        local prefix fallback json_var document
+        prefix="$1"
+        if [[ $# -ge 2 && -n "${2}" ]]; then
+                fallback="$2"
+        else
+                fallback="{}"
+        fi
+        if ! jq -e '.' <<<"${fallback}" >/dev/null 2>&1; then
+                fallback="{}"
+        fi
+        json_var=$(json_state_namespace_var "${prefix}")
+        if [[ -z "${!json_var+x}" ]]; then
+                printf '%s' "${fallback}"
+                return
+        fi
+
+        document="${!json_var}"
+        if ! jq -e '.' <<<"${document}" >/dev/null 2>&1; then
+                printf '%s' "${fallback}"
+                return
+        fi
+
+        printf '%s' "${document}"
 }
 
 json_state_set_document() {

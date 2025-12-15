@@ -13,7 +13,7 @@
 #   Inherits Bats semantics; individual tests assert helper behaviour.
 
 @test "state helpers persist values and history" {
-	run bash -lc '
+        run bash -lc '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 source ./src/lib/state.sh
                 prefix=state_case
@@ -26,5 +26,18 @@
                 state_append_history "${prefix}" "entry two"
                 [[ "$(state_get "${prefix}" "history")" == $'"'"'entry one\nentry two'"'"' ]]
         '
-	[ "$status" -eq 0 ]
+        [ "$status" -eq 0 ]
+}
+
+@test "json_state_get_document falls back on invalid JSON" {
+        run bash -lc '
+                cd "$(git rev-parse --show-toplevel)" || exit 1
+                source ./src/lib/json_state.sh
+                prefix=invalid_state_case
+                json_var=$(json_state_namespace_var "${prefix}")
+                printf -v "${json_var}" "%s" "{invalid"
+                printf "%s" "$(json_state_get_document "${prefix}" "{\"default\":true}")"
+        '
+        [ "$status" -eq 0 ]
+        [ "$output" = '{"default":true}' ]
 }
