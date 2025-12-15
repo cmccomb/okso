@@ -141,10 +141,10 @@ SCRIPT
 }
 
 @test "llama_infer fails when JSON schema cannot be read" {
-        local missing_schema
-        missing_schema="${BATS_TMPDIR}/missing-schema.json"
+	local missing_schema
+	missing_schema="${BATS_TMPDIR}/missing-schema.json"
 
-        run env BASH_ENV= ENV= MISSING_SCHEMA="${missing_schema}" bash --noprofile --norc -c '
+	run env BASH_ENV= ENV= MISSING_SCHEMA="${missing_schema}" bash --noprofile --norc -c '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 args_dir="$(mktemp -d)"
                 missing_schema="${MISSING_SCHEMA}"
@@ -162,11 +162,11 @@ SCRIPT
                 source ./src/lib/llama_client.sh
                 llama_infer "prompt" "" 8 "${missing_schema}"
         '
-        [ "$status" -eq 1 ]
-        message=$(printf '%s\n' "${output}" | jq -r '.message')
-        [[ "${message}" == "failed to read JSON schema" ]]
-        detail=$(printf '%s\n' "${output}" | jq -r '.detail')
-        [[ "${detail}" == *"${missing_schema}"* ]]
+	[ "$status" -eq 1 ]
+	message=$(printf '%s\n' "${output}" | jq -r '.message')
+	[[ "${message}" == "failed to read JSON schema" ]]
+	detail=$(printf '%s\n' "${output}" | jq -r '.detail')
+	[[ "${detail}" == *"${missing_schema}"* ]]
 }
 
 @test "llama_infer sanitizes whitespace and stop markers" {
