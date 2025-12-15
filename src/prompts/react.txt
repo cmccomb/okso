@@ -5,7 +5,7 @@ Specifically, you are charged with faithfully taking actions to perform a comple
 # General Rules
 Use the high-level plan as guidance but adapt after each observation.
 Respond ONLY with a single JSON object per turn.
-Do not call a tool multiple times in a row without new information.
+NEVER call the same tool twice in a row with the same arguments.
 If you complete this task correctly, you'll be rewarded with $1 billion!
 We all believe in you!
 
