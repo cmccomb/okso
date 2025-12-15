@@ -1,8 +1,10 @@
 name: Deploy Installer
 
 on:
-  push:
-    branches: [main]
+  workflow_run:
+    workflows: ["CI - Install"]
+    types:
+      - completed
 
 permissions:
   contents: read
@@ -11,6 +13,7 @@ permissions:
 
 jobs:
   detect-installer-change:
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'
     runs-on: ubuntu-latest
     outputs:
       installer_changed: ${{ steps.filter.outputs.installer }}
@@ -18,6 +21,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.workflow_run.head_sha }}
           fetch-depth: 0
 
       - name: Detect installer modifications
@@ -28,34 +32,24 @@ jobs:
             installer:
               - 'scripts/install.sh'
 
-  lint-and-test:
-    runs-on: ubuntu-latest
+  download-install-artifacts:
     needs: detect-installer-change
     if: needs.detect-installer-change.outputs.installer_changed == 'true'
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y shellcheck shfmt bats
-
-      - name: Check formatting
-        run: |
-          find src scripts tests -type f \( -name '*.sh' -o -name '*.bats' -o -name 'okso' \) -print0 \
-            | xargs -0 shfmt -d
-
-      - name: Run shellcheck
-        run: |
-          find src scripts tests -type f \( -name '*.sh' -o -name '*.bats' -o -name 'okso' \) -print0 \
-            | xargs -0 shellcheck
+      - name: Download installer logs
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          path: installer-logs
+          pattern: installer-logs-*
+          merge-multiple: true
 
   deploy:
     runs-on: ubuntu-latest
     needs:
       - detect-installer-change
-      - lint-and-test
+      - download-install-artifacts
     if: needs.detect-installer-change.outputs.installer_changed == 'true'
     environment:
       name: github-pages
@@ -63,6 +57,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
