@@ -12,11 +12,12 @@
 #   Inherits Bats semantics; individual tests assert script exit codes.
 
 @test "status default exposes allowed commands" {
-	run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TOOL_ARGS="{}"; tool_terminal'
-	[ "$status" -eq 0 ]
-	[[ "${lines[0]}" == Session:* ]]
-	[[ "${lines[1]}" == Working\ directory:* ]]
-	[[ "${lines[2]}" == Allowed\ commands:* ]]
+        run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TOOL_ARGS="{}"; tool_terminal'
+        [ "$status" -eq 0 ]
+        [[ "${lines[0]}" == Session:* ]]
+        [[ "${lines[1]}" == Working\ directory:* ]]
+        [[ "${lines[2]}" == Allowed\ commands:* ]]
+        [ "${#lines[@]}" -eq 3 ]
 }
 
 @test "cd updates persistent working directory" {
@@ -27,15 +28,33 @@
 }
 
 @test "unknown command falls back to status" {
-	run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TOOL_ARGS="{\"command\":\"launch\",\"args\":[\"rockets\"]}"; tool_terminal'
-	[ "$status" -eq 0 ]
-	[[ "${output}" == *"Allowed commands:"* ]]
+        run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TOOL_ARGS="{\"command\":\"launch\",\"args\":[\"rockets\"]}"; tool_terminal'
+        [ "$status" -eq 0 ]
+        [[ "${output}" == *"Allowed commands:"* ]]
+        [ "${#lines[@]}" -eq 3 ]
 }
 
 @test "mkdir and rmdir operate within working directory" {
-	run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TERMINAL_WORKDIR="$(mktemp -d)"; TOOL_ARGS="{\"command\":\"mkdir\",\"args\":[\"sandbox\"]}"; tool_terminal; TOOL_ARGS="{\"command\":\"rmdir\",\"args\":[\"sandbox\"]}"; tool_terminal; ls "${TERMINAL_WORKDIR}"'
-	[ "$status" -eq 0 ]
-	[[ -z "${output}" ]]
+        run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TERMINAL_WORKDIR="$(mktemp -d)"; TOOL_ARGS="{\"command\":\"mkdir\",\"args\":[\"sandbox\"]}"; tool_terminal; TOOL_ARGS="{\"command\":\"rmdir\",\"args\":[\"sandbox\"]}"; tool_terminal; ls "${TERMINAL_WORKDIR}"'
+        [ "$status" -eq 0 ]
+        [[ -z "${output}" ]]
+}
+
+@test "mkdir and rmdir reject paths outside workdir" {
+        run bash -lc '
+                source ./src/tools/terminal.sh
+                VERBOSITY=0
+                WORKDIR="$(mktemp -d)"
+                TERMINAL_WORKDIR="${WORKDIR}/nested"
+                mkdir -p "${TERMINAL_WORKDIR}"
+                TOOL_ARGS='"'"'{"command":"mkdir","args":["../escape"]}'"'"'; tool_terminal
+                tool_status=$?
+                ls "${WORKDIR}"
+                exit "${tool_status}"
+        '
+        [ "$status" -eq 1 ]
+        last_index=$((${#lines[@]} - 1))
+        [[ "${lines[$last_index]}" == "nested" ]]
 }
 
 @test "mkdir errors without target" {
@@ -129,9 +148,9 @@
 }
 
 @test "du defaults to human-readable summary" {
-	run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TERMINAL_WORKDIR="$(mktemp -d)"; TOOL_ARGS="{\"command\":\"du\"}"; tool_terminal'
-	[ "$status" -eq 0 ]
-	[[ "${lines[0]}" == *"." ]]
+        run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TERMINAL_WORKDIR="$(mktemp -d)"; TOOL_ARGS="{\"command\":\"du\"}"; tool_terminal'
+        [ "$status" -eq 0 ]
+        [[ "${lines[0]}" =~ ^[0-9\.KMGTP]+[[:space:]]+\.$ ]]
 }
 
 @test "base64 supports encode and decode" {
