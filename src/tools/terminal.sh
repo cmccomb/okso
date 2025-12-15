@@ -119,73 +119,73 @@ terminal_init_session() {
 }
 
 terminal_run_in_workdir() {
-        # Arguments:
-        #   $1 - command (string)
-        #   $@ - remaining args passed to the command (array)
-        local command
+	# Arguments:
+	#   $1 - command (string)
+	#   $@ - remaining args passed to the command (array)
+	local command
 	command="$1"
 	shift
 	(
 		cd "${TERMINAL_WORKDIR}" &&
-                        "${command}" "$@"
-        )
+			"${command}" "$@"
+	)
 }
 
 terminal_resolve_within_workdir() {
-        # Arguments:
-        #   $1 - candidate path (string)
-        local candidate resolved
-        candidate="$1"
+	# Arguments:
+	#   $1 - candidate path (string)
+	local candidate resolved
+	candidate="$1"
 
-        if [[ "${candidate}" == /* ]]; then
-                if ! resolved=$(realpath -m -- "${candidate}"); then
-                        log "ERROR" "Unable to resolve path" "${candidate}"
-                        return 1
-                fi
-        else
-                if ! resolved=$(cd "${TERMINAL_WORKDIR}" && realpath -m -- "${candidate}"); then
-                        log "ERROR" "Unable to resolve path" "${candidate}"
-                        return 1
-                fi
-        fi
+	if [[ "${candidate}" == /* ]]; then
+		if ! resolved=$(realpath -m -- "${candidate}"); then
+			log "ERROR" "Unable to resolve path" "${candidate}"
+			return 1
+		fi
+	else
+		if ! resolved=$(cd "${TERMINAL_WORKDIR}" && realpath -m -- "${candidate}"); then
+			log "ERROR" "Unable to resolve path" "${candidate}"
+			return 1
+		fi
+	fi
 
-        if [[ "${resolved}" != "${TERMINAL_WORKDIR}" && "${resolved}" != "${TERMINAL_WORKDIR}"/* ]]; then
-                log "ERROR" "Path escapes terminal working directory" "${candidate}"
-                return 1
-        fi
+	if [[ "${resolved}" != "${TERMINAL_WORKDIR}" && "${resolved}" != "${TERMINAL_WORKDIR}"/* ]]; then
+		log "ERROR" "Path escapes terminal working directory" "${candidate}"
+		return 1
+	fi
 
-        printf '%s\n' "${resolved}"
+	printf '%s\n' "${resolved}"
 }
 
 terminal_normalize_paths() {
-        # Arguments:
-        #   $@ - candidate paths (array)
-        local candidate resolved
-        for candidate in "$@"; do
-                if ! resolved=$(terminal_resolve_within_workdir "${candidate}"); then
-                        return 1
-                fi
-                printf '%s\n' "${resolved}"
-        done
+	# Arguments:
+	#   $@ - candidate paths (array)
+	local candidate resolved
+	for candidate in "$@"; do
+		if ! resolved=$(terminal_resolve_within_workdir "${candidate}"); then
+			return 1
+		fi
+		printf '%s\n' "${resolved}"
+	done
 }
 
 terminal_format_du() {
-        # Arguments:
-        #   $1 - du output (string)
-        local raw first_line rest size
-        raw="$1"
+	# Arguments:
+	#   $1 - du output (string)
+	local raw first_line rest size
+	raw="$1"
 
-        IFS=$'\n' read -r first_line rest <<<"${raw}"
-        if [[ -z "${first_line}" ]]; then
-                return 0
-        fi
+	IFS=$'\n' read -r first_line rest <<<"${raw}"
+	if [[ -z "${first_line}" ]]; then
+		return 0
+	fi
 
-        size=${first_line%%[[:space:]]*}
-        printf '%s\t.\n' "${size}"
+	size=${first_line%%[[:space:]]*}
+	printf '%s\t.\n' "${size}"
 
-        if [[ -n "${rest}" ]]; then
-                printf '%s\n' "${rest}"
-        fi
+	if [[ -n "${rest}" ]]; then
+		printf '%s\n' "${rest}"
+	fi
 }
 
 terminal_allowed() {
@@ -228,7 +228,7 @@ terminal_print_status() {
 }
 
 tool_terminal() {
-        local command args mode shifted_args has_interactive rm_args du_output
+	local command args mode shifted_args has_interactive rm_args du_output
 	terminal_init_session
 
 	if ! terminal_args_from_json; then
@@ -237,12 +237,12 @@ tool_terminal() {
 	command="${TERMINAL_CMD}"
 	args=("${TERMINAL_CMD_ARGS[@]}")
 
-        if ! terminal_allowed "${command}"; then
-                if [[ ${VERBOSITY:-1} -gt 0 ]]; then
-                        log "WARN" "Unknown terminal command; showing status" "${command}"
-                fi
-                command="status"
-        fi
+	if ! terminal_allowed "${command}"; then
+		if [[ ${VERBOSITY:-1} -gt 0 ]]; then
+			log "WARN" "Unknown terminal command; showing status" "${command}"
+		fi
+		command="status"
+	fi
 
 	case "${command}" in
 	status)
@@ -287,32 +287,32 @@ tool_terminal() {
 		fi
 		terminal_run_in_workdir open "${args[@]}"
 		;;
-        mkdir)
-                if [[ ${#args[@]} -eq 0 ]]; then
-                        log "ERROR" "mkdir requires a target directory" ""
-                        return 1
-                fi
-                if ! mapfile -t args < <(terminal_normalize_paths "${args[@]}"); then
-                        return 1
-                fi
-                if ! terminal_run_in_workdir mkdir -p "${args[@]}" >/dev/null 2>&1; then
-                        log "ERROR" "mkdir failed" "${args[*]}"
-                        return 1
-                fi
-                ;;
-        rmdir)
-                if [[ ${#args[@]} -eq 0 ]]; then
-                        log "ERROR" "rmdir requires a target directory" ""
-                        return 1
-                fi
-                if ! mapfile -t args < <(terminal_normalize_paths "${args[@]}"); then
-                        return 1
-                fi
-                if ! terminal_run_in_workdir rmdir "${args[@]}" >/dev/null 2>&1; then
-                        log "ERROR" "rmdir failed" "${args[*]}"
-                        return 1
-                fi
-                ;;
+	mkdir)
+		if [[ ${#args[@]} -eq 0 ]]; then
+			log "ERROR" "mkdir requires a target directory" ""
+			return 1
+		fi
+		if ! mapfile -t args < <(terminal_normalize_paths "${args[@]}"); then
+			return 1
+		fi
+		if ! terminal_run_in_workdir mkdir -p "${args[@]}" >/dev/null 2>&1; then
+			log "ERROR" "mkdir failed" "${args[*]}"
+			return 1
+		fi
+		;;
+	rmdir)
+		if [[ ${#args[@]} -eq 0 ]]; then
+			log "ERROR" "rmdir requires a target directory" ""
+			return 1
+		fi
+		if ! mapfile -t args < <(terminal_normalize_paths "${args[@]}"); then
+			return 1
+		fi
+		if ! terminal_run_in_workdir rmdir "${args[@]}" >/dev/null 2>&1; then
+			log "ERROR" "rmdir failed" "${args[*]}"
+			return 1
+		fi
+		;;
 	mv)
 		if [[ ${#args[@]} -lt 2 ]]; then
 			log "ERROR" "mv requires a source and destination" "${args[*]:-""}"
@@ -367,18 +367,18 @@ tool_terminal() {
 		fi
 		terminal_run_in_workdir wc "${args[@]}"
 		;;
-        du)
-                if [[ ${#args[@]} -eq 0 ]]; then
-                        if ! du_output=$(terminal_run_in_workdir du -sh .); then
-                                return 1
-                        fi
-                        if ! terminal_format_du "${du_output}"; then
-                                return 1
-                        fi
-                else
-                        terminal_run_in_workdir du "${args[@]}"
-                fi
-                ;;
+	du)
+		if [[ ${#args[@]} -eq 0 ]]; then
+			if ! du_output=$(terminal_run_in_workdir du -sh .); then
+				return 1
+			fi
+			if ! terminal_format_du "${du_output}"; then
+				return 1
+			fi
+		else
+			terminal_run_in_workdir du "${args[@]}"
+		fi
+		;;
 	base64)
 		if [[ ${#args[@]} -lt 2 ]]; then
 			log "ERROR" "base64 requires a mode (encode|decode) and a target" "${args[*]:-""}"
