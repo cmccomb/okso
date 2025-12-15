@@ -12,11 +12,11 @@
 #   Inherits Bats semantics; individual tests assert script exit codes.
 
 @test "status default exposes allowed commands" {
-        run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TOOL_ARGS="{}"; tool_terminal'
-        [ "$status" -eq 0 ]
-        [[ "${lines[0]}" == Session:* ]]
-        [[ "${lines[1]}" == Working\ directory:* ]]
-        [[ "${lines[2]}" == Allowed\ commands:* ]]
+	run bash -lc 'source ./src/tools/terminal.sh; VERBOSITY=0; TOOL_ARGS="{}"; tool_terminal'
+	[ "$status" -eq 0 ]
+	[[ "${lines[0]}" == Session:* ]]
+	[[ "${lines[1]}" == Working\ directory:* ]]
+	[[ "${lines[2]}" == Allowed\ commands:* ]]
 }
 
 @test "cd updates persistent working directory" {

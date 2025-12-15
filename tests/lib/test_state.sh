@@ -30,7 +30,7 @@
 }
 
 @test "json_state_get_document falls back on invalid JSON" {
-        run bash -lc '
+	run bash -lc '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 source ./src/lib/json_state.sh
                 prefix=invalid_state_case
@@ -38,12 +38,12 @@
                 printf -v "${json_var}" "%s" "{invalid"
                 printf "%s" "$(json_state_get_document "${prefix}" "{\"default\":true}")"
         '
-        [ "$status" -eq 0 ]
-        [ "$output" = '{"default":true}' ]
+	[ "$status" -eq 0 ]
+	[ "$output" = '{"default":true}' ]
 }
 
 @test "invalid documents are cached as sanitized fallbacks" {
-        run bash -lc '
+	run bash -lc '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 source ./src/lib/json_state.sh
                 prefix=invalid_cached_state_case
@@ -53,6 +53,6 @@
                 json_state_get_document "${prefix}" '{}' second >/dev/null
                 printf "%s|%s|%s" "${first}" "${second}" "${!json_var}"
         '
-        [ "$status" -eq 0 ]
-        [ "$output" = '{"ok":true}|{"ok":true}|{"ok":true}' ]
+	[ "$status" -eq 0 ]
+	[ "$output" = '{"ok":true}|{"ok":true}|{"ok":true}' ]
 }
