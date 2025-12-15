@@ -141,29 +141,32 @@ SCRIPT
 }
 
 @test "llama_infer fails when JSON schema cannot be read" {
-	run env BASH_ENV= ENV= bash --noprofile --norc -c '
-	        cd "$(git rev-parse --show-toplevel)" || exit 1
-	        args_dir="$(mktemp -d)"
-	        missing_schema="${args_dir}/missing.json"
-	        mock_binary="${args_dir}/mock_llama.sh"
-	        cat >"${mock_binary}" <<SCRIPT
+        local missing_schema
+        missing_schema="${BATS_TMPDIR}/missing-schema.json"
+
+        run env BASH_ENV= ENV= MISSING_SCHEMA="${missing_schema}" bash --noprofile --norc -c '
+                cd "$(git rev-parse --show-toplevel)" || exit 1
+                args_dir="$(mktemp -d)"
+                missing_schema="${MISSING_SCHEMA}"
+                mock_binary="${args_dir}/mock_llama.sh"
+                cat >"${mock_binary}" <<SCRIPT
 #!/usr/bin/env bash
 printf "%s\n" "should not run" >&2
 exit 99
 SCRIPT
-	        chmod +x "${mock_binary}"
-	        export LLAMA_AVAILABLE=true
-	        export LLAMA_BIN="${mock_binary}"
-	        export MODEL_REPO=demo/repo
-	        export MODEL_FILE=model.gguf
-	        source ./src/lib/llama_client.sh
-	        llama_infer "prompt" "" 8 "${missing_schema}"
-	'
-	[ "$status" -eq 1 ]
-	message=$(printf '%s\n' "${output}" | jq -r '.message')
-	[[ "${message}" == "failed to read JSON schema" ]]
-	detail=$(printf '%s\n' "${output}" | jq -r '.detail')
-	[[ "${detail}" == *"${missing_schema}"* ]]
+                chmod +x "${mock_binary}"
+                export LLAMA_AVAILABLE=true
+                export LLAMA_BIN="${mock_binary}"
+                export MODEL_REPO=demo/repo
+                export MODEL_FILE=model.gguf
+                source ./src/lib/llama_client.sh
+                llama_infer "prompt" "" 8 "${missing_schema}"
+        '
+        [ "$status" -eq 1 ]
+        message=$(printf '%s\n' "${output}" | jq -r '.message')
+        [[ "${message}" == "failed to read JSON schema" ]]
+        detail=$(printf '%s\n' "${output}" | jq -r '.detail')
+        [[ "${detail}" == *"${missing_schema}"* ]]
 }
 
 @test "llama_infer sanitizes whitespace and stop markers" {
