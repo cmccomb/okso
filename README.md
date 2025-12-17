@@ -48,50 +48,6 @@ Initialize a config file with your preferred model settings:
 
 More scenarios and reference material live in the [docs/](docs/index.md).
 
-### MCP endpoints
-
-okso can forward queries to MCP-style endpoints alongside its built-in tools.
-Registrations are configuration-driven so planners automatically see any user
-definitions without code changes. MCP tool names are merged into the runtime
-allowlist before the registry initializes, keeping the planner and dispatcher
-in sync with user configuration. Add endpoint blocks to the `MCP_ENDPOINTS_TOML`
-section in `${XDG_CONFIG_HOME:-~/.config}/okso/config.env` to extend the tool
-registry without editing code.
-
-Example:
-
-```toml
-MCP_ENDPOINTS_TOML=$(cat <<'EOF_MCP'
-[[mcp.endpoints]]
-name = "mcp_remote_demo"
-provider = "remote_vendor"
-description = "Connect to a remote MCP endpoint for tool execution."
-safety = "Requires a token; avoid logging sensitive inputs."
-transport = "http"
-endpoint = "https://example.test/mcp"
-token_env = "MCP_TOKEN"
-
-[[mcp.endpoints]]
-name = "mcp_local_server"
-provider = "local_demo"
-description = "Connect to a local MCP server over a unix socket."
-safety = "Uses a local socket; ensure the path is trusted before writing."
-transport = "unix"
-socket = "/tmp/okso-mcp.sock"
-EOF_MCP
-)
-```
-
-No MCP endpoints are registered unless you supply definitions like the above.
-When `usage` is omitted from an HTTP definition, okso queries the endpoint's
-`/tools` route to synthesize planner-friendly usage hints automatically.
-
-The TOML block round-trips through `./src/bin/okso init`, and the loader
-translates it into the `MCP_ENDPOINTS_JSON` runtime format for MCP
-registration. TOML parsing prefers the Python 3.11+ `tomllib` module and
-automatically falls back to the `pip` vendored `tomli`, so no extra dependency
-installation is required.
-
 ## Execution model
 
 okso separates high-level planning from step-by-step execution:

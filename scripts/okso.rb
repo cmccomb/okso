@@ -1,5 +1,5 @@
 class Okso < Formula
-  desc "Local MCP-inspired assistant harness"
+  desc "Local assistant harness"
   homepage "https://github.com/cmccomb/okso"
   version "0.0.0-main"
   url "https://github.com/cmccomb/okso/archive/refs/heads/main.tar.gz"

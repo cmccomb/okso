@@ -52,31 +52,3 @@ SCRIPT
 	[ "$status" -eq 0 ]
 	[ "${lines[0]}" = "false" ]
 }
-
-@test "load_config converts MCP endpoint TOML into JSON list" {
-	run bash <<'SCRIPT'
-set -euo pipefail
-CONFIG_FILE="${BATS_TEST_TMPDIR}/config-mcp.env"
-cat >"${CONFIG_FILE}" <<'CONFIG'
-MCP_ENDPOINTS_TOML=$(cat <<'EOF_MCP'
-[[mcp.endpoints]]
-name = "custom_http"
-provider = "alpha"
-description = "Custom HTTP endpoint"
-usage = "custom_http <query>"
-safety = "Use the provided token"
-transport = "http"
-endpoint = "https://example.test/http"
-token_env = "CUSTOM_HTTP_TOKEN"
-EOF_MCP
-)
-CONFIG
-source ./src/lib/config.sh
-load_config
-printf "%s\n" "${MCP_ENDPOINTS_JSON}"
-SCRIPT
-
-	[ "$status" -eq 0 ]
-	token_env=$(printf '%s' "${output}" | tail -n 1 | jq -r '.[0].token_env')
-	[ "${token_env}" = "CUSTOM_HTTP_TOKEN" ]
-}

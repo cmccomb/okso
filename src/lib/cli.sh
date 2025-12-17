@@ -47,7 +47,7 @@ Options:
   -q, --quiet           Silence informational logs.
 
 The script orchestrates a llama.cpp-backed planner with a registry of
-machine-checkable tools (MCP-style). Provide a natural language query after
+machine-checkable tools. Provide a natural language query after
 "--" to trigger planning, ranking, and execution.
 
 Use "${entrypoint_display} init" with the same options to write a config file without

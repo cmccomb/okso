@@ -52,8 +52,6 @@ source "${TOOLS_DIR}/calendar/index.sh"
 source "${TOOLS_DIR}/mail/index.sh"
 # shellcheck source=./tools/applescript.sh disable=SC1091
 source "${TOOLS_DIR}/applescript.sh"
-# shellcheck source=./tools/mcp.sh disable=SC1091
-source "${TOOLS_DIR}/mcp.sh"
 # shellcheck source=./tools/feedback.sh disable=SC1091
 source "${TOOLS_DIR}/feedback.sh"
 # shellcheck source=./tools/final_answer.sh disable=SC1091
@@ -123,7 +121,6 @@ initialize_tools() {
 	register_calendar_suite
 	register_mail_suite
 	register_applescript
-	register_mcp_endpoints
 	register_feedback
 	register_final_answer
 }

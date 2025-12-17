@@ -15,9 +15,6 @@
 #   FORCE_CONFIRM (bool): always prompt when true.
 #   VERBOSITY (int): logging verbosity; may be overridden by OKSO_VERBOSITY.
 #   DEFAULT_MODEL_FILE (string): fallback file name for parsing model spec.
-#   MCP_LOCAL_SOCKET (string): path or socket for a local MCP server.
-#   MCP_ENDPOINTS_TOML (string): TOML definition of MCP endpoints to register.
-#   MCP_ENDPOINTS_JSON (string): JSON array describing MCP endpoints to register.
 #
 #   okso-branded overrides (legacy DO_* aliases are ignored):
 #     OKSO_MODEL, OKSO_MODEL_BRANCH, OKSO_SUPERVISED, OKSO_VERBOSITY
@@ -39,82 +36,6 @@ readonly DEFAULT_MODEL_REPO_BASE="bartowski/Qwen_Qwen3-4B-GGUF"
 readonly DEFAULT_MODEL_FILE_BASE="Qwen_Qwen3-4B-Q4_K_M.gguf"
 readonly DEFAULT_MODEL_SPEC_BASE="${DEFAULT_MODEL_REPO_BASE}:${DEFAULT_MODEL_FILE_BASE}"
 readonly DEFAULT_MODEL_BRANCH_BASE="main"
-
-mcp_endpoints_json_from_toml() {
-	# Arguments:
-	#   $1 - TOML document describing MCP endpoints
-	local toml_payload
-	toml_payload="$1"
-
-	MCP_ENDPOINTS_TOML_PAYLOAD="${toml_payload}" python3 - <<'PY'
-"""Convert MCP endpoint TOML into JSON without requiring tomllib."""
-
-import json
-import os
-import sys
-from typing import Any, Dict
-
-
-def load_toml_parser():
-    """Load a TOML parser, preferring the standard library.
-
-    The parser first uses `tomllib` when available (Python 3.11+). When
-    unavailable or explicitly bypassed via `OKSO_FORCE_TOML_FALLBACK`, it falls
-    back to the `pip` vendored `tomli` module so deployments do not require an
-    extra install.
-    """
-
-    force_fallback = os.environ.get("OKSO_FORCE_TOML_FALLBACK") == "1"
-    if not force_fallback:
-        try:  # pragma: no cover - exercised implicitly on 3.11+
-            import tomllib  # type: ignore
-
-            return tomllib
-        except ModuleNotFoundError:
-            pass
-
-    try:
-        from pip._vendor import tomli as tomllib  # type: ignore
-
-        return tomllib
-    except ModuleNotFoundError as exc:  # pragma: no cover - pip unavailable
-        sys.stderr.write(
-            "TOML parsing requires either tomllib (Python 3.11+) or the pip vendored tomli: "
-            f"{exc}\n",
-        )
-        sys.exit(1)
-
-
-def main() -> None:
-    raw = os.environ.get("MCP_ENDPOINTS_TOML_PAYLOAD", "")
-    if not raw.strip():
-        json.dump([], sys.stdout)
-        return
-
-    toml_parser = load_toml_parser()
-
-    try:
-        document: Dict[str, Any] = toml_parser.loads(raw)
-    except toml_parser.TOMLDecodeError as exc:  # type: ignore[attr-defined]
-        sys.stderr.write(f"Failed to parse MCP endpoints TOML: {exc}\n")
-        sys.exit(1)
-
-    mcp_section = document.get("mcp", {})
-    endpoints = mcp_section.get("endpoints", [])
-    if endpoints is None:
-        endpoints = []
-
-    if not isinstance(endpoints, list):
-        sys.stderr.write("MCP endpoints must be an array in TOML\n")
-        sys.exit(1)
-
-    json.dump(endpoints, sys.stdout)
-
-
-if __name__ == "__main__":
-    main()
-PY
-}
 
 normalize_boolean_input() {
 	# Arguments:
@@ -199,13 +120,6 @@ load_config() {
 	VERBOSITY=${VERBOSITY:-1}
 	APPROVE_ALL=${APPROVE_ALL:-false}
 	FORCE_CONFIRM=${FORCE_CONFIRM:-false}
-	MCP_LOCAL_SOCKET=${MCP_LOCAL_SOCKET:-"${TMPDIR:-/tmp}/okso-mcp.sock"}
-
-	if [[ -z "${MCP_ENDPOINTS_JSON:-}" ]]; then
-		if ! MCP_ENDPOINTS_JSON="$(mcp_endpoints_json_from_toml "${MCP_ENDPOINTS_TOML:-}")"; then
-			die config validation "Failed to parse MCP endpoint configuration"
-		fi
-	fi
 
 	if [[ -n "${OKSO_MODEL:-}" ]]; then
 		model_spec_override="${OKSO_MODEL}"
@@ -224,15 +138,11 @@ load_config() {
 write_config_file() {
 	mkdir -p "$(dirname "${CONFIG_FILE}")"
 	cat >"${CONFIG_FILE}" <<EOF_CONFIG
-        MODEL_SPEC="${MODEL_SPEC}"
-        MODEL_BRANCH="${MODEL_BRANCH}"
-VERBOSITY=${VERBOSITY}
-APPROVE_ALL=${APPROVE_ALL}
-FORCE_CONFIRM=${FORCE_CONFIRM}
-MCP_LOCAL_SOCKET="${MCP_LOCAL_SOCKET}"
-MCP_ENDPOINTS_TOML=\$(cat <<'EOF_MCP'
-${MCP_ENDPOINTS_TOML}
-EOF_MCP
+  MODEL_SPEC="${MODEL_SPEC}"
+  MODEL_BRANCH="${MODEL_BRANCH}"
+  VERBOSITY=${VERBOSITY}
+  APPROVE_ALL=${APPROVE_ALL}
+  FORCE_CONFIRM=${FORCE_CONFIRM}
 )
 EOF_CONFIG
 	printf 'Wrote config to %s\n' "${CONFIG_FILE}"

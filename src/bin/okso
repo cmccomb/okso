@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC2034
 #
-# Entrypoint for the local MCP-inspired assistant harness.
+# Entrypoint for the local assistant harness.
 #
 # Usage:
 #   ./src/bin/okso [OPTIONS] -- "user query"
