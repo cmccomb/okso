@@ -720,6 +720,36 @@ additional_properties = tool_schema.get("additionalProperties")
 if additional_properties is None:
     additional_properties = False
 
+TYPE_MAP = {
+    "string": str,
+    "object": dict,
+    "array": list,
+    "boolean": bool,
+    "number": (int, float),
+    "integer": int,
+}
+
+def enforce_type(key: str, value, schema: dict) -> None:
+    expected_type = schema.get("type")
+    python_type = TYPE_MAP.get(expected_type)
+
+    if python_type is not None and not isinstance(value, python_type):
+        print(f"Arg {key} must be a {expected_type}", file=sys.stderr)
+        sys.exit(1)
+
+    if expected_type == "string":
+        min_length = schema.get("minLength", 0)
+        if min_length > 0 and isinstance(value, str) and not value.strip():
+            print(f"Arg {key} cannot be empty", file=sys.stderr)
+            sys.exit(1)
+
+    if expected_type == "array":
+        item_schema = schema.get("items", {})
+        item_type = item_schema.get("type")
+        if item_type == "string" and any(not isinstance(item, str) for item in value):
+            print(f"Arg {key} items must be strings", file=sys.stderr)
+            sys.exit(1)
+
 for key in required_args:
     if key not in args:
         print(f"Missing arg: {key}", file=sys.stderr)
@@ -727,13 +757,7 @@ for key in required_args:
 
 for key, value in args.items():
     if key in properties:
-        if not isinstance(value, str):
-            print(f"Arg {key} must be a string", file=sys.stderr)
-            sys.exit(1)
-        min_length = properties[key].get("minLength", 0)
-        if min_length > 0 and not value.strip():
-            print(f"Arg {key} cannot be empty", file=sys.stderr)
-            sys.exit(1)
+        enforce_type(key, value, properties.get(key, {}))
         continue
 
     if additional_properties is False:
@@ -741,9 +765,7 @@ for key, value in args.items():
         sys.exit(1)
 
     if isinstance(additional_properties, dict):
-        if additional_properties.get("type") == "string" and not isinstance(value, str):
-            print(f"Arg {key} must be a string", file=sys.stderr)
-            sys.exit(1)
+        enforce_type(key, value, additional_properties)
 
 print(json.dumps({
     "thought": thought.strip(),
