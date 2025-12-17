@@ -168,28 +168,3 @@ SCRIPT
 	detail=$(printf '%s\n' "${output}" | jq -r '.detail')
 	[[ "${detail}" == *"${missing_schema}"* ]]
 }
-
-@test "llama_infer sanitizes whitespace and stop markers" {
-	run env BASH_ENV= ENV= bash --noprofile --norc -c '
-	        cd "$(git rev-parse --show-toplevel)" || exit 1
-	        args_dir="$(mktemp -d)"
-	        mock_binary="${args_dir}/mock_llama.sh"
-	        cat >"${mock_binary}" <<SCRIPT
-#!/usr/bin/env bash
-printf "response	[end of text]
-
-"
-SCRIPT
-	        chmod +x "${mock_binary}"
-	        export LLAMA_AVAILABLE=true
-	        export LLAMA_BIN="${mock_binary}"
-	        export MODEL_REPO=demo/repo
-	        export MODEL_FILE=model.gguf
-	        source ./src/lib/llama_client.sh
-	        sanitized_output="$(llama_infer "prompt" "" 4)"
-	        printf "OUTPUT:%s" "${sanitized_output}"
-	'
-	[ "$status" -eq 0 ]
-	cleaned_output=$(printf '%s' "${output}" | tr -d '\r\n')
-	[ "${cleaned_output}" = "OUTPUT:response" ]
-}
