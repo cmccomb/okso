@@ -15,7 +15,7 @@ exit 1
 SCRIPT
                 chmod +x "${tmpdir}/realpath"
 
-                expected="$(cd "${repo_root}" && python - <<"PY"
+                expected="$(cd "${repo_root}" && python3 - <<"PY"
 import os
 print(os.path.realpath("README.md"))
 PY
