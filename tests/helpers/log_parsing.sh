@@ -5,7 +5,7 @@
 #   load helpers/log_parsing
 #   logs_json="$(printf '%s' "$output" | parse_json_logs)"
 parse_json_logs() {
-	python -c 'import json, sys
+	python3 -c 'import json, sys
 
 data = sys.stdin.read()
 decoder = json.JSONDecoder()
