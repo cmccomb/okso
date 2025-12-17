@@ -5,24 +5,28 @@
 #   load helpers/log_parsing
 #   logs_json="$(printf '%s' "$output" | parse_json_logs)"
 parse_json_logs() {
-	python -c 'import json,sys
+        python -c 'import json, sys
 
 data = sys.stdin.read()
 decoder = json.JSONDecoder()
 logs = []
-pos = 0
+search_start = 0
 
-while pos < len(data):
+while True:
+    brace_index = data.find("{", search_start)
+    if brace_index == -1:
+        break
+
     try:
-        entry, idx = decoder.raw_decode(data, pos)
+        entry, end_index = decoder.raw_decode(data, brace_index)
     except json.JSONDecodeError:
-        pos += 1
+        search_start = brace_index + 1
         continue
 
     if isinstance(entry, dict):
         logs.append(entry)
 
-    pos = idx
+    search_start = end_index
 
 print(json.dumps(logs))
 '
