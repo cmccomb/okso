@@ -64,8 +64,8 @@ INNERSCRIPT
 }
 
 @test "validate_react_action rejects extraneous arguments" {
-        script=$(
-                cat <<'INNERSCRIPT'
+	script=$(
+		cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
@@ -97,13 +97,13 @@ rm -f "${schema_path}" err.log
 INNERSCRIPT
 	)
 
-        run bash -lc "${script}"
-        [ "$status" -eq 0 ]
+	run bash -lc "${script}"
+	[ "$status" -eq 0 ]
 }
 
 @test "validate_react_action accepts terminal arg arrays" {
-        script=$(
-                cat <<'INNERSCRIPT'
+	script=$(
+		cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
@@ -116,10 +116,10 @@ validate_react_action "${action}" "${schema_path}" >/dev/null
 
 rm -f "${schema_path}"
 INNERSCRIPT
-        )
+	)
 
-        run bash -lc "${script}"
-        [ "$status" -eq 0 ]
+	run bash -lc "${script}"
+	[ "$status" -eq 0 ]
 }
 
 @test "select_next_action emits simplified payload when llama is unavailable" {
