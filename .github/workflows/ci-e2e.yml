@@ -31,34 +31,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Cache Homebrew downloads
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/Library/Caches/Homebrew
-            /usr/local/Homebrew/Library/Homebrew/vendor/cache
-          key: ${{ runner.os }}-brew-${{ hashFiles('.github/workflows/ci-e2e.yml') }}
-          restore-keys: |
-            ${{ runner.os }}-brew-
-
       - name: Install Homebrew dependencies
         timeout-minutes: 15
         shell: bash
         run: |
           set -euxo pipefail
           brew update
-          brew install cmake pkg-config python jq coreutils git-lfs bats-core
-
-      - name: Build llama.cpp (llama-cli)
-        timeout-minutes: 20
-        shell: bash
-        run: |
-          set -euxo pipefail
-          exec > >(tee llama-build.log) 2>&1
-          git clone --depth 1 https://github.com/ggerganov/llama.cpp.git
-          cmake -S llama.cpp -B llama.cpp/build -DLLAMA_BUILD_SERVER=OFF -DLLAMA_BUILD_EXAMPLES=OFF -DLLAMA_BUILD_TESTS=OFF
-          cmake --build llama.cpp/build --target llama-cli --config Release
-          echo "${PWD}/llama.cpp/build/bin" >> "${GITHUB_PATH}"
+          brew install cmake pkg-config python jq coreutils git-lfs bats-core llama.cpp
 
       - name: Install Python dependencies
         timeout-minutes: 10
