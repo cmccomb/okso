@@ -8,16 +8,16 @@ setup() {
 	LINK_DIR="${TEST_ROOT}/links"
 	MOCK_BIN="${TEST_ROOT}/mock-bin"
 
-        mkdir -p "${INSTALLER_ROOT}/scripts" "${INSTALLER_ROOT}/src/bin" \
-                "${INSTALLER_ROOT}/src/lib" "${INSTALLER_ROOT}/src/schemas" \
-                "${MOCK_BIN}" "${LINK_DIR}"
+	mkdir -p "${INSTALLER_ROOT}/scripts" "${INSTALLER_ROOT}/src/bin" \
+		"${INSTALLER_ROOT}/src/lib" "${INSTALLER_ROOT}/src/schemas" \
+		"${MOCK_BIN}" "${LINK_DIR}"
 
 	cp scripts/install.sh "${INSTALLER_ROOT}/scripts/install.sh"
 	chmod +x "${INSTALLER_ROOT}/scripts/install.sh"
 	: >"${INSTALLER_ROOT}/scripts/okso.rb"
 	printf 'stub readme for installer tests' >"${INSTALLER_ROOT}/README.md"
 
-        cat >"${INSTALLER_ROOT}/src/lib/schema.sh" <<'EOS'
+	cat >"${INSTALLER_ROOT}/src/lib/schema.sh" <<'EOS'
 #!/usr/bin/env bash
 # shellcheck shell=bash
 schema_path() {
@@ -34,7 +34,7 @@ EOS
 printf 'Plan outline\n'
 EOS
 	chmod +x "${INSTALLER_ROOT}/src/bin/okso"
-        printf '{"title": "planner schema"}' >"${INSTALLER_ROOT}/src/schemas/planner_plan.schema.json"
+	printf '{"title": "planner schema"}' >"${INSTALLER_ROOT}/src/schemas/planner_plan.schema.json"
 
 	cat >"${MOCK_BIN}/uname" <<'EOS'
 #!/usr/bin/env bash
