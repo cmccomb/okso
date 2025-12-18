@@ -19,6 +19,25 @@ grammars can reference `args.input` consistently across tools:
 
 For end-to-end scenarios that show how tools fit into approvals and offline runs, see the [Run with approvals](../user-guides/usage.md#run-with-approvals) and [Offline or noninteractive feedback collection](../user-guides/usage.md#offline-or-noninteractive-feedback-collection) walkthroughs.
 
+## Web search configuration
+
+Configure the Google Custom Search-backed `web_search` tool with a local `.env` file so secrets stay out of source control:
+
+```bash
+# .env (keep this file in .gitignore)
+OKSO_GOOGLE_CSE_API_KEY="your-google-api-key"
+OKSO_GOOGLE_CSE_ID="your-cse-id"
+
+set -a
+source ./.env
+set +a
+
+# Run okso with web_search enabled; variables from .env override config values.
+./src/bin/okso plan --config "${XDG_CONFIG_HOME:-$HOME/.config}/okso/config.env" --model bartowski/Qwen_Qwen3-4B-GGUF
+```
+
+The exported variables are preferred over values in `config.env`, letting you keep API keys local while still allowing `okso init` to write non-secret defaults.
+
 ## Terminal tool
 
 The `terminal` tool keeps a per-query working directory so subsequent calls share context. The default `status` command shows the current directory and a listing. Mutation commands validate arguments and keep `rm` interactive by default.
