@@ -1,18 +1,20 @@
 # Tools
 
 The planner registers these tools (each implemented under `src/tools/<name>.sh`). Handlers expect structured arguments in `TOOL_ARGS`
-that follow the registered JSON schema:
+that follow the registered JSON schema. Free-form, single-string payloads always use the canonical `input` property so prompts and
+grammars can reference `args.input` consistently across tools:
 
 - `terminal`: persistent working directory with `pwd`, `ls`, `cd`, `find`, `grep`, `stat`, `wc`, `du`, `base64 encode|decode`, and guarded mutations (`rm -i`, `mkdir`, `mv`, `cp`, `touch`). Uses `open` on macOS.
 - `python_repl`: run Python snippets in an ephemeral sandbox using quiet `python -i` startup guards that confine writes.
-- `file_search`: search for files and contents using `mdfind` on macOS with `fd`/`rg` fallbacks elsewhere. Accepts a `query` string.
+- `file_search`: search for files and contents using `mdfind` on macOS with `fd`/`rg` fallbacks elsewhere. Accepts an `input` string.
+- `*_search`: Notes, Calendar, and Mail searches reuse the same `input` field for the search term.
 - `clipboard_copy` / `clipboard_paste`: macOS clipboard helpers.
 - `notes_*`: create, append, list, read, or search Apple Notes entries.
 - `reminders_*`: create, list, or complete Apple Reminders.
 - `calendar_*`: create, list, or search Apple Calendar events.
 - `mail_*`: draft, send, search, or list Apple Mail messages.
-- `applescript`: execute AppleScript snippets on macOS (no-op elsewhere). Expects a `script` string.
-- `final_answer`: emit the assistant's final reply with a `message` string.
+- `applescript`: execute AppleScript snippets on macOS (no-op elsewhere). Expects an `input` string containing the script.
+- `final_answer`: emit the assistant's final reply with an `input` string.
 
 For end-to-end scenarios that show how tools fit into approvals and offline runs, see the [Run with approvals](../user-guides/usage.md#run-with-approvals) and [Offline or noninteractive feedback collection](../user-guides/usage.md#offline-or-noninteractive-feedback-collection) walkthroughs.
 

@@ -7,7 +7,8 @@
 #   source "${BASH_SOURCE[0]%/mail/search.sh}/mail/search.sh"
 #
 # Environment variables:
-#   TOOL_QUERY (string): search term to filter inbox messages.
+#   TOOL_ARGS (json): structured args including `input`.
+#   TOOL_QUERY (string): legacy search term fallback when TOOL_ARGS is absent.
 #   MAIL_INBOX_LIMIT (int): maximum results to return; defaults to 10.
 #   IS_MACOS (bool): indicates whether macOS-specific tooling should run.
 #   MAIL_OSASCRIPT_BIN (string): override path for osascript; defaults to "osascript".
@@ -30,9 +31,22 @@ source "${BASH_SOURCE[0]%/tools/mail/search.sh}/lib/logging.sh"
 source "${BASH_SOURCE[0]%/search.sh}/common.sh"
 
 tool_mail_search() {
-	local term limit
+	local term limit args_json text_key
+	args_json="${TOOL_ARGS:-}" || true
+	text_key="$(canonical_text_arg_key)"
 	term=${TOOL_QUERY:-""}
 	limit=$(mail_inbox_limit)
+
+	if [[ -n "${args_json}" ]]; then
+		term=$(jq -er --arg key "${text_key}" '
+ if type != "object" then error("args must be object") end
+| if .[$key]? == null then error("missing ${key}") end
+| if (.[$key] | type) != "string" then error("${key} must be string") end
+| if (.[$key] | length) == 0 then error("${key} cannot be empty") end
+| if ((del(.[$key]) | length) != 0) then error("unexpected properties") end
+| .[$key]
+' <<<"${args_json}" 2>/dev/null || true)
+	fi
 
 	if ! mail_require_platform; then
 		return 0
@@ -69,11 +83,7 @@ APPLESCRIPT
 register_mail_search() {
 	local args_schema
 
-	args_schema=$(
-		cat <<'JSON'
-{"type":"object","required":["query"],"properties":{"query":{"type":"string","minLength":1}},"additionalProperties":false}
-JSON
-	)
+	args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}},"additionalProperties":false}')
 	register_tool \
 		"mail_search" \
 		"Search Apple Mail inbox messages by subject, sender, or content." \

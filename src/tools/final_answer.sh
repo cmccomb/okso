@@ -7,7 +7,7 @@
 #   source "${BASH_SOURCE[0]%/tools/final_answer.sh}/tools/final_answer.sh"
 #
 # Environment variables:
-#   TOOL_ARGS (JSON object): structured args including `message`.
+#   TOOL_ARGS (JSON object): structured args including `input`.
 #
 # Dependencies:
 #   - bash 5+
@@ -15,7 +15,7 @@
 #   - register_tool from tools/registry.sh
 #
 # Exit codes:
-#   Returns 0 after echoing the supplied TOOL_ARGS.message.
+#   Returns 0 after echoing the supplied TOOL_ARGS.input.
 
 # shellcheck source=../lib/logging.sh disable=SC1091
 source "${BASH_SOURCE[0]%/tools/final_answer.sh}/lib/logging.sh"
@@ -24,23 +24,24 @@ source "${BASH_SOURCE[0]%/final_answer.sh}/registry.sh"
 
 tool_final_answer() {
 	# Emits the provided final answer text without modification.
-	# Arguments: none. Reads TOOL_ARGS.message.
-	local args_json message
+	# Arguments: none. Reads TOOL_ARGS.input.
+	local args_json message text_key
 	args_json="${TOOL_ARGS:-}" || true
+	text_key="$(canonical_text_arg_key)"
 
 	if [[ -n "${args_json}" ]]; then
-		message=$(jq -er '
-if type != "object" then error("args must be object") end
-| if .message? == null then error("missing message") end
-| if (.message | type) != "string" then error("message must be string") end
-| if (.message | length) == 0 then error("message cannot be empty") end
-| if ((del(.message) | length) != 0) then error("unexpected properties") end
-| .message
+		message=$(jq -er --arg key "${text_key}" '
+ if type != "object" then error("args must be object") end
+| if .[$key]? == null then error("missing ${key}") end
+| if (.[$key] | type) != "string" then error("${key} must be string") end
+| if (.[$key] | length) == 0 then error("${key} cannot be empty") end
+| if ((del(.[$key]) | length) != 0) then error("unexpected properties") end
+| .[$key]
 ' <<<"${args_json}" 2>/dev/null || true)
 	fi
 
 	if [[ -z "${message:-}" ]]; then
-		log "ERROR" "Missing TOOL_ARGS.message" "${args_json}" >&2
+		log "ERROR" "Missing TOOL_ARGS.${text_key}" "${args_json}" >&2
 		return 1
 	fi
 
@@ -51,11 +52,7 @@ if type != "object" then error("args must be object") end
 register_final_answer() {
 	local args_schema
 
-	args_schema=$(
-		cat <<'JSON'
-{"type":"object","required":["message"],"properties":{"message":{"type":"string","minLength":1}},"additionalProperties":false}
-JSON
-	)
+	args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}},"additionalProperties":false}')
 	register_tool \
 		"final_answer" \
 		"Emit the final user-facing answer without performing additional actions." \
