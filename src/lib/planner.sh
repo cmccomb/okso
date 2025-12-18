@@ -447,6 +447,9 @@ format_tool_args() {
 	file_search | notes_search | calendar_search | mail_search)
 		jq -nc --arg key "${text_key}" --arg value "${payload}" '{($key):$value}'
 		;;
+	web_search)
+		jq -nc --arg query "${payload}" '{query:$query}'
+		;;
 	clipboard_copy)
 		jq -nc --arg text "${payload}" '{text:$text}'
 		;;
@@ -528,6 +531,9 @@ extract_tool_query() {
 		;;
 	file_search | notes_search | calendar_search | mail_search)
 		jq -r --arg key "${text_key}" '.[$key] // ""' <<<"${args_json}" 2>/dev/null || printf ''
+		;;
+	web_search)
+		jq -r '.query // ""' <<<"${args_json}" 2>/dev/null || printf ''
 		;;
 	clipboard_copy)
 		jq -r '(.text // "")' <<<"${args_json}" 2>/dev/null || printf ''
@@ -814,12 +820,15 @@ select_next_action() {
 		local raw_action validated_action validation_error_file corrective_prompt
 		react_grammar_path="$(build_react_action_grammar "${allowed_tools}")" || return 1
 		react_grammar_text="$(cat "${react_grammar_path}")" || return 1
+		local history
+		history="$(format_tool_history "$(state_get "${state_name}" "history")")"
+
 		react_prompt="$(
 			build_react_prompt \
 				"$(state_get "${state_name}" "user_query")" \
 				"${allowed_tool_descriptions}" \
 				"$(state_get "${state_name}" "plan_outline")" \
-				"$(state_get "${state_name}" "history")" \
+				"${history}" \
 				"${react_grammar_text}"
 		)"
 		validation_error_file="$(mktemp)"
@@ -855,8 +864,9 @@ select_next_action() {
 		args_json="$(printf '%s' "${planned_entry}" | jq -c '.args // {}' 2>/dev/null || printf '{}')"
 		next_action_payload="$(jq -nc --arg thought "${thought}" --arg tool "${tool}" --argjson args "${args_json}" '{thought:$thought, tool:$tool, args:$args}')"
 	else
-		local final_query
-		final_query="$(respond_text "$(state_get "${state_name}" "user_query") $(state_get "${state_name}" "history")" 512)"
+		local final_query history_formatted
+		history_formatted="$(format_tool_history "$(state_get "${state_name}" "history")")"
+		final_query="$(respond_text "$(state_get "${state_name}" "user_query")" 512 "${history_formatted}")"
 		args_json="$(format_tool_args "final_answer" "${final_query}")"
 		next_action_payload="$(jq -nc --arg thought "Providing final answer" --arg tool "final_answer" --argjson args "${args_json}" '{thought:$thought, tool:$tool, args:$args}')"
 	fi
@@ -933,11 +943,16 @@ try:
 except Exception:  # noqa: BLE001
     args = {}
 
+try:
+    obs_payload = json.loads(observation)
+except Exception:  # noqa: BLE001
+    obs_payload = observation
+
 print(json.dumps({
     "step": step,
     "thought": thought,
     "action": {"tool": tool, "args": args},
-    "observation": observation,
+    "observation": obs_payload,
 }, separators=(",", ":")))
 PY
 	)
@@ -948,24 +963,25 @@ PY
 finalize_react_result() {
 	# Arguments:
 	#   $1 - state prefix
-	local state_name
+	local state_name history_formatted
 	state_name="$1"
 	if [[ -z "$(state_get "${state_name}" "final_answer")" ]]; then
 		log "ERROR" "Final answer missing; generating fallback" "${state_name}"
-		state_set "${state_name}" "final_answer" "$(respond_text "$(state_get "${state_name}" "user_query") $(state_get "${state_name}" "history")" 1000)"
+		history_formatted="$(format_tool_history "$(state_get "${state_name}" "history")")"
+		state_set "${state_name}" "final_answer" "$(respond_text "$(state_get "${state_name}" "user_query")" 1000 "${history_formatted}")"
 	fi
 
 	log_pretty "INFO" "Final answer" "$(state_get "${state_name}" "final_answer")"
-	if [[ -z "$(state_get "${state_name}" "history")" ]]; then
+	if [[ -z "$(format_tool_history "$(state_get "${state_name}" "history")")" ]]; then
 		log "INFO" "Execution summary" "No tool runs"
 	else
-		log_pretty "INFO" "Execution summary" "$(state_get "${state_name}" "history")"
+		log_pretty "INFO" "Execution summary" "$(format_tool_history "$(state_get "${state_name}" "history")")"
 	fi
 
 	emit_boxed_summary \
 		"$(state_get "${state_name}" "user_query")" \
 		"$(state_get "${state_name}" "plan_outline")" \
-		"$(state_get "${state_name}" "history")" \
+		"$(format_tool_history "$(state_get "${state_name}" "history")")" \
 		"$(state_get "${state_name}" "final_answer")"
 }
 

@@ -31,80 +31,13 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Cache Homebrew downloads
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/Library/Caches/Homebrew
-            /usr/local/Homebrew/Library/Homebrew/vendor/cache
-          key: ${{ runner.os }}-brew-${{ hashFiles('.github/workflows/ci-e2e.yml') }}
-          restore-keys: |
-            ${{ runner.os }}-brew-
-
       - name: Install Homebrew dependencies
         timeout-minutes: 15
         shell: bash
         run: |
           set -euxo pipefail
           brew update
-          brew install cmake pkg-config python jq coreutils git-lfs bats-core
-
-      - name: Build llama.cpp (llama-cli)
-        timeout-minutes: 20
-        shell: bash
-        run: |
-          set -euxo pipefail
-          exec > >(tee llama-build.log) 2>&1
-          git clone --depth 1 https://github.com/ggerganov/llama.cpp.git
-          cmake -S llama.cpp -B llama.cpp/build -DLLAMA_BUILD_SERVER=OFF -DLLAMA_BUILD_EXAMPLES=OFF -DLLAMA_BUILD_TESTS=OFF
-          cmake --build llama.cpp/build --target llama-cli --config Release
-          echo "${PWD}/llama.cpp/build/bin" >> "${GITHUB_PATH}"
-
-      - name: Install Python dependencies
-        timeout-minutes: 10
-        shell: bash
-        run: |
-          set -euxo pipefail
-          python3 -m pip install --upgrade pip
-          python3 -m pip install huggingface_hub
-
-      - name: Cache Hugging Face model
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.HF_HOME }}
-          key: ${{ runner.os }}-hf-${{ env.MODEL_BRANCH }}-${{ hashFiles('.github/workflows/ci-e2e.yml') }}
-          restore-keys: |
-            ${{ runner.os }}-hf-
-
-      - name: Prime Hugging Face cache with tiny model
-        timeout-minutes: 20
-        shell: bash
-        env:
-          MODEL_SPEC: ${{ env.MODEL_SPEC }}
-          MODEL_BRANCH: ${{ env.MODEL_BRANCH }}
-        run: |
-          set -euxo pipefail
-          exec > >(tee model-download.log) 2>&1
-          mkdir -p "${HF_HOME}"
-          python3 - <<'PY'
-            import os
-            from huggingface_hub import snapshot_download
-
-            model_spec = os.environ.get("MODEL_SPEC", "")
-            model_branch = os.environ.get("MODEL_BRANCH", "main")
-
-            if ":" not in model_spec:
-                raise SystemExit("MODEL_SPEC must be in repo:filename format")
-
-            repo_id, filename = model_spec.split(":", 1)
-            snapshot_download(
-                repo_id=repo_id,
-                revision=model_branch,
-                allow_patterns=[filename],
-                local_dir=None,
-                local_dir_use_symlinks=False,
-            )
-          PY
+          brew install cmake pkg-config python jq coreutils git-lfs bats-core llama.cpp
 
       - name: Run macOS llama runtime test
         timeout-minutes: 15
@@ -115,14 +48,3 @@ jobs:
         run: |
           set -euxo pipefail
           bats --print-output-on-failure tests/runtime/test_macos_tiny_llama.bats | tee macos-e2e.log
-
-      - name: Upload macOS artifacts on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-llama-debug
-          path: |
-            llama-build.log
-            model-download.log
-            macos-e2e.log
-            ${{ env.HF_HOME }}

@@ -24,21 +24,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Define log directory
-        run: |
-          echo "INSTALL_LOG_DIR=$RUNNER_TEMP/installer-logs/${{ matrix.name }}" >> "$GITHUB_ENV"
-
       - name: Install dependencies
         run: |
           brew update
           brew install shellcheck shfmt bats-core
-
-      - name: Prepare install directories
-        run: |
-          rm -rf "$INSTALL_PREFIX"
-          rm -rf "$INSTALL_LOG_DIR"
-          mkdir -p "$INSTALL_LOG_DIR"
 
       - name: Lint installer
         run: |
@@ -48,21 +37,4 @@ jobs:
       - name: Install from bundle
         run: |
           set -o pipefail
-          LOG_FILE="$INSTALL_LOG_DIR/install.log"
-          scripts/install.sh --prefix "$INSTALL_PREFIX" 2>&1 | tee "$LOG_FILE"
-
-      - name: Uninstall bundle
-        if: always()
-        run: |
-          set -o pipefail
-          LOG_FILE="$INSTALL_LOG_DIR/uninstall.log"
-          scripts/install.sh --prefix "$INSTALL_PREFIX" --uninstall 2>&1 | tee "$LOG_FILE"
-          rm -rf "$INSTALL_PREFIX"
-
-      - name: Upload installer logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: installer-logs-${{ matrix.name }}
-          path: ${{ env.INSTALL_LOG_DIR }}
-          retention-days: 7
+          scripts/install.sh --prefix "$INSTALL_PREFIX" 2>&1

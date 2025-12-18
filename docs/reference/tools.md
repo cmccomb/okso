@@ -7,6 +7,7 @@ grammars can reference `args.input` consistently across tools:
 - `terminal`: persistent working directory with `pwd`, `ls`, `cd`, `find`, `grep`, `stat`, `wc`, `du`, `base64 encode|decode`, and guarded mutations (`rm -i`, `mkdir`, `mv`, `cp`, `touch`). Uses `open` on macOS.
 - `python_repl`: run Python snippets in an ephemeral sandbox using quiet `python -i` startup guards that confine writes.
 - `file_search`: search for files and contents using `mdfind` on macOS with `fd`/`rg` fallbacks elsewhere. Accepts an `input` string.
+- `web_search`: query the Google Custom Search API with a structured payload (`query` and optional `num`) and return JSON results.
 - `*_search`: Notes, Calendar, and Mail searches reuse the same `input` field for the search term.
 - `clipboard_copy` / `clipboard_paste`: macOS clipboard helpers.
 - `notes_*`: create, append, list, read, or search Apple Notes entries.
@@ -17,6 +18,25 @@ grammars can reference `args.input` consistently across tools:
 - `final_answer`: emit the assistant's final reply with an `input` string.
 
 For end-to-end scenarios that show how tools fit into approvals and offline runs, see the [Run with approvals](../user-guides/usage.md#run-with-approvals) and [Offline or noninteractive feedback collection](../user-guides/usage.md#offline-or-noninteractive-feedback-collection) walkthroughs.
+
+## Web search configuration
+
+Configure the Google Custom Search-backed `web_search` tool with a local `.env` file so secrets stay out of source control:
+
+```bash
+# .env (keep this file in .gitignore)
+OKSO_GOOGLE_CSE_API_KEY="your-google-api-key"
+OKSO_GOOGLE_CSE_ID="your-cse-id"
+
+set -a
+source ./.env
+set +a
+
+# Run okso with web_search enabled; variables from .env override config values.
+./src/bin/okso plan --config "${XDG_CONFIG_HOME:-$HOME/.config}/okso/config.env" --model bartowski/Qwen_Qwen3-4B-GGUF
+```
+
+The exported variables are preferred over values in `config.env`, letting you keep API keys local while still allowing `okso init` to write non-secret defaults.
 
 ## Terminal tool
 

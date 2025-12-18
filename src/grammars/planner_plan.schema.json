@@ -7,6 +7,11 @@
     "required": ["tool"],
     "additionalProperties": false,
     "properties": {
+      "thought": {
+        "type": "string",
+        "description": "Short reasoning blurb about why the following tool and arguments are chosen.",
+        "minLength": 1
+      },
       "tool": {
         "type": "string",
         "minLength": 1,
@@ -16,11 +21,6 @@
         "type": "object",
         "description": "Structured arguments for the tool. Leave empty for react_fallback entries when arguments are unknown.",
         "default": {}
-      },
-      "thought": {
-        "type": "string",
-        "description": "Short reasoning blurb about why this tool/arguments are chosen.",
-        "minLength": 1
       }
     }
   },
@@ -29,29 +29,30 @@
   "examples": [
     [
       {
+        "thought": "Explore tools interactively when the right arguments are unclear.",
         "tool": "react_fallback",
-        "args": {},
-        "thought": "Explore tools interactively when the right arguments are unclear."
+        "args": {}
       },
       {
+        "thought": "Report findings for the user.",
         "tool": "final_answer",
-        "args": {},
-        "thought": "Summarize findings for the user."
+        "args": {}
       }
     ],
     [
       {
+        "thought": "Record the requested notes.",
         "tool": "notes_create",
         "args": {
+          "thought": "Record the requested notes.",
           "title": "Research notes",
-          "body": "Capture key points while reviewing sources"
-        },
-        "thought": "Record the requested notes."
+          "body": "The next delivery step for the research are..."
+        }
       },
       {
+        "thought": "Share the notes back to the user.",
         "tool": "final_answer",
-        "args": {},
-        "thought": "Share the notes back to the user."
+        "args": {}
       }
     ]
   ]

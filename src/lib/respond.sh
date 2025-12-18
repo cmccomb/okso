@@ -31,9 +31,11 @@ respond_text() {
 	# Arguments:
 	#   $1 - user query (string)
 	#   $2 - number of tokens to generate (int)
-	local user_query prompt number_of_tokens concise_grammar_path
+	#   $3 - context (string, optional)
+	local user_query context prompt number_of_tokens concise_grammar_path
 	user_query="$1"
 	number_of_tokens="$2"
+	context="${3:-}"
 	concise_grammar_path="$(grammar_path concise_response)"
 
 	log "INFO" "Generating direct response" "${user_query}" >&2
@@ -51,7 +53,7 @@ respond_text() {
 		return 0
 	fi
 
-	prompt="$(build_concise_response_prompt "${user_query}")"
+	prompt="$(build_concise_response_prompt "${user_query}" "${context}")"
 	log "INFO" "Invoking llama inference" "$(printf 'tokens=%s grammar=%s' "${number_of_tokens}" "${concise_grammar_path}")" >&2
 	local response_text
 	response_text="$(llama_infer "${prompt}" "" "${number_of_tokens}" "${concise_grammar_path}")"

@@ -74,12 +74,15 @@ render_prompt_template() {
 build_concise_response_prompt() {
 	# Arguments:
 	#   $1 - user query (string)
-	local user_query concise_grammar
+	#   $2 - context (string, optional)
+	local user_query context concise_grammar
 	user_query="$1"
+	context="${2:-}"
 	concise_grammar="$(load_grammar_text concise_response)"
 
 	render_prompt_template "concise_response" \
 		user_query "${user_query}" \
+		context "${context}" \
 		concise_grammar "${concise_grammar}"
 }
 

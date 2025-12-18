@@ -133,6 +133,34 @@ EOF
 	printf '%s\n' "${bottom_border}"
 }
 
+indent_block() {
+	# Arguments:
+	#   $1 - prefix applied to every line (string)
+	#   $2 - content to indent (string)
+	local prefix content line
+	prefix="$1"
+	content="$2"
+
+	while IFS= read -r line || [[ -n "${line}" ]]; do
+		printf '%s%s\n' "${prefix}" "${line}"
+	done <<<"${content}"
+}
+
+format_box_section() {
+	# Arguments:
+	#   $1 - section title (string)
+	#   $2 - section body (string)
+	local title body
+	title="$1"
+	body="$2"
+
+	if [[ -z "${body}" ]]; then
+		body="(none)"
+	fi
+
+	printf '%s:\n%s' "${title}" "$(indent_block '  ' "${body}")"
+}
+
 render_boxed_summary() {
 	# Arguments:
 	#   $1 - user query (string)
@@ -151,21 +179,11 @@ render_boxed_summary() {
 		formatted_tools="$(format_tool_history "${tool_history}")"
 	fi
 
-	formatted_content=$(
-		cat <<EOF
-Query:
-${user_query}
-
-Plan:
-${plan_outline:-"(none)"}
-
-Tool runs:
-${formatted_tools}
-
-Final answer:
-${final_answer}
-EOF
-	)
+	formatted_content=$(printf '%s\n\n%s\n\n%s\n\n%s' \
+		"$(format_box_section "Query" "${user_query}")" \
+		"$(format_box_section "Plan" "${plan_outline}")" \
+		"$(format_box_section "Tool runs" "${formatted_tools}")" \
+		"$(format_box_section "Final answer" "${final_answer}")")
 	if command -v gum >/dev/null 2>&1; then
 		formatted_content="$(printf '%s\n' "${formatted_content}" | gum format)"
 	fi
@@ -177,60 +195,104 @@ format_tool_history() {
 	# Arguments:
 	#   $1 - tool invocation history (newline-delimited string)
 	# Returns:
-	#   Grouped, human-friendly list of tool runs (string)
-	local tool_history line
+	#   Grouped, human-friendly bullet list of tool runs (string)
+	local tool_history line current_step current_action current_observation collecting_observation
 	local -a output_lines=()
 	tool_history="$1"
+	current_step=""
+	current_action=""
+	current_observation=""
+	collecting_observation=false
+
+	append_current_entry() {
+		if [[ -z "${current_step}" ]]; then
+			return
+		fi
+
+		output_lines+=(" - Step ${current_step}")
+		if [[ -n "${current_action}" ]]; then
+			output_lines+=("   action: ${current_action}")
+		fi
+		if [[ -n "${current_observation}" ]]; then
+			output_lines+=("   observation: ${current_observation//$'\n'/$'\n'"   "}")
+		fi
+
+		current_step=""
+		current_action=""
+		current_observation=""
+		collecting_observation=false
+	}
 
 	while IFS= read -r line || [ -n "${line}" ]; do
-		[[ -z "${line}" ]] && continue
+		# Try to parse line as a JSON entry from record_tool_execution
+		if jq -e '.step != null and .action != null' <<<"${line}" >/dev/null 2>&1; then
+			append_current_entry
+			current_step=$(jq -r '.step' <<<"${line}")
+			local tool args thought obs
+			tool=$(jq -r '.action.tool' <<<"${line}")
+			args=$(jq -c '.action.args' <<<"${line}")
+			thought=$(jq -r '.thought' <<<"${line}")
+			obs=$(jq -c '.observation' <<<"${line}")
 
-		# Try to parse as JSON first (as recorded by record_tool_execution)
-		local step thought tool args observation
-		if step=$(jq -er '.step' <<<"${line}" 2>/dev/null); then
-			thought=$(jq -r '.thought // ""' <<<"${line}")
-			tool=$(jq -r '.action.tool // ""' <<<"${line}")
-			args=$(jq -c '.action.args // {}' <<<"${line}")
-			observation=$(jq -r '.observation // ""' <<<"${line}")
+			# Pretty print observation if it's JSON object
+			if jq -e '.observation | type == "object"' <<<"${line}" >/dev/null 2>&1; then
+				# Try to make it a bit more readable if it's a known search result format
+				if [[ "${tool}" == "web_search" ]]; then
+					obs=$(jq -r '.observation.items // [] | map("- " + .title + ": " + .snippet) | join("\n")' <<<"${line}" 2>/dev/null || jq -r '.observation | tostring' <<<"${line}")
+				else
+					obs=$(jq -r '.observation | tostring' <<<"${line}")
+				fi
+			elif jq -e '.observation | type == "string"' <<<"${line}" >/dev/null 2>&1; then
+				obs=$(jq -r '.observation' <<<"${line}")
+			fi
 
-			output_lines+=("Step ${step}: ${tool}")
-			if [[ -n "${thought}" && "${thought}" != "Following planned step" ]]; then
-				output_lines+=("  Thought: ${thought}")
-			fi
-			if [[ "${args}" != "{}" ]]; then
-				output_lines+=("  Args: ${args}")
-			fi
-			if [[ -n "${observation}" ]]; then
-				# Indent observation lines for better readability
-				output_lines+=("  Result:")
-				while IFS= read -r obs_line; do
-					output_lines+=("    ${obs_line}")
-				done <<<"${observation}"
-			fi
-			output_lines+=("") # Spacer
+			current_action="${thought} (tool: ${tool}, args: ${args})"
+			current_observation="${obs}"
+			append_current_entry
 			continue
 		fi
 
-		# Fallback to legacy parsing if not JSON
 		if [[ "${line}" =~ ^[[:space:]]*Step[[:space:]]+([0-9]+)[[:space:]]*(.*)$ ]]; then
-			local current_step="${BASH_REMATCH[1]}"
-			local current_action="${BASH_REMATCH[2]}"
+			append_current_entry
+
+			current_step="${BASH_REMATCH[1]}"
+			current_action="${BASH_REMATCH[2]}"
 			current_action="${current_action#"${current_action%%[![:space:]]*}"}"
 			current_action="${current_action%"${current_action##*[![:space:]]}"}"
 			current_action="${current_action#action }"
 			current_action="${current_action#action: }"
 			current_action="${current_action#Action }"
 			current_action="${current_action#Action: }"
+			collecting_observation=false
+			continue
+		fi
+		if [[ "${line}" =~ ^[[:space:]]*[Oo][Bb][Ss][Ee][Rr][Vv][Aa][Tt][Ii][Oo][Nn]:[[:space:]]*(.*)$ ]]; then
+			current_observation="${BASH_REMATCH[1]}"
+			collecting_observation=true
+			continue
+		fi
+		if [[ -z "${current_step}" ]]; then
+			output_lines+=(" - ${line}")
+			continue
+		fi
 
-			output_lines+=("Step ${current_step}: ${current_action}")
-		elif [[ "${line}" =~ ^[[:space:]]*[Oo][Bb][Ss][Ee][Rr][Vv][Aa][Tt][Ii][Oo][Nn]:[[:space:]]*(.*)$ ]]; then
-			local current_observation="${BASH_REMATCH[1]}"
-			output_lines+=("  Result:")
-			output_lines+=("    ${current_observation}")
+		if [[ "${collecting_observation}" == true ]]; then
+			if [[ -n "${current_observation}" ]]; then
+				current_observation+=$'\n'"${line}"
+			else
+				current_observation="${line}"
+			fi
+			continue
+		fi
+
+		if [[ -n "${current_action}" ]]; then
+			current_action+=" ${line}"
 		else
-			output_lines+=("  ${line}")
+			current_action="${line}"
 		fi
 	done <<<"${tool_history}"
+
+	append_current_entry
 
 	printf '%s\n' "${output_lines[@]}"
 }

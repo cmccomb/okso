@@ -20,16 +20,20 @@
                 render_boxed_summary "What is new?" "Outline details" "${tool_history}" "Final thoughts"
         ')
 	status=$?
-	output="${lines[*]}"
-	[[ "${output}" == *"Query:"* ]]
-	[[ "${output}" == *"Plan:"* ]]
-	[[ "${output}" == *"Tool runs:"* ]]
-	[[ "${output}" == *"Final answer:"* ]]
-	[[ "${output}" == *"Step 1: search query=weather"* ]]
-	[[ "${output}" == *"Result:"* ]]
-	[[ "${output}" == *"sunny"* ]]
-	[[ "${output}" == *"Step 2: final_answer query=done"* ]]
-	[[ "${output}" == *"finished"* ]]
+	output=$(printf '%s\n' "${lines[@]}")
+	[[ "${output}" == *$'│ Query:'* ]]
+	[[ "${output}" == *$'What is new?'* ]]
+	[[ "${output}" == *$'│ Plan:'* ]]
+	[[ "${output}" == *$'Outline details'* ]]
+	[[ "${output}" == *$'│ Tool runs:'* ]]
+	[[ "${output}" == *$'- Step 1'* ]]
+	[[ "${output}" == *$'action: search query=weather'* ]]
+	[[ "${output}" == *$'observation: sunny'* ]]
+	[[ "${output}" == *$'- Step 2'* ]]
+	[[ "${output}" == *$'action: final_answer query=done'* ]]
+	[[ "${output}" == *$'observation: finished'* ]]
+	[[ "${output}" == *$'│ Final answer:'* ]]
+	[[ "${output}" == *$'Final thoughts'* ]]
 	[ "$status" -eq 0 ]
 }
 
@@ -39,6 +43,7 @@
                 source ./src/lib/formatting.sh
                 render_boxed_summary "Question" "" "" "Answer"
         '
-	[[ "${output}" == *"(none)"* ]]
+	[[ "${output}" == *$'│ Tool runs:'* ]]
+	[[ "${output}" == *$'│   (none)'* ]]
 	[ "$status" -eq 0 ]
 }
