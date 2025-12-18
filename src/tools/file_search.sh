@@ -26,9 +26,9 @@ source "${BASH_SOURCE[0]%/tools/file_search.sh}/lib/logging.sh"
 source "${BASH_SOURCE[0]%/file_search.sh}/registry.sh"
 
 tool_file_search() {
-        local query args_json
-        args_json="${TOOL_ARGS:-}" || true
-        query=""
+	local query args_json
+	args_json="${TOOL_ARGS:-}" || true
+	query=""
 
 	if [[ -n "${args_json}" ]]; then
 		query=$(jq -er '
@@ -39,12 +39,12 @@ if type != "object" then error("args must be object") end
 | if ((del(.query) | length) != 0) then error("unexpected properties") end
 | .query
 ' <<<"${args_json}" 2>/dev/null || true)
-        fi
+	fi
 
-        if [[ -z "${query:-}" ]]; then
-                log "ERROR" "Missing TOOL_ARGS.query" "${args_json}" >&2
-                return 1
-        fi
+	if [[ -z "${query:-}" ]]; then
+		log "ERROR" "Missing TOOL_ARGS.query" "${args_json}" >&2
+		return 1
+	fi
 
 	log "INFO" "Searching files" "${query}"
 

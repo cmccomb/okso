@@ -3,8 +3,8 @@
 # Regression tests ensuring TOOL_ARGS drive tool handlers.
 
 @test "final_answer requires structured TOOL_ARGS" {
-        script=$(
-                cat <<'INNERSCRIPT'
+	script=$(
+		cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
@@ -25,7 +25,7 @@ if TOOL_ARGS="" TOOL_QUERY="legacy" tool_final_answer >/dev/null 2>&1; then
         exit 1
 fi
 INNERSCRIPT
-        )
+	)
 
 	run bash -lc "${script}"
 	[ "${status}" -eq 0 ]
