@@ -202,12 +202,12 @@ tool_feedback() {
 }
 
 register_feedback() {
-        local args_schema
+	local args_schema
 
-        args_schema=$(jq -nc '{"type":"object","properties":{"plan_item":{"type":"string","minLength":1},"observations":{"type":"string","minLength":1}},"additionalProperties":false}')
-        register_tool \
-                "feedback" \
-                "Collect a 1-5 rating and optional comments for the current plan step." \
+	args_schema=$(jq -nc '{"type":"object","properties":{"plan_item":{"type":"string","minLength":1},"observations":{"type":"string","minLength":1}},"additionalProperties":false}')
+	register_tool \
+		"feedback" \
+		"Collect a 1-5 rating and optional comments for the current plan step." \
 		"feedback <json context>" \
 		"Prompts the user; respects FEEDBACK_ENABLED=false to skip interaction." \
 		tool_feedback \

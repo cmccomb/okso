@@ -425,35 +425,35 @@ record_history() {
 }
 
 format_tool_args() {
-        # Arguments:
-        #   $1 - tool name
-        #   $2 - primary payload string
-        # Returns JSON describing structured args for the tool.
-        local tool payload text_key
-        tool="$1"
-        payload="$2"
-        text_key="${CANONICAL_TEXT_ARG_KEY:-input}"
-        case "${tool}" in
-        terminal)
-                read -r -a terminal_tokens <<<"${payload}"
+	# Arguments:
+	#   $1 - tool name
+	#   $2 - primary payload string
+	# Returns JSON describing structured args for the tool.
+	local tool payload text_key
+	tool="$1"
+	payload="$2"
+	text_key="${CANONICAL_TEXT_ARG_KEY:-input}"
+	case "${tool}" in
+	terminal)
+		read -r -a terminal_tokens <<<"${payload}"
 		if ((${#terminal_tokens[@]} == 0)); then
 			terminal_tokens=("status")
 		fi
 		jq -nc --arg command "${terminal_tokens[0]}" --argjson args "$(printf '%s\n' "${terminal_tokens[@]:1}" | jq -Rcs 'split("\n") | map(select(length > 0))')" '{command:$command,args:$args}'
 		;;
-        python_repl)
-                jq -nc --arg code "${payload}" '{code:$code}'
-                ;;
-        file_search | notes_search | calendar_search | mail_search)
-                jq -nc --arg key "${text_key}" --arg value "${payload}" '{($key):$value}'
-                ;;
-        clipboard_copy)
-                jq -nc --arg text "${payload}" '{text:$text}'
-                ;;
-        clipboard_paste | notes_list | reminders_list | calendar_list | mail_list_inbox | mail_list_unread)
-                jq -nc '{}'
-                ;;
-        notes_create | notes_append)
+	python_repl)
+		jq -nc --arg code "${payload}" '{code:$code}'
+		;;
+	file_search | notes_search | calendar_search | mail_search)
+		jq -nc --arg key "${text_key}" --arg value "${payload}" '{($key):$value}'
+		;;
+	clipboard_copy)
+		jq -nc --arg text "${payload}" '{text:$text}'
+		;;
+	clipboard_paste | notes_list | reminders_list | calendar_list | mail_list_inbox | mail_list_unread)
+		jq -nc '{}'
+		;;
+	notes_create | notes_append)
 		local title body
 		title=${payload%%$'\n'*}
 		body=${payload#"${title}"}
@@ -486,31 +486,31 @@ format_tool_args() {
 	mail_draft | mail_send)
 		jq -nc --arg envelope "${payload}" '{envelope:$envelope}'
 		;;
-        applescript)
-                jq -nc --arg key "${text_key}" --arg value "${payload}" '{($key):$value}'
-                ;;
-        feedback | final_answer)
-                jq -nc --arg key "${text_key}" --arg value "${payload}" '{($key):$value}'
-                ;;
-        *)
-                jq -nc --arg key "${text_key}" --arg value "${payload}" '{($key):$value}'
-                ;;
-        esac
+	applescript)
+		jq -nc --arg key "${text_key}" --arg value "${payload}" '{($key):$value}'
+		;;
+	feedback | final_answer)
+		jq -nc --arg key "${text_key}" --arg value "${payload}" '{($key):$value}'
+		;;
+	*)
+		jq -nc --arg key "${text_key}" --arg value "${payload}" '{($key):$value}'
+		;;
+	esac
 }
 
 extract_tool_query() {
-        # Arguments:
-        #   $1 - tool name
-        #   $2 - args JSON
-        # Returns a human-readable summary derived from structured args.
-        local tool args_json text_key
-        tool="$1"
-        args_json="$2"
-        text_key="${CANONICAL_TEXT_ARG_KEY:-input}"
-        case "${tool}" in
-        terminal)
-                jq -r '(.command // "") as $cmd | ($cmd + " " + ((.args // []) | map(tostring) | join(" ")))|rtrimstr(" ")' <<<"${args_json}" 2>/dev/null || printf ''
-                ;;
+	# Arguments:
+	#   $1 - tool name
+	#   $2 - args JSON
+	# Returns a human-readable summary derived from structured args.
+	local tool args_json text_key
+	tool="$1"
+	args_json="$2"
+	text_key="${CANONICAL_TEXT_ARG_KEY:-input}"
+	case "${tool}" in
+	terminal)
+		jq -r '(.command // "") as $cmd | ($cmd + " " + ((.args // []) | map(tostring) | join(" ")))|rtrimstr(" ")' <<<"${args_json}" 2>/dev/null || printf ''
+		;;
 	notes_create | notes_append)
 		jq -r '[(.title // ""), (.body // "")] | map(select(length>0)) | join("\n")' <<<"${args_json}" 2>/dev/null || printf ''
 		;;
@@ -526,28 +526,28 @@ extract_tool_query() {
 	python_repl)
 		jq -r '(.code // "")' <<<"${args_json}" 2>/dev/null || printf ''
 		;;
-        file_search | notes_search | calendar_search | mail_search)
-                jq -r --arg key "${text_key}" '.[$key] // ""' <<<"${args_json}" 2>/dev/null || printf ''
-                ;;
-        clipboard_copy)
-                jq -r '(.text // "")' <<<"${args_json}" 2>/dev/null || printf ''
-                ;;
+	file_search | notes_search | calendar_search | mail_search)
+		jq -r --arg key "${text_key}" '.[$key] // ""' <<<"${args_json}" 2>/dev/null || printf ''
+		;;
+	clipboard_copy)
+		jq -r '(.text // "")' <<<"${args_json}" 2>/dev/null || printf ''
+		;;
 	mail_draft | mail_send)
 		jq -r '(.envelope // "")' <<<"${args_json}" 2>/dev/null || printf ''
 		;;
-        applescript)
-                jq -r --arg key "${text_key}" '.[$key] // ""' <<<"${args_json}" 2>/dev/null || printf ''
-                ;;
-        feedback | final_answer)
-                jq -r --arg key "${text_key}" '.[$key] // ""' <<<"${args_json}" 2>/dev/null || printf ''
-                ;;
-        clipboard_paste | notes_list | reminders_list | calendar_list | mail_list_inbox | mail_list_unread)
-                printf ''
-                ;;
-        *)
-                jq -r --arg key "${text_key}" '.[$key] // .query // ""' <<<"${args_json}" 2>/dev/null || printf ''
-                ;;
-        esac
+	applescript)
+		jq -r --arg key "${text_key}" '.[$key] // ""' <<<"${args_json}" 2>/dev/null || printf ''
+		;;
+	feedback | final_answer)
+		jq -r --arg key "${text_key}" '.[$key] // ""' <<<"${args_json}" 2>/dev/null || printf ''
+		;;
+	clipboard_paste | notes_list | reminders_list | calendar_list | mail_list_inbox | mail_list_unread)
+		printf ''
+		;;
+	*)
+		jq -r --arg key "${text_key}" '.[$key] // .query // ""' <<<"${args_json}" 2>/dev/null || printf ''
+		;;
+	esac
 }
 
 format_action_context() {
@@ -574,7 +574,7 @@ build_react_action_grammar() {
 	fi
 	registry_json="$(tool_registry_json)"
 
-        python3 - "${allowed_tools}" "${registry_json}" "${CANONICAL_TEXT_ARG_KEY:-input}" <<'PY'
+	python3 - "${allowed_tools}" "${registry_json}" "${CANONICAL_TEXT_ARG_KEY:-input}" <<'PY'
 import json
 import sys
 import tempfile
