@@ -31,7 +31,7 @@
       {
         "thought": "Explore tools interactively when the right arguments are unclear.",
         "tool": "react_fallback",
-        "args": {},
+        "args": {}
       },
       {
         "thought": "Report findings for the user.",
@@ -47,7 +47,7 @@
           "thought": "Record the requested notes.",
           "title": "Research notes",
           "body": "The next delivery step for the research are..."
-        },
+        }
       },
       {
         "thought": "Share the notes back to the user.",
