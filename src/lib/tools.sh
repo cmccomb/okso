@@ -56,6 +56,8 @@ source "${TOOLS_DIR}/applescript.sh"
 source "${TOOLS_DIR}/feedback.sh"
 # shellcheck source=./tools/final_answer.sh disable=SC1091
 source "${TOOLS_DIR}/final_answer.sh"
+# shellcheck source=./tools/web_search.sh disable=SC1091
+source "${TOOLS_DIR}/web_search.sh"
 
 tools_normalize_path() {
 	# Returns a normalized absolute path for allowlist checks.
@@ -119,8 +121,9 @@ initialize_tools() {
 	register_notes_suite
 	register_reminders_suite
 	register_calendar_suite
-	register_mail_suite
-	register_applescript
-	register_feedback
-	register_final_answer
+        register_mail_suite
+        register_applescript
+        register_feedback
+        register_final_answer
+        register_web_search
 }
