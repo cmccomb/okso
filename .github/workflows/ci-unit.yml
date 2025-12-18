@@ -30,7 +30,7 @@ jobs:
           GEM_HOME: ${{ env.GEM_HOME }}
         run: |
           brew update
-          brew install -y shellcheck shfmt jq bc
+          brew install shellcheck shfmt jq bc
           gem install --no-document bashcov simplecov-cobertura
 
       - name: Add Ruby gems to PATH
