@@ -133,44 +133,62 @@ EOF
 	printf '%s\n' "${bottom_border}"
 }
 
+indent_block() {
+        # Arguments:
+        #   $1 - prefix applied to every line (string)
+        #   $2 - content to indent (string)
+        local prefix content line
+        prefix="$1"
+        content="$2"
+
+        while IFS= read -r line || [[ -n "${line}" ]]; do
+                printf '%s%s\n' "${prefix}" "${line}"
+        done <<<"${content}"
+}
+
+format_box_section() {
+        # Arguments:
+        #   $1 - section title (string)
+        #   $2 - section body (string)
+        local title body
+        title="$1"
+        body="$2"
+
+        if [[ -z "${body}" ]]; then
+                body="(none)"
+        fi
+
+        printf '%s:\n%s' "${title}" "$(indent_block '  ' "${body}")"
+}
+
 render_boxed_summary() {
-	# Arguments:
-	#   $1 - user query (string)
-	#   $2 - planner outline (string)
-	#   $3 - tool invocation history (newline-delimited string)
-	#   $4 - final answer (string)
-	local user_query plan_outline tool_history final_answer formatted_tools formatted_content
-	user_query="$1"
-	plan_outline="$2"
-	tool_history="$3"
-	final_answer="$4"
+        # Arguments:
+        #   $1 - user query (string)
+        #   $2 - planner outline (string)
+        #   $3 - tool invocation history (newline-delimited string)
+        #   $4 - final answer (string)
+        local user_query plan_outline tool_history final_answer formatted_tools formatted_content
+        user_query="$1"
+        plan_outline="$2"
+        tool_history="$3"
+        final_answer="$4"
 
-	if [[ -z "${tool_history}" ]]; then
-		formatted_tools="(none)"
-	else
-		formatted_tools="$(format_tool_history "${tool_history}")"
-	fi
+        if [[ -z "${tool_history}" ]]; then
+                formatted_tools="(none)"
+        else
+                formatted_tools="$(format_tool_history "${tool_history}")"
+        fi
 
-	formatted_content=$(
-		cat <<EOF
-Query:
-${user_query}
+        formatted_content=$(printf '%s\n\n%s\n\n%s\n\n%s' \
+                "$(format_box_section "Query" "${user_query}")" \
+                "$(format_box_section "Plan" "${plan_outline}")" \
+                "$(format_box_section "Tool runs" "${formatted_tools}")" \
+                "$(format_box_section "Final answer" "${final_answer}")")
+        if command -v gum >/dev/null 2>&1; then
+                formatted_content="$(printf '%s\n' "${formatted_content}" | gum format)"
+        fi
 
-Plan:
-${plan_outline:-"(none)"}
-
-Tool runs:
-${formatted_tools}
-
-Final answer:
-${final_answer}
-EOF
-	)
-	if command -v gum >/dev/null 2>&1; then
-		formatted_content="$(printf '%s\n' "${formatted_content}" | gum format)"
-	fi
-
-	render_box "${formatted_content}"
+        render_box "${formatted_content}"
 }
 
 format_tool_history() {
