@@ -55,7 +55,10 @@ EOF
                 source ./src/lib/formatting.sh
 
                 tool_history=$'"'"'Step 1 action search query=weather\nobservation: first line\n  second line\ntrailing text\nStep 2 action finalize\nObservation: done'"'"'
-                mapfile -t lines < <(format_tool_history "${tool_history}")
+                lines=()
+                while IFS= read -r line; do
+                        lines+=("${line}")
+                done < <(format_tool_history "${tool_history}")
                 output="${lines[*]//$'"'"'\n'"'"'/\n}"
 
                 [[ "${output}" == *"- Step 1"* ]]

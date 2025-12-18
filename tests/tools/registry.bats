@@ -11,13 +11,13 @@ SCRIPT
 }
 
 @test "register_tool captures descriptors and handlers" {
-	run bash <<'SCRIPT'
+run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/tools/registry.sh
 init_tool_registry
 register_tool alpha "describe" "cmd" "safe" handler_alpha '{"type":"object"}'
-mapfile -t names < <(tool_names)
-printf "%s\n" "${names[0]}" "$(tool_description alpha)" "$(tool_command alpha)" "$(tool_safety alpha)" "$(tool_handler alpha)" "$(tool_args_schema alpha)"
+first_name=$(tool_names | head -n 1)
+printf "%s\n" "${first_name}" "$(tool_description alpha)" "$(tool_command alpha)" "$(tool_safety alpha)" "$(tool_handler alpha)" "$(tool_args_schema alpha)"
 SCRIPT
 
 	[ "$status" -eq 0 ]

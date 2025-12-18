@@ -6,16 +6,15 @@ setup() {
 }
 
 @test "parse_model_spec fills in default file when none provided" {
-	run bash <<'SCRIPT'
+run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/config.sh
-mapfile -t parts < <(parse_model_spec "demo/model" "fallback.gguf")
-printf "%s\n" "${parts[@]}"
+parse_model_spec "demo/model" "fallback.gguf"
 SCRIPT
 
-	[ "$status" -eq 0 ]
-	[ "${lines[0]}" = "demo/model" ]
-	[ "${lines[1]}" = "fallback.gguf" ]
+        [ "$status" -eq 0 ]
+        [ "${lines[0]}" = "demo/model" ]
+        [ "${lines[1]}" = "fallback.gguf" ]
 }
 
 @test "normalize_approval_flags coerces unexpected input to prompts" {
@@ -29,10 +28,10 @@ normalize_approval_flags
 printf "%s\n%s\n" "${APPROVE_ALL}" "${FORCE_CONFIRM}"
 SCRIPT
 
-	[ "$status" -eq 0 ]
-	readarray -t approval_lines <<<"$(printf '%s\n' "${output}" | tail -n 2)"
-	[ "${approval_lines[0]}" = "false" ]
-	[ "${approval_lines[1]}" = "false" ]
+        [ "$status" -eq 0 ]
+        approval_lines=$(printf '%s\n' "${output}" | tail -n 2)
+        [ "$(printf '%s\n' "${approval_lines}" | sed -n '1p')" = "false" ]
+        [ "$(printf '%s\n' "${approval_lines}" | sed -n '2p')" = "false" ]
 }
 
 @test "init_environment disables llama when testing passthrough is set" {

@@ -51,13 +51,17 @@ SCRIPT
                 export MODEL_FILE=model.gguf
                 source ./src/lib/llama_client.sh
                 llama_infer "example prompt" "STOP" 12 "${json_schema}"
-                mapfile -t args <"${args_file}"
-                [[ "${args[*]}" == *"--json-schema"* ]]
-                [[ "${args[*]}" == *"sentinel-schema"* ]]
-                [[ "${args[*]}" == *"-r"* ]]
-                [[ "${args[*]}" == *"STOP"* ]]
+                args=()
+                while IFS= read -r line; do
+                        args+=("${line}")
+                done <"${args_file}"
+                joined_args=" ${args[*]} "
+                [[ "${joined_args}" == *" --json-schema "* ]]
+                [[ "${joined_args}" == *" sentinel-schema"* ]]
+                [[ "${joined_args}" == *" -r "* ]]
+                [[ "${joined_args}" == *" STOP "* ]]
         '
-	[ "$status" -eq 0 ]
+        [ "$status" -eq 0 ]
 }
 
 @test "llama_infer uses grammar file flag for non-JSON grammars" {
@@ -77,12 +81,16 @@ SCRIPT
                 export MODEL_FILE=model.gguf
                 source ./src/lib/llama_client.sh
                 llama_infer "prompt" "" 8 "${args_dir}/grammar.gbnf"
-                mapfile -t args <"${args_file}"
-                [[ "${args[*]}" == *"--grammar-file"* ]]
-                [[ "${args[*]}" == *"${args_dir}/grammar.gbnf"* ]]
-                [[ " ${args[*]} " != *" -r "* ]]
+                args=()
+                while IFS= read -r line; do
+                        args+=("${line}")
+                done <"${args_file}"
+                joined_args=" ${args[*]} "
+                [[ "${joined_args}" == *" --grammar-file "* ]]
+                [[ "${joined_args}" == *" ${args_dir}/grammar.gbnf "* ]]
+                [[ "${joined_args}" != *" -r "* ]]
         '
-	[ "$status" -eq 0 ]
+        [ "$status" -eq 0 ]
 }
 
 @test "llama_infer returns llama exit code and logs stderr" {

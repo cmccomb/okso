@@ -48,13 +48,12 @@ SCRIPT
 }
 
 @test "derive_allowed_tools_from_plan respects react fallback and final answer" {
-	run bash <<'SCRIPT'
+run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planner.sh
 tool_names() { printf "%s\n" terminal notes_create final_answer; }
 plan_json='[{"tool":"react_fallback","args":{},"thought":"choose"},{"tool":"notes_create","args":{},"thought":"capture"}]'
-mapfile -t tools < <(derive_allowed_tools_from_plan "${plan_json}")
-printf "%s\n" "${tools[@]}"
+derive_allowed_tools_from_plan "${plan_json}"
 SCRIPT
 
 	[ "$status" -eq 0 ]
