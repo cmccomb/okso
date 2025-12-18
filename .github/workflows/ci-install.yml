@@ -31,8 +31,6 @@ jobs:
 
       - name: Prepare install directories
         run: |
-          rm -rf "$INSTALL_PREFIX"
-          rm -rf "$INSTALL_LOG_DIR"
           mkdir -p "$INSTALL_LOG_DIR"
 
       - name: Lint installer
