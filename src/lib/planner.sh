@@ -776,10 +776,10 @@ PY
 }
 
 select_next_action() {
-	# Arguments:
-	#   $1 - state prefix
-	#   $2 - (optional) name of variable to receive JSON action output
-	local state_name output_name react_prompt plan_index planned_entry tool query next_action_payload allowed_tool_descriptions allowed_tool_lines args_json allowed_tools react_grammar_path invoke_llama thought
+        # Arguments:
+        #   $1 - state prefix
+        #   $2 - (optional) name of variable to receive JSON action output
+        local state_name output_name react_prompt plan_index planned_entry tool query next_action_payload allowed_tool_descriptions allowed_tool_lines args_json allowed_tools react_grammar_path react_grammar_text invoke_llama thought
 	state_name="$1"
 	output_name="${2:-}"
 
@@ -800,18 +800,25 @@ select_next_action() {
 		state_increment "${state_name}" "plan_index" 1 >/dev/null
 	fi
 
-	if [[ "${invoke_llama}" == true ]]; then
-		allowed_tools="$(state_get "${state_name}" "allowed_tools")"
-		allowed_tool_lines="$(format_tool_descriptions "${allowed_tools}" format_tool_example_line)"
-		allowed_tool_descriptions="Available tools:"
-		if [[ -n "${allowed_tool_lines}" ]]; then
-			allowed_tool_descriptions+=$'\n'"${allowed_tool_lines}"
-		fi
-		react_prompt="$(build_react_prompt "$(state_get "${state_name}" "user_query")" "${allowed_tool_descriptions}" "$(state_get "${state_name}" "plan_outline")" "$(state_get "${state_name}" "history")")"
+        if [[ "${invoke_llama}" == true ]]; then
+                allowed_tools="$(state_get "${state_name}" "allowed_tools")"
+                allowed_tool_lines="$(format_tool_descriptions "${allowed_tools}" format_tool_example_line)"
+                allowed_tool_descriptions="Available tools:"
+                if [[ -n "${allowed_tool_lines}" ]]; then
+                        allowed_tool_descriptions+=$'\n'"${allowed_tool_lines}"
+                fi
 
-		local raw_action validated_action validation_error_file corrective_prompt
-		react_grammar_path="$(build_react_action_grammar "${allowed_tools}")" || return 1
-		validation_error_file="$(mktemp)"
+                local raw_action validated_action validation_error_file corrective_prompt
+                react_grammar_path="$(build_react_action_grammar "${allowed_tools}")" || return 1
+                react_grammar_text="$(cat "${react_grammar_path}")" || return 1
+                react_prompt="$(build_react_prompt \
+                        "$(state_get "${state_name}" "user_query")" \
+                        "${allowed_tool_descriptions}" \
+                        "$(state_get "${state_name}" "plan_outline")" \
+                        "$(state_get "${state_name}" "history")" \
+                        "${react_grammar_text}"
+                )"
+                validation_error_file="$(mktemp)"
 
 		raw_action="$(llama_infer "${react_prompt}" "" 256 "${react_grammar_path}")"
 		if ! validated_action=$(validate_react_action "${raw_action}" "${react_grammar_path}" 2>"${validation_error_file}"); then

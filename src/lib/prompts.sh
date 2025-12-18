@@ -99,22 +99,23 @@ build_planner_prompt() {
 }
 
 build_react_prompt() {
-	# Arguments:
-	#   $1 - user query (string)
-	#   $2 - formatted allowed tool descriptions (string)
-	#   $3 - high-level plan outline (string)
-	#   $4 - prior interaction history (string)
-	local user_query allowed_tools plan_outline history react_grammar
-	user_query="$1"
-	allowed_tools="$2"
-	plan_outline="$3"
-	history="$4"
-	react_grammar="$(load_grammar_text react_action)"
+        # Arguments:
+        #   $1 - user query (string)
+        #   $2 - formatted allowed tool descriptions (string)
+        #   $3 - high-level plan outline (string)
+        #   $4 - prior interaction history (string)
+        #   $5 - JSON schema describing allowed ReAct actions (string)
+        local user_query allowed_tools plan_outline history react_grammar
+        user_query="$1"
+        allowed_tools="$2"
+        plan_outline="$3"
+        history="$4"
+        react_grammar="$5"
 
-	render_prompt_template "react" \
-		user_query "${user_query}" \
-		allowed_tools "${allowed_tools}" \
-		plan_outline "${plan_outline}" \
-		history "${history}" \
+        render_prompt_template "react" \
+                user_query "${user_query}" \
+                allowed_tools "${allowed_tools}" \
+                plan_outline "${plan_outline}" \
+                history "${history}" \
 		react_grammar "${react_grammar}"
 }
