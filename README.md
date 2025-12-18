@@ -51,3 +51,4 @@ More scenarios and reference material live in the [docs/](docs/index.md), includ
 - [Execution model](docs/reference/execution-model.md): how planning and ReAct loops interact with tool calls.
 - [Capturing feedback](docs/reference/feedback.md): recording plan ratings and configuring prompts.
 - [Prompt assets](docs/reference/prompts.md): where prompts live and how they load.
+- [Architecture overview](docs/reference/architecture.md): deeper look at the planner pass, ReAct loop, llama.cpp fallbacks, and tool ranking.

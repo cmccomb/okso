@@ -6,6 +6,7 @@ Use this map to find the right guide:
   - [Installation](user-guides/installation.md): install, upgrade, or uninstall the CLI.
   - [Usage](user-guides/usage.md): command-line flags and common execution patterns.
 - **Reference** (`docs/reference/`)
+  - [Architecture](reference/architecture.md): planner, ReAct loop, llama.cpp fallbacks, and tool ranking.
   - [Execution model](reference/execution-model.md): planning steps, ReAct loops, and tracing hooks.
   - [Feedback](reference/feedback.md): rating plan items interactively or non-interactively.
   - [Prompts](reference/prompts.md): template layout and grammar links.
