@@ -123,8 +123,8 @@ INNERSCRIPT
 }
 
 @test "select_next_action emits simplified payload when llama is unavailable" {
-        script=$(
-                cat <<'INNERSCRIPT'
+	script=$(
+		cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
@@ -142,13 +142,13 @@ jq -e 'has("thought") and has("tool") and has("args") and (has("type")|not)' <<<
 INNERSCRIPT
 	)
 
-        run bash -lc "${script}"
-        [ "$status" -eq 0 ]
+	run bash -lc "${script}"
+	[ "$status" -eq 0 ]
 }
 
 @test "build_react_prompt includes allowed tool schemas" {
-        script=$(
-                cat <<'INNERSCRIPT'
+	script=$(
+		cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
@@ -181,8 +181,8 @@ grep -F '"code"' <<<"${prompt}"
 grep -F '"final_answer"' <<<"${prompt}"
 grep -F '"message"' <<<"${prompt}"
 INNERSCRIPT
-        )
+	)
 
-        run bash -lc "${script}"
-        [ "$status" -eq 0 ]
+	run bash -lc "${script}"
+	[ "$status" -eq 0 ]
 }
