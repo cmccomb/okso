@@ -447,6 +447,9 @@ format_tool_args() {
 	file_search | notes_search | calendar_search | mail_search)
 		jq -nc --arg key "${text_key}" --arg value "${payload}" '{($key):$value}'
 		;;
+	web_search)
+		jq -nc --arg query "${payload}" '{query:$query}'
+		;;
 	clipboard_copy)
 		jq -nc --arg text "${payload}" '{text:$text}'
 		;;
@@ -528,6 +531,9 @@ extract_tool_query() {
 		;;
 	file_search | notes_search | calendar_search | mail_search)
 		jq -r --arg key "${text_key}" '.[$key] // ""' <<<"${args_json}" 2>/dev/null || printf ''
+		;;
+	web_search)
+		jq -r '.query // ""' <<<"${args_json}" 2>/dev/null || printf ''
 		;;
 	clipboard_copy)
 		jq -r '(.text // "")' <<<"${args_json}" 2>/dev/null || printf ''
