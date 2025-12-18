@@ -177,76 +177,60 @@ format_tool_history() {
 	# Arguments:
 	#   $1 - tool invocation history (newline-delimited string)
 	# Returns:
-	#   Grouped, human-friendly bullet list of tool runs (string)
-	local tool_history line current_step current_action current_observation collecting_observation
+	#   Grouped, human-friendly list of tool runs (string)
+	local tool_history line
 	local -a output_lines=()
 	tool_history="$1"
-	current_step=""
-	current_action=""
-	current_observation=""
-	collecting_observation=false
-
-	append_current_entry() {
-		if [[ -z "${current_step}" ]]; then
-			return
-		fi
-
-		output_lines+=(" - Step ${current_step}")
-		if [[ -n "${current_action}" ]]; then
-			output_lines+=("   action: ${current_action}")
-		fi
-		if [[ -n "${current_observation}" ]]; then
-			output_lines+=("   observation: ${current_observation//$'\n'/$'\n'"   "}")
-		fi
-
-		current_step=""
-		current_action=""
-		current_observation=""
-		collecting_observation=false
-	}
 
 	while IFS= read -r line || [ -n "${line}" ]; do
-		if [[ "${line}" =~ ^[[:space:]]*Step[[:space:]]+([0-9]+)[[:space:]]*(.*)$ ]]; then
-			append_current_entry
+		[[ -z "${line}" ]] && continue
 
-			current_step="${BASH_REMATCH[1]}"
-			current_action="${BASH_REMATCH[2]}"
+		# Try to parse as JSON first (as recorded by record_tool_execution)
+		local step thought tool args observation
+		if step=$(jq -er '.step' <<<"${line}" 2>/dev/null); then
+			thought=$(jq -r '.thought // ""' <<<"${line}")
+			tool=$(jq -r '.action.tool // ""' <<<"${line}")
+			args=$(jq -c '.action.args // {}' <<<"${line}")
+			observation=$(jq -r '.observation // ""' <<<"${line}")
+
+			output_lines+=("Step ${step}: ${tool}")
+			if [[ -n "${thought}" && "${thought}" != "Following planned step" ]]; then
+				output_lines+=("  Thought: ${thought}")
+			fi
+			if [[ "${args}" != "{}" ]]; then
+				output_lines+=("  Args: ${args}")
+			fi
+			if [[ -n "${observation}" ]]; then
+				# Indent observation lines for better readability
+				output_lines+=("  Result:")
+				while IFS= read -r obs_line; do
+					output_lines+=("    ${obs_line}")
+				done <<<"${observation}"
+			fi
+			output_lines+=("") # Spacer
+			continue
+		fi
+
+		# Fallback to legacy parsing if not JSON
+		if [[ "${line}" =~ ^[[:space:]]*Step[[:space:]]+([0-9]+)[[:space:]]*(.*)$ ]]; then
+			local current_step="${BASH_REMATCH[1]}"
+			local current_action="${BASH_REMATCH[2]}"
 			current_action="${current_action#"${current_action%%[![:space:]]*}"}"
 			current_action="${current_action%"${current_action##*[![:space:]]}"}"
 			current_action="${current_action#action }"
 			current_action="${current_action#action: }"
 			current_action="${current_action#Action }"
 			current_action="${current_action#Action: }"
-			collecting_observation=false
-			continue
-		fi
-		if [[ "${line}" =~ ^[[:space:]]*[Oo][Bb][Ss][Ee][Rr][Vv][Aa][Tt][Ii][Oo][Nn]:[[:space:]]*(.*)$ ]]; then
-			current_observation="${BASH_REMATCH[1]}"
-			collecting_observation=true
-			continue
-		fi
-		if [[ -z "${current_step}" ]]; then
-			output_lines+=(" - ${line}")
-			continue
-		fi
 
-		if [[ "${collecting_observation}" == true ]]; then
-			if [[ -n "${current_observation}" ]]; then
-				current_observation+=$'\n'"${line}"
-			else
-				current_observation="${line}"
-			fi
-			continue
-		fi
-
-		if [[ -n "${current_action}" ]]; then
-			current_action+=" ${line}"
+			output_lines+=("Step ${current_step}: ${current_action}")
+		elif [[ "${line}" =~ ^[[:space:]]*[Oo][Bb][Ss][Ee][Rr][Vv][Aa][Tt][Ii][Oo][Nn]:[[:space:]]*(.*)$ ]]; then
+			local current_observation="${BASH_REMATCH[1]}"
+			output_lines+=("  Result:")
+			output_lines+=("    ${current_observation}")
 		else
-			current_action="${line}"
+			output_lines+=("  ${line}")
 		fi
 	done <<<"${tool_history}"
-
-	append_current_entry
 
 	printf '%s\n' "${output_lines[@]}"
 }

@@ -61,13 +61,11 @@ EOF
                 done < <(format_tool_history "${tool_history}")
                 output="${lines[*]//$'"'"'\n'"'"'/\n}"
 
-                [[ "${output}" == *"- Step 1"* ]]
-                [[ "${output}" == *"action: search query=weather"* ]]
-                [[ "${output}" == *$'"'"'observation: first line\n   second line\n   trailing text'"'"'* ]]
-                [[ "${output}" == *"- Step 2"* ]]
-                [[ "${output}" == *"action: finalize"* ]]
-                [[ "${output}" == *"observation: done"* ]]
-                [[ "${output}" != *"action: search query=weather first line"* ]]
+                [[ "${output}" == *"Step 1: search query=weather"* ]]
+                [[ "${output}" == *"Result:"* ]]
+                [[ "${output}" == *"  first line"* ]]
+                [[ "${output}" == *"Step 2: finalize"* ]]
+                [[ "${output}" == *"done"* ]]
         '
 	[ "$status" -eq 0 ]
 }

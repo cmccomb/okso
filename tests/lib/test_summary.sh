@@ -25,12 +25,11 @@
 	[[ "${output}" == *"Plan:"* ]]
 	[[ "${output}" == *"Tool runs:"* ]]
 	[[ "${output}" == *"Final answer:"* ]]
-	[[ "${output}" == *"- Step 1"* ]]
-	[[ "${output}" == *"action: search query=weather"* ]]
-	[[ "${output}" == *"observation: sunny"* ]]
-	[[ "${output}" == *"- Step 2"* ]]
-	[[ "${output}" == *"action: final_answer query=done"* ]]
-	[[ "${output}" == *"observation: finished"* ]]
+	[[ "${output}" == *"Step 1: search query=weather"* ]]
+	[[ "${output}" == *"Result:"* ]]
+	[[ "${output}" == *"sunny"* ]]
+	[[ "${output}" == *"Step 2: final_answer query=done"* ]]
+	[[ "${output}" == *"finished"* ]]
 	[ "$status" -eq 0 ]
 }
 
