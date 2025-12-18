@@ -13,7 +13,7 @@ unset -f chpwd _mise_hook 2>/dev/null || true
 
 source ./src/tools/final_answer.sh
 
-output=$(TOOL_ARGS='{"message":"structured value"}' tool_final_answer)
+output=$(TOOL_ARGS='{"input":"structured value"}' tool_final_answer)
 
 if [[ "${output}" != "structured value" ]]; then
         echo "final_answer did not prefer structured args"
@@ -55,7 +55,7 @@ cd "${working_dir}"
 : >structured_match.txt
 : >legacy_only.txt
 
-plan_json='[{"tool":"file_search","args":{"query":"structured_match"},"thought":"search"},{"tool":"final_answer","args":{"message":"done"},"thought":"finish"}]'
+plan_json='[{"tool":"file_search","args":{"input":"structured_match"},"thought":"search"},{"tool":"final_answer","args":{"input":"done"},"thought":"finish"}]'
 plan_entries="$(plan_json_to_entries "${plan_json}")"
 allowed_tools="$(derive_allowed_tools_from_plan "${plan_json}")"
 plan_outline="$(plan_json_to_outline "${plan_json}")"
@@ -106,7 +106,7 @@ assert_osascript_available() { return 0; }
 osascript_run_evaluated() { printf '%s' "$2"; }
 
 llama_queue=$(mktemp)
-printf '%s\n' '{"thought":"run it","tool":"applescript","args":{"script":"beep"}}' '{"thought":"wrap up","tool":"final_answer","args":{"message":"done"}}' >"${llama_queue}"
+printf '%s\n' '{"thought":"run it","tool":"applescript","args":{"input":"beep"}}' '{"thought":"wrap up","tool":"final_answer","args":{"input":"done"}}' >"${llama_queue}"
 llama_infer() {
         local next remaining
         next=$(head -n 1 "${llama_queue}" || printf '{}')

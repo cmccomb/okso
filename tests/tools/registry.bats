@@ -18,7 +18,7 @@ init_tool_registry
 register_tool alpha "describe" "cmd" "safe" handler_alpha '{"type":"object"}'
 names=()
 while IFS= read -r line; do
-	names+=("$line")
+        names+=("$line")
 done < <(tool_names)
 printf "%s\n" "${names[0]}" "$(tool_description alpha)" "$(tool_command alpha)" "$(tool_safety alpha)" "$(tool_handler alpha)" "$(tool_args_schema alpha)"
 SCRIPT
@@ -30,4 +30,30 @@ SCRIPT
 	[ "${lines[3]}" = "safe" ]
 	[ "${lines[4]}" = "handler_alpha" ]
 	[ "${lines[5]}" = '{"type":"object"}' ]
+}
+
+@test "register_tool defaults to canonical input schema" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+source ./src/tools/registry.sh
+init_tool_registry
+register_tool alpha "describe" "cmd" "safe" handler_alpha
+schema="$(tool_args_schema alpha)"
+key="$(canonical_text_arg_key)"
+
+jq -e --arg key "${key}" '.type=="object" and .properties[$key].type=="string" and .additionalProperties.type=="string"' <<<"${schema}"
+SCRIPT
+
+	[ "$status" -eq 0 ]
+}
+
+@test "register_tool rejects legacy single-string keys" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+source ./src/tools/registry.sh
+init_tool_registry
+register_tool alpha "describe" "cmd" "safe" handler_alpha '{"type":"object","required":["message"],"properties":{"message":{"type":"string"}},"additionalProperties":false}'
+SCRIPT
+
+	[ "$status" -eq 1 ]
 }

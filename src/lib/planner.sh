@@ -429,9 +429,10 @@ format_tool_args() {
 	#   $1 - tool name
 	#   $2 - primary payload string
 	# Returns JSON describing structured args for the tool.
-	local tool payload
+	local tool payload text_key
 	tool="$1"
 	payload="$2"
+	text_key="${CANONICAL_TEXT_ARG_KEY:-input}"
 	case "${tool}" in
 	terminal)
 		read -r -a terminal_tokens <<<"${payload}"
@@ -444,7 +445,7 @@ format_tool_args() {
 		jq -nc --arg code "${payload}" '{code:$code}'
 		;;
 	file_search | notes_search | calendar_search | mail_search)
-		jq -nc --arg query "${payload}" '{query:$query}'
+		jq -nc --arg key "${text_key}" --arg value "${payload}" '{($key):$value}'
 		;;
 	clipboard_copy)
 		jq -nc --arg text "${payload}" '{text:$text}'
@@ -486,13 +487,13 @@ format_tool_args() {
 		jq -nc --arg envelope "${payload}" '{envelope:$envelope}'
 		;;
 	applescript)
-		jq -nc --arg script "${payload}" '{script:$script}'
+		jq -nc --arg key "${text_key}" --arg value "${payload}" '{($key):$value}'
 		;;
 	feedback | final_answer)
-		jq -nc --arg message "${payload}" '{message:$message}'
+		jq -nc --arg key "${text_key}" --arg value "${payload}" '{($key):$value}'
 		;;
 	*)
-		jq -nc --arg message "${payload}" '{message:$message}'
+		jq -nc --arg key "${text_key}" --arg value "${payload}" '{($key):$value}'
 		;;
 	esac
 }
@@ -502,9 +503,10 @@ extract_tool_query() {
 	#   $1 - tool name
 	#   $2 - args JSON
 	# Returns a human-readable summary derived from structured args.
-	local tool args_json
+	local tool args_json text_key
 	tool="$1"
 	args_json="$2"
+	text_key="${CANONICAL_TEXT_ARG_KEY:-input}"
 	case "${tool}" in
 	terminal)
 		jq -r '(.command // "") as $cmd | ($cmd + " " + ((.args // []) | map(tostring) | join(" ")))|rtrimstr(" ")' <<<"${args_json}" 2>/dev/null || printf ''
@@ -525,7 +527,7 @@ extract_tool_query() {
 		jq -r '(.code // "")' <<<"${args_json}" 2>/dev/null || printf ''
 		;;
 	file_search | notes_search | calendar_search | mail_search)
-		jq -r '(.query // "")' <<<"${args_json}" 2>/dev/null || printf ''
+		jq -r --arg key "${text_key}" '.[$key] // ""' <<<"${args_json}" 2>/dev/null || printf ''
 		;;
 	clipboard_copy)
 		jq -r '(.text // "")' <<<"${args_json}" 2>/dev/null || printf ''
@@ -534,16 +536,16 @@ extract_tool_query() {
 		jq -r '(.envelope // "")' <<<"${args_json}" 2>/dev/null || printf ''
 		;;
 	applescript)
-		jq -r '(.script // "")' <<<"${args_json}" 2>/dev/null || printf ''
+		jq -r --arg key "${text_key}" '.[$key] // ""' <<<"${args_json}" 2>/dev/null || printf ''
 		;;
 	feedback | final_answer)
-		jq -r '(.message // "")' <<<"${args_json}" 2>/dev/null || printf ''
+		jq -r --arg key "${text_key}" '.[$key] // ""' <<<"${args_json}" 2>/dev/null || printf ''
 		;;
 	clipboard_paste | notes_list | reminders_list | calendar_list | mail_list_inbox | mail_list_unread)
 		printf ''
 		;;
 	*)
-		jq -r '(.message // .query // "")' <<<"${args_json}" 2>/dev/null || printf ''
+		jq -r --arg key "${text_key}" '.[$key] // .query // ""' <<<"${args_json}" 2>/dev/null || printf ''
 		;;
 	esac
 }
@@ -572,17 +574,18 @@ build_react_action_grammar() {
 	fi
 	registry_json="$(tool_registry_json)"
 
-	python3 - "${allowed_tools}" "${registry_json}" <<'PY'
+	python3 - "${allowed_tools}" "${registry_json}" "${CANONICAL_TEXT_ARG_KEY:-input}" <<'PY'
 import json
 import sys
 import tempfile
 
 allowed_raw = sys.argv[1]
 registry = json.loads(sys.argv[2] or "{}")
+text_key = sys.argv[3] if len(sys.argv) > 3 else "input"
 
 fallback_schema = {
     "type": "object",
-    "properties": {"message": {"type": "string"}},
+    "properties": {text_key: {"type": "string"}},
     "additionalProperties": {"type": "string"},
 }
 

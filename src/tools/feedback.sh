@@ -204,11 +204,7 @@ tool_feedback() {
 register_feedback() {
 	local args_schema
 
-	args_schema=$(
-		cat <<'JSON'
-{"type":"object","required":["message"],"properties":{"message":{"type":"string","minLength":1}},"additionalProperties":false}
-JSON
-	)
+	args_schema=$(jq -nc '{"type":"object","properties":{"plan_item":{"type":"string","minLength":1},"observations":{"type":"string","minLength":1}},"additionalProperties":false}')
 	register_tool \
 		"feedback" \
 		"Collect a 1-5 rating and optional comments for the current plan step." \

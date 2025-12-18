@@ -18,17 +18,17 @@ cd "$(git rev-parse --show-toplevel)" || exit 1
 source ./src/lib/planner.sh
 
 tool_registry_json() {
-        printf "%s" '{"names":["alpha"],"registry":{"alpha":{"args_schema":{"type":"object","required":["message"],"properties":{"message":{"type":"string","minLength":1}},"additionalProperties":false}}}}'
+        printf "%s" '{"names":["alpha"],"registry":{"alpha":{"args_schema":{"type":"object","required":["input"],"properties":{"input":{"type":"string","minLength":1}},"additionalProperties":false}}}}'
 }
 
 tool_names() { printf "%s\n" "alpha"; }
 
 schema_path="$(build_react_action_grammar "alpha")"
-action='{"thought":"go","tool":"alpha","args":{"message":"hi"}}'
+action='{"thought":"go","tool":"alpha","args":{"input":"hi"}}'
 validated="$(validate_react_action "${action}" "${schema_path}")"
 rm -f "${schema_path}"
 
-jq -e 'has("thought") and has("tool") and has("args") and (.thought=="go") and (.tool=="alpha") and (.args.message=="hi") and (has("type")|not)' <<<"${validated}"
+jq -e 'has("thought") and has("tool") and has("args") and (.thought=="go") and (.tool=="alpha") and (.args.input=="hi") and (has("type")|not)' <<<"${validated}"
 INNERSCRIPT
 	)
 
@@ -45,8 +45,7 @@ cd "$(git rev-parse --show-toplevel)" || exit 1
 source ./src/lib/planner.sh
 
 tool_registry_json() {
-        printf "%s" '{"names":["alpha"],"registry":{"alpha":{"args_schema":{"type":"object","required":["message"],"properties":
-{"message":{"type":"string","minLength":1}}}}}}'
+        printf "%s" '{"names":["alpha"],"registry":{"alpha":{"args_schema":{"type":"object","required":["input"],"properties":{"input":{"type":"string","minLength":1}}}}}}'
 }
 
 tool_names() { printf "%s\n" "alpha"; }
@@ -72,15 +71,14 @@ cd "$(git rev-parse --show-toplevel)" || exit 1
 source ./src/lib/planner.sh
 
 tool_registry_json() {
-        printf "%s" '{"names":["alpha"],"registry":{"alpha":{"args_schema":{"type":"object","required":["message"],"properties":
-{"message":{"type":"string","minLength":1}}}}}}'
+        printf "%s" '{"names":["alpha"],"registry":{"alpha":{"args_schema":{"type":"object","required":["input"],"properties":{"input":{"type":"string","minLength":1}}}}}}'
 }
 
 tool_names() { printf "%s\n" "alpha"; }
 
 schema_path="$(build_react_action_grammar "alpha")"
 
-invalid_action='{"thought":"go","tool":"alpha","args":{"message":"hi","noise":"boom"}}'
+invalid_action='{"thought":"go","tool":"alpha","args":{"input":"hi","noise":"boom"}}'
 
 set +e
 validate_react_action "${invalid_action}" "${schema_path}" 2>err.log

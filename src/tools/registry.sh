@@ -20,6 +20,12 @@
 # shellcheck source=../lib/logging.sh disable=SC1091
 source "${BASH_SOURCE[0]%/tools/registry.sh}/lib/logging.sh"
 
+: "${CANONICAL_TEXT_ARG_KEY:=input}"
+
+canonical_text_arg_key() {
+	printf '%s' "${CANONICAL_TEXT_ARG_KEY}"
+}
+
 if [[ -z "${TOOL_REGISTRY_JSON:-}" ]]; then
 	TOOL_REGISTRY_JSON='{"names":[],"registry":{}}'
 fi
@@ -81,10 +87,30 @@ register_tool() {
 		return 1
 	fi
 
-	local name args_schema default_args_schema
+	local name args_schema default_args_schema text_key legacy_text_keys
 	name="$1"
-	default_args_schema='{ "type": "object", "properties": {"message": {"type": "string"}}, "additionalProperties": {"type": "string"} }'
+	text_key="$(canonical_text_arg_key)"
+	default_args_schema=$(jq -nc --arg key "${text_key}" '{"type":"object","properties":{($key):{"type":"string"}},"additionalProperties":{"type":"string"}}')
 	args_schema="${6:-${default_args_schema}}"
+	legacy_text_keys='["message","query","script"]'
+
+	if ! jq -e --arg key "${text_key}" --argjson legacy "${legacy_text_keys}" '
+                def is_single_string_schema:
+                        (.type == "object")
+                        and (.properties | type == "object")
+                        and ([.properties|keys[]] | length == 1)
+                        and ((.properties|values[]|.type) as $types | ($types == "string"));
+
+                if is_single_string_schema then
+                        (.properties|keys[] | .) as $prop
+                        | ($prop == $key or ( $legacy | index($prop) == null ))
+                else
+                        true
+                end
+        ' <<<"${args_schema}" >/dev/null 2>&1; then
+		log "ERROR" "Single-string schemas must use ${text_key}" "${args_schema}" || true
+		return 1
+	fi
 
 	if [[ ! "${name}" =~ ^[a-z0-9_]+$ ]]; then
 		log "ERROR" "tool names must be alphanumeric with underscores" "${name}" || true
