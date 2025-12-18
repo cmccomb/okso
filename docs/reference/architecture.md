@@ -11,7 +11,7 @@ sequenceDiagram
     participant Planner
     participant Llama as llama.cpp
     participant Approver as Approval prompts
-    participant Loop as ReAct loop
+    participant ReactLoop as ReAct loop
     participant Tool as Tool runner
     participant Trace as Trace/logs
 
@@ -20,13 +20,13 @@ sequenceDiagram
     Planner->>Llama: Score tools + emit JSON plan (grammar)
     Llama-->>Planner: Ranked tools + plan outline
     Planner-->>Approver: Show plan for confirmation/refinement
-    Approver-->>Loop: Approved plan
-    Loop->>Llama: Pick tool + craft call for next step
-    Llama-->>Loop: Tool choice and arguments
-    Loop->>Tool: Execute with sandbox/guards
+    Approver-->>ReactLoop: Approved plan
+    ReactLoop->>Llama: Pick tool + craft call for next step
+    Llama-->>ReactLoop: Tool choice and arguments
+    ReactLoop->>Tool: Execute with sandbox/guards
     Tool-->>Trace: Stream stdout/stderr and status
-    Trace-->>Loop: Observations captured
-    Loop-->>User: Final answer once all steps complete
+    Trace-->>ReactLoop: Observations captured
+    ReactLoop-->>User: Final answer once all steps complete
 ```
 
 Use `--dry-run` to stop after plan generation and approvals if you want to inspect the flow without executing tools.
