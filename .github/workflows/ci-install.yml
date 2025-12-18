@@ -29,10 +29,6 @@ jobs:
           brew update
           brew install shellcheck shfmt bats-core
 
-      - name: Prepare install directories
-        run: |
-          mkdir -p "$INSTALL_LOG_DIR"
-
       - name: Lint installer
         run: |
           shfmt -d scripts/install.sh
@@ -41,13 +37,4 @@ jobs:
       - name: Install from bundle
         run: |
           set -o pipefail
-          LOG_FILE="$INSTALL_LOG_DIR/install.log"
-          scripts/install.sh --prefix "$INSTALL_PREFIX" 2>&1 | tee "$LOG_FILE"
-
-      - name: Uninstall bundle
-        if: always()
-        run: |
-          set -o pipefail
-          LOG_FILE="$INSTALL_LOG_DIR/uninstall.log"
-          scripts/install.sh --prefix "$INSTALL_PREFIX" --uninstall 2>&1 | tee "$LOG_FILE"
-          rm -rf "$INSTALL_PREFIX"
+          scripts/install.sh --prefix "$INSTALL_PREFIX" 2>&1
