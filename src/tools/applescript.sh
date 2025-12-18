@@ -7,7 +7,7 @@
 #   source "${BASH_SOURCE[0]%/tools/applescript.sh}/tools/applescript.sh"
 #
 # Environment variables:
-#   TOOL_QUERY (string): AppleScript snippet to run.
+#   TOOL_ARGS (JSON object): structured args including `script`.
 #   IS_MACOS (bool): indicates whether macOS-specific tooling should run.
 #
 # Dependencies:
@@ -27,8 +27,25 @@ source "${BASH_SOURCE[0]%/applescript.sh}/osascript_helpers.sh"
 source "${BASH_SOURCE[0]%/applescript.sh}/registry.sh"
 
 tool_applescript() {
-	local query
-	query=${TOOL_QUERY:-""}
+        local query args_json
+        args_json="${TOOL_ARGS:-}" || true
+        query=""
+
+	if [[ -n "${args_json}" ]]; then
+		query=$(jq -er '
+if type != "object" then error("args must be object") end
+| if .script? == null then error("missing script") end
+| if (.script | type) != "string" then error("script must be string") end
+| if (.script | length) == 0 then error("script cannot be empty") end
+| if ((del(.script) | length) != 0) then error("unexpected properties") end
+| .script
+' <<<"${args_json}" 2>/dev/null || true)
+        fi
+
+        if [[ -z "${query:-}" ]]; then
+                log "ERROR" "Missing TOOL_ARGS.script" "${args_json}" >&2
+                return 1
+        fi
 
 	if ! assert_osascript_available \
 		"AppleScript not available on this platform" \
