@@ -17,7 +17,7 @@ sequenceDiagram
 
     User->>CLI: Provide request
     CLI->>Planner: Build planner prompt (tools, guardrails)
-    Planner->>Llama: Score tools + emit JSON plan (grammar)
+    Planner->>Llama: Score tools + emit JSON plan (schema)
     Llama-->>Planner: Ranked tools + plan outline
     Planner-->>Approver: Show plan for confirmation/refinement
     Approver-->>ReactLoop: Approved plan
@@ -34,7 +34,7 @@ Use `--dry-run` to stop after plan generation and approvals if you want to inspe
 ## Planner pass
 
 - Builds a structured prompt listing available tools, safety notes, and the user request.
-- Requests a numbered outline with tool selections and short rationales using the JSON grammar in [`src/grammars/plan.json`](../reference/grammars.md).
+- Requests a numbered outline with tool selections and short rationales using the JSON schema in [`src/schemas/planner_plan.schema.json`](../reference/schemas.md).
 - Prefers llama.cpp scoring when `LLAMA_BIN` is available; otherwise falls back to deterministic keyword ranking so the plan still completes.
 - Streams the plan to the terminal and writes JSON when `OKSO_PLAN_OUTPUT` is set before moving to approvals.
 
@@ -58,7 +58,7 @@ Use `--dry-run` to stop after plan generation and approvals if you want to inspe
 - `LLAMA_BIN` controls the llama.cpp binary path. If it is unset or unavailable, okso switches to deterministic planning and tool replay so execution continues without the model.
 - `MODEL_SPEC` selects the model weights used by llama.cpp; defaults are provided in [`configuration`](../reference/configuration.md).
 - `TESTING_PASSTHROUGH=true` disables llama.cpp entirely for offline or CI runs while keeping deterministic behavior.
-- Planner and ReAct prompts both use the grammars in [`src/grammars/`](../reference/grammars.md) so that outputs stay parseable even when models vary.
+- Planner and ReAct prompts both use the schemas in [`src/schemas/`](../reference/schemas.md) so that outputs stay parseable even when models vary.
 
 ## Tool ranking and execution
 

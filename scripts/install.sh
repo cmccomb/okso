@@ -334,7 +334,7 @@ copy_payload() {
 
 self_test_install() {
 	# $1: installation prefix
-	local prefix="$1" grammar_path_output temp_root query_output
+	local prefix="$1" schema_path_output temp_root query_output
 
 	log "INFO" "Running installer self-test"
 
@@ -343,14 +343,14 @@ self_test_install() {
 		exit 2
 	fi
 
-	if [ ! -f "${prefix}/src/grammars/planner_plan.schema.json" ]; then
-		log "ERROR" "Planner grammar missing from installation"
+	if [ ! -f "${prefix}/src/schemas/planner_plan.schema.json" ]; then
+		log "ERROR" "Planner schema missing from installation"
 		exit 2
 	fi
 
-	grammar_path_output="$(bash -c "source \"${prefix}/src/lib/grammar.sh\" && grammar_path planner_plan" 2>/dev/null || true)"
-	if [ "${grammar_path_output}" != "${prefix}/src/grammars/planner_plan.schema.json" ]; then
-		log "ERROR" "Grammar resolution failed during self-test"
+	schema_path_output="$(bash -c "source \"${prefix}/src/lib/schema.sh\" && schema_path planner_plan" 2>/dev/null || true)"
+	if [ "${schema_path_output}" != "${prefix}/src/schemas/planner_plan.schema.json" ]; then
+		log "ERROR" "Schema resolution failed during self-test"
 		exit 2
 	fi
 

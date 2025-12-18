@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Mock llama.cpp binary for grammar-constrained tool relevance detection.
+# Mock llama.cpp binary for schema-constrained tool relevance detection.
 # Arguments:
 #   --hf-repo <repo> (string): repository name (ignored)
 #   --hf-file <file> (string): model file (ignored)
-#   --grammar <grammar> (string): grammar rules (ignored)
+#   --grammar <schema> (string): schema rules (ignored)
 #   -p <prompt> (string): user prompt (ignored)
 set -euo pipefail
 

@@ -23,7 +23,7 @@ tool_registry_json() {
 
 tool_names() { printf "%s\n" "alpha"; }
 
-schema_path="$(build_react_action_grammar "alpha")"
+schema_path="$(build_react_action_schema "alpha")"
 action='{"thought":"go","tool":"alpha","args":{"input":"hi"}}'
 validated="$(validate_react_action "${action}" "${schema_path}")"
 rm -f "${schema_path}"
@@ -36,7 +36,7 @@ INNERSCRIPT
 	[ "$status" -eq 0 ]
 }
 
-@test "build_react_action_grammar disallows extra args unless opted in" {
+@test "build_react_action_schema disallows extra args unless opted in" {
 	script=$(
 		cat <<'INNERSCRIPT'
 set -euo pipefail
@@ -50,7 +50,7 @@ tool_registry_json() {
 
 tool_names() { printf "%s\n" "alpha"; }
 
-schema_path="$(build_react_action_grammar "alpha")"
+schema_path="$(build_react_action_schema "alpha")"
 
 jq -e '."$defs".args_by_tool.alpha.additionalProperties == false' "${schema_path}"
 
@@ -76,7 +76,7 @@ tool_registry_json() {
 
 tool_names() { printf "%s\n" "alpha"; }
 
-schema_path="$(build_react_action_grammar "alpha")"
+schema_path="$(build_react_action_schema "alpha")"
 
 invalid_action='{"thought":"go","tool":"alpha","args":{"input":"hi","noise":"boom"}}'
 
@@ -107,7 +107,7 @@ cd "$(git rev-parse --show-toplevel)" || exit 1
 
 source ./src/lib/planner.sh
 
-schema_path="$(build_react_action_grammar "terminal")"
+schema_path="$(build_react_action_schema "terminal")"
 
 action='{"thought":"execute","tool":"terminal","args":{"command":"echo","args":["hi"]}}'
 validate_react_action "${action}" "${schema_path}" >/dev/null
@@ -167,12 +167,12 @@ if [[ -n "${allowed_tool_lines}" ]]; then
         allowed_tool_descriptions+=$'\n'"${allowed_tool_lines}"
 fi
 
-react_grammar_path="$(build_react_action_grammar "${allowed_tools}")"
-react_grammar_text="$(cat "${react_grammar_path}")"
+react_schema_path="$(build_react_action_schema "${allowed_tools}")"
+react_schema_text="$(cat "${react_schema_path}")"
 
-prompt="$(build_react_prompt "demo request" "${allowed_tool_descriptions}" "demo plan" "demo history" "${react_grammar_text}")"
+prompt="$(build_react_prompt "demo request" "${allowed_tool_descriptions}" "demo plan" "demo history" "${react_schema_text}")"
 
-rm -f "${react_grammar_path}"
+rm -f "${react_schema_path}"
 
 grep -F '"python_repl"' <<<"${prompt}"
 grep -F '"code"' <<<"${prompt}"

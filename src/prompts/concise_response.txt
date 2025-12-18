@@ -1,6 +1,6 @@
 Provide a short, concise answer (two to three sentences) to the user.
 Follow this JSON schema:
-${concise_grammar}
+${concise_schema}
 
 CONTEXT:
 ${context}

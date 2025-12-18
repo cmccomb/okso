@@ -9,7 +9,7 @@
   `Tool: notes_create`, and 1 otherwise. The planner summary will therefore start
   with `[notes_create executed]` when called with a reminder query.
 - `mock_llama_relevance.sh`: emits a JSON map of tool names to booleans for
-  grammar-constrained relevance tests.
+  schema-constrained relevance tests.
 
 ## macOS tiny-model cache
 

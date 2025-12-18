@@ -32,7 +32,7 @@ setup() {
 	[ "$status" -eq 1 ]
 }
 
-@test "llama_infer forwards JSON grammar content and stop arguments" {
+@test "llama_infer forwards JSON schema content and stop arguments" {
 	run env BASH_ENV= ENV= bash --noprofile --norc -c '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 args_dir="$(mktemp -d)"
@@ -63,7 +63,7 @@ SCRIPT
 	[ "$status" -eq 0 ]
 }
 
-@test "llama_infer uses grammar file flag for non-JSON grammars" {
+@test "llama_infer uses grammar file flag for non-JSON schemas" {
 	run env BASH_ENV= ENV= bash --noprofile --norc -c '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 args_dir="$(mktemp -d)"
@@ -79,13 +79,13 @@ SCRIPT
                 export MODEL_REPO=demo/repo
                 export MODEL_FILE=model.gguf
                 source ./src/lib/llama_client.sh
-                llama_infer "prompt" "" 8 "${args_dir}/grammar.gbnf"
+                llama_infer "prompt" "" 8 "${args_dir}/schema.gbnf"
                 args=()
                 while IFS= read -r line; do
                         args+=("$line")
                 done <"${args_file}"
                 [[ "${args[*]}" == *"--grammar-file"* ]]
-                [[ "${args[*]}" == *"${args_dir}/grammar.gbnf"* ]]
+                [[ "${args[*]}" == *"${args_dir}/schema.gbnf"* ]]
                 [[ " ${args[*]} " != *" -r "* ]]
         '
 	[ "$status" -eq 0 ]

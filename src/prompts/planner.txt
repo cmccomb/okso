@@ -18,7 +18,7 @@ When describing tool usage, reference the structured argument fields each tool e
 # Output Format
 Respond ONLY with a JSON array of objects.
 Specifically, constrain your response using this JSON schema:
-${planner_grammar}
+${planner_schema}
 
 # Available tools:
 ${tool_lines}

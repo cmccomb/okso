@@ -1,6 +1,6 @@
-# Grammars
+# Schemas
 
-Structured outputs keep planner interactions predictable. Grammar files live in `src/grammars/` and are passed directly to `llama.cpp` during inference.
+Structured outputs keep planner interactions predictable. Schema files live in `src/schemas/` and are passed directly to `llama.cpp` during inference.
 
 ## Available schemas
 
@@ -9,6 +9,6 @@ Structured outputs keep planner interactions predictable. Grammar files live in 
 - `concise_response.schema.json`: short direct answers when no tools should run.
 
 Free-form text arguments always appear under `args.input` in planner and ReAct payloads, keeping prompt templates and registry-driven
-grammars aligned on the same canonical field name.
+schemas aligned on the same canonical field name.
 
 Add new schemas alongside prompts in `src/lib/prompts.sh` when introducing new tool types or output formats.

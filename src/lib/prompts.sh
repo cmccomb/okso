@@ -18,8 +18,8 @@
 LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 PROMPTS_DIR="${LIB_DIR%/lib}/prompts"
 
-# shellcheck source=./grammar.sh disable=SC1091
-source "${LIB_DIR}/grammar.sh"
+# shellcheck source=./schema.sh disable=SC1091
+source "${LIB_DIR}/schema.sh"
 
 load_prompt_template() {
 	# Arguments:
@@ -75,30 +75,30 @@ build_concise_response_prompt() {
 	# Arguments:
 	#   $1 - user query (string)
 	#   $2 - context (string, optional)
-	local user_query context concise_grammar
+	local user_query context concise_schema
 	user_query="$1"
 	context="${2:-}"
-	concise_grammar="$(load_grammar_text concise_response)"
+	concise_schema="$(load_schema_text concise_response)"
 
 	render_prompt_template "concise_response" \
 		user_query "${user_query}" \
 		context "${context}" \
-		concise_grammar "${concise_grammar}"
+		concise_schema "${concise_schema}"
 }
 
 build_planner_prompt() {
 	# Arguments:
 	#   $1 - user query (string)
 	#   $2 - formatted tool descriptions (string)
-	local user_query tool_lines planner_grammar
+	local user_query tool_lines planner_schema
 	user_query="$1"
 	tool_lines="$2"
-	planner_grammar="$(load_grammar_text planner_plan)"
+	planner_schema="$(load_schema_text planner_plan)"
 
 	render_prompt_template "planner" \
 		user_query "${user_query}" \
 		tool_lines "${tool_lines}" \
-		planner_grammar "${planner_grammar}"
+		planner_schema "${planner_schema}"
 }
 
 build_react_prompt() {
@@ -108,17 +108,17 @@ build_react_prompt() {
 	#   $3 - high-level plan outline (string)
 	#   $4 - prior interaction history (string)
 	#   $5 - JSON schema describing allowed ReAct actions (string)
-	local user_query allowed_tools plan_outline history react_grammar
+	local user_query allowed_tools plan_outline history react_schema
 	user_query="$1"
 	allowed_tools="$2"
 	plan_outline="$3"
 	history="$4"
-	react_grammar="$5"
+	react_schema="$5"
 
 	render_prompt_template "react" \
 		user_query "${user_query}" \
 		allowed_tools "${allowed_tools}" \
 		plan_outline "${plan_outline}" \
 		history "${history}" \
-		react_grammar "${react_grammar}"
+		react_schema "${react_schema}"
 }

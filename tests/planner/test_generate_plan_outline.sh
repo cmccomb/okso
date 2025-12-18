@@ -36,7 +36,7 @@ source ./src/lib/planner.sh
 tool_names() { printf "%s\n" "fallback_tool" "secondary_tool"; }
 format_tool_descriptions() { printf "%s" "$1"; }
 build_planner_prompt() { printf "TOOLS<<%s>>" "$2"; }
-grammar_path() { printf "/tmp/grammar"; }
+schema_path() { printf "/tmp/schema"; }
 llama_infer() { printf "%s" "$1" > /tmp/planner_prompt; printf '[{"tool":"alpha","args":{},"thought":"step"}]'; }
 
 LLAMA_AVAILABLE=true
@@ -67,7 +67,7 @@ source ./src/lib/planner.sh
 tool_names() { printf "%s\n" "fallback_tool"; }
 format_tool_descriptions() { printf "%s" "$1"; }
 build_planner_prompt() { printf "TOOLS<<%s>>" "$2"; }
-grammar_path() { printf "/tmp/grammar"; }
+schema_path() { printf "/tmp/schema"; }
 llama_infer() { printf "%s" "$1" > /tmp/planner_prompt; printf '[{"tool":"alpha","args":{},"thought":"step"}]'; }
 
 LLAMA_AVAILABLE=true
@@ -97,7 +97,7 @@ source ./src/lib/planner.sh
 tool_names() { printf "%s\n" "fallback_tool"; }
 format_tool_descriptions() { printf "%s" "$1"; }
 build_planner_prompt() { printf "TOOLS<<%s>>" "$2"; }
-grammar_path() { printf "/tmp/grammar"; }
+schema_path() { printf "/tmp/schema"; }
 llama_infer() { printf "%s" "$1" > /tmp/planner_prompt; printf '[{"tool":"alpha","args":{},"thought":"step"}]'; }
 
 LLAMA_AVAILABLE=true

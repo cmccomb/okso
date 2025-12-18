@@ -13,7 +13,7 @@ We all believe in you!
 Tool arguments must be well-formed JSON objects that match each tool's fields (e.g., terminal {command:string, args:[]}, notes_create {title:string, body:string}, reminders_create {title:string, time:string, notes:string}).
 Do not collapse fields into a single string.
 Specifically, your response must follow the format:
-${react_grammar}
+${react_schema}
 
 You have access to the following tools:
 ${allowed_tools}

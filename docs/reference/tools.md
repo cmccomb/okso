@@ -2,7 +2,7 @@
 
 The planner registers these tools (each implemented under `src/tools/<name>.sh`). Handlers expect structured arguments in `TOOL_ARGS`
 that follow the registered JSON schema. Free-form, single-string payloads always use the canonical `input` property so prompts and
-grammars can reference `args.input` consistently across tools:
+schemas can reference `args.input` consistently across tools:
 
 - `terminal`: persistent working directory with `pwd`, `ls`, `cd`, `find`, `grep`, `stat`, `wc`, `du`, `base64 encode|decode`, and guarded mutations (`rm -i`, `mkdir`, `mv`, `cp`, `touch`). Uses `open` on macOS.
 - `python_repl`: run Python snippets in an ephemeral sandbox using quiet `python -i` startup guards that confine writes.

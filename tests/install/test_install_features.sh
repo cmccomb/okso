@@ -9,7 +9,7 @@ setup() {
 	MOCK_BIN="${TEST_ROOT}/mock-bin"
 
 	mkdir -p "${INSTALLER_ROOT}/scripts" "${INSTALLER_ROOT}/src/bin" \
-		"${INSTALLER_ROOT}/src/lib" "${INSTALLER_ROOT}/src/grammars" \
+		"${INSTALLER_ROOT}/src/lib" "${INSTALLER_ROOT}/src/schemas" \
 		"${MOCK_BIN}" "${LINK_DIR}"
 
 	cp scripts/install.sh "${INSTALLER_ROOT}/scripts/install.sh"
@@ -17,12 +17,12 @@ setup() {
 	: >"${INSTALLER_ROOT}/scripts/okso.rb"
 	printf 'stub readme for installer tests' >"${INSTALLER_ROOT}/README.md"
 
-	cat >"${INSTALLER_ROOT}/src/lib/grammar.sh" <<'EOS'
+	cat >"${INSTALLER_ROOT}/src/lib/schema.sh" <<'EOS'
 #!/usr/bin/env bash
 # shellcheck shell=bash
-grammar_path() {
+schema_path() {
         if [ "$1" = "planner_plan" ]; then
-                printf "%s/grammars/planner_plan.schema.json\n" \
+                printf "%s/schemas/planner_plan.schema.json\n" \
                         "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
         fi
 }
@@ -34,7 +34,7 @@ EOS
 printf 'Plan outline\n'
 EOS
 	chmod +x "${INSTALLER_ROOT}/src/bin/okso"
-	printf '{"title": "planner grammar"}' >"${INSTALLER_ROOT}/src/grammars/planner_plan.schema.json"
+	printf '{"title": "planner schema"}' >"${INSTALLER_ROOT}/src/schemas/planner_plan.schema.json"
 
 	cat >"${MOCK_BIN}/uname" <<'EOS'
 #!/usr/bin/env bash

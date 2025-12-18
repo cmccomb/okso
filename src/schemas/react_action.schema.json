@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "ReactActionBase",
-  "description": "Base ReAct action shape; runtime grammars are generated from the tool registry and allowed tool list.",
+  "description": "Base ReAct action shape; runtime schemas are generated from the tool registry and allowed tool list.",
   "type": "object",
   "required": ["thought", "tool", "args"],
   "additionalProperties": false,

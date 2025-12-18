@@ -37,8 +37,8 @@ source "${LIB_DIR}/tools.sh"
 source "${LIB_DIR}/respond.sh"
 # shellcheck source=./prompts.sh disable=SC1091
 source "${LIB_DIR}/prompts.sh"
-# shellcheck source=./grammar.sh disable=SC1091
-source "${LIB_DIR}/grammar.sh"
+# shellcheck source=./schema.sh disable=SC1091
+source "${LIB_DIR}/schema.sh"
 # shellcheck source=./state.sh disable=SC1091
 source "${LIB_DIR}/state.sh"
 # shellcheck source=./llama_client.sh disable=SC1091
@@ -149,18 +149,18 @@ generate_plan_json() {
 		return 0
 	fi
 
-	local prompt raw_plan planner_grammar_path plan_json
+	local prompt raw_plan planner_schema_path plan_json
 	local tool_lines
 	if ((${#planner_tools[@]} > 0)); then
 		tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_summary_line)"
 	else
 		tool_lines=""
 	fi
-	planner_grammar_path="$(grammar_path planner_plan)"
+	planner_schema_path="$(schema_path planner_plan)"
 
 	prompt="$(build_planner_prompt "${user_query}" "${tool_lines}")"
 	log "DEBUG" "Generated planner prompt" "${prompt}" >&2
-	raw_plan="$(llama_infer "${prompt}" '' 512 "${planner_grammar_path}")" || raw_plan="[]"
+	raw_plan="$(llama_infer "${prompt}" '' 512 "${planner_schema_path}")" || raw_plan="[]"
 	plan_json="$(append_final_answer_step "${raw_plan}")" || plan_json="${raw_plan}"
 	printf '%s' "${plan_json}"
 }
@@ -569,7 +569,7 @@ format_action_context() {
 	printf 'Thought: %s\nTool: %s\nArgs: %s' "${thought}" "${tool}" "${args_pretty}"
 }
 
-build_react_action_grammar() {
+build_react_action_schema() {
 	# Arguments:
 	#   $1 - newline-delimited allowed tools (optional)
 	local allowed_tools registry_json
@@ -788,7 +788,7 @@ select_next_action() {
 	# Arguments:
 	#   $1 - state prefix
 	#   $2 - (optional) name of variable to receive JSON action output
-	local state_name output_name react_prompt plan_index planned_entry tool query next_action_payload allowed_tool_descriptions allowed_tool_lines args_json allowed_tools react_grammar_path react_grammar_text invoke_llama thought
+	local state_name output_name react_prompt plan_index planned_entry tool query next_action_payload allowed_tool_descriptions allowed_tool_lines args_json allowed_tools react_schema_path react_schema_text invoke_llama thought
 	state_name="$1"
 	output_name="${2:-}"
 
@@ -818,8 +818,8 @@ select_next_action() {
 		fi
 
 		local raw_action validated_action validation_error_file corrective_prompt
-		react_grammar_path="$(build_react_action_grammar "${allowed_tools}")" || return 1
-		react_grammar_text="$(cat "${react_grammar_path}")" || return 1
+		react_schema_path="$(build_react_action_schema "${allowed_tools}")" || return 1
+		react_schema_text="$(cat "${react_schema_path}")" || return 1
 		local history
 		history="$(format_tool_history "$(state_get "${state_name}" "history")")"
 
@@ -829,16 +829,16 @@ select_next_action() {
 				"${allowed_tool_descriptions}" \
 				"$(state_get "${state_name}" "plan_outline")" \
 				"${history}" \
-				"${react_grammar_text}"
+				"${react_schema_text}"
 		)"
 		validation_error_file="$(mktemp)"
 
-		raw_action="$(llama_infer "${react_prompt}" "" 256 "${react_grammar_path}")"
-		if ! validated_action=$(validate_react_action "${raw_action}" "${react_grammar_path}" 2>"${validation_error_file}"); then
+		raw_action="$(llama_infer "${react_prompt}" "" 256 "${react_schema_path}")"
+		if ! validated_action=$(validate_react_action "${raw_action}" "${react_schema_path}" 2>"${validation_error_file}"); then
 			corrective_prompt="${react_prompt}"$'\n'"The previous response was invalid: $(cat "${validation_error_file}"). Respond with a valid JSON action that follows the schema."
-			raw_action="$(llama_infer "${corrective_prompt}" "" 256 "${react_grammar_path}")"
+			raw_action="$(llama_infer "${corrective_prompt}" "" 256 "${react_schema_path}")"
 
-			if ! validated_action=$(validate_react_action "${raw_action}" "${react_grammar_path}" 2>"${validation_error_file}"); then
+			if ! validated_action=$(validate_react_action "${raw_action}" "${react_schema_path}" 2>"${validation_error_file}"); then
 				log "ERROR" "Invalid action output from llama" "$(cat "${validation_error_file}")"
 				rm -f "${validation_error_file}"
 				return 1
@@ -846,7 +846,7 @@ select_next_action() {
 		fi
 
 		rm -f "${validation_error_file}"
-		rm -f "${react_grammar_path}"
+		rm -f "${react_schema_path}"
 
 		if [[ -n "${output_name}" ]]; then
 			printf -v "${output_name}" '%s' "${validated_action}"
