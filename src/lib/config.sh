@@ -202,7 +202,7 @@ normalize_approval_flags() {
 hydrate_model_spec() {
 	# Normalizes MODEL_SPEC into repo and file components for llama.cpp calls.
 	local model_parts
-	# parse_model_spec prints repo then file on separate lines for easy mapfile
+	# parse_model_spec prints repo then file on separate lines for easy
 	# consumption; we preserve that order here explicitly.
 	model_parts=()
 	while IFS= read -r line; do

@@ -16,7 +16,10 @@ set -euo pipefail
 source ./src/tools/registry.sh
 init_tool_registry
 register_tool alpha "describe" "cmd" "safe" handler_alpha '{"type":"object"}'
-mapfile -t names < <(tool_names)
+names=()
+while IFS= read -r line; do
+	names+=("$line")
+done < <(tool_names)
 printf "%s\n" "${names[0]}" "$(tool_description alpha)" "$(tool_command alpha)" "$(tool_safety alpha)" "$(tool_handler alpha)" "$(tool_args_schema alpha)"
 SCRIPT
 

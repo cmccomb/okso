@@ -51,7 +51,10 @@ SCRIPT
                 export MODEL_FILE=model.gguf
                 source ./src/lib/llama_client.sh
                 llama_infer "example prompt" "STOP" 12 "${json_schema}"
-                mapfile -t args <"${args_file}"
+                args=()
+                while IFS= read -r line; do
+                        args+=("$line")
+                done <"${args_file}"
                 [[ "${args[*]}" == *"--json-schema"* ]]
                 [[ "${args[*]}" == *"sentinel-schema"* ]]
                 [[ "${args[*]}" == *"-r"* ]]
@@ -77,7 +80,10 @@ SCRIPT
                 export MODEL_FILE=model.gguf
                 source ./src/lib/llama_client.sh
                 llama_infer "prompt" "" 8 "${args_dir}/grammar.gbnf"
-                mapfile -t args <"${args_file}"
+                args=()
+                while IFS= read -r line; do
+                        args+=("$line")
+                done <"${args_file}"
                 [[ "${args[*]}" == *"--grammar-file"* ]]
                 [[ "${args[*]}" == *"${args_dir}/grammar.gbnf"* ]]
                 [[ " ${args[*]} " != *" -r "* ]]

@@ -160,16 +160,24 @@ tool_feedback() {
 		return 0
 	fi
 
-	if ! mapfile -t context_parts < <(feedback_normalize_context); then
+	local context_parts=()
+	while IFS= read -r line; do
+		context_parts+=("$line")
+	done < <(feedback_normalize_context)
+	if [[ ${#context_parts[@]} -eq 0 ]]; then
 		return 1
 	fi
-	plan_item="${context_parts[0]}"
+	plan_item="${context_parts[0]:-}"
 	observations="${context_parts[1]:-}"
 
-	if ! mapfile -t feedback_parts < <(feedback_capture_input "${plan_item}" "${observations}"); then
+	local feedback_parts=()
+	while IFS= read -r line; do
+		feedback_parts+=("$line")
+	done < <(feedback_capture_input "${plan_item}" "${observations}")
+	if [[ ${#feedback_parts[@]} -eq 0 ]]; then
 		return 1
 	fi
-	rating="${feedback_parts[0]}"
+	rating="${feedback_parts[0]:-}"
 	comment="${feedback_parts[1]:-}"
 
 	payload="$(jq -c -n \

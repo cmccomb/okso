@@ -53,7 +53,10 @@ set -euo pipefail
 source ./src/lib/planner.sh
 tool_names() { printf "%s\n" terminal notes_create final_answer; }
 plan_json='[{"tool":"react_fallback","args":{},"thought":"choose"},{"tool":"notes_create","args":{},"thought":"capture"}]'
-mapfile -t tools < <(derive_allowed_tools_from_plan "${plan_json}")
+tools=()
+while IFS= read -r line; do
+	tools+=("$line")
+done < <(derive_allowed_tools_from_plan "${plan_json}")
 printf "%s\n" "${tools[@]}"
 SCRIPT
 

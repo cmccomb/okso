@@ -10,7 +10,10 @@
 #   - bash 5+
 
 @test "render_boxed_summary builds boxed output with nested tool history" {
-	mapfile -t lines < <(bash -lc '
+	lines=()
+	while IFS= read -r line; do
+		lines+=("$line")
+	done < <(bash -lc '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 source ./src/lib/formatting.sh
                 tool_history=$'"'"'Step 1 action search query=weather\nObservation: sunny\nStep 2 action final_answer query=done\nObservation: finished'"'"'

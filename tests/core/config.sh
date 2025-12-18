@@ -9,7 +9,10 @@ setup() {
 	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/config.sh
-mapfile -t parts < <(parse_model_spec "demo/model" "fallback.gguf")
+parts=()
+while IFS= read -r line; do
+	parts+=("$line")
+done < <(parse_model_spec "demo/model" "fallback.gguf")
 printf "%s\n" "${parts[@]}"
 SCRIPT
 
@@ -30,7 +33,10 @@ printf "%s\n%s\n" "${APPROVE_ALL}" "${FORCE_CONFIRM}"
 SCRIPT
 
 	[ "$status" -eq 0 ]
-	readarray -t approval_lines <<<"$(printf '%s\n' "${output}" | tail -n 2)"
+	approval_lines=()
+	while IFS= read -r line; do
+		approval_lines+=("$line")
+	done <<<"$(printf '%s\n' "${output}" | tail -n 2)"
 	[ "${approval_lines[0]}" = "false" ]
 	[ "${approval_lines[1]}" = "false" ]
 }

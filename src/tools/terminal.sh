@@ -104,7 +104,10 @@ terminal_args_from_json() {
 		TERMINAL_CMD="status"
 	fi
 
-	mapfile -t TERMINAL_CMD_ARGS < <(jq -r '(.args // []) | map(tostring) | .[]' <<<"${args_json}" 2>/dev/null || true)
+	TERMINAL_CMD_ARGS=()
+	while IFS= read -r line; do
+		TERMINAL_CMD_ARGS+=("$line")
+	done < <(jq -r '(.args // []) | map(tostring) | .[]' <<<"${args_json}" 2>/dev/null || true)
 	return 0
 }
 
