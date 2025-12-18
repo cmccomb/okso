@@ -145,3 +145,44 @@ INNERSCRIPT
 	run bash -lc "${script}"
 	[ "$status" -eq 0 ]
 }
+
+@test "build_react_prompt includes allowed tool schemas" {
+	script=$(
+		cat <<'INNERSCRIPT'
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+source ./src/lib/planner.sh
+
+tool_registry_json() {
+        printf "%s" '{"names":["python_repl","final_answer"],"registry":{"python_repl":{"args_schema":{"type":"object","required":["code"],"properties":{"code":{"type":"string","minLength":1}}}},"final_answer":{"args_schema":{"type":"object","required":["message"],"properties":{"message":{"type":"string","minLength":1}}}}}}'
+}
+
+tool_names() {
+        printf "%s\n" "python_repl" "final_answer"
+}
+
+allowed_tools=$'python_repl\nfinal_answer'
+allowed_tool_lines="$(format_tool_descriptions "${allowed_tools}" format_tool_example_line)"
+allowed_tool_descriptions="Available tools:"
+if [[ -n "${allowed_tool_lines}" ]]; then
+        allowed_tool_descriptions+=$'\n'"${allowed_tool_lines}"
+fi
+
+react_grammar_path="$(build_react_action_grammar "${allowed_tools}")"
+react_grammar_text="$(cat "${react_grammar_path}")"
+
+prompt="$(build_react_prompt "demo request" "${allowed_tool_descriptions}" "demo plan" "demo history" "${react_grammar_text}")"
+
+rm -f "${react_grammar_path}"
+
+grep -F '"python_repl"' <<<"${prompt}"
+grep -F '"code"' <<<"${prompt}"
+grep -F '"final_answer"' <<<"${prompt}"
+grep -F '"message"' <<<"${prompt}"
+INNERSCRIPT
+	)
+
+	run bash -lc "${script}"
+	[ "$status" -eq 0 ]
+}
