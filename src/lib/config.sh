@@ -283,6 +283,11 @@ hydrate_model_spec_to_vars() {
 
 hydrate_model_specs() {
 	# Normalizes planner and react model specs into repo and file components.
+	local model_spec_was_set model_branch_was_set
+
+	model_spec_was_set=${MODEL_SPEC+x}
+	model_branch_was_set=${MODEL_BRANCH+x}
+
 	DEFAULT_PLANNER_MODEL_FILE=${DEFAULT_PLANNER_MODEL_FILE:-${DEFAULT_PLANNER_MODEL_FILE_BASE}}
 	DEFAULT_MODEL_FILE=${DEFAULT_MODEL_FILE:-${DEFAULT_MODEL_FILE_BASE}}
 
@@ -291,8 +296,22 @@ hydrate_model_specs() {
 
 	REACT_MODEL_SPEC=${REACT_MODEL_SPEC:-"${MODEL_SPEC}"}
 	REACT_MODEL_BRANCH=${REACT_MODEL_BRANCH:-"${MODEL_BRANCH}"}
-	PLANNER_MODEL_SPEC=${PLANNER_MODEL_SPEC:-"${MODEL_SPEC}"}
-	PLANNER_MODEL_BRANCH=${PLANNER_MODEL_BRANCH:-"${MODEL_BRANCH}"}
+
+	if [[ -z "${PLANNER_MODEL_SPEC:-}" ]]; then
+		if [[ -n "${model_spec_was_set}" ]]; then
+			PLANNER_MODEL_SPEC="${MODEL_SPEC}"
+		else
+			PLANNER_MODEL_SPEC="${DEFAULT_PLANNER_MODEL_SPEC_BASE}"
+		fi
+	fi
+
+	if [[ -z "${PLANNER_MODEL_BRANCH:-}" ]]; then
+		if [[ -n "${model_branch_was_set}" ]]; then
+			PLANNER_MODEL_BRANCH="${MODEL_BRANCH}"
+		else
+			PLANNER_MODEL_BRANCH="${DEFAULT_PLANNER_MODEL_BRANCH_BASE}"
+		fi
+	fi
 
 	PLANNER_MODEL_BRANCH=${PLANNER_MODEL_BRANCH:-"${DEFAULT_PLANNER_MODEL_BRANCH_BASE}"}
 	REACT_MODEL_BRANCH=${REACT_MODEL_BRANCH:-"${DEFAULT_REACT_MODEL_BRANCH_BASE}"}
@@ -300,12 +319,6 @@ hydrate_model_specs() {
 	hydrate_model_spec_to_vars "${PLANNER_MODEL_SPEC}" "${DEFAULT_PLANNER_MODEL_FILE}" PLANNER_MODEL_REPO PLANNER_MODEL_FILE
 	hydrate_model_spec_to_vars "${REACT_MODEL_SPEC}" "${DEFAULT_MODEL_FILE}" REACT_MODEL_REPO REACT_MODEL_FILE
 
-	# Maintain backwards compatibility by mirroring the react model values into
-	# the legacy MODEL_* variables.
-	# shellcheck disable=SC2034
-	MODEL_REPO="${REACT_MODEL_REPO}"
-	# shellcheck disable=SC2034
-	MODEL_FILE="${REACT_MODEL_FILE}"
 }
 
 init_environment() {

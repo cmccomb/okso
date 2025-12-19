@@ -18,6 +18,19 @@ SCRIPT
 	[ "${lines[2]}" = "list" ]
 }
 
+@test "planner initializes dedicated model variables when sourced" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+unset PLANNER_MODEL_REPO PLANNER_MODEL_FILE REACT_MODEL_REPO REACT_MODEL_FILE
+source ./src/lib/planning/planner.sh
+printf "%s\n%s\n%s\n" "${PLANNER_MODEL_REPO}:${PLANNER_MODEL_FILE}" "${REACT_MODEL_REPO}:${REACT_MODEL_FILE}" "${DEFAULT_PLANNER_MODEL_BRANCH_BASE}" | head -n 2
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "bartowski/Qwen_Qwen3-8B-GGUF:Qwen_Qwen3-8B-Q4_K_M.gguf" ]
+	[ "${lines[1]}" = "bartowski/Qwen_Qwen3-1.7B-GGUF:Qwen_Qwen3-1.7B-Q4_K_M.gguf" ]
+}
+
 @test "normalize_planner_plan builds react fallback from outlines" {
 	run bash <<'SCRIPT'
 set -euo pipefail
