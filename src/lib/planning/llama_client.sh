@@ -10,8 +10,8 @@
 #   LLAMA_AVAILABLE (bool): whether llama.cpp is available for inference.
 #   LLAMA_BIN (string): path to llama.cpp binary.
 #   LLAMA_TIMEOUT_SECONDS (int): timeout in seconds for llama.cpp invocations (0 disables the timeout).
-#   MODEL_REPO (string): Hugging Face repository name.
-#   MODEL_FILE (string): model file within the repository.
+#   REACT_MODEL_REPO (string): Hugging Face repository name for the ReAct loop.
+#   REACT_MODEL_FILE (string): model file within the repository for the ReAct loop.
 #   VERBOSITY (int): log verbosity.
 #
 # Dependencies:
@@ -73,13 +73,13 @@ llama_infer() {
 	#   $4 - schema file path (optional)
 	#   $5 - model repo override (optional)
 	#   $6 - model file override (optional)
-	local prompt stop_string number_of_tokens schema_file_path schema_content repo_override file_override
-	prompt="$1"
-	stop_string="${2:-}"
-	number_of_tokens="${3:-256}"
-	schema_file_path="${4:-}"
-	repo_override="${5:-${MODEL_REPO}}"
-	file_override="${6:-${MODEL_FILE}}"
+        local prompt stop_string number_of_tokens schema_file_path schema_content repo_override file_override
+        prompt="$1"
+        stop_string="${2:-}"
+        number_of_tokens="${3:-256}"
+        schema_file_path="${4:-}"
+        repo_override="${5:-${REACT_MODEL_REPO}}"
+        file_override="${6:-${REACT_MODEL_FILE}}"
 
 	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
 		log "WARN" "llama unavailable; skipping inference" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}"
