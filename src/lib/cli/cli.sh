@@ -11,7 +11,7 @@
 #   USER_QUERY (string): captured user input after options parsing.
 #
 # Dependencies:
-#   - bash 5+
+#   - bash 3.2+
 #   - gum (optional, for styled help output)
 #
 # Exit codes:

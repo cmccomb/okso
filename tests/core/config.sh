@@ -101,6 +101,46 @@ SCRIPT
 	[ "${lines[1]}" = "env-id" ]
 }
 
+@test "load_config preserves environment overrides for model and approval settings" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+config_file="$(mktemp)"
+cat >"${config_file}" <<'EOF'
+PLANNER_MODEL_SPEC="config/planner:plan.gguf"
+PLANNER_MODEL_BRANCH="config-plan"
+REACT_MODEL_SPEC="config/react:react.gguf"
+REACT_MODEL_BRANCH="config-react"
+VERBOSITY=0
+APPROVE_ALL=false
+FORCE_CONFIRM=true
+EOF
+export PLANNER_MODEL_SPEC="env/planner:plan.gguf"
+export PLANNER_MODEL_BRANCH="env-plan"
+export REACT_MODEL_SPEC="env/react:react.gguf"
+export REACT_MODEL_BRANCH="env-react"
+export VERBOSITY=2
+export APPROVE_ALL=true
+export FORCE_CONFIRM=false
+CONFIG_FILE="${config_file}"
+source ./src/lib/config.sh
+load_config
+printf "%s\n" \
+        "${PLANNER_MODEL_SPEC}" "${PLANNER_MODEL_BRANCH}" \
+        "${REACT_MODEL_SPEC}" "${REACT_MODEL_BRANCH}" \
+        "${VERBOSITY}" "${APPROVE_ALL}" "${FORCE_CONFIRM}"
+rm -f "${config_file}"
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "env/planner:plan.gguf" ]
+	[ "${lines[1]}" = "env-plan" ]
+	[ "${lines[2]}" = "env/react:react.gguf" ]
+	[ "${lines[3]}" = "env-react" ]
+	[ "${lines[4]}" = "2" ]
+	[ "${lines[5]}" = "true" ]
+	[ "${lines[6]}" = "false" ]
+}
+
 @test "write_config_file emits shell-parsable assignments" {
 	run bash <<'SCRIPT'
 set -euo pipefail

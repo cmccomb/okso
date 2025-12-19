@@ -76,27 +76,131 @@ detect_config_file() {
 load_config() {
 	# Load file-backed configuration first so environment overrides and CLI flags
 	# can layer on top in a predictable order.
-	local preexisting_okso_google_cse_api_key preexisting_okso_google_cse_id
-	preexisting_okso_google_cse_api_key="${OKSO_GOOGLE_CSE_API_KEY:-}"
-	preexisting_okso_google_cse_id="${OKSO_GOOGLE_CSE_ID:-}"
+	local preexisting_okso_google_cse_api_key preexisting_okso_google_cse_api_key_set
+	local preexisting_okso_google_cse_id preexisting_okso_google_cse_id_set
+	local preexisting_planner_model_spec preexisting_planner_model_spec_set
+	local preexisting_planner_model_branch preexisting_planner_model_branch_set
+	local preexisting_react_model_spec preexisting_react_model_spec_set
+	local preexisting_react_model_branch preexisting_react_model_branch_set
+	local preexisting_default_model_file preexisting_default_model_file_set
+	local preexisting_default_planner_model_file preexisting_default_planner_model_file_set
+	local preexisting_verbosity preexisting_verbosity_set
+	local preexisting_approve_all preexisting_approve_all_set
+	local preexisting_force_confirm preexisting_force_confirm_set
+
+	preexisting_okso_google_cse_api_key_set=false
+	preexisting_okso_google_cse_id_set=false
+	preexisting_planner_model_spec_set=false
+	preexisting_planner_model_branch_set=false
+	preexisting_react_model_spec_set=false
+	preexisting_react_model_branch_set=false
+	preexisting_default_model_file_set=false
+	preexisting_default_planner_model_file_set=false
+	preexisting_verbosity_set=false
+	preexisting_approve_all_set=false
+	preexisting_force_confirm_set=false
+
+	if [[ -n "${OKSO_GOOGLE_CSE_API_KEY+x}" ]]; then
+		preexisting_okso_google_cse_api_key="${OKSO_GOOGLE_CSE_API_KEY}"
+		preexisting_okso_google_cse_api_key_set=true
+	fi
+	if [[ -n "${OKSO_GOOGLE_CSE_ID+x}" ]]; then
+		preexisting_okso_google_cse_id="${OKSO_GOOGLE_CSE_ID}"
+		preexisting_okso_google_cse_id_set=true
+	fi
+	if [[ -n "${PLANNER_MODEL_SPEC+x}" ]]; then
+		preexisting_planner_model_spec="${PLANNER_MODEL_SPEC}"
+		preexisting_planner_model_spec_set=true
+	fi
+	if [[ -n "${PLANNER_MODEL_BRANCH+x}" ]]; then
+		preexisting_planner_model_branch="${PLANNER_MODEL_BRANCH}"
+		preexisting_planner_model_branch_set=true
+	fi
+	if [[ -n "${REACT_MODEL_SPEC+x}" ]]; then
+		preexisting_react_model_spec="${REACT_MODEL_SPEC}"
+		preexisting_react_model_spec_set=true
+	fi
+	if [[ -n "${REACT_MODEL_BRANCH+x}" ]]; then
+		preexisting_react_model_branch="${REACT_MODEL_BRANCH}"
+		preexisting_react_model_branch_set=true
+	fi
+	if [[ -n "${DEFAULT_MODEL_FILE+x}" ]]; then
+		preexisting_default_model_file="${DEFAULT_MODEL_FILE}"
+		preexisting_default_model_file_set=true
+	fi
+	if [[ -n "${DEFAULT_PLANNER_MODEL_FILE+x}" ]]; then
+		preexisting_default_planner_model_file="${DEFAULT_PLANNER_MODEL_FILE}"
+		preexisting_default_planner_model_file_set=true
+	fi
+	if [[ -n "${VERBOSITY+x}" ]]; then
+		preexisting_verbosity="${VERBOSITY}"
+		preexisting_verbosity_set=true
+	fi
+	if [[ -n "${APPROVE_ALL+x}" ]]; then
+		preexisting_approve_all="${APPROVE_ALL}"
+		preexisting_approve_all_set=true
+	fi
+	if [[ -n "${FORCE_CONFIRM+x}" ]]; then
+		preexisting_force_confirm="${FORCE_CONFIRM}"
+		preexisting_force_confirm_set=true
+	fi
+
 	if [[ -f "${CONFIG_FILE}" ]]; then
 		# shellcheck source=/dev/null
 		source "${CONFIG_FILE}"
 	fi
 
-	OKSO_GOOGLE_CSE_API_KEY="${preexisting_okso_google_cse_api_key:-${OKSO_GOOGLE_CSE_API_KEY:-}}"
-	OKSO_GOOGLE_CSE_ID="${preexisting_okso_google_cse_id:-${OKSO_GOOGLE_CSE_ID:-}}"
-
-	DEFAULT_MODEL_FILE=${DEFAULT_MODEL_FILE:-${DEFAULT_MODEL_FILE_BASE}}
-	DEFAULT_PLANNER_MODEL_FILE=${DEFAULT_PLANNER_MODEL_FILE:-${DEFAULT_PLANNER_MODEL_FILE_BASE}}
-
-	PLANNER_MODEL_SPEC=${PLANNER_MODEL_SPEC:-"${DEFAULT_PLANNER_MODEL_SPEC_BASE}"}
-	PLANNER_MODEL_BRANCH=${PLANNER_MODEL_BRANCH:-${DEFAULT_PLANNER_MODEL_BRANCH_BASE}}
-	REACT_MODEL_SPEC=${REACT_MODEL_SPEC:-"${DEFAULT_REACT_MODEL_SPEC_BASE}"}
-	REACT_MODEL_BRANCH=${REACT_MODEL_BRANCH:-${DEFAULT_REACT_MODEL_BRANCH_BASE}}
-	VERBOSITY=${VERBOSITY:-1}
-	APPROVE_ALL=${APPROVE_ALL:-false}
-	FORCE_CONFIRM=${FORCE_CONFIRM:-false}
+	if [[ "${preexisting_okso_google_cse_api_key_set}" == true ]]; then
+		OKSO_GOOGLE_CSE_API_KEY="${preexisting_okso_google_cse_api_key}"
+	fi
+	if [[ "${preexisting_okso_google_cse_id_set}" == true ]]; then
+		OKSO_GOOGLE_CSE_ID="${preexisting_okso_google_cse_id}"
+	fi
+	if [[ "${preexisting_default_model_file_set}" == true ]]; then
+		DEFAULT_MODEL_FILE="${preexisting_default_model_file}"
+	else
+		DEFAULT_MODEL_FILE=${DEFAULT_MODEL_FILE:-${DEFAULT_MODEL_FILE_BASE}}
+	fi
+	if [[ "${preexisting_default_planner_model_file_set}" == true ]]; then
+		DEFAULT_PLANNER_MODEL_FILE="${preexisting_default_planner_model_file}"
+	else
+		DEFAULT_PLANNER_MODEL_FILE=${DEFAULT_PLANNER_MODEL_FILE:-${DEFAULT_PLANNER_MODEL_FILE_BASE}}
+	fi
+	if [[ "${preexisting_planner_model_spec_set}" == true ]]; then
+		PLANNER_MODEL_SPEC="${preexisting_planner_model_spec}"
+	else
+		PLANNER_MODEL_SPEC=${PLANNER_MODEL_SPEC:-"${DEFAULT_PLANNER_MODEL_SPEC_BASE}"}
+	fi
+	if [[ "${preexisting_planner_model_branch_set}" == true ]]; then
+		PLANNER_MODEL_BRANCH="${preexisting_planner_model_branch}"
+	else
+		PLANNER_MODEL_BRANCH=${PLANNER_MODEL_BRANCH:-${DEFAULT_PLANNER_MODEL_BRANCH_BASE}}
+	fi
+	if [[ "${preexisting_react_model_spec_set}" == true ]]; then
+		REACT_MODEL_SPEC="${preexisting_react_model_spec}"
+	else
+		REACT_MODEL_SPEC=${REACT_MODEL_SPEC:-"${DEFAULT_REACT_MODEL_SPEC_BASE}"}
+	fi
+	if [[ "${preexisting_react_model_branch_set}" == true ]]; then
+		REACT_MODEL_BRANCH="${preexisting_react_model_branch}"
+	else
+		REACT_MODEL_BRANCH=${REACT_MODEL_BRANCH:-${DEFAULT_REACT_MODEL_BRANCH_BASE}}
+	fi
+	if [[ "${preexisting_verbosity_set}" == true ]]; then
+		VERBOSITY="${preexisting_verbosity}"
+	else
+		VERBOSITY=${VERBOSITY:-1}
+	fi
+	if [[ "${preexisting_approve_all_set}" == true ]]; then
+		APPROVE_ALL="${preexisting_approve_all}"
+	else
+		APPROVE_ALL=${APPROVE_ALL:-false}
+	fi
+	if [[ "${preexisting_force_confirm_set}" == true ]]; then
+		FORCE_CONFIRM="${preexisting_force_confirm}"
+	else
+		FORCE_CONFIRM=${FORCE_CONFIRM:-false}
+	fi
 
 	GOOGLE_SEARCH_API_KEY=${GOOGLE_SEARCH_API_KEY:-${OKSO_GOOGLE_CSE_API_KEY:-}}
 	GOOGLE_SEARCH_CX=${GOOGLE_SEARCH_CX:-${OKSO_GOOGLE_CSE_ID:-}}
