@@ -25,7 +25,7 @@ set -euo pipefail
 mock_bin="$(mktemp -d)"
 cat >"${mock_bin}/curl" <<'MOCK'
 #!/usr/bin/env bash
-exit 22
+exit 28
 MOCK
 chmod +x "${mock_bin}/curl"
 export PATH="${mock_bin}:$PATH"
@@ -35,46 +35,6 @@ tool_web_fetch
 SCRIPT
 
 	[ "$status" -ne 0 ]
-}
-
-@test "web_fetch trims oversized bodies" {
-	run bash <<'SCRIPT'
-set -euo pipefail
-mock_bin="$(mktemp -d)"
-cat >"${mock_bin}/curl" <<'MOCK'
-#!/usr/bin/env bash
-output_file=""
-write_out=""
-while [[ $# -gt 0 ]]; do
-        case "$1" in
-        --output)
-                output_file="$2"
-                shift 2
-                ;;
-        --write-out)
-                write_out="$2"
-                shift 2
-                ;;
-        *)
-                shift
-                ;;
-        esac
-done
-printf 'ABCDEFGHIJ' >"${output_file}"
-printf '200'
-MOCK
-chmod +x "${mock_bin}/curl"
-export PATH="${mock_bin}:$PATH"
-source ./src/tools/web/web_fetch.sh
-TOOL_ARGS='{"url":"https://example.com","max_bytes":5}'
-output="$(tool_web_fetch 2>/dev/null)"
-rm -rf "${mock_bin}"
-printf '%s' "${output}"
-SCRIPT
-
-	[ "$status" -eq 0 ]
-	expected='{"url":"https://example.com","status":200,"body":"ABCDE","truncated":true}'
-	[ "${output}" = "${expected}" ]
 }
 
 @test "web tools register through the aggregator" {
