@@ -3,7 +3,7 @@
 # Tests for the Python REPL tool sandbox behavior.
 #
 # Usage:
-#   bats tests/test_tools_python_repl.sh
+#   bats tests/tools/test_python_repl.sh
 #
 # Dependencies:
 #   - bats
