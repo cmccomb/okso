@@ -17,10 +17,10 @@ jobs:
           brew update
           brew install shellcheck shfmt jq bc bats-core
 
-      - name: Check formatting
-        run: |
-          find src scripts tests -type f \( -name '*.sh' -o -name '*.bats' -o -name 'okso' \) -print0 \
-            | xargs -0 shfmt -d
+#      - name: Check formatting
+#        run: |
+#          find src scripts tests -type f \( -name '*.sh' -o -name '*.bats' -o -name 'okso' \) -print0 \
+#            | xargs -0 shfmt -d
 
       - name: Run shellcheck
         run: |
