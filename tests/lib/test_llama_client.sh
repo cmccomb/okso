@@ -26,7 +26,7 @@ setup() {
                 export LLAMA_BIN=/nonexistent
                 export MODEL_REPO=repo
                 export MODEL_FILE=file
-                source ./src/lib/llama_client.sh
+                source ./src/lib/planning/llama_client.sh
                 llama_infer "prompt" "" 10
         '
 	[ "$status" -eq 1 ]
@@ -49,7 +49,7 @@ SCRIPT
                 export LLAMA_BIN="${mock_binary}"
                 export MODEL_REPO=demo/repo
                 export MODEL_FILE=model.gguf
-                source ./src/lib/llama_client.sh
+                source ./src/lib/planning/llama_client.sh
                 llama_infer "example prompt" "STOP" 12 "${json_schema}"
                 args=()
                 while IFS= read -r line; do
@@ -78,7 +78,7 @@ SCRIPT
                 export LLAMA_BIN="${mock_binary}"
                 export MODEL_REPO=demo/repo
                 export MODEL_FILE=model.gguf
-                source ./src/lib/llama_client.sh
+                source ./src/lib/planning/llama_client.sh
                 llama_infer "prompt" "" 8 "${args_dir}/schema.gbnf"
                 args=()
                 while IFS= read -r line; do
@@ -106,7 +106,7 @@ SCRIPT
                 export LLAMA_BIN="${mock_binary}"
                 export MODEL_REPO=demo/repo
                 export MODEL_FILE=model.gguf
-                source ./src/lib/llama_client.sh
+                source ./src/lib/planning/llama_client.sh
                 llama_infer "prompt" "STOP" 5
         '
 	[ "$status" -eq 42 ]
@@ -135,7 +135,7 @@ SCRIPT
                 export MODEL_REPO=demo/repo
                 export MODEL_FILE=model.gguf
                 export LLAMA_TIMEOUT_SECONDS=1
-                source ./src/lib/llama_client.sh
+                source ./src/lib/planning/llama_client.sh
                 llama_infer "prompt" "" 4
         '
 	[ "$status" -eq 124 ]
@@ -165,7 +165,7 @@ SCRIPT
                 export LLAMA_BIN="${mock_binary}"
                 export MODEL_REPO=demo/repo
                 export MODEL_FILE=model.gguf
-                source ./src/lib/llama_client.sh
+                source ./src/lib/planning/llama_client.sh
                 llama_infer "prompt" "" 8 "${missing_schema}"
         '
 	[ "$status" -eq 1 ]

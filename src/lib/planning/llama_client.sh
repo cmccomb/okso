@@ -23,8 +23,8 @@
 
 LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# shellcheck source=./logging.sh disable=SC1091
-source "${LIB_DIR}/logging.sh"
+# shellcheck source=../core/logging.sh disable=SC1091
+source "${LIB_DIR}/../core/logging.sh"
 
 sanitize_llama_output() {
 	# Normalizes llama.cpp output before downstream usage.

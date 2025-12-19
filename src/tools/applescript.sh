@@ -19,8 +19,8 @@
 # Exit codes:
 #   Returns non-zero only when registration is misused.
 
-# shellcheck source=../lib/logging.sh disable=SC1091
-source "${BASH_SOURCE[0]%/tools/applescript.sh}/lib/logging.sh"
+# shellcheck source=../lib/core/logging.sh disable=SC1091
+source "${BASH_SOURCE[0]%/tools/applescript.sh}/lib/core/logging.sh"
 # shellcheck source=./osascript_helpers.sh disable=SC1091
 source "${BASH_SOURCE[0]%/applescript.sh}/osascript_helpers.sh"
 # shellcheck source=./registry.sh disable=SC1091

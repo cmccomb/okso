@@ -14,8 +14,8 @@
 WEB_TOOLS_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 SRC_ROOT=$(cd -- "${WEB_TOOLS_DIR}/../.." && pwd)
 
-# shellcheck source=../../lib/logging.sh disable=SC1091
-source "${SRC_ROOT}/lib/logging.sh"
+# shellcheck source=../../lib/core/logging.sh disable=SC1091
+source "${SRC_ROOT}/lib/core/logging.sh"
 # shellcheck source=../registry.sh disable=SC1091
 source "${SRC_ROOT}/tools/registry.sh"
 

@@ -31,8 +31,8 @@
 
 LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# shellcheck source=./logging.sh disable=SC1091
-source "${LIB_DIR}/logging.sh"
+# shellcheck source=./core/logging.sh disable=SC1091
+source "${LIB_DIR}/core/logging.sh"
 
 readonly DEFAULT_MODEL_REPO_BASE="bartowski/Qwen_Qwen3-4B-GGUF"
 readonly DEFAULT_MODEL_FILE_BASE="Qwen_Qwen3-4B-Q4_K_M.gguf"

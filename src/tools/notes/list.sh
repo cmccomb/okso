@@ -22,8 +22,8 @@
 
 # shellcheck source=../registry.sh disable=SC1091
 source "${BASH_SOURCE[0]%/notes/list.sh}/registry.sh"
-# shellcheck source=../../lib/logging.sh disable=SC1091
-source "${BASH_SOURCE[0]%/tools/notes/list.sh}/lib/logging.sh"
+# shellcheck source=../../lib/core/logging.sh disable=SC1091
+source "${BASH_SOURCE[0]%/tools/notes/list.sh}/lib/core/logging.sh"
 # shellcheck source=./common.sh disable=SC1091
 source "${BASH_SOURCE[0]%/list.sh}/common.sh"
 

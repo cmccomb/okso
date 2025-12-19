@@ -45,7 +45,7 @@ cd "$(git rev-parse --show-toplevel)" || exit 1
 chpwd_functions=()
 unset -f chpwd _mise_hook 2>/dev/null || true
 
-source ./src/lib/planner.sh
+source ./src/lib/planning/planner.sh
 source ./src/lib/tools.sh
 
 init_tool_registry
@@ -98,7 +98,7 @@ cd "$(git rev-parse --show-toplevel)" || exit 1
 chpwd_functions=()
 unset -f chpwd _mise_hook 2>/dev/null || true
 
-source ./src/lib/planner.sh
+source ./src/lib/planning/planner.sh
 source ./src/lib/tools.sh
 
 init_tool_registry

@@ -7,7 +7,7 @@ setup() {
 @test "normalize_planner_plan retains structured planner output" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-source ./src/lib/planner.sh
+source ./src/lib/planning/planner.sh
 raw_plan='[{"tool":"terminal","args":{"command":"ls"},"thought":"list"}]'
 normalize_planner_plan <<<"${raw_plan}" | jq -r '.[0].tool,.[0].args.command,.[0].thought'
 SCRIPT
@@ -21,7 +21,7 @@ SCRIPT
 @test "normalize_planner_plan builds react fallback from outlines" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-source ./src/lib/planner.sh
+source ./src/lib/planning/planner.sh
 normalize_planner_plan <<<"1) first step\n- second step"
 SCRIPT
 
@@ -36,7 +36,7 @@ SCRIPT
 @test "normalize_planner_plan handles structured plan with missing optional fields" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-source ./src/lib/planner.sh
+source ./src/lib/planning/planner.sh
 raw_plan='[{"tool":"notes_create"}]'
 normalize_planner_plan <<<"${raw_plan}"
 SCRIPT
@@ -54,7 +54,7 @@ SCRIPT
 @test "normalize_planner_plan extracts JSON arrays from mixed text output" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-source ./src/lib/planner.sh
+source ./src/lib/planning/planner.sh
 raw_plan=$'Here is the plan:\n[{"tool":"terminal","args":{"command":"pwd"},"thought":"check"}]\nThanks!'
 normalize_planner_plan <<<"${raw_plan}" | jq -r '.[0].tool,.[0].args.command,.[0].thought'
 SCRIPT
@@ -68,7 +68,7 @@ SCRIPT
 @test "normalize_planner_plan fails on empty planner output" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-source ./src/lib/planner.sh
+source ./src/lib/planning/planner.sh
 normalize_planner_plan <<<""
 SCRIPT
 
@@ -79,7 +79,7 @@ SCRIPT
 @test "append_final_answer_step adds missing summary step without duplication" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-source ./src/lib/planner.sh
+source ./src/lib/planning/planner.sh
 without_final=$(append_final_answer_step "[{\"tool\":\"terminal\",\"args\":{},\"thought\":\"list\"}]")
 with_final=$(append_final_answer_step "[{\"tool\":\"final_answer\",\"args\":{},\"thought\":\"done\"}]")
 printf "%s\n---\n%s\n" "${without_final}" "${with_final}"
@@ -97,7 +97,7 @@ SCRIPT
 @test "derive_allowed_tools_from_plan respects react fallback and final answer" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-source ./src/lib/planner.sh
+source ./src/lib/planning/planner.sh
 tool_names() { printf "%s\n" terminal notes_create final_answer; }
 plan_json='[{"tool":"react_fallback","args":{},"thought":"choose"},{"tool":"notes_create","args":{},"thought":"capture"}]'
 tools=()
@@ -116,7 +116,7 @@ SCRIPT
 @test "select_next_action uses deterministic plan when llama disabled" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-source ./src/lib/planner.sh
+source ./src/lib/planning/planner.sh
 VERBOSITY=0
 state_prefix=state
 plan_entry=$(jq -nc --arg tool "terminal" --arg command "echo" --arg arg0 "hi" '{tool:$tool,args:{command:$command,args:[$arg0]}}')

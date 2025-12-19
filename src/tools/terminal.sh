@@ -22,10 +22,10 @@
 # Exit codes:
 #   Returns non-zero only when registration is misused.
 
-# shellcheck source=../lib/logging.sh disable=SC1091
-source "${BASH_SOURCE[0]%/tools/terminal.sh}/lib/logging.sh"
-# shellcheck source=../lib/output.sh disable=SC1091
-source "${BASH_SOURCE[0]%/tools/terminal.sh}/lib/output.sh"
+# shellcheck source=../lib/core/logging.sh disable=SC1091
+source "${BASH_SOURCE[0]%/tools/terminal.sh}/lib/core/logging.sh"
+# shellcheck source=../lib/cli/output.sh disable=SC1091
+source "${BASH_SOURCE[0]%/tools/terminal.sh}/lib/cli/output.sh"
 # shellcheck source=./registry.sh disable=SC1091
 source "${BASH_SOURCE[0]%/terminal.sh}/registry.sh"
 

@@ -81,20 +81,20 @@ SRC_ROOT=$(cd "${SCRIPT_DIR}/.." && pwd)
 LIB_DIR="${SRC_ROOT}/lib"
 export OKSO_ENTRYPOINT="${OKSO_ENTRYPOINT:-./src/bin/okso}"
 
-# shellcheck source=../lib/errors.sh disable=SC1091
-source "${LIB_DIR}/errors.sh"
-# shellcheck source=../lib/logging.sh disable=SC1091
-source "${LIB_DIR}/logging.sh"
+# shellcheck source=../lib/core/errors.sh disable=SC1091
+source "${LIB_DIR}/core/errors.sh"
+# shellcheck source=../lib/core/logging.sh disable=SC1091
+source "${LIB_DIR}/core/logging.sh"
 # shellcheck source=../lib/config.sh disable=SC1091
 source "${LIB_DIR}/config.sh"
 # shellcheck source=../lib/tools.sh disable=SC1091
 source "${LIB_DIR}/tools.sh"
-# shellcheck source=../lib/planner.sh disable=SC1091
-source "${LIB_DIR}/planner.sh"
-# shellcheck source=../lib/respond.sh disable=SC1091
-source "${LIB_DIR}/respond.sh"
-# shellcheck source=../lib/cli.sh disable=SC1091
-source "${LIB_DIR}/cli.sh"
+# shellcheck source=../lib/planning/planner.sh disable=SC1091
+source "${LIB_DIR}/planning/planner.sh"
+# shellcheck source=../lib/planning/respond.sh disable=SC1091
+source "${LIB_DIR}/planning/respond.sh"
+# shellcheck source=../lib/cli/cli.sh disable=SC1091
+source "${LIB_DIR}/cli/cli.sh"
 # shellcheck source=../lib/runtime.sh disable=SC1091
 source "${LIB_DIR}/runtime.sh"
 

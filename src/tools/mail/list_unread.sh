@@ -23,8 +23,8 @@
 
 # shellcheck source=../registry.sh disable=SC1091
 source "${BASH_SOURCE[0]%/mail/list_unread.sh}/registry.sh"
-# shellcheck source=../../lib/logging.sh disable=SC1091
-source "${BASH_SOURCE[0]%/tools/mail/list_unread.sh}/lib/logging.sh"
+# shellcheck source=../../lib/core/logging.sh disable=SC1091
+source "${BASH_SOURCE[0]%/tools/mail/list_unread.sh}/lib/core/logging.sh"
 # shellcheck source=./common.sh disable=SC1091
 source "${BASH_SOURCE[0]%/list_unread.sh}/common.sh"
 

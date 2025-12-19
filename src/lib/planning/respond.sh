@@ -18,10 +18,10 @@
 
 LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# shellcheck source=./logging.sh disable=SC1091
-source "${LIB_DIR}/logging.sh"
-# shellcheck source=./output.sh disable=SC1091
-source "${LIB_DIR}/output.sh"
+# shellcheck source=../core/logging.sh disable=SC1091
+source "${LIB_DIR}/../core/logging.sh"
+# shellcheck source=../cli/output.sh disable=SC1091
+source "${LIB_DIR}/../cli/output.sh"
 # shellcheck source=./prompts.sh disable=SC1091
 source "${LIB_DIR}/prompts.sh"
 # shellcheck source=./schema.sh disable=SC1091

@@ -19,7 +19,7 @@ setup() {
 
 @test "log suppresses info when quiet" {
 	run bash -lc '
-                source ./src/lib/logging.sh
+                source ./src/lib/core/logging.sh
                 VERBOSITY=0 log INFO "hidden" "detail"
         '
 
@@ -29,7 +29,7 @@ setup() {
 
 @test "log emits compact JSON with message metadata" {
 	run bash -lc '
-                source ./src/lib/logging.sh
+                source ./src/lib/core/logging.sh
                 VERBOSITY=1 log INFO "visible" "more-detail"
         '
 
@@ -45,7 +45,7 @@ setup() {
 
 @test "log_pretty emits parseable formatted JSON" {
 	run bash -lc '
-                source ./src/lib/logging.sh
+                source ./src/lib/core/logging.sh
                 VERBOSITY=2 log_pretty DEBUG "pretty" "{\"a\":1}"
         '
 
@@ -60,7 +60,7 @@ setup() {
 
 @test "log debug messages honor verbosity" {
 	run bash -lc '
-                source ./src/lib/logging.sh
+                source ./src/lib/core/logging.sh
                 VERBOSITY=1 log DEBUG "silenced" "detail"
         '
 
@@ -70,8 +70,8 @@ setup() {
 
 @test "user output stays on stdout while logs remain on stderr" {
 	run bash -lc '
-                source ./src/lib/output.sh
-                source ./src/lib/logging.sh
+                source ./src/lib/cli/output.sh
+                source ./src/lib/core/logging.sh
 
                 stdout_file=$(mktemp)
                 stderr_file=$(mktemp)

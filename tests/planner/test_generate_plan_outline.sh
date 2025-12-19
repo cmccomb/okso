@@ -14,7 +14,7 @@
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 enable -n mapfile 2>/dev/null || true
 
-                source ./src/lib/planner.sh
+                source ./src/lib/planning/planner.sh
 
                 log() { :; }
 
@@ -31,7 +31,7 @@
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
-source ./src/lib/planner.sh
+source ./src/lib/planning/planner.sh
 
 tool_names() { printf "%s\n" "fallback_tool" "secondary_tool"; }
 format_tool_descriptions() { printf "%s" "$1"; }
@@ -62,7 +62,7 @@ INNERSCRIPT
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
-source ./src/lib/planner.sh
+source ./src/lib/planning/planner.sh
 
 tool_names() { printf "%s\n" "fallback_tool"; }
 format_tool_descriptions() { printf "%s" "$1"; }
@@ -92,7 +92,7 @@ INNERSCRIPT
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
-source ./src/lib/planner.sh
+source ./src/lib/planning/planner.sh
 
 tool_names() { printf "%s\n" "fallback_tool"; }
 format_tool_descriptions() { printf "%s" "$1"; }

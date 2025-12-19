@@ -19,8 +19,8 @@
 # Exit codes:
 #   Returns non-zero when sandbox creation or interpreter startup fails.
 
-# shellcheck source=../lib/logging.sh disable=SC1091
-source "${BASH_SOURCE[0]%/tools/python_repl.sh}/lib/logging.sh"
+# shellcheck source=../lib/core/logging.sh disable=SC1091
+source "${BASH_SOURCE[0]%/tools/python_repl.sh}/lib/core/logging.sh"
 # shellcheck source=./registry.sh disable=SC1091
 source "${BASH_SOURCE[0]%/python_repl.sh}/registry.sh"
 

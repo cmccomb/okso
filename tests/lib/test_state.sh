@@ -17,7 +17,7 @@ setup() {
 }
 
 @test "state helpers persist values and history" {
-	source ./src/lib/state.sh
+	source ./src/lib/core/state.sh
 	prefix=state_case
 	state_set "${prefix}" "foo" "bar"
 	[[ "$(state_get "${prefix}" "foo")" == "bar" ]]
@@ -65,7 +65,7 @@ setup() {
 }
 
 @test "history append gracefully repairs malformed JSON" {
-	source ./src/lib/state.sh
+	source ./src/lib/core/state.sh
 	prefix=broken_history
 	json_var=$(state_namespace_json_var "${prefix}")
 	printf -v "${json_var}" "%s" "{broken"

@@ -17,7 +17,7 @@ setup() {
 	: >"${INSTALLER_ROOT}/scripts/okso.rb"
 	printf 'stub readme for installer tests' >"${INSTALLER_ROOT}/README.md"
 
-	cat >"${INSTALLER_ROOT}/src/lib/schema.sh" <<'EOS'
+	cat >"${INSTALLER_ROOT}/src/lib/planning/schema.sh" <<'EOS'
 #!/usr/bin/env bash
 # shellcheck shell=bash
 schema_path() {

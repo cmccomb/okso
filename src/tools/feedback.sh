@@ -28,8 +28,8 @@
 #   Returns non-zero when required context is missing, validation fails, or the
 #   output path is not writable.
 
-# shellcheck source=../lib/logging.sh disable=SC1091
-source "${BASH_SOURCE[0]%/tools/feedback.sh}/lib/logging.sh"
+# shellcheck source=../lib/core/logging.sh disable=SC1091
+source "${BASH_SOURCE[0]%/tools/feedback.sh}/lib/core/logging.sh"
 # shellcheck source=./registry.sh disable=SC1091
 source "${BASH_SOURCE[0]%/feedback.sh}/registry.sh"
 

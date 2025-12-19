@@ -24,10 +24,10 @@ LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 SRC_ROOT=$(cd -- "${LIB_DIR}/.." && pwd)
 TOOLS_DIR="${SRC_ROOT}/tools"
 
-# shellcheck source=./errors.sh disable=SC1091
-source "${LIB_DIR}/errors.sh"
-# shellcheck source=./logging.sh disable=SC1091
-source "${LIB_DIR}/logging.sh"
+# shellcheck source=./core/errors.sh disable=SC1091
+source "${LIB_DIR}/core/errors.sh"
+# shellcheck source=./core/logging.sh disable=SC1091
+source "${LIB_DIR}/core/logging.sh"
 # shellcheck source=../tools/registry.sh disable=SC1091
 source "${TOOLS_DIR}/registry.sh"
 TOOL_WRITABLE_DIRECTORY_ALLOWLIST=(

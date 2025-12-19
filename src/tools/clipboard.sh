@@ -19,8 +19,8 @@
 # Exit codes:
 #   Returns non-zero when a required dependency is missing on macOS.
 
-# shellcheck source=../lib/logging.sh disable=SC1091
-source "${BASH_SOURCE[0]%/tools/clipboard.sh}/lib/logging.sh"
+# shellcheck source=../lib/core/logging.sh disable=SC1091
+source "${BASH_SOURCE[0]%/tools/clipboard.sh}/lib/core/logging.sh"
 # shellcheck source=./registry.sh disable=SC1091
 source "${BASH_SOURCE[0]%/clipboard.sh}/registry.sh"
 

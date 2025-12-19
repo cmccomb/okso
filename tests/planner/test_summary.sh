@@ -12,7 +12,7 @@
 @test "finalize_react_result emits boxed summary" {
 	run bash -lc '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
-                source ./src/lib/planner.sh
+                source ./src/lib/planning/planner.sh
                 # Silence structured logs for assertion clarity.
                 log() { :; }
                 log_pretty() { :; }

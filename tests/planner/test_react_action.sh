@@ -15,7 +15,7 @@
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
-source ./src/lib/planner.sh
+source ./src/lib/planning/planner.sh
 
 tool_registry_json() {
         printf "%s" '{"names":["alpha"],"registry":{"alpha":{"args_schema":{"type":"object","required":["input"],"properties":{"input":{"type":"string","minLength":1}},"additionalProperties":false}}}}'
@@ -42,7 +42,7 @@ INNERSCRIPT
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
-source ./src/lib/planner.sh
+source ./src/lib/planning/planner.sh
 
 tool_registry_json() {
         printf "%s" '{"names":["alpha"],"registry":{"alpha":{"args_schema":{"type":"object","required":["input"],"properties":{"input":{"type":"string","minLength":1}}}}}}'
@@ -68,7 +68,7 @@ INNERSCRIPT
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
-source ./src/lib/planner.sh
+source ./src/lib/planning/planner.sh
 
 tool_registry_json() {
         printf "%s" '{"names":["alpha"],"registry":{"alpha":{"args_schema":{"type":"object","required":["input"],"properties":{"input":{"type":"string","minLength":1}}}}}}'
@@ -105,7 +105,7 @@ INNERSCRIPT
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
-source ./src/lib/planner.sh
+source ./src/lib/planning/planner.sh
 
 schema_path="$(build_react_action_schema "terminal")"
 
@@ -129,7 +129,7 @@ cd "$(git rev-parse --show-toplevel)" || exit 1
 USE_REACT_LLAMA=false
 LLAMA_AVAILABLE=false
 
-source ./src/lib/planner.sh
+source ./src/lib/planning/planner.sh
 
 state_prefix=react
 initialize_react_state "${state_prefix}" "demo request" $'terminal\nfinal_answer' $'terminal|echo hi|0' $'1. terminal -> run echo'
@@ -150,7 +150,7 @@ INNERSCRIPT
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
-source ./src/lib/planner.sh
+source ./src/lib/planning/planner.sh
 
 tool_registry_json() {
         printf "%s" '{"names":["python_repl","final_answer"],"registry":{"python_repl":{"args_schema":{"type":"object","required":["code"],"properties":{"code":{"type":"string","minLength":1}}}},"final_answer":{"args_schema":{"type":"object","required":["message"],"properties":{"message":{"type":"string","minLength":1}}}}}}'

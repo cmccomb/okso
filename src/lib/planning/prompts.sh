@@ -16,10 +16,10 @@
 #   Functions print prompts and return 0 on success.
 
 LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-PROMPTS_DIR="${LIB_DIR%/lib}/prompts"
+PROMPTS_DIR="${LIB_DIR%/lib/planning}/prompts"
 
-# shellcheck source=./logging.sh disable=SC1091
-source "${LIB_DIR}/logging.sh"
+# shellcheck source=../core/logging.sh disable=SC1091
+source "${LIB_DIR}/../core/logging.sh"
 
 # shellcheck source=./schema.sh disable=SC1091
 source "${LIB_DIR}/schema.sh"
