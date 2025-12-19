@@ -16,18 +16,18 @@
 # Exit codes:
 #   Functions print responses and return 0 on success.
 
-LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+PLANNING_RESPOND_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck source=../core/logging.sh disable=SC1091
-source "${LIB_DIR}/../core/logging.sh"
+source "${PLANNING_RESPOND_DIR}/../core/logging.sh"
 # shellcheck source=../cli/output.sh disable=SC1091
-source "${LIB_DIR}/../cli/output.sh"
+source "${PLANNING_RESPOND_DIR}/../cli/output.sh"
 # shellcheck source=./prompts.sh disable=SC1091
-source "${LIB_DIR}/prompts.sh"
+source "${PLANNING_RESPOND_DIR}/prompts.sh"
 # shellcheck source=./schema.sh disable=SC1091
-source "${LIB_DIR}/schema.sh"
+source "${PLANNING_RESPOND_DIR}/schema.sh"
 # shellcheck source=./llama_client.sh disable=SC1091
-source "${LIB_DIR}/llama_client.sh"
+source "${PLANNING_RESPOND_DIR}/llama_client.sh"
 
 respond_text() {
 	# Arguments:

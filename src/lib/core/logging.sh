@@ -17,10 +17,10 @@
 # Exit codes:
 #   None directly; callers handle failures.
 
-LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+CORE_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck source=./errors.sh disable=SC1091
-source "${LIB_DIR}/errors.sh"
+source "${CORE_LIB_DIR}/errors.sh"
 
 log_emit() {
 	# Arguments:

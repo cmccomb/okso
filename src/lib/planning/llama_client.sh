@@ -21,10 +21,10 @@
 # Exit codes:
 #   Returns non-zero when llama.cpp is unavailable; otherwise mirrors llama.cpp.
 
-LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+PLANNING_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck source=../core/logging.sh disable=SC1091
-source "${LIB_DIR}/../core/logging.sh"
+source "${PLANNING_LIB_DIR}/../core/logging.sh"
 
 sanitize_llama_output() {
 	# Normalizes llama.cpp output before downstream usage.

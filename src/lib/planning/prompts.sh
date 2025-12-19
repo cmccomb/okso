@@ -15,14 +15,14 @@
 # Exit codes:
 #   Functions print prompts and return 0 on success.
 
-LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-PROMPTS_DIR="${LIB_DIR%/lib/planning}/prompts"
+PLANNING_PROMPTS_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+PROMPTS_DIR="${PLANNING_PROMPTS_DIR%/lib/planning}/prompts"
 
 # shellcheck source=../core/logging.sh disable=SC1091
-source "${LIB_DIR}/../core/logging.sh"
+source "${PLANNING_PROMPTS_DIR}/../core/logging.sh"
 
 # shellcheck source=./schema.sh disable=SC1091
-source "${LIB_DIR}/schema.sh"
+source "${PLANNING_PROMPTS_DIR}/schema.sh"
 
 load_prompt_template() {
 	# Arguments:

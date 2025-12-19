@@ -42,14 +42,14 @@
 # Exit codes:
 #   0 for success, non-zero bubbled from downstream helpers.
 
-LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+RUNTIME_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# shellcheck source=./errors.sh disable=SC1091
-source "${LIB_DIR}/errors.sh"
+# shellcheck source=./core/errors.sh disable=SC1091
+source "${RUNTIME_LIB_DIR}/core/errors.sh"
 # shellcheck source=./formatting.sh disable=SC1091
-source "${LIB_DIR}/formatting.sh"
-# shellcheck source=./json_state.sh disable=SC1091
-source "${LIB_DIR}/json_state.sh"
+source "${RUNTIME_LIB_DIR}/formatting.sh"
+# shellcheck source=./core/json_state.sh disable=SC1091
+source "${RUNTIME_LIB_DIR}/core/json_state.sh"
 
 if ! command -v jq >/dev/null 2>&1; then
 	die runtime dependency "Missing jq dependency. Install jq with your package manager (e.g., apt-get install jq or brew install jq) and re-run."

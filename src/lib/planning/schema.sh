@@ -15,14 +15,14 @@
 # Exit codes:
 #   Functions return non-zero when an unknown schema name is requested.
 
-LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+PLANNING_SCHEMA_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck source=../core/logging.sh disable=SC1091
-source "${LIB_DIR}/../core/logging.sh"
+source "${PLANNING_SCHEMA_LIB_DIR}/../core/logging.sh"
 
 # Returns the absolute path to the schema directory.
 schema_root_dir() {
-	cd "${LIB_DIR}/../schemas" && pwd
+	cd "${PLANNING_SCHEMA_LIB_DIR}/../../schemas" && pwd
 }
 
 # Resolves a schema name to its file path.

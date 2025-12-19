@@ -17,10 +17,10 @@
 # Exit codes:
 #   0 for help/version responses; 1 for argument errors.
 
-LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+CLI_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck source=../core/logging.sh disable=SC1091
-source "${LIB_DIR}/../core/logging.sh"
+source "${CLI_LIB_DIR}/../core/logging.sh"
 
 build_usage_text() {
 	local default_model_spec default_model_branch entrypoint_display

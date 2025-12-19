@@ -9,7 +9,7 @@ setup() {
 	MOCK_BIN="${TEST_ROOT}/mock-bin"
 
 	mkdir -p "${INSTALLER_ROOT}/scripts" "${INSTALLER_ROOT}/src/bin" \
-		"${INSTALLER_ROOT}/src/lib" "${INSTALLER_ROOT}/src/schemas" \
+		"${INSTALLER_ROOT}/src/lib/planning" "${INSTALLER_ROOT}/src/schemas" \
 		"${MOCK_BIN}" "${LINK_DIR}"
 
 	cp scripts/install.sh "${INSTALLER_ROOT}/scripts/install.sh"
@@ -23,7 +23,7 @@ setup() {
 schema_path() {
         if [ "$1" = "planner_plan" ]; then
                 printf "%s/schemas/planner_plan.schema.json\n" \
-                        "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+                        "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
         fi
 }
 EOS

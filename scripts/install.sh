@@ -348,7 +348,7 @@ self_test_install() {
 		exit 2
 	fi
 
-	schema_path_output="$(bash -c "source \"${prefix}/src/lib/schema.sh\" && schema_path planner_plan" 2>/dev/null || true)"
+	schema_path_output="$(bash -c "source \"${prefix}/src/lib/planning/schema.sh\" && schema_path planner_plan" 2>/dev/null || true)"
 	if [ "${schema_path_output}" != "${prefix}/src/schemas/planner_plan.schema.json" ]; then
 		log "ERROR" "Schema resolution failed during self-test"
 		exit 2

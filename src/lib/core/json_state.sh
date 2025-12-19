@@ -16,10 +16,10 @@
 # Exit codes:
 #   Functions return non-zero on misuse or jq failures; callers should handle failures.
 
-LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+CORE_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck source=./logging.sh disable=SC1091
-source "${LIB_DIR}/logging.sh"
+source "${CORE_LIB_DIR}/logging.sh"
 
 json_state_namespace_var() {
 	# Arguments:
