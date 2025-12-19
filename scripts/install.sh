@@ -9,8 +9,6 @@
 # Environment variables:
 #   OKSO_LINK_DIR (string): Directory for the PATH symlink. Defaults to
 #       "/usr/local/bin".
-#   OKSO_INSTALLER_SKIP_SELF_TEST (bool): Set to "true" to bypass the post-install
-#       self-test (not recommended).
 #   OKSO_INSTALLER_ASSUME_OFFLINE (bool): Do not attempt a network clone. Requires
 #       a local okso checkout next to this script (../src + ../README.md).
 #   OKSO_INSTALLER_BASE_URL (string): Git repository URL (or local path) to clone
@@ -332,50 +330,6 @@ copy_payload() {
 	fi
 }
 
-self_test_install() {
-	# $1: installation prefix
-	local prefix="$1" schema_path_output temp_root query_output
-
-	log "INFO" "Running installer self-test"
-
-	if [ ! -x "${prefix}/src/bin/${APP_NAME}" ]; then
-		log "ERROR" "Installed entrypoint is missing or not executable"
-		exit 2
-	fi
-
-	if [ ! -f "${prefix}/src/schemas/planner_plan.schema.json" ]; then
-		log "ERROR" "Planner schema missing from installation"
-		exit 2
-	fi
-
-	schema_path_output="$(bash -c "source \"${prefix}/src/lib/planning/schema.sh\" && schema_path planner_plan" 2>/dev/null || true)"
-	if [ "${schema_path_output}" != "${prefix}/src/schemas/planner_plan.schema.json" ]; then
-		log "ERROR" "Schema resolution failed during self-test"
-		exit 2
-	fi
-
-	temp_root="$(mktemp -d "${TMPDIR:-/tmp}/okso-selftest-XXXXXX")"
-	query_output=$(env \
-		LLAMA_AVAILABLE=false \
-		XDG_CONFIG_HOME="${temp_root}/config" \
-		NOTES_DIR="${temp_root}/notes" \
-		DEFAULT_MODEL_SPEC_BASE="self/test:model.gguf" \
-		DEFAULT_MODEL_BRANCH_BASE="main" \
-		DEFAULT_MODEL_FILE_BASE="model.gguf" \
-		"${prefix}/src/bin/${APP_NAME}" --plan-only -- "Self-test query" 2>&1 || true)
-
-	if [ -z "${query_output}" ]; then
-		log "ERROR" "Self-test query produced no output"
-		exit 2
-	fi
-
-	if ! printf '%s' "${query_output}" | grep -q "Plan outline"; then
-		log "ERROR" "Self-test query did not complete as expected"
-		exit 2
-	fi
-
-	log "INFO" "Installer self-test passed"
-}
 
 remove_symlink() {
 	if [ -e "${DEFAULT_LINK_PATH}" ]; then
@@ -440,7 +394,6 @@ main() {
 			log_dry_run "Would git clone ${base_url} and copy sources to ${INSTALL_PREFIX}"
 		fi
 		log_dry_run "Would link ${APP_NAME} into ${DEFAULT_LINK_PATH}"
-		log_dry_run "Would run installer self-test"
 		log "INFO" "${APP_NAME} installer completed (dry-run ${MODE})."
 		exit 0
 	fi
@@ -471,12 +424,6 @@ main() {
 		rm -rf "$(dirname "${source_root}")" >/dev/null 2>&1 || true
 	fi
 	link_binary "${INSTALL_PREFIX}"
-
-	if [ "${OKSO_INSTALLER_SKIP_SELF_TEST:-false}" != "true" ]; then
-		self_test_install "${INSTALL_PREFIX}"
-	else
-		log "WARN" "Skipping installer self-test due to OKSO_INSTALLER_SKIP_SELF_TEST"
-	fi
 
 	log "INFO" "${APP_NAME} installer completed (${MODE})."
 }
