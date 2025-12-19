@@ -127,37 +127,37 @@ set_by_name() {
 }
 
 create_default_settings() {
-        # Arguments:
-        #   $1 - settings namespace prefix
-        local settings_prefix config_dir default_model_file config_file model_spec new_settings_json default_planner_model_file planner_model_spec react_model_spec
-        settings_prefix="$1"
+	# Arguments:
+	#   $1 - settings namespace prefix
+	local settings_prefix config_dir default_model_file config_file model_spec new_settings_json default_planner_model_file planner_model_spec react_model_spec
+	settings_prefix="$1"
 
-        settings_clear_namespace "${settings_prefix}"
+	settings_clear_namespace "${settings_prefix}"
 
-        config_dir="${XDG_CONFIG_HOME:-${HOME}/.config}/okso"
-        default_model_file="${DEFAULT_MODEL_FILE_BASE:-Qwen_Qwen3-1.7B-Q4_K_M.gguf}"
-        default_planner_model_file="${DEFAULT_PLANNER_MODEL_FILE_BASE:-Qwen_Qwen3-8B-Q4_K_M.gguf}"
-        config_file="${config_dir}/config.env"
-        model_spec="${DEFAULT_REACT_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-1.7B-GGUF:${default_model_file}}"
-        planner_model_spec="${DEFAULT_PLANNER_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-8B-GGUF:${default_planner_model_file}}"
-        react_model_spec="${DEFAULT_REACT_MODEL_SPEC_BASE:-${model_spec}}"
+	config_dir="${XDG_CONFIG_HOME:-${HOME}/.config}/okso"
+	default_model_file="${DEFAULT_MODEL_FILE_BASE:-Qwen_Qwen3-1.7B-Q4_K_M.gguf}"
+	default_planner_model_file="${DEFAULT_PLANNER_MODEL_FILE_BASE:-Qwen_Qwen3-8B-Q4_K_M.gguf}"
+	config_file="${config_dir}/config.env"
+	model_spec="${DEFAULT_REACT_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-1.7B-GGUF:${default_model_file}}"
+	planner_model_spec="${DEFAULT_PLANNER_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-8B-GGUF:${default_planner_model_file}}"
+	react_model_spec="${DEFAULT_REACT_MODEL_SPEC_BASE:-${model_spec}}"
 
-        new_settings_json=$(jq -c -n \
-                --arg version "0.1.0" \
-                --arg llama_bin "${LLAMA_BIN:-llama-cli}" \
-                --arg default_model_file "${default_model_file}" \
-                --arg default_planner_model_file "${default_planner_model_file}" \
-                --arg config_dir "${config_dir}" \
-                --arg config_file "${config_file}" \
-                --arg model_spec "${model_spec}" \
-                --arg planner_model_spec "${planner_model_spec}" \
-                --arg react_model_spec "${react_model_spec}" \
-                --arg model_branch "${DEFAULT_REACT_MODEL_BRANCH_BASE:-main}" \
-                --arg planner_model_branch "${DEFAULT_PLANNER_MODEL_BRANCH_BASE:-main}" \
-                --arg react_model_branch "${DEFAULT_REACT_MODEL_BRANCH_BASE:-main}" \
-                --arg notes_dir "${HOME}/.okso" \
-                --arg use_react_llama "${USE_REACT_LLAMA:-true}" \
-                '{
+	new_settings_json=$(jq -c -n \
+		--arg version "0.1.0" \
+		--arg llama_bin "${LLAMA_BIN:-llama-cli}" \
+		--arg default_model_file "${default_model_file}" \
+		--arg default_planner_model_file "${default_planner_model_file}" \
+		--arg config_dir "${config_dir}" \
+		--arg config_file "${config_file}" \
+		--arg model_spec "${model_spec}" \
+		--arg planner_model_spec "${planner_model_spec}" \
+		--arg react_model_spec "${react_model_spec}" \
+		--arg model_branch "${DEFAULT_REACT_MODEL_BRANCH_BASE:-main}" \
+		--arg planner_model_branch "${DEFAULT_PLANNER_MODEL_BRANCH_BASE:-main}" \
+		--arg react_model_branch "${DEFAULT_REACT_MODEL_BRANCH_BASE:-main}" \
+		--arg notes_dir "${HOME}/.okso" \
+		--arg use_react_llama "${USE_REACT_LLAMA:-true}" \
+		'{
                         version: $version,
                         llama_bin: $llama_bin,
                         default_model_file: $default_model_file,
@@ -189,11 +189,11 @@ create_default_settings() {
                         user_query: ""
                 }')
 
-        settings_set_json_document "${settings_prefix}" "${new_settings_json}"
+	settings_set_json_document "${settings_prefix}" "${new_settings_json}"
 }
 
 settings_field_mappings() {
-        cat <<'EOF'
+	cat <<'EOF'
 version VERSION
 llama_bin LLAMA_BIN
 default_model_file DEFAULT_MODEL_FILE
@@ -269,11 +269,11 @@ load_runtime_settings() {
 
 	# Ordering matters: config file may update globals before CLI args take
 	# precedence, matching typical UNIX expectations.
-        detect_config_file "$@"
-        load_config
-        parse_args "$@"
-        normalize_approval_flags
-        hydrate_model_specs
+	detect_config_file "$@"
+	load_config
+	parse_args "$@"
+	normalize_approval_flags
+	hydrate_model_specs
 
 	capture_globals_into_settings "${settings_prefix}"
 }

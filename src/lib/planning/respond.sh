@@ -58,8 +58,8 @@ respond_text() {
 	prompt="$(build_concise_response_prompt "${user_query}" "${context}")"
 	log "INFO" "Invoking llama inference" "$(printf 'tokens=%s schema=%s' "${number_of_tokens}" "${concise_schema_path}")" >&2
 	local response_text
-        response_text="$(llama_infer "${prompt}" "" "${number_of_tokens}" "${concise_schema_path}" "${REACT_MODEL_REPO}" "${REACT_MODEL_FILE}")"
-        user_output "${response_text}"
-        log "INFO" "Direct response generation finished" "${user_query}" >&2
-        return 0
+	response_text="$(llama_infer "${prompt}" "" "${number_of_tokens}" "${concise_schema_path}" "${REACT_MODEL_REPO}" "${REACT_MODEL_FILE}")"
+	user_output "${response_text}"
+	log "INFO" "Direct response generation finished" "${user_query}" >&2
+	return 0
 }

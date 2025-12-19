@@ -192,9 +192,9 @@ generate_plan_json() {
 
 	prompt="$(build_planner_prompt "${user_query}" "${tool_lines}")"
 	log "DEBUG" "Generated planner prompt" "${prompt}" >&2
-        raw_plan="$(llama_infer "${prompt}" '' 512 "${planner_schema_path}" "${PLANNER_MODEL_REPO}" "${PLANNER_MODEL_FILE}")" || raw_plan="[]"
-        plan_json="$(append_final_answer_step "${raw_plan}")" || plan_json="${raw_plan}"
-        printf '%s' "${plan_json}"
+	raw_plan="$(llama_infer "${prompt}" '' 512 "${planner_schema_path}" "${PLANNER_MODEL_REPO}" "${PLANNER_MODEL_FILE}")" || raw_plan="[]"
+	plan_json="$(append_final_answer_step "${raw_plan}")" || plan_json="${raw_plan}"
+	printf '%s' "${plan_json}"
 }
 
 generate_plan_outline() {
@@ -882,13 +882,13 @@ select_next_action() {
 		)"
 		validation_error_file="$(mktemp)"
 
-                raw_action="$(llama_infer "${react_prompt}" "" 256 "${react_schema_path}" "${REACT_MODEL_REPO}" "${REACT_MODEL_FILE}")"
-                if ! validated_action=$(validate_react_action "${raw_action}" "${react_schema_path}" 2>"${validation_error_file}"); then
-                        corrective_prompt="${react_prompt}"$'\n'"The previous response was invalid: $(cat "${validation_error_file}"). Respond with a valid JSON action that follows the schema."
-                        raw_action="$(llama_infer "${corrective_prompt}" "" 256 "${react_schema_path}" "${REACT_MODEL_REPO}" "${REACT_MODEL_FILE}")"
+		raw_action="$(llama_infer "${react_prompt}" "" 256 "${react_schema_path}" "${REACT_MODEL_REPO}" "${REACT_MODEL_FILE}")"
+		if ! validated_action=$(validate_react_action "${raw_action}" "${react_schema_path}" 2>"${validation_error_file}"); then
+			corrective_prompt="${react_prompt}"$'\n'"The previous response was invalid: $(cat "${validation_error_file}"). Respond with a valid JSON action that follows the schema."
+			raw_action="$(llama_infer "${corrective_prompt}" "" 256 "${react_schema_path}" "${REACT_MODEL_REPO}" "${REACT_MODEL_FILE}")"
 
-                        if ! validated_action=$(validate_react_action "${raw_action}" "${react_schema_path}" 2>"${validation_error_file}"); then
-                                log "ERROR" "Invalid action output from llama" "$(cat "${validation_error_file}")"
+			if ! validated_action=$(validate_react_action "${raw_action}" "${react_schema_path}" 2>"${validation_error_file}"); then
+				log "ERROR" "Invalid action output from llama" "$(cat "${validation_error_file}")"
 				rm -f "${validation_error_file}"
 				return 1
 			fi

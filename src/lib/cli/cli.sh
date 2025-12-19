@@ -23,16 +23,16 @@ CLI_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${CLI_LIB_DIR}/../core/logging.sh"
 
 build_usage_text() {
-        local default_model_spec default_model_branch entrypoint_display default_planner_spec default_planner_branch default_react_spec default_react_branch
-        default_model_spec="${DEFAULT_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-4B-GGUF:Qwen_Qwen3-4B-Q4_K_M.gguf}"
-        default_model_branch="${DEFAULT_MODEL_BRANCH_BASE:-main}"
-        default_planner_spec="${DEFAULT_PLANNER_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-8B-GGUF:Qwen_Qwen3-8B-Q4_K_M.gguf}"
-        default_planner_branch="${DEFAULT_PLANNER_MODEL_BRANCH_BASE:-main}"
-        default_react_spec="${DEFAULT_REACT_MODEL_SPEC_BASE:-${default_model_spec}}"
-        default_react_branch="${DEFAULT_REACT_MODEL_BRANCH_BASE:-${default_model_branch}}"
-        entrypoint_display="${OKSO_ENTRYPOINT:-./src/bin/okso}"
+	local default_model_spec default_model_branch entrypoint_display default_planner_spec default_planner_branch default_react_spec default_react_branch
+	default_model_spec="${DEFAULT_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-4B-GGUF:Qwen_Qwen3-4B-Q4_K_M.gguf}"
+	default_model_branch="${DEFAULT_MODEL_BRANCH_BASE:-main}"
+	default_planner_spec="${DEFAULT_PLANNER_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-8B-GGUF:Qwen_Qwen3-8B-Q4_K_M.gguf}"
+	default_planner_branch="${DEFAULT_PLANNER_MODEL_BRANCH_BASE:-main}"
+	default_react_spec="${DEFAULT_REACT_MODEL_SPEC_BASE:-${default_model_spec}}"
+	default_react_branch="${DEFAULT_REACT_MODEL_BRANCH_BASE:-${default_model_branch}}"
+	entrypoint_display="${OKSO_ENTRYPOINT:-./src/bin/okso}"
 
-        cat <<USAGE
+	cat <<USAGE
 Usage: ${entrypoint_display} [OPTIONS] -- "user query"
 
 Options:
@@ -92,13 +92,13 @@ show_version() {
 
 # shellcheck disable=SC2034
 parse_args() {
-        local positional
-        positional=()
-        local planner_model_spec_set react_model_spec_set planner_model_branch_set react_model_branch_set
-        planner_model_spec_set=false
-        react_model_spec_set=false
-        planner_model_branch_set=false
-        react_model_branch_set=false
+	local positional
+	positional=()
+	local planner_model_spec_set react_model_spec_set planner_model_branch_set react_model_branch_set
+	planner_model_spec_set=false
+	react_model_spec_set=false
+	planner_model_branch_set=false
+	react_model_branch_set=false
 
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
@@ -135,69 +135,69 @@ parse_args() {
 			DRY_RUN=true
 			shift
 			;;
-                -m | --model)
-                        if [[ $# -lt 2 ]]; then
-                                die "cli" "usage" "--model requires an HF repo[:file] value"
-                        fi
-                        MODEL_SPEC="$2"
-                        if [[ "${planner_model_spec_set}" != true ]]; then
-                                PLANNER_MODEL_SPEC="$2"
-                        fi
-                        if [[ "${react_model_spec_set}" != true ]]; then
-                                REACT_MODEL_SPEC="$2"
-                        fi
-                        shift 2
-                        ;;
-                --model-branch)
-                        if [[ $# -lt 2 ]]; then
-                                die "cli" "usage" "--model-branch requires a branch or tag"
-                        fi
-                        MODEL_BRANCH="$2"
-                        if [[ "${planner_model_branch_set}" != true ]]; then
-                                PLANNER_MODEL_BRANCH="$2"
-                        fi
-                        if [[ "${react_model_branch_set}" != true ]]; then
-                                REACT_MODEL_BRANCH="$2"
-                        fi
-                        shift 2
-                        ;;
-                --planner-model)
-                        if [[ $# -lt 2 ]]; then
-                                die "cli" "usage" "--planner-model requires an HF repo[:file] value"
-                        fi
-                        PLANNER_MODEL_SPEC="$2"
-                        planner_model_spec_set=true
-                        shift 2
-                        ;;
-                --planner-model-branch)
-                        if [[ $# -lt 2 ]]; then
-                                die "cli" "usage" "--planner-model-branch requires a branch or tag"
-                        fi
-                        PLANNER_MODEL_BRANCH="$2"
-                        planner_model_branch_set=true
-                        shift 2
-                        ;;
-                --react-model)
-                        if [[ $# -lt 2 ]]; then
-                                die "cli" "usage" "--react-model requires an HF repo[:file] value"
-                        fi
-                        REACT_MODEL_SPEC="$2"
-                        react_model_spec_set=true
-                        shift 2
-                        ;;
-                --react-model-branch)
-                        if [[ $# -lt 2 ]]; then
-                                die "cli" "usage" "--react-model-branch requires a branch or tag"
-                        fi
-                        REACT_MODEL_BRANCH="$2"
-                        react_model_branch_set=true
-                        shift 2
-                        ;;
-                --config)
-                        if [[ $# -lt 2 ]]; then
-                                die "cli" "usage" "--config requires a path"
-                        fi
-                        CONFIG_FILE="$2"
+		-m | --model)
+			if [[ $# -lt 2 ]]; then
+				die "cli" "usage" "--model requires an HF repo[:file] value"
+			fi
+			MODEL_SPEC="$2"
+			if [[ "${planner_model_spec_set}" != true ]]; then
+				PLANNER_MODEL_SPEC="$2"
+			fi
+			if [[ "${react_model_spec_set}" != true ]]; then
+				REACT_MODEL_SPEC="$2"
+			fi
+			shift 2
+			;;
+		--model-branch)
+			if [[ $# -lt 2 ]]; then
+				die "cli" "usage" "--model-branch requires a branch or tag"
+			fi
+			MODEL_BRANCH="$2"
+			if [[ "${planner_model_branch_set}" != true ]]; then
+				PLANNER_MODEL_BRANCH="$2"
+			fi
+			if [[ "${react_model_branch_set}" != true ]]; then
+				REACT_MODEL_BRANCH="$2"
+			fi
+			shift 2
+			;;
+		--planner-model)
+			if [[ $# -lt 2 ]]; then
+				die "cli" "usage" "--planner-model requires an HF repo[:file] value"
+			fi
+			PLANNER_MODEL_SPEC="$2"
+			planner_model_spec_set=true
+			shift 2
+			;;
+		--planner-model-branch)
+			if [[ $# -lt 2 ]]; then
+				die "cli" "usage" "--planner-model-branch requires a branch or tag"
+			fi
+			PLANNER_MODEL_BRANCH="$2"
+			planner_model_branch_set=true
+			shift 2
+			;;
+		--react-model)
+			if [[ $# -lt 2 ]]; then
+				die "cli" "usage" "--react-model requires an HF repo[:file] value"
+			fi
+			REACT_MODEL_SPEC="$2"
+			react_model_spec_set=true
+			shift 2
+			;;
+		--react-model-branch)
+			if [[ $# -lt 2 ]]; then
+				die "cli" "usage" "--react-model-branch requires a branch or tag"
+			fi
+			REACT_MODEL_BRANCH="$2"
+			react_model_branch_set=true
+			shift 2
+			;;
+		--config)
+			if [[ $# -lt 2 ]]; then
+				die "cli" "usage" "--config requires a path"
+			fi
+			CONFIG_FILE="$2"
 			shift 2
 			;;
 		-v | --verbose)

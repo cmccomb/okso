@@ -65,21 +65,21 @@ llama_with_timeout() {
 }
 
 llama_infer() {
-        # Runs llama.cpp with HF caching enabled for the configured model.
-        # Arguments:
-        #   $1 - prompt string
-        #   $2 - stop string (optional)
-        #   $3 - max tokens (optional)
-        #   $4 - schema file path (optional)
-        #   $5 - model repo override (optional)
-        #   $6 - model file override (optional)
-        local prompt stop_string number_of_tokens schema_file_path schema_content repo_override file_override
-        prompt="$1"
-        stop_string="${2:-}"
-        number_of_tokens="${3:-256}"
-        schema_file_path="${4:-}"
-        repo_override="${5:-${MODEL_REPO}}"
-        file_override="${6:-${MODEL_FILE}}"
+	# Runs llama.cpp with HF caching enabled for the configured model.
+	# Arguments:
+	#   $1 - prompt string
+	#   $2 - stop string (optional)
+	#   $3 - max tokens (optional)
+	#   $4 - schema file path (optional)
+	#   $5 - model repo override (optional)
+	#   $6 - model file override (optional)
+	local prompt stop_string number_of_tokens schema_file_path schema_content repo_override file_override
+	prompt="$1"
+	stop_string="${2:-}"
+	number_of_tokens="${3:-256}"
+	schema_file_path="${4:-}"
+	repo_override="${5:-${MODEL_REPO}}"
+	file_override="${6:-${MODEL_FILE}}"
 
 	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
 		log "WARN" "llama unavailable; skipping inference" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}"
@@ -102,10 +102,10 @@ llama_infer() {
 	fi
 
 	local llama_args llama_arg_string stderr_file exit_code llama_stderr start_time_ns end_time_ns elapsed_ms llama_output
-        llama_args=(
-                "${LLAMA_BIN}"
-                --hf-repo "${repo_override}"
-                --hf-file "${file_override}"
+	llama_args=(
+		"${LLAMA_BIN}"
+		--hf-repo "${repo_override}"
+		--hf-file "${file_override}"
 		-no-cnv --no-display-prompt --simple-io --verbose
 		-n "${number_of_tokens}"
 	)

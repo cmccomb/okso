@@ -19,7 +19,7 @@
 }
 
 @test "create_default_settings wires derived defaults and react toggle" {
-        run bash -lc '
+	run bash -lc '
                 set -e
                 unset USE_REACT_LLAMA
                 source ./src/lib/runtime.sh
@@ -32,13 +32,13 @@
                         "$(jq -r ".planner_model_spec" <<<"${doc}")" \
                         "$(jq -r ".react_model_spec" <<<"${doc}")"
         '
-        [ "$status" -eq 0 ]
-        config_dir_expected="${XDG_CONFIG_HOME:-${HOME}/.config}/okso"
-        [ "${lines[0]}" = "${config_dir_expected}" ]
-        [ "${lines[1]}" = "${config_dir_expected}/config.env" ]
-        [ "${lines[2]}" = "true" ]
-        [ "${lines[3]}" = "bartowski/Qwen_Qwen3-8B-GGUF:Qwen_Qwen3-8B-Q4_K_M.gguf" ]
-        [ "${lines[4]}" = "bartowski/Qwen_Qwen3-1.7B-GGUF:Qwen_Qwen3-1.7B-Q4_K_M.gguf" ]
+	[ "$status" -eq 0 ]
+	config_dir_expected="${XDG_CONFIG_HOME:-${HOME}/.config}/okso"
+	[ "${lines[0]}" = "${config_dir_expected}" ]
+	[ "${lines[1]}" = "${config_dir_expected}/config.env" ]
+	[ "${lines[2]}" = "true" ]
+	[ "${lines[3]}" = "bartowski/Qwen_Qwen3-8B-GGUF:Qwen_Qwen3-8B-Q4_K_M.gguf" ]
+	[ "${lines[4]}" = "bartowski/Qwen_Qwen3-1.7B-GGUF:Qwen_Qwen3-1.7B-Q4_K_M.gguf" ]
 }
 
 @test "settings json helpers round-trip through globals" {
