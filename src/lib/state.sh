@@ -30,7 +30,7 @@ state_namespace_json_var() {
 state_get_json_document() {
 	# Arguments:
 	#   $1 - state prefix (string)
-	json_state_get_document "$1" '{}'
+	json_state_get_document "$@"
 }
 
 state_set_json_document() {
@@ -52,10 +52,7 @@ state_get() {
 	# Arguments:
 	#   $1 - state prefix (string)
 	#   $2 - key (string)
-	local prefix key
-	prefix="$1"
-	key="$2"
-	jq -r --arg key "${key}" '(.[$key] // "") | (if type == "array" then join("\n") else tostring end)' <<<"$(state_get_json_document "${prefix}")"
+	json_state_get_key "$@"
 }
 
 state_increment() {

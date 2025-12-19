@@ -424,6 +424,23 @@ record_history() {
 	state_append_history "$1" "${entry}"
 }
 
+state_get_history_lines() {
+	# Arguments:
+	#   $1 - state prefix
+	# Returns the history as a newline-delimited string regardless of whether the
+	# underlying storage is an array or pre-formatted text.
+	local state_prefix history_raw
+	state_prefix="$1"
+	history_raw="$(state_get "${state_prefix}" "history")"
+
+	if jq -e 'type == "array"' <<<"${history_raw}" >/dev/null 2>&1; then
+		jq -r '.[]' <<<"${history_raw}"
+		return 0
+	fi
+
+	printf '%s' "${history_raw}"
+}
+
 format_tool_args() {
 	# Arguments:
 	#   $1 - tool name
@@ -821,7 +838,7 @@ select_next_action() {
 		react_schema_path="$(build_react_action_schema "${allowed_tools}")" || return 1
 		react_schema_text="$(cat "${react_schema_path}")" || return 1
 		local history
-		history="$(format_tool_history "$(state_get "${state_name}" "history")")"
+		history="$(format_tool_history "$(state_get_history_lines "${state_name}")")"
 
 		react_prompt="$(
 			build_react_prompt \
@@ -865,7 +882,7 @@ select_next_action() {
 		next_action_payload="$(jq -nc --arg thought "${thought}" --arg tool "${tool}" --argjson args "${args_json}" '{thought:$thought, tool:$tool, args:$args}')"
 	else
 		local final_query history_formatted
-		history_formatted="$(format_tool_history "$(state_get "${state_name}" "history")")"
+		history_formatted="$(format_tool_history "$(state_get_history_lines "${state_name}")")"
 		final_query="$(respond_text "$(state_get "${state_name}" "user_query")" 512 "${history_formatted}")"
 		args_json="$(format_tool_args "final_answer" "${final_query}")"
 		next_action_payload="$(jq -nc --arg thought "Providing final answer" --arg tool "final_answer" --argjson args "${args_json}" '{thought:$thought, tool:$tool, args:$args}')"
@@ -967,21 +984,21 @@ finalize_react_result() {
 	state_name="$1"
 	if [[ -z "$(state_get "${state_name}" "final_answer")" ]]; then
 		log "ERROR" "Final answer missing; generating fallback" "${state_name}"
-		history_formatted="$(format_tool_history "$(state_get "${state_name}" "history")")"
+		history_formatted="$(format_tool_history "$(state_get_history_lines "${state_name}")")"
 		state_set "${state_name}" "final_answer" "$(respond_text "$(state_get "${state_name}" "user_query")" 1000 "${history_formatted}")"
 	fi
 
 	log_pretty "INFO" "Final answer" "$(state_get "${state_name}" "final_answer")"
-	if [[ -z "$(format_tool_history "$(state_get "${state_name}" "history")")" ]]; then
+	if [[ -z "$(format_tool_history "$(state_get_history_lines "${state_name}")")" ]]; then
 		log "INFO" "Execution summary" "No tool runs"
 	else
-		log_pretty "INFO" "Execution summary" "$(format_tool_history "$(state_get "${state_name}" "history")")"
+		log_pretty "INFO" "Execution summary" "$(format_tool_history "$(state_get_history_lines "${state_name}")")"
 	fi
 
 	emit_boxed_summary \
 		"$(state_get "${state_name}" "user_query")" \
 		"$(state_get "${state_name}" "plan_outline")" \
-		"$(format_tool_history "$(state_get "${state_name}" "history")")" \
+		"$(format_tool_history "$(state_get_history_lines "${state_name}")")" \
 		"$(state_get "${state_name}" "final_answer")"
 }
 
