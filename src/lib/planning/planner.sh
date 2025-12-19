@@ -60,7 +60,7 @@ normalize_planner_plan() {
 	raw="$(cat)"
 
 	plan_candidate=$(
-		RAW_INPUT="${raw}" python3 - << PYTHON
+		RAW_INPUT="${raw}" python3 - <<PYTHON
 import json
 import os
 import re
@@ -90,7 +90,7 @@ json.dump(candidate, sys.stdout)
 
 PYTHON
 
-) || plan_candidate=""
+	) || plan_candidate=""
 
 	if [[ -n "${plan_candidate:-}" ]]; then
 		normalized=$(jq -ec '
