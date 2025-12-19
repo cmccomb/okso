@@ -2,7 +2,7 @@
 # macOS llama.cpp end-to-end smoke test.
 #
 # Usage:
-#   bats tests/runtime/test_macos_tiny_llama.bats
+#   bats tests/runtime/test_macos_tiny_llama.sh
 #
 # Environment variables:
 #   MODEL_SPEC (string): Hugging Face repo[:file] identifier for the model.

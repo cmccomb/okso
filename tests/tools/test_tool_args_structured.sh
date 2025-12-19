@@ -1,5 +1,10 @@
 #!/usr/bin/env bats
 #
+# Tests for mapping structured JSON tool arguments to CLI flags.
+#
+# Usage:
+#   bats tests/tools/test_tool_args_structured.sh
+#
 # Regression tests ensuring TOOL_ARGS drive tool handlers.
 
 @test "final_answer requires structured TOOL_ARGS" {

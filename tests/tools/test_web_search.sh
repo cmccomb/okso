@@ -1,4 +1,9 @@
 #!/usr/bin/env bats
+#
+# Tests for web search result parsing and sanitization.
+#
+# Usage:
+#   bats tests/tools/test_web_search.sh
 
 setup() {
 	export TOOL_ARGS=''

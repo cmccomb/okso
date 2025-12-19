@@ -4,7 +4,7 @@
 # Tests for llama.cpp client helpers.
 #
 # Usage:
-#   bats tests/lib/test_llama_client.bats
+#   bats tests/lib/test_llama_client.sh
 #
 # Dependencies:
 #   - bats

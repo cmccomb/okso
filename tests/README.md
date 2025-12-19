@@ -6,7 +6,7 @@ portable tools:
 - `core/`: planner and configuration helpers that drive end-user behavior.
 - `tools/`: shared tool registry and cross-platform helpers.
 - `runtime/`: targeted smoke tests for platform-specific flows.
-- `tools_python_repl.bats`: sandbox coverage for the Python REPL helper.
+- `test_tools_python_repl.sh`: sandbox coverage for the Python REPL helper.
 
 ## Running tests
 

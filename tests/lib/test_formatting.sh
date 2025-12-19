@@ -3,7 +3,7 @@
 # Tests for formatting helpers.
 #
 # Usage:
-#   bats tests/lib/test_formatting.bats
+#   bats tests/lib/test_formatting.sh
 #
 # Dependencies:
 #   - bats

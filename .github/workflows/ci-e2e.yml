@@ -47,4 +47,4 @@ jobs:
           MODEL_BRANCH: ${{ env.MODEL_BRANCH }}
         run: |
           set -euxo pipefail
-          bats --print-output-on-failure tests/runtime/test_macos_tiny_llama.bats
+          bats --print-output-on-failure tests/runtime/test_macos_tiny_llama.sh

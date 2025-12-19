@@ -1,5 +1,8 @@
 #!/usr/bin/env bats
 # Regression tests for extracting structured JSON logs from mixed output.
+#
+# Usage:
+#   bats tests/helpers/test_log_parsing.sh
 
 load log_parsing.sh
 

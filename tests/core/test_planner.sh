@@ -1,4 +1,9 @@
 #!/usr/bin/env bats
+#
+# Tests for planner logic and state initialization.
+#
+# Usage:
+#   bats tests/core/test_planner.sh
 
 @test "normalize_planner_plan retains structured planner output" {
 	run bash <<'SCRIPT'

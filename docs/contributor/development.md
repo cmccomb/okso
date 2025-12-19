@@ -5,9 +5,9 @@
 Run the format and lint steps before the Bats suite:
 
 ```bash
-find src scripts tests -type f \( -name '*.sh' -o -name '*.bats' -o -name 'okso' \) -print0 | xargs -0 shfmt -w
-find src scripts tests -type f \( -name '*.sh' -o -name '*.bats' -o -name 'okso' \) -print0 | xargs -0 shellcheck
-bats tests/cli/test_all.sh tests/cli/test_install.sh tests/cli/test_main.sh tests/core/test_modules.sh tests/tools/test_notes.sh
+find src scripts tests -type f \( -name '*.sh' -o -name 'okso' \) -print0 | xargs -0 shfmt -w
+find src scripts tests -type f \( -name '*.sh' -o -name 'okso' \) -print0 | xargs -0 shellcheck
+bats tests/core/test_planner.sh tests/tools/test_registry.sh tests/runtime/test_macos_tiny_llama.sh
 ```
 
 The suite covers CLI help/version output, confirmation prompts, deterministic mock scoring via `tests/fixtures/mock_llama.sh`, and graceful handling when `LLAMA_BIN` is missing. Set `TESTING_PASSTHROUGH=true` to bypass llama.cpp during tests while keeping deterministic planner behavior.

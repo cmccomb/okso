@@ -1,4 +1,9 @@
 #!/usr/bin/env bats
+#
+# Tests for tool registration and metadata discovery.
+#
+# Usage:
+#   bats tests/tools/test_registry.sh
 
 @test "register_tool enforces required arguments" {
 	run bash <<'SCRIPT'
