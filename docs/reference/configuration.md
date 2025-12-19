@@ -35,7 +35,7 @@ FORCE_CONFIRM=false
 - `OKSO_GOOGLE_CSE_API_KEY`: Google Custom Search API key used by the `web_search` tool.
 - `OKSO_GOOGLE_CSE_ID`: Google Custom Search Engine ID used by the `web_search` tool.
 
-Environment variables prefixed with `OKSO_` mirror the config keys and take precedence over file values. Legacy `MODEL_SPEC` and `MODEL_BRANCH` values are still read for compatibility but are no longer written to new config files.
+Environment variables with the same names as the config keys take precedence over file values when set. Google Custom Search credentials can also be provided via `OKSO_GOOGLE_CSE_API_KEY` and `OKSO_GOOGLE_CSE_ID`.
 
 API keys and other secrets belong in `~/.config/okso/config.env` or a locally sourced `.env` file—never commit them to version control. Consider adding local files containing secrets to `.gitignore` if you keep them alongside your working directory.
 

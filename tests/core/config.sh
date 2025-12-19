@@ -197,6 +197,12 @@ PLANNER_MODEL_BRANCH=""
 REACT_MODEL_BRANCH=""
 hydrate_model_specs
 printf '%s\n' "${PLANNER_MODEL_SPEC}" "${REACT_MODEL_SPEC}" "${PLANNER_MODEL_BRANCH}" "${REACT_MODEL_BRANCH}"
+PLANNER_MODEL_SPEC="planner/model:plan.gguf"
+REACT_MODEL_SPEC="react/model:react.gguf"
+PLANNER_MODEL_BRANCH="stable"
+REACT_MODEL_BRANCH="beta"
+hydrate_model_specs
+printf '%s\n' "${PLANNER_MODEL_SPEC}" "${REACT_MODEL_SPEC}" "${PLANNER_MODEL_BRANCH}" "${REACT_MODEL_BRANCH}"
 rm -f "${CONFIG_FILE}"
 SCRIPT
 
@@ -207,10 +213,14 @@ SCRIPT
 	[ "${lines[3]}" = "Qwen_Qwen3-1.7B-Q4_K_M.gguf" ]
 	[ "${lines[4]}" = "bartowski/Qwen_Qwen3-8B-GGUF:Qwen_Qwen3-8B-Q4_K_M.gguf" ]
 	[ "${lines[5]}" = "bartowski/Qwen_Qwen3-1.7B-GGUF:Qwen_Qwen3-1.7B-Q4_K_M.gguf" ]
-	[ "${lines[6]}" = "override/repo:react.gguf" ]
-	[ "${lines[7]}" = "override/repo:react.gguf" ]
-	[ "${lines[8]}" = "dev" ]
-	[ "${lines[9]}" = "dev" ]
+	[ "${lines[6]}" = "bartowski/Qwen_Qwen3-8B-GGUF:Qwen_Qwen3-8B-Q4_K_M.gguf" ]
+	[ "${lines[7]}" = "bartowski/Qwen_Qwen3-1.7B-GGUF:Qwen_Qwen3-1.7B-Q4_K_M.gguf" ]
+	[ "${lines[8]}" = "main" ]
+	[ "${lines[9]}" = "main" ]
+	[ "${lines[10]}" = "planner/model:plan.gguf" ]
+	[ "${lines[11]}" = "react/model:react.gguf" ]
+	[ "${lines[12]}" = "stable" ]
+	[ "${lines[13]}" = "beta" ]
 }
 
 @test "cli shared model flags populate planner and react when unset" {

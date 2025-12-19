@@ -15,16 +15,13 @@
 #   TESTING_PASSTHROUGH (bool): forces llama calls off during tests.
 #   APPROVE_ALL (bool): skip prompts when true.
 #   FORCE_CONFIRM (bool): always prompt when true.
-#   VERBOSITY (int): logging verbosity; may be overridden by OKSO_VERBOSITY.
+#   VERBOSITY (int): logging verbosity.
 #   DEFAULT_MODEL_FILE (string): fallback file name for parsing model spec.
 #   OKSO_GOOGLE_CSE_API_KEY (string): Google Custom Search API key; may be overridden by environment.
 #   OKSO_GOOGLE_CSE_ID (string): Google Custom Search Engine ID; may be overridden by environment.
 #
-#   okso-branded overrides (legacy DO_* aliases are ignored):
-#     OKSO_MODEL, OKSO_MODEL_BRANCH, OKSO_SUPERVISED, OKSO_VERBOSITY
-#
 # Dependencies:
-#   - bash 5+
+#   - bash 3.2+
 #   - mkdir, cat
 #
 # Exit codes:
@@ -53,52 +50,6 @@ readonly DEFAULT_REACT_MODEL_SPEC_BASE DEFAULT_REACT_MODEL_BRANCH_BASE
 readonly DEFAULT_PLANNER_MODEL_REPO_BASE DEFAULT_PLANNER_MODEL_FILE_BASE
 readonly DEFAULT_PLANNER_MODEL_SPEC_BASE DEFAULT_PLANNER_MODEL_BRANCH_BASE
 
-normalize_boolean_input() {
-	# Arguments:
-	#   $1 - input value (string)
-	#   $2 - fallback value when input is invalid (string; defaults to "false")
-	local value fallback
-	value="$1"
-	fallback="${2:-false}"
-
-	case "${value}" in
-	true | True | TRUE | 1)
-		printf 'true'
-		;;
-	false | False | FALSE | 0)
-		printf 'false'
-		;;
-	*)
-		printf '%s' "${fallback}"
-		;;
-	esac
-}
-
-apply_supervised_overrides() {
-	local supervised_raw supervised
-	supervised_raw="${OKSO_SUPERVISED:-}"
-	if [[ -z "${supervised_raw}" ]]; then
-		return 0
-	fi
-
-	supervised=$(normalize_boolean_input "${supervised_raw}" "true")
-	if [[ "${supervised}" == false ]]; then
-		APPROVE_ALL=true
-	else
-		APPROVE_ALL=false
-	fi
-}
-
-apply_verbosity_overrides() {
-	local verbosity_override
-	verbosity_override="${OKSO_VERBOSITY:-}"
-	if [[ -z "${verbosity_override}" ]]; then
-		return 0
-	fi
-
-	VERBOSITY="${verbosity_override}"
-}
-
 detect_config_file() {
 	# Parse the config path early so subsequent helpers can honor user-provided
 	# locations before any other arguments are interpreted.
@@ -125,8 +76,7 @@ detect_config_file() {
 load_config() {
 	# Load file-backed configuration first so environment overrides and CLI flags
 	# can layer on top in a predictable order.
-	local model_branch_override preexisting_okso_google_cse_api_key preexisting_okso_google_cse_id
-	# string: preserve preexisting environment values so they can override config file entries.
+	local preexisting_okso_google_cse_api_key preexisting_okso_google_cse_id
 	preexisting_okso_google_cse_api_key="${OKSO_GOOGLE_CSE_API_KEY:-}"
 	preexisting_okso_google_cse_id="${OKSO_GOOGLE_CSE_ID:-}"
 	if [[ -f "${CONFIG_FILE}" ]]; then
@@ -140,15 +90,6 @@ load_config() {
 	DEFAULT_MODEL_FILE=${DEFAULT_MODEL_FILE:-${DEFAULT_MODEL_FILE_BASE}}
 	DEFAULT_PLANNER_MODEL_FILE=${DEFAULT_PLANNER_MODEL_FILE:-${DEFAULT_PLANNER_MODEL_FILE_BASE}}
 
-	if [[ -n "${MODEL_SPEC:-}" && -z "${PLANNER_MODEL_SPEC:-}" && -z "${REACT_MODEL_SPEC:-}" ]]; then
-		PLANNER_MODEL_SPEC="${MODEL_SPEC}"
-		REACT_MODEL_SPEC="${MODEL_SPEC}"
-	fi
-	if [[ -n "${MODEL_BRANCH:-}" && -z "${PLANNER_MODEL_BRANCH:-}" && -z "${REACT_MODEL_BRANCH:-}" ]]; then
-		PLANNER_MODEL_BRANCH="${MODEL_BRANCH}"
-		REACT_MODEL_BRANCH="${MODEL_BRANCH}"
-	fi
-
 	PLANNER_MODEL_SPEC=${PLANNER_MODEL_SPEC:-"${DEFAULT_PLANNER_MODEL_SPEC_BASE}"}
 	PLANNER_MODEL_BRANCH=${PLANNER_MODEL_BRANCH:-${DEFAULT_PLANNER_MODEL_BRANCH_BASE}}
 	REACT_MODEL_SPEC=${REACT_MODEL_SPEC:-"${DEFAULT_REACT_MODEL_SPEC_BASE}"}
@@ -157,22 +98,8 @@ load_config() {
 	APPROVE_ALL=${APPROVE_ALL:-false}
 	FORCE_CONFIRM=${FORCE_CONFIRM:-false}
 
-	if [[ -n "${OKSO_MODEL:-}" ]]; then
-		PLANNER_MODEL_SPEC="${OKSO_MODEL}"
-		REACT_MODEL_SPEC="${OKSO_MODEL}"
-	fi
-
-	if [[ -n "${OKSO_MODEL_BRANCH:-}" ]]; then
-		model_branch_override="${OKSO_MODEL_BRANCH}"
-		PLANNER_MODEL_BRANCH="${model_branch_override}"
-		REACT_MODEL_BRANCH="${model_branch_override}"
-	fi
-
 	GOOGLE_SEARCH_API_KEY=${GOOGLE_SEARCH_API_KEY:-${OKSO_GOOGLE_CSE_API_KEY:-}}
 	GOOGLE_SEARCH_CX=${GOOGLE_SEARCH_CX:-${OKSO_GOOGLE_CSE_ID:-}}
-
-	apply_supervised_overrides
-	apply_verbosity_overrides
 }
 
 write_config_file() {
@@ -278,22 +205,6 @@ hydrate_model_specs() {
 	# Normalizes planner and react model specs into repo and file components.
 	DEFAULT_PLANNER_MODEL_FILE=${DEFAULT_PLANNER_MODEL_FILE:-${DEFAULT_PLANNER_MODEL_FILE_BASE}}
 	DEFAULT_MODEL_FILE=${DEFAULT_MODEL_FILE:-${DEFAULT_MODEL_FILE_BASE}}
-
-	if [[ -z "${PLANNER_MODEL_SPEC:-}" && -n "${MODEL_SPEC:-}" ]]; then
-		PLANNER_MODEL_SPEC="${MODEL_SPEC}"
-	fi
-
-	if [[ -z "${REACT_MODEL_SPEC:-}" && -n "${MODEL_SPEC:-}" ]]; then
-		REACT_MODEL_SPEC="${MODEL_SPEC}"
-	fi
-
-	if [[ -z "${PLANNER_MODEL_BRANCH:-}" && -n "${MODEL_BRANCH:-}" ]]; then
-		PLANNER_MODEL_BRANCH="${MODEL_BRANCH}"
-	fi
-
-	if [[ -z "${REACT_MODEL_BRANCH:-}" && -n "${MODEL_BRANCH:-}" ]]; then
-		REACT_MODEL_BRANCH="${MODEL_BRANCH}"
-	fi
 
 	PLANNER_MODEL_SPEC=${PLANNER_MODEL_SPEC:-"${DEFAULT_PLANNER_MODEL_SPEC_BASE}"}
 	PLANNER_MODEL_BRANCH=${PLANNER_MODEL_BRANCH:-"${DEFAULT_PLANNER_MODEL_BRANCH_BASE}"}
