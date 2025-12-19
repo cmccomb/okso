@@ -27,18 +27,21 @@ source "${BASH_SOURCE[0]%/tools/mail/common.sh}/lib/core/logging.sh"
 source "${BASH_SOURCE[0]%/tools/mail/common.sh}/tools/osascript_helpers.sh"
 
 mail_require_platform() {
-	# Ensures Apple Mail tools only run on macOS with osascript available.
-	if [[ "${IS_MACOS}" != true ]]; then
-		log "WARN" "Apple Mail is only available on macOS" "${TOOL_QUERY:-}" || true
-		return 1
-	fi
+        # Ensures Apple Mail tools only run on macOS with osascript available.
+        local context
+        context="$1"
 
-	if ! command -v "${MAIL_OSASCRIPT_BIN:-osascript}" >/dev/null 2>&1; then
-		log "WARN" "osascript missing; cannot reach Apple Mail" "${TOOL_QUERY:-}" || true
-		return 1
-	fi
+        if [[ "${IS_MACOS}" != true ]]; then
+                log "WARN" "Apple Mail is only available on macOS" "${context}" || true
+                return 1
+        fi
 
-	return 0
+        if ! command -v "${MAIL_OSASCRIPT_BIN:-osascript}" >/dev/null 2>&1; then
+                log "WARN" "osascript missing; cannot reach Apple Mail" "${context}" || true
+                return 1
+        fi
+
+        return 0
 }
 
 mail_inbox_limit() {
@@ -63,36 +66,36 @@ mail_trim_whitespace() {
 }
 
 mail_extract_envelope() {
-	# Splits TOOL_QUERY into recipients, subject, and body.
-	# Emits three NUL-delimited fields: recipients, subject, body.
-	local query recipients subject body remainder
-	query=${TOOL_QUERY:-""}
+        # Splits the provided envelope string into recipients, subject, and body.
+        # Emits three NUL-delimited fields: recipients, subject, body.
+        local envelope recipients subject body remainder
+        envelope="$1"
 
-	if [[ -z "${query//[[:space:]]/}" ]]; then
-		log "ERROR" "Mail content is required" "" || true
-		return 1
-	fi
+        if [[ -z "${envelope//[[:space:]]/}" ]]; then
+                log "ERROR" "Mail content is required" "" || true
+                return 1
+        fi
 
-	recipients=${query%%$'\n'*}
-	remainder=${query#"${recipients}"}
-	remainder=${remainder#$'\n'}
-	subject=${remainder%%$'\n'*}
-	body=${remainder#"${subject}"}
-	body=${body#$'\n'}
+        recipients=${envelope%%$'\n'*}
+        remainder=${envelope#"${recipients}"}
+        remainder=${remainder#$'\n'}
+        subject=${remainder%%$'\n'*}
+        body=${remainder#"${subject}"}
+        body=${body#$'\n'}
 
-	recipients=$(mail_trim_whitespace "${recipients}")
-	subject=$(mail_trim_whitespace "${subject}")
+        recipients=$(mail_trim_whitespace "${recipients}")
+        subject=$(mail_trim_whitespace "${subject}")
 
-	if [[ -z "${recipients}" ]]; then
-		log "ERROR" "At least one recipient is required (comma-separated)" "" || true
-		return 1
-	fi
+        if [[ -z "${recipients}" ]]; then
+                log "ERROR" "At least one recipient is required (comma-separated)" "" || true
+                return 1
+        fi
 
-	if [[ -z "${subject}" ]]; then
-		subject="(no subject)"
-	fi
+        if [[ -z "${subject}" ]]; then
+                subject="(no subject)"
+        fi
 
-	printf '%s\0%s\0%s\0' "${recipients}" "${subject}" "${body}"
+        printf '%s\0%s\0%s\0' "${recipients}" "${subject}" "${body}"
 }
 
 mail_split_recipients() {

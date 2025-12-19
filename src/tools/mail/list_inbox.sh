@@ -32,9 +32,9 @@ tool_mail_list_inbox() {
 	local limit
 	limit=$(mail_inbox_limit)
 
-	if ! mail_require_platform; then
-		return 0
-	fi
+        if ! mail_require_platform ""; then
+                return 0
+        fi
 
 	log "INFO" "Listing Apple Mail inbox" "limit=${limit}" || true
 	mail_run_script "${limit}" <<'APPLESCRIPT'

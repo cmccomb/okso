@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 #
-# Send an email via Apple Mail based on TOOL_QUERY contents.
+# Send an email via Apple Mail based on structured TOOL_ARGS input.
 #
 # Usage:
 #   source "${BASH_SOURCE[0]%/mail/send.sh}/mail/send.sh"
 #
 # Environment variables:
-#   TOOL_QUERY (string): first line = comma-separated recipients; second line = subject; remainder = body.
+#   TOOL_ARGS (json): structured args including `input` with recipients, subject, and body lines.
 #   IS_MACOS (bool): indicates whether macOS-specific tooling should run.
 #   MAIL_OSASCRIPT_BIN (string): override path for osascript; defaults to "osascript".
 #
@@ -29,25 +29,40 @@ source "${BASH_SOURCE[0]%/tools/mail/send.sh}/lib/core/logging.sh"
 source "${BASH_SOURCE[0]%/send.sh}/common.sh"
 
 tool_mail_send() {
-	local recipients_line subject body
+        local recipients_line subject body args_json envelope text_key
+        args_json="${TOOL_ARGS:-}" || true
+        text_key="$(canonical_text_arg_key)"
+        envelope=$(jq -er --arg key "${text_key}" '
+ if type != "object" then error("args must be object") end
+| if .[$key]? == null then error("missing ${key}") end
+| if (.[$key] | type) != "string" then error("${key} must be string") end
+| if (.[$key] | length) == 0 then error("${key} cannot be empty") end
+| if ((del(.[$key]) | length) != 0) then error("unexpected properties") end
+| .[$key]
+' <<<"${args_json}" 2>/dev/null || true)
 
-	if ! mail_require_platform; then
-		return 0
-	fi
+        if [[ -z "${envelope}" ]]; then
+                log "ERROR" "Missing TOOL_ARGS.${text_key}" "${args_json}" || true
+                return 1
+        fi
 
-	if ! { IFS= read -r -d '' recipients_line && IFS= read -r -d '' subject && IFS= read -r -d '' body; } < <(mail_extract_envelope); then
-		log "ERROR" "Unable to parse mail envelope" "${TOOL_QUERY:-}" || true
-		return 1
-	fi
+        if ! mail_require_platform "${envelope}"; then
+                return 0
+        fi
+
+        if ! { IFS= read -r -d '' recipients_line && IFS= read -r -d '' subject && IFS= read -r -d '' body; } < <(mail_extract_envelope "${envelope}"); then
+                log "ERROR" "Unable to parse mail envelope" "${envelope}" || true
+                return 1
+        fi
 
 	local -a recipients
-	while IFS= read -r recipient; do
-		recipients+=("${recipient}")
-	done < <(mail_split_recipients "${recipients_line}")
-	if ((${#recipients[@]} == 0)); then
-		log "ERROR" "At least one recipient is required to send" "${TOOL_QUERY:-}" || true
-		return 1
-	fi
+        while IFS= read -r recipient; do
+                recipients+=("${recipient}")
+        done < <(mail_split_recipients "${recipients_line}")
+        if ((${#recipients[@]} == 0)); then
+                log "ERROR" "At least one recipient is required to send" "${envelope}" || true
+                return 1
+        fi
 
 	log "INFO" "Sending Apple Mail message" "${subject}" || true
 	mail_run_script "${subject}" "${body}" "${recipients[@]}" <<'APPLESCRIPT'
@@ -72,11 +87,7 @@ APPLESCRIPT
 register_mail_send() {
 	local args_schema
 
-	args_schema=$(
-		cat <<'JSON'
-{"type":"object","required":["envelope"],"properties":{"envelope":{"type":"string","minLength":1}},"additionalProperties":false}
-JSON
-	)
+        args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}},"additionalProperties":false}')
 	register_tool \
 		"mail_send" \
 		"Send an email via Apple Mail; recipients on line one, subject on line two." \

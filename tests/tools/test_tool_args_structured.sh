@@ -25,8 +25,8 @@ if [[ "${output}" != "structured value" ]]; then
         exit 1
 fi
 
-if TOOL_ARGS="" TOOL_QUERY="legacy" tool_final_answer >/dev/null 2>&1; then
-        echo "final_answer unexpectedly accepted TOOL_QUERY fallback"
+if TOOL_ARGS="" tool_final_answer >/dev/null 2>&1; then
+        echo "final_answer unexpectedly accepted missing TOOL_ARGS"
         exit 1
 fi
 INNERSCRIPT

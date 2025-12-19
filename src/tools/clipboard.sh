@@ -7,7 +7,7 @@
 #   source "${BASH_SOURCE[0]%/tools/clipboard.sh}/tools/clipboard.sh"
 #
 # Environment variables:
-#   TOOL_QUERY (string): text to copy (for clipboard_copy) or ignored for paste.
+#   TOOL_ARGS (JSON object): structured args including `input` for copy.
 #   IS_MACOS (bool): indicates whether macOS-specific tooling should run.
 #
 # Dependencies:
@@ -25,24 +25,45 @@ source "${BASH_SOURCE[0]%/tools/clipboard.sh}/lib/core/logging.sh"
 source "${BASH_SOURCE[0]%/clipboard.sh}/registry.sh"
 
 clipboard_require_macos() {
-	# Short-circuits when not running on macOS.
-	if [[ "${IS_MACOS}" != true ]]; then
-		log "WARN" "Clipboard operations require macOS" "${TOOL_QUERY:-}"
-		return 1
-	fi
-	return 0
+        # Short-circuits when not running on macOS.
+        local context
+        context="$1"
+
+        if [[ "${IS_MACOS}" != true ]]; then
+                log "WARN" "Clipboard operations require macOS" "${context}"
+                return 1
+        fi
+        return 0
 }
 
 tool_clipboard_copy() {
-	local content
-	content=${TOOL_QUERY:-""}
+        local content args_json text_key
+        args_json="${TOOL_ARGS:-}" || true
+        text_key="$(canonical_text_arg_key)"
+        content=""
 
-	if ! clipboard_require_macos; then
-		return 0
-	fi
+        if [[ -n "${args_json}" ]]; then
+                content=$(jq -er --arg key "${text_key}" '
+ if type != "object" then error("args must be object") end
+| if .[$key]? == null then error("missing ${key}") end
+| if (.[$key] | type) != "string" then error("${key} must be string") end
+| if (.[$key] | length) == 0 then error("${key} cannot be empty") end
+| if ((del(.[$key]) | length) != 0) then error("unexpected properties") end
+| .[$key]
+' <<<"${args_json}" 2>/dev/null || true)
+        fi
 
-	if ! command -v pbcopy >/dev/null 2>&1; then
-		log "ERROR" "pbcopy missing; cannot copy to clipboard" "${content}"
+        if [[ -z "${content}" ]]; then
+                log "ERROR" "Missing TOOL_ARGS.${text_key}" "${args_json}" || true
+                return 1
+        fi
+
+        if ! clipboard_require_macos "${content}"; then
+                return 0
+        fi
+
+        if ! command -v pbcopy >/dev/null 2>&1; then
+                log "ERROR" "pbcopy missing; cannot copy to clipboard" "${content}"
 		return 1
 	fi
 
@@ -50,14 +71,14 @@ tool_clipboard_copy() {
 }
 
 tool_clipboard_paste() {
-	if ! clipboard_require_macos; then
-		return 0
-	fi
+        if ! clipboard_require_macos ""; then
+                return 0
+        fi
 
-	if ! command -v pbpaste >/dev/null 2>&1; then
-		log "ERROR" "pbpaste missing; cannot read clipboard" "${TOOL_QUERY:-}"
-		return 1
-	fi
+        if ! command -v pbpaste >/dev/null 2>&1; then
+                log "ERROR" "pbpaste missing; cannot read clipboard" ""
+                return 1
+        fi
 
 	pbpaste
 }
@@ -65,11 +86,7 @@ tool_clipboard_paste() {
 register_clipboard_copy() {
 	local args_schema
 
-	args_schema=$(
-		cat <<'JSON'
-{"type":"object","required":["text"],"properties":{"text":{"type":"string","minLength":1}},"additionalProperties":false}
-JSON
-	)
+        args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}},"additionalProperties":false}')
 	register_tool \
 		"clipboard_copy" \
 		"Copy the provided text into the macOS clipboard." \
