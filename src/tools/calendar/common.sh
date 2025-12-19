@@ -52,41 +52,41 @@ calendar_require_platform() {
 }
 
 calendar_resolve_query() {
-        local text_key query
-        text_key="$(canonical_text_arg_key)"
-        query=$(jq -er --arg key "${text_key}" 'if type == "object" then .[$key] // empty else empty end' <<<"${TOOL_ARGS:-{}}" 2>/dev/null || true)
+	local text_key query
+	text_key="$(canonical_text_arg_key)"
+	query=$(jq -er --arg key "${text_key}" 'if type == "object" then .[$key] // empty else empty end' <<<"${TOOL_ARGS:-{}}" 2>/dev/null || true)
 
-        if [[ -z "${query}" ]]; then
-                query=${TOOL_QUERY:-""}
-        fi
+	if [[ -z "${query}" ]]; then
+		query=${TOOL_QUERY:-""}
+	fi
 
-        printf '%s' "${query}"
+	printf '%s' "${query}"
 }
 
 calendar_extract_event_fields() {
-        # Splits TOOL_ARGS (canonical text) or TOOL_QUERY into title, start time, and optional location.
-        # Emits three NUL-delimited fields: title, start time, location.
-        local query title start_time location rest
-        query=$(calendar_resolve_query)
+	# Splits TOOL_ARGS (canonical text) or TOOL_QUERY into title, start time, and optional location.
+	# Emits three NUL-delimited fields: title, start time, location.
+	local query title start_time location rest
+	query=$(calendar_resolve_query)
 
-        if [[ -z "${query//[[:space:]]/}" ]]; then
-                log "ERROR" "Event title and time are required" "" || true
-                return 1
-        fi
+	if [[ -z "${query//[[:space:]]/}" ]]; then
+		log "ERROR" "Event title and time are required" "" || true
+		return 1
+	fi
 
-        title=${query%%$'\n'*}
-        rest=${query#"${title}"}
-        rest=${rest#$'\n'}
-        start_time=${rest%%$'\n'*}
-        location=${rest#"${start_time}"}
-        location=${location#$'\n'}
+	title=${query%%$'\n'*}
+	rest=${query#"${title}"}
+	rest=${rest#$'\n'}
+	start_time=${rest%%$'\n'*}
+	location=${rest#"${start_time}"}
+	location=${location#$'\n'}
 
-        if [[ -z "${title//[[:space:]]/}" || -z "${start_time//[[:space:]]/}" ]]; then
-                log "ERROR" "Event title and time are required" "${query}" || true
-                return 1
-        fi
+	if [[ -z "${title//[[:space:]]/}" || -z "${start_time//[[:space:]]/}" ]]; then
+		log "ERROR" "Event title and time are required" "${query}" || true
+		return 1
+	fi
 
-        printf '%s\0%s\0%s\0' "${title}" "${start_time}" "${location}"
+	printf '%s\0%s\0%s\0' "${title}" "${start_time}" "${location}"
 }
 
 calendar_run_script() {

@@ -65,48 +65,48 @@ mail_trim_whitespace() {
 }
 
 mail_resolve_query() {
-        local text_key query
-        text_key="$(canonical_text_arg_key)"
-        query=$(jq -er --arg key "${text_key}" 'if type == "object" then .[$key] // empty else empty end' <<<"${TOOL_ARGS:-{}}" 2>/dev/null || true)
+	local text_key query
+	text_key="$(canonical_text_arg_key)"
+	query=$(jq -er --arg key "${text_key}" 'if type == "object" then .[$key] // empty else empty end' <<<"${TOOL_ARGS:-{}}" 2>/dev/null || true)
 
-        if [[ -z "${query}" ]]; then
-                query=${TOOL_QUERY:-""}
-        fi
+	if [[ -z "${query}" ]]; then
+		query=${TOOL_QUERY:-""}
+	fi
 
-        printf '%s' "${query}"
+	printf '%s' "${query}"
 }
 
 mail_extract_envelope() {
-        # Splits TOOL_ARGS (canonical text) or TOOL_QUERY into recipients, subject, and body.
-        # Emits three NUL-delimited fields: recipients, subject, body.
-        local query recipients subject body remainder
-        query=$(mail_resolve_query)
+	# Splits TOOL_ARGS (canonical text) or TOOL_QUERY into recipients, subject, and body.
+	# Emits three NUL-delimited fields: recipients, subject, body.
+	local query recipients subject body remainder
+	query=$(mail_resolve_query)
 
-        if [[ -z "${query//[[:space:]]/}" ]]; then
-                log "ERROR" "Mail content is required" "" || true
-                return 1
-        fi
+	if [[ -z "${query//[[:space:]]/}" ]]; then
+		log "ERROR" "Mail content is required" "" || true
+		return 1
+	fi
 
-        recipients=${query%%$'\n'*}
-        remainder=${query#"${recipients}"}
-        remainder=${remainder#$'\n'}
-        subject=${remainder%%$'\n'*}
-        body=${remainder#"${subject}"}
-        body=${body#$'\n'}
+	recipients=${query%%$'\n'*}
+	remainder=${query#"${recipients}"}
+	remainder=${remainder#$'\n'}
+	subject=${remainder%%$'\n'*}
+	body=${remainder#"${subject}"}
+	body=${body#$'\n'}
 
-        recipients=$(mail_trim_whitespace "${recipients}")
-        subject=$(mail_trim_whitespace "${subject}")
+	recipients=$(mail_trim_whitespace "${recipients}")
+	subject=$(mail_trim_whitespace "${subject}")
 
-        if [[ -z "${recipients}" ]]; then
-                log "ERROR" "At least one recipient is required (comma-separated)" "" || true
-                return 1
-        fi
+	if [[ -z "${recipients}" ]]; then
+		log "ERROR" "At least one recipient is required (comma-separated)" "" || true
+		return 1
+	fi
 
-        if [[ -z "${subject}" ]]; then
-                subject="(no subject)"
-        fi
+	if [[ -z "${subject}" ]]; then
+		subject="(no subject)"
+	fi
 
-        printf '%s\0%s\0%s\0' "${recipients}" "${subject}" "${body}"
+	printf '%s\0%s\0%s\0' "${recipients}" "${subject}" "${body}"
 }
 
 mail_split_recipients() {

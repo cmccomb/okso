@@ -49,24 +49,24 @@ reminders_require_platform() {
 }
 
 reminders_extract_title_and_body() {
-        # Splits TOOL_ARGS into a title (first line) and body (remaining lines).
-        # Emits two NUL-delimited fields: title then body.
-        local title notes text_key
+	# Splits TOOL_ARGS into a title (first line) and body (remaining lines).
+	# Emits two NUL-delimited fields: title then body.
+	local title notes text_key
 
-        text_key="$(canonical_text_arg_key)"
-        title=$(jq -er --arg key "${text_key}" 'if type == "object" then .[$key] // .title // empty else empty end' <<<"${TOOL_ARGS:-{}}" 2>/dev/null || true)
-        notes=$(jq -er '.notes // ""' <<<"${TOOL_ARGS:-{}}" 2>/dev/null || true)
+	text_key="$(canonical_text_arg_key)"
+	title=$(jq -er --arg key "${text_key}" 'if type == "object" then .[$key] // .title // empty else empty end' <<<"${TOOL_ARGS:-{}}" 2>/dev/null || true)
+	notes=$(jq -er '.notes // ""' <<<"${TOOL_ARGS:-{}}" 2>/dev/null || true)
 
-        if [[ -z "${title//[[:space:]]/}" && -z "${notes//[[:space:]]/}" ]]; then
-                log "ERROR" "Reminder content is required" "" || true
-                return 1
-        fi
+	if [[ -z "${title//[[:space:]]/}" && -z "${notes//[[:space:]]/}" ]]; then
+		log "ERROR" "Reminder content is required" "" || true
+		return 1
+	fi
 
-        if [[ -z "${title//[[:space:]]/}" ]]; then
-                title="Untitled reminder $(date -Iseconds)"
-        fi
+	if [[ -z "${title//[[:space:]]/}" ]]; then
+		title="Untitled reminder $(date -Iseconds)"
+	fi
 
-        printf '%s\0%s\0' "${title}" "${notes}"
+	printf '%s\0%s\0' "${title}" "${notes}"
 }
 
 reminders_run_script() {

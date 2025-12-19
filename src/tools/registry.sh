@@ -75,25 +75,25 @@ init_tool_registry() {
 }
 
 register_tool() {
-        # Arguments:
-        #   $1 - name
-        #   $2 - description
-        #   $3 - invocation command (string)
-        #   $4 - safety notes
-        #   $5 - handler function name
-        #   $6 - optional JSON schema describing args
-        if [[ $# -lt 5 ]]; then
-                log "ERROR" "register_tool requires five arguments" "$*"
-                return 1
-        fi
+	# Arguments:
+	#   $1 - name
+	#   $2 - description
+	#   $3 - invocation command (string)
+	#   $4 - safety notes
+	#   $5 - handler function name
+	#   $6 - optional JSON schema describing args
+	if [[ $# -lt 5 ]]; then
+		log "ERROR" "register_tool requires five arguments" "$*"
+		return 1
+	fi
 
-        local name args_schema default_args_schema text_key
-        name="$1"
-        text_key="$(canonical_text_arg_key)"
-        default_args_schema=$(jq -nc --arg key "${text_key}" '{"type":"object","properties":{($key):{"type":"string"}},"additionalProperties":{"type":"string"}}')
-        args_schema="${6:-${default_args_schema}}"
+	local name args_schema default_args_schema text_key
+	name="$1"
+	text_key="$(canonical_text_arg_key)"
+	default_args_schema=$(jq -nc --arg key "${text_key}" '{"type":"object","properties":{($key):{"type":"string"}},"additionalProperties":{"type":"string"}}')
+	args_schema="${6:-${default_args_schema}}"
 
-        if ! jq -e --arg key "${text_key}" '
+	if ! jq -e --arg key "${text_key}" '
                 def is_single_string_schema:
                         (.type == "object")
                         and (.properties | type == "object")
@@ -107,9 +107,9 @@ register_tool() {
                         true
                 end
         ' <<<"${args_schema}" >/dev/null 2>&1; then
-                log "ERROR" "Single-string schemas must use ${text_key}" "${args_schema}" || true
-                return 1
-        fi
+		log "ERROR" "Single-string schemas must use ${text_key}" "${args_schema}" || true
+		return 1
+	fi
 
 	if [[ ! "${name}" =~ ^[a-z0-9_]+$ ]]; then
 		log "ERROR" "tool names must be alphanumeric with underscores" "${name}" || true
