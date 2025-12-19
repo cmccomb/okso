@@ -24,6 +24,8 @@ SRC_ROOT=$(cd -- "${WEB_TOOLS_DIR}/../.." && pwd)
 
 # shellcheck source=../../lib/logging.sh disable=SC1091
 source "${SRC_ROOT}/lib/logging.sh"
+# shellcheck source=./http.sh disable=SC1091
+source "${WEB_TOOLS_DIR}/http.sh"
 # shellcheck source=../registry.sh disable=SC1091
 source "${SRC_ROOT}/tools/registry.sh"
 
@@ -50,14 +52,11 @@ web_fetch_parse_args() {
 
 tool_web_fetch() {
 	# Downloads the response body for a URL, enforcing size limits and returning JSON metadata.
-	local parsed_args url max_bytes body_file stderr_file http_code status body_size truncated response_body truncated_json
-	body_file="$(mktemp)"
-	stderr_file="$(mktemp)"
+	local parsed_args url max_bytes response payload body_path content_type truncated body_size headers final_url body_encoding body_snippet snippet_limit
 
 	parsed_args=$(web_fetch_parse_args)
 	if [[ -z "${parsed_args}" ]]; then
 		log "ERROR" "Invalid TOOL_ARGS for web_fetch" "${TOOL_ARGS:-}" >&2
-		rm -f "${body_file}" "${stderr_file}"
 		return 1
 	fi
 
@@ -66,46 +65,54 @@ tool_web_fetch() {
 
 	log "INFO" "Fetching URL" "${url}" >&2
 
-	http_code=$(curl \
-		--silent \
-		--show-error \
-		--fail \
-		--location \
-		--max-time 20 \
-		--connect-timeout 5 \
-		--retry 1 \
-		--retry-delay 1 \
-		--output "${body_file}" \
-		--write-out '%{http_code}' \
-		--header 'Accept: */*' \
-		"${url}" \
-		2>"${stderr_file}")
-	status=$?
-
-	if ((status != 0)); then
-		log "ERROR" "curl request failed" "$(cat "${stderr_file}")" >&2
-		rm -f "${body_file}" "${stderr_file}"
+	response=$(web_http_request "${url}" "${max_bytes}" --header 'Accept: */*')
+	if [[ -z "${response}" ]]; then
+		log "ERROR" "Failed to fetch URL" "${url}" >&2
 		return 1
 	fi
 
-	body_size=$(wc -c <"${body_file}")
-	truncated=false
-	if ((body_size > max_bytes)); then
-		head -c "${max_bytes}" "${body_file}" >"${body_file}.trimmed"
-		mv "${body_file}.trimmed" "${body_file}"
-		truncated=true
+	payload=$(jq -er '.' <<<"${response}" 2>/dev/null) || {
+		log "ERROR" "Invalid HTTP helper payload" "${response}" >&2
+		return 1
+	}
+
+	body_path=$(jq -r '.body_path' <<<"${payload}")
+	content_type=$(jq -r '.content_type // "application/octet-stream"' <<<"${payload}")
+	truncated=$(jq -r '.truncated' <<<"${payload}")
+	body_size=$(jq -r '.bytes // 0' <<<"${payload}")
+	headers=$(jq -r '.headers // ""' <<<"${payload}")
+	final_url=$(jq -r '.final_url // ""' <<<"${payload}")
+
+	snippet_limit=4096
+	body_encoding="text"
+	if [[ -n "${content_type}" ]]; then
+		case "${content_type,,}" in
+		text/* | *json* | *xml* | *+json) ;;
+		*)
+			body_encoding="base64"
+			;;
+		esac
 	fi
 
-	response_body="$(cat "${body_file}")"
-	rm -f "${body_file}" "${stderr_file}"
-
-	if [[ "${truncated}" == "true" ]]; then
-		truncated_json=true
+	if [[ "${body_encoding}" == "base64" ]]; then
+		body_snippet=$(head -c "${snippet_limit}" "${body_path}" | base64 | tr -d '\n')
 	else
-		truncated_json=false
+		body_snippet=$(head -c "${snippet_limit}" "${body_path}")
 	fi
 
-	jq -nc --arg url "${url}" --arg body "${response_body}" --argjson status "${http_code:-0}" --argjson truncated "${truncated_json}" '{url: $url, status: $status, body: $body, truncated: $truncated}'
+	rm -f "${body_path}"
+
+	jq -nc \
+		--arg url "${url}" \
+		--arg final_url "${final_url:-${url}}" \
+		--arg content_type "${content_type}" \
+		--arg headers "${headers}" \
+		--arg body_snippet "${body_snippet}" \
+		--arg body_encoding "${body_encoding}" \
+		--argjson status "$(jq -r '.status' <<<"${payload}")" \
+		--argjson bytes "${body_size}" \
+		--argjson truncated "${truncated}" \
+		'{url: $url, final_url: $final_url, status: $status, content_type: $content_type, headers: $headers, bytes: $bytes, truncated: $truncated, body_encoding: $body_encoding, body_snippet: $body_snippet}'
 }
 
 register_web_fetch() {

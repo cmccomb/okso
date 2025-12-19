@@ -36,7 +36,27 @@ set -euo pipefail
 mock_bin="$(mktemp -d)"
 cat >"${mock_bin}/curl" <<'MOCK'
 #!/usr/bin/env bash
-cat <<'JSON'
+output_file=""
+header_file=""
+while [[ $# -gt 0 ]]; do
+        case "$1" in
+        --output)
+                output_file="$2"
+                shift 2
+                ;;
+        --dump-header)
+                header_file="$2"
+                shift 2
+                ;;
+        --write-out)
+                shift 2
+                ;;
+        *)
+                shift
+                ;;
+        esac
+done
+cat >"${output_file}" <<'JSON'
 {
   "queries": {"request": [{"searchTerms": "demo"}]},
   "searchInformation": {"totalResults": "2"},
@@ -46,6 +66,12 @@ cat <<'JSON'
   ]
 }
 JSON
+cat >"${header_file}" <<'HDR'
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+HDR
+printf '200\nhttps://www.googleapis.com/customsearch/v1\napplication/json\n200'
 MOCK
 chmod +x "${mock_bin}/curl"
 export PATH="${mock_bin}:$PATH"
@@ -69,9 +95,35 @@ set -euo pipefail
 mock_bin="$(mktemp -d)"
 cat >"${mock_bin}/curl" <<'MOCK'
 #!/usr/bin/env bash
-cat <<'JSON'
+output_file=""
+header_file=""
+while [[ $# -gt 0 ]]; do
+        case "$1" in
+        --output)
+                output_file="$2"
+                shift 2
+                ;;
+        --dump-header)
+                header_file="$2"
+                shift 2
+                ;;
+        --write-out)
+                shift 2
+                ;;
+        *)
+                shift
+                ;;
+        esac
+done
+cat >"${output_file}" <<'JSON'
 {"error":{"message":"quota exceeded"}}
 JSON
+cat >"${header_file}" <<'HDR'
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+HDR
+printf '200\nhttps://www.googleapis.com/customsearch/v1\napplication/json\n40'
 MOCK
 chmod +x "${mock_bin}/curl"
 export PATH="${mock_bin}:$PATH"

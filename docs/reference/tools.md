@@ -8,7 +8,7 @@ use the canonical `input` property so prompts and schemas can reference `args.in
 - `python_repl`: run Python snippets in an ephemeral sandbox using quiet `python -i` startup guards that confine writes.
 - `file_search`: search for files and contents using `mdfind` on macOS with `fd`/`rg` fallbacks elsewhere. Accepts an `input` string.
 - `web_search`: query the Google Custom Search API with a structured payload (`query` and optional `num`) and return JSON results.
-- `web_fetch`: retrieve HTTP response bodies with a configurable size cap, returning JSON metadata.
+- `web_fetch`: retrieve HTTP response bodies with a configurable size cap, returning JSON metadata (final URL, HTTP status, content type, headers, byte length, truncation flag, body encoding, and body snippet).
 - `*_search`: Notes, Calendar, and Mail searches reuse the same `input` field for the search term.
 - `clipboard_copy` / `clipboard_paste`: macOS clipboard helpers.
 - `notes_*`: create, append, list, read, or search Apple Notes entries.
@@ -17,6 +17,8 @@ use the canonical `input` property so prompts and schemas can reference `args.in
 - `mail_*`: draft, send, search, or list Apple Mail messages.
 - `applescript`: execute AppleScript snippets on macOS (no-op elsewhere). Expects an `input` string containing the script.
 - `final_answer`: emit the assistant's final reply with an `input` string.
+
+`web_fetch` responses include the final URL, HTTP status, content type, headers, byte length, a truncation flag, and a preview snippet. Non-text payloads are base64-encoded with `body_encoding` set to `base64` to avoid unsafe binary output.
 
 For end-to-end scenarios that show how tools fit into approvals and offline runs, see the [Run with approvals](../user-guides/usage.md#run-with-approvals) and [Offline or noninteractive feedback collection](../user-guides/usage.md#offline-or-noninteractive-feedback-collection) walkthroughs.
 

@@ -26,6 +26,8 @@ SRC_ROOT=$(cd -- "${WEB_TOOLS_DIR}/../.." && pwd)
 
 # shellcheck source=../../lib/logging.sh disable=SC1091
 source "${SRC_ROOT}/lib/logging.sh"
+# shellcheck source=./http.sh disable=SC1091
+source "${WEB_TOOLS_DIR}/http.sh"
 # shellcheck source=../registry.sh disable=SC1091
 source "${SRC_ROOT}/tools/registry.sh"
 
@@ -52,14 +54,11 @@ web_search_parse_args() {
 
 tool_web_search() {
 	# Executes a Google Custom Search request and emits structured JSON results.
-	local parsed_args query num api_key cx body_file stderr_file response status
-	body_file="$(mktemp)"
-	stderr_file="$(mktemp)"
+	local parsed_args query num api_key cx helper_payload body_path response
 
 	parsed_args=$(web_search_parse_args)
 	if [[ -z "${parsed_args}" ]]; then
 		log "ERROR" "Invalid TOOL_ARGS for web_search" "${TOOL_ARGS:-}" >&2
-		rm -f "${body_file}" "${stderr_file}"
 		return 1
 	fi
 
@@ -70,39 +69,23 @@ tool_web_search() {
 	cx="${GOOGLE_SEARCH_CX:-}"
 	if [[ -z "${api_key}" || -z "${cx}" ]]; then
 		log "ERROR" "Missing Google Custom Search configuration" "GOOGLE_SEARCH_API_KEY/GOOGLE_SEARCH_CX required" >&2
-		rm -f "${body_file}" "${stderr_file}"
 		return 1
 	fi
 
 	log "INFO" "Performing web search" "query=${query}" >&2
 
-	response=$(curl \
-		--silent \
-		--show-error \
-		--fail \
-		--location \
-		--max-time 15 \
-		--connect-timeout 5 \
-		--retry 2 \
-		--retry-delay 1 \
-		--get \
-		--data-urlencode "q=${query}" \
-		--data "cx=${cx}" \
-		--data "key=${api_key}" \
-		--data "num=${num}" \
-		"https://www.googleapis.com/customsearch/v1" \
-		2>"${stderr_file}" | tee "${body_file}")
-	status=$?
-
-	if ((status != 0)); then
-		log "ERROR" "curl request failed" "$(cat "${stderr_file}")" >&2
-		rm -f "${body_file}" "${stderr_file}"
+	helper_payload=$(web_http_request "https://www.googleapis.com/customsearch/v1" 262144 --get --data-urlencode "q=${query}" --data "cx=${cx}" --data "key=${api_key}" --data "num=${num}" --header 'Accept: application/json')
+	if [[ -z "${helper_payload}" ]]; then
+		log "ERROR" "Search request failed" "${query}" >&2
 		return 1
 	fi
 
+	body_path=$(jq -r '.body_path' <<<"${helper_payload}")
+	response=$(cat "${body_path}")
+	rm -f "${body_path}"
+
 	if jq -e '.error? != null' <<<"${response}" >/dev/null 2>&1; then
 		log "ERROR" "Google API error" "$(jq -r '.error.message // "unknown error"' <<<"${response}")" >&2
-		rm -f "${body_file}" "${stderr_file}"
 		return 1
 	fi
 
@@ -117,11 +100,8 @@ tool_web_search() {
                 })
         }' <<<"${response}" || {
 		log "ERROR" "Failed to parse Google API response" "${response}" >&2
-		rm -f "${body_file}" "${stderr_file}"
 		return 1
 	}
-
-	rm -f "${body_file}" "${stderr_file}"
 }
 
 register_web_search() {
