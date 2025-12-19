@@ -330,7 +330,6 @@ copy_payload() {
 	fi
 }
 
-
 remove_symlink() {
 	if [ -e "${DEFAULT_LINK_PATH}" ]; then
 		if [ -w "${DEFAULT_LINK_PATH}" ]; then
