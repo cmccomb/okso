@@ -25,6 +25,6 @@ source "${WEB_TOOLS_DIR}/web_search.sh"
 source "${WEB_TOOLS_DIR}/web_fetch.sh"
 
 register_web_suite() {
-        register_web_search
-        register_web_fetch
+	register_web_search
+	register_web_fetch
 }

@@ -121,6 +121,6 @@ initialize_tools() {
 	register_calendar_suite
 	register_mail_suite
 	register_applescript
-        register_final_answer
-        register_web_suite
+	register_final_answer
+	register_web_suite
 }

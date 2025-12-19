@@ -6,21 +6,21 @@
 #   bats tests/tools/test_web_fetch.sh
 
 setup() {
-        export TOOL_ARGS=''
+	export TOOL_ARGS=''
 }
 
 @test "web_fetch rejects missing url" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/tools/web/web_fetch.sh
 TOOL_ARGS='{}' tool_web_fetch
 SCRIPT
 
-        [ "$status" -ne 0 ]
+	[ "$status" -ne 0 ]
 }
 
 @test "web_fetch surfaces curl failures" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 mock_bin="$(mktemp -d)"
 cat >"${mock_bin}/curl" <<'MOCK'
@@ -34,11 +34,11 @@ TOOL_ARGS='{"url":"https://example.com"}'
 tool_web_fetch
 SCRIPT
 
-        [ "$status" -ne 0 ]
+	[ "$status" -ne 0 ]
 }
 
 @test "web_fetch trims oversized bodies" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 mock_bin="$(mktemp -d)"
 cat >"${mock_bin}/curl" <<'MOCK'
@@ -72,13 +72,13 @@ rm -rf "${mock_bin}"
 printf '%s' "${output}"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        expected='{"url":"https://example.com","status":200,"body":"ABCDE","truncated":true}'
-        [ "${output}" = "${expected}" ]
+	[ "$status" -eq 0 ]
+	expected='{"url":"https://example.com","status":200,"body":"ABCDE","truncated":true}'
+	[ "${output}" = "${expected}" ]
 }
 
 @test "web tools register through the aggregator" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 source ./src/lib/tools.sh
@@ -90,7 +90,7 @@ for name in "${names[@]}"; do
 done
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [[ " ${lines[*]} " == *" web_search "* ]]
-        [[ " ${lines[*]} " == *" web_fetch "* ]]
+	[ "$status" -eq 0 ]
+	[[ " ${lines[*]} " == *" web_search "* ]]
+	[[ " ${lines[*]} " == *" web_fetch "* ]]
 }

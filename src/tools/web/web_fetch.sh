@@ -28,12 +28,12 @@ source "${SRC_ROOT}/lib/logging.sh"
 source "${SRC_ROOT}/tools/registry.sh"
 
 web_fetch_parse_args() {
-        # Parses TOOL_ARGS JSON for the web_fetch tool.
-        # Returns a JSON object with `url` and `max_bytes`.
-        local args_json
-        args_json="${TOOL_ARGS:-}" || true
+	# Parses TOOL_ARGS JSON for the web_fetch tool.
+	# Returns a JSON object with `url` and `max_bytes`.
+	local args_json
+	args_json="${TOOL_ARGS:-}" || true
 
-        jq -cer '
+	jq -cer '
                 if (type != "object") then error("args must be object") end
                 | if (.url? == null) then error("missing url") end
                 | if (.url | type) != "string" or (.url | length) == 0 then error("url must be non-empty string") end
@@ -49,69 +49,69 @@ web_fetch_parse_args() {
 }
 
 tool_web_fetch() {
-        # Downloads the response body for a URL, enforcing size limits and returning JSON metadata.
-        local parsed_args url max_bytes body_file stderr_file http_code status body_size truncated response_body truncated_json
-        body_file="$(mktemp)"
-        stderr_file="$(mktemp)"
+	# Downloads the response body for a URL, enforcing size limits and returning JSON metadata.
+	local parsed_args url max_bytes body_file stderr_file http_code status body_size truncated response_body truncated_json
+	body_file="$(mktemp)"
+	stderr_file="$(mktemp)"
 
-        parsed_args=$(web_fetch_parse_args)
-        if [[ -z "${parsed_args}" ]]; then
-                log "ERROR" "Invalid TOOL_ARGS for web_fetch" "${TOOL_ARGS:-}" >&2
-                rm -f "${body_file}" "${stderr_file}"
-                return 1
-        fi
+	parsed_args=$(web_fetch_parse_args)
+	if [[ -z "${parsed_args}" ]]; then
+		log "ERROR" "Invalid TOOL_ARGS for web_fetch" "${TOOL_ARGS:-}" >&2
+		rm -f "${body_file}" "${stderr_file}"
+		return 1
+	fi
 
-        url=$(jq -r '.url' <<<"${parsed_args}")
-        max_bytes=$(jq -r '.max_bytes' <<<"${parsed_args}")
+	url=$(jq -r '.url' <<<"${parsed_args}")
+	max_bytes=$(jq -r '.max_bytes' <<<"${parsed_args}")
 
-        log "INFO" "Fetching URL" "${url}" >&2
+	log "INFO" "Fetching URL" "${url}" >&2
 
-        http_code=$(curl \
-                --silent \
-                --show-error \
-                --fail \
-                --location \
-                --max-time 20 \
-                --connect-timeout 5 \
-                --retry 1 \
-                --retry-delay 1 \
-                --output "${body_file}" \
-                --write-out '%{http_code}' \
-                --header 'Accept: */*' \
-                "${url}" \
-                2>"${stderr_file}")
-        status=$?
+	http_code=$(curl \
+		--silent \
+		--show-error \
+		--fail \
+		--location \
+		--max-time 20 \
+		--connect-timeout 5 \
+		--retry 1 \
+		--retry-delay 1 \
+		--output "${body_file}" \
+		--write-out '%{http_code}' \
+		--header 'Accept: */*' \
+		"${url}" \
+		2>"${stderr_file}")
+	status=$?
 
-        if ((status != 0)); then
-                log "ERROR" "curl request failed" "$(cat "${stderr_file}")" >&2
-                rm -f "${body_file}" "${stderr_file}"
-                return 1
-        fi
+	if ((status != 0)); then
+		log "ERROR" "curl request failed" "$(cat "${stderr_file}")" >&2
+		rm -f "${body_file}" "${stderr_file}"
+		return 1
+	fi
 
-        body_size=$(wc -c <"${body_file}")
-        truncated=false
-        if ((body_size > max_bytes)); then
-                head -c "${max_bytes}" "${body_file}" >"${body_file}.trimmed"
-                mv "${body_file}.trimmed" "${body_file}"
-                truncated=true
-        fi
+	body_size=$(wc -c <"${body_file}")
+	truncated=false
+	if ((body_size > max_bytes)); then
+		head -c "${max_bytes}" "${body_file}" >"${body_file}.trimmed"
+		mv "${body_file}.trimmed" "${body_file}"
+		truncated=true
+	fi
 
-        response_body="$(cat "${body_file}")"
-        rm -f "${body_file}" "${stderr_file}"
+	response_body="$(cat "${body_file}")"
+	rm -f "${body_file}" "${stderr_file}"
 
-        if [[ "${truncated}" == "true" ]]; then
-                truncated_json=true
-        else
-                truncated_json=false
-        fi
+	if [[ "${truncated}" == "true" ]]; then
+		truncated_json=true
+	else
+		truncated_json=false
+	fi
 
-        jq -nc --arg url "${url}" --arg body "${response_body}" --argjson status "${http_code:-0}" --argjson truncated "${truncated_json}" '{url: $url, status: $status, body: $body, truncated: $truncated}'
+	jq -nc --arg url "${url}" --arg body "${response_body}" --argjson status "${http_code:-0}" --argjson truncated "${truncated_json}" '{url: $url, status: $status, body: $body, truncated: $truncated}'
 }
 
 register_web_fetch() {
-        local args_schema
+	local args_schema
 
-        args_schema=$(jq -nc '{
+	args_schema=$(jq -nc '{
                 type: "object",
                 required: ["url"],
                 additionalProperties: false,
@@ -121,11 +121,11 @@ register_web_fetch() {
                 }
         }')
 
-        register_tool \
-                "web_fetch" \
-                "Retrieve the raw HTTP response body for a URL." \
-                "web_fetch <url>" \
-                "Performs external HTTP requests; avoid sharing sensitive data." \
-                tool_web_fetch \
-                "${args_schema}"
+	register_tool \
+		"web_fetch" \
+		"Retrieve the raw HTTP response body for a URL." \
+		"web_fetch <url>" \
+		"Performs external HTTP requests; avoid sharing sensitive data." \
+		tool_web_fetch \
+		"${args_schema}"
 }
