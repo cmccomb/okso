@@ -105,8 +105,6 @@ SCRIPT
 	run bash <<'SCRIPT'
 set -euo pipefail
 config_file="$(mktemp)"
-MODEL_SPEC="demo/model with space:demo file.gguf"
-MODEL_BRANCH="feature branch"
 PLANNER_MODEL_SPEC="planner/model:planner.gguf"
 PLANNER_MODEL_BRANCH="planner-branch"
 REACT_MODEL_SPEC="react/model:react.gguf"
@@ -118,8 +116,6 @@ CONFIG_FILE="${config_file}"
 source ./src/lib/config.sh
 write_config_file >/dev/null
 bash -n "${config_file}"
-MODEL_SPEC="placeholder"
-MODEL_BRANCH="placeholder"
 PLANNER_MODEL_SPEC="placeholder"
 PLANNER_MODEL_BRANCH="placeholder"
 REACT_MODEL_SPEC="placeholder"
@@ -129,7 +125,6 @@ APPROVE_ALL=false
 FORCE_CONFIRM=true
 source "${config_file}"
 printf '%s\n' \
-        "${MODEL_SPEC}" "${MODEL_BRANCH}" \
         "${PLANNER_MODEL_SPEC}" "${PLANNER_MODEL_BRANCH}" \
         "${REACT_MODEL_SPEC}" "${REACT_MODEL_BRANCH}" \
         "${VERBOSITY}" "${APPROVE_ALL}" "${FORCE_CONFIRM}" \
@@ -138,16 +133,14 @@ rm -f "${config_file}"
 SCRIPT
 
 	[ "$status" -eq 0 ]
-	[ "${lines[0]}" = "demo/model with space:demo file.gguf" ]
-	[ "${lines[1]}" = "feature branch" ]
-	[ "${lines[2]}" = "planner/model:planner.gguf" ]
-	[ "${lines[3]}" = "planner-branch" ]
-	[ "${lines[4]}" = "react/model:react.gguf" ]
-	[ "${lines[5]}" = "react-branch" ]
-	[ "${lines[6]}" = "2" ]
-	[ "${lines[7]}" = "true" ]
-	[ "${lines[8]}" = "false" ]
-	[ "${lines[9]}" = "9" ]
+	[ "${lines[0]}" = "planner/model:planner.gguf" ]
+	[ "${lines[1]}" = "planner-branch" ]
+	[ "${lines[2]}" = "react/model:react.gguf" ]
+	[ "${lines[3]}" = "react-branch" ]
+	[ "${lines[4]}" = "2" ]
+	[ "${lines[5]}" = "true" ]
+	[ "${lines[6]}" = "false" ]
+	[ "${lines[7]}" = "7" ]
 }
 
 @test "okso init writes clean config without stray characters" {
@@ -161,10 +154,9 @@ model_branch="stable/2024-08"
 cd "${repo_root}"
 ./src/bin/okso init --config "${config_file}" --model "${model_spec}" --model-branch "${model_branch}" --yes >/dev/null
 bash -n "${config_file}"
-unset MODEL_SPEC MODEL_BRANCH PLANNER_MODEL_SPEC PLANNER_MODEL_BRANCH REACT_MODEL_SPEC REACT_MODEL_BRANCH VERBOSITY APPROVE_ALL FORCE_CONFIRM
+unset PLANNER_MODEL_SPEC PLANNER_MODEL_BRANCH REACT_MODEL_SPEC REACT_MODEL_BRANCH VERBOSITY APPROVE_ALL FORCE_CONFIRM
 source "${config_file}"
 printf '%s\n' \
-        "${MODEL_SPEC}" "${MODEL_BRANCH}" \
         "${PLANNER_MODEL_SPEC}" "${PLANNER_MODEL_BRANCH}" \
         "${REACT_MODEL_SPEC}" "${REACT_MODEL_BRANCH}" \
         "${VERBOSITY}" "${APPROVE_ALL}" "${FORCE_CONFIRM}" \
@@ -178,13 +170,11 @@ SCRIPT
 	[ "${lines[1]}" = "stable/2024-08" ]
 	[ "${lines[2]}" = "custom/model:quant demo.gguf" ]
 	[ "${lines[3]}" = "stable/2024-08" ]
-	[ "${lines[4]}" = "custom/model:quant demo.gguf" ]
-	[ "${lines[5]}" = "stable/2024-08" ]
-	[ "${lines[6]}" = "1" ]
-	[ "${lines[7]}" = "true" ]
-	[ "${lines[8]}" = "false" ]
-	[ "${lines[9]}" = "9" ]
-	[ "${lines[10]}" = "9" ]
+	[ "${lines[4]}" = "1" ]
+	[ "${lines[5]}" = "true" ]
+	[ "${lines[6]}" = "false" ]
+	[ "${lines[7]}" = "7" ]
+	[ "${lines[8]}" = "7" ]
 }
 
 @test "planner and react specs hydrate defaults and shared overrides" {
@@ -231,20 +221,17 @@ COMMAND="run"
 DEFAULT_MODEL_BRANCH_BASE=${DEFAULT_MODEL_BRANCH_BASE:-main}
 DEFAULT_PLANNER_MODEL_BRANCH_BASE=${DEFAULT_PLANNER_MODEL_BRANCH_BASE:-main}
 DEFAULT_REACT_MODEL_BRANCH_BASE=${DEFAULT_REACT_MODEL_BRANCH_BASE:-main}
-MODEL_BRANCH="${DEFAULT_MODEL_BRANCH_BASE}"
 PLANNER_MODEL_BRANCH="${DEFAULT_PLANNER_MODEL_BRANCH_BASE}"
 REACT_MODEL_BRANCH="${DEFAULT_REACT_MODEL_BRANCH_BASE}"
 parse_args --model shared/repo:shared.gguf --model-branch release -- "demo query"
-printf '%s\n' "${MODEL_SPEC}" "${PLANNER_MODEL_SPEC}" "${REACT_MODEL_SPEC}" "${MODEL_BRANCH}" "${PLANNER_MODEL_BRANCH}" "${REACT_MODEL_BRANCH}"
+printf '%s\n' "${PLANNER_MODEL_SPEC}" "${REACT_MODEL_SPEC}" "${PLANNER_MODEL_BRANCH}" "${REACT_MODEL_BRANCH}"
 SCRIPT
 
 	[ "$status" -eq 0 ]
 	[ "${lines[0]}" = "shared/repo:shared.gguf" ]
 	[ "${lines[1]}" = "shared/repo:shared.gguf" ]
-	[ "${lines[2]}" = "shared/repo:shared.gguf" ]
+	[ "${lines[2]}" = "release" ]
 	[ "${lines[3]}" = "release" ]
-	[ "${lines[4]}" = "release" ]
-	[ "${lines[5]}" = "release" ]
 }
 
 @test "cli planner flags override shared selections" {
@@ -255,18 +242,15 @@ COMMAND="run"
 DEFAULT_MODEL_BRANCH_BASE=${DEFAULT_MODEL_BRANCH_BASE:-main}
 DEFAULT_PLANNER_MODEL_BRANCH_BASE=${DEFAULT_PLANNER_MODEL_BRANCH_BASE:-main}
 DEFAULT_REACT_MODEL_BRANCH_BASE=${DEFAULT_REACT_MODEL_BRANCH_BASE:-main}
-MODEL_BRANCH="${DEFAULT_MODEL_BRANCH_BASE}"
 PLANNER_MODEL_BRANCH="${DEFAULT_PLANNER_MODEL_BRANCH_BASE}"
 REACT_MODEL_BRANCH="${DEFAULT_REACT_MODEL_BRANCH_BASE}"
 parse_args --model shared/repo:shared.gguf --planner-model dedicated/planner:plan.gguf --planner-model-branch nightly -- "demo query"
-printf '%s\n' "${MODEL_SPEC}" "${PLANNER_MODEL_SPEC}" "${REACT_MODEL_SPEC}" "${MODEL_BRANCH}" "${PLANNER_MODEL_BRANCH}" "${REACT_MODEL_BRANCH}"
+printf '%s\n' "${PLANNER_MODEL_SPEC}" "${REACT_MODEL_SPEC}" "${PLANNER_MODEL_BRANCH}" "${REACT_MODEL_BRANCH}"
 SCRIPT
 
 	[ "$status" -eq 0 ]
-	[ "${lines[0]}" = "shared/repo:shared.gguf" ]
-	[ "${lines[1]}" = "dedicated/planner:plan.gguf" ]
-	[ "${lines[2]}" = "shared/repo:shared.gguf" ]
+	[ "${lines[0]}" = "dedicated/planner:plan.gguf" ]
+	[ "${lines[1]}" = "shared/repo:shared.gguf" ]
+	[ "${lines[2]}" = "nightly" ]
 	[ "${lines[3]}" = "main" ]
-	[ "${lines[4]}" = "nightly" ]
-	[ "${lines[5]}" = "main" ]
 }

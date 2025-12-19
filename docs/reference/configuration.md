@@ -14,8 +14,6 @@ spaces and other special characters when writing strings, such as model specs.
 Supported keys:
 
 ```
-MODEL_SPEC=custom/model:demo\ quantized.gguf
-MODEL_BRANCH=release-candidate
 PLANNER_MODEL_SPEC=bartowski/Qwen_Qwen3-8B-GGUF:Qwen_Qwen3-8B-Q4_K_M.gguf
 PLANNER_MODEL_BRANCH=main
 REACT_MODEL_SPEC=bartowski/Qwen_Qwen3-1.7B-GGUF:Qwen_Qwen3-1.7B-Q4_K_M.gguf
@@ -29,8 +27,6 @@ FORCE_CONFIRM=false
 - `PLANNER_MODEL_BRANCH`: Optional branch or tag for the planner download (default: `main`).
 - `REACT_MODEL_SPEC`: Hugging Face `repo[:file]` identifier for the ReAct llama.cpp model (default: `bartowski/Qwen_Qwen3-1.7B-GGUF:Qwen_Qwen3-1.7B-Q4_K_M.gguf`).
 - `REACT_MODEL_BRANCH`: Optional branch or tag for the ReAct download (default: `main`).
-- `MODEL_SPEC`: Legacy shared model identifier used when planner/React flags are omitted (default: `bartowski/Qwen_Qwen3-1.7B-GGUF:Qwen_Qwen3-1.7B-Q4_K_M.gguf`).
-- `MODEL_BRANCH`: Legacy shared branch or tag (default: `main`).
 - `LLAMA_BIN`: Path to the llama.cpp binary used for scoring (default: `llama-cli`).
 - `TESTING_PASSTHROUGH`: `true` to bypass llama.cpp for offline or deterministic runs.
 - `APPROVE_ALL`: `true` to skip prompts by default.
@@ -39,7 +35,7 @@ FORCE_CONFIRM=false
 - `OKSO_GOOGLE_CSE_API_KEY`: Google Custom Search API key used by the `web_search` tool.
 - `OKSO_GOOGLE_CSE_ID`: Google Custom Search Engine ID used by the `web_search` tool.
 
-Environment variables prefixed with `OKSO_` mirror the config keys and take precedence over file values.
+Environment variables prefixed with `OKSO_` mirror the config keys and take precedence over file values. Legacy `MODEL_SPEC` and `MODEL_BRANCH` values are still read for compatibility but are no longer written to new config files.
 
 API keys and other secrets belong in `~/.config/okso/config.env` or a locally sourced `.env` file—never commit them to version control. Consider adding local files containing secrets to `.gitignore` if you keep them alongside your working directory.
 

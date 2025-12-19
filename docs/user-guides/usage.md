@@ -40,11 +40,13 @@ Use `./src/bin/okso --help` to see all flags. The CLI walks through planning and
      --model-branch main
    ```
 
-2. At runtime, override config values with environment variables prefixed by `OKSO_`:
+2. At runtime, override config values with environment variables prefixed by `OKSO_` or by exporting the config keys directly:
 
    ```bash
-   OKSO_MODEL_SPEC=bartowski/Qwen_Qwen3-1.7B-GGUF:Qwen_Qwen3-1.7B-Q4_K_M.gguf \
-   OKSO_MODEL_BRANCH=main \
+   PLANNER_MODEL_SPEC=bartowski/Qwen_Qwen3-8B-GGUF:Qwen_Qwen3-8B-Q4_K_M.gguf \
+   REACT_MODEL_SPEC=bartowski/Qwen_Qwen3-1.7B-GGUF:Qwen_Qwen3-1.7B-Q4_K_M.gguf \
+   PLANNER_MODEL_BRANCH=main \
+   REACT_MODEL_BRANCH=main \
    OKSO_LLAMA_BIN=llama-cli \
    ./src/bin/okso --yes -- "classify support tickets"
    ```

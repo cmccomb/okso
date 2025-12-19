@@ -139,7 +139,6 @@ parse_args() {
 			if [[ $# -lt 2 ]]; then
 				die "cli" "usage" "--model requires an HF repo[:file] value"
 			fi
-			MODEL_SPEC="$2"
 			if [[ "${planner_model_spec_set}" != true ]]; then
 				PLANNER_MODEL_SPEC="$2"
 			fi
@@ -152,7 +151,6 @@ parse_args() {
 			if [[ $# -lt 2 ]]; then
 				die "cli" "usage" "--model-branch requires a branch or tag"
 			fi
-			MODEL_BRANCH="$2"
 			if [[ "${planner_model_branch_set}" != true ]]; then
 				PLANNER_MODEL_BRANCH="$2"
 			fi

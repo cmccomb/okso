@@ -8,8 +8,6 @@
 #
 # Environment variables:
 #   CONFIG_FILE (string): config path; default resolved in detect_config_file.
-#   MODEL_SPEC (string): HF repo[:file] spec; may be overridden by OKSO_MODEL.
-#   MODEL_BRANCH (string): HF branch; may be overridden by OKSO_MODEL_BRANCH.
 #   PLANNER_MODEL_SPEC (string): HF repo[:file] spec for planner llama calls.
 #   PLANNER_MODEL_BRANCH (string): HF branch for planner model downloads.
 #   REACT_MODEL_SPEC (string): HF repo[:file] spec for ReAct llama calls.
@@ -38,17 +36,22 @@ CONFIG_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=./core/logging.sh disable=SC1091
 source "${CONFIG_LIB_DIR}/core/logging.sh"
 
-readonly DEFAULT_MODEL_REPO_BASE="bartowski/Qwen_Qwen3-1.7B-GGUF"
-readonly DEFAULT_MODEL_FILE_BASE="Qwen_Qwen3-1.7B-Q4_K_M.gguf"
-readonly DEFAULT_MODEL_SPEC_BASE="${DEFAULT_MODEL_REPO_BASE}:${DEFAULT_MODEL_FILE_BASE}"
-readonly DEFAULT_MODEL_BRANCH_BASE="main"
-readonly DEFAULT_REACT_MODEL_SPEC_BASE="${DEFAULT_MODEL_SPEC_BASE}"
-readonly DEFAULT_REACT_MODEL_BRANCH_BASE="${DEFAULT_MODEL_BRANCH_BASE}"
+: "${DEFAULT_MODEL_REPO_BASE:=bartowski/Qwen_Qwen3-1.7B-GGUF}"
+: "${DEFAULT_MODEL_FILE_BASE:=Qwen_Qwen3-1.7B-Q4_K_M.gguf}"
+: "${DEFAULT_MODEL_SPEC_BASE:=${DEFAULT_MODEL_REPO_BASE}:${DEFAULT_MODEL_FILE_BASE}}"
+: "${DEFAULT_MODEL_BRANCH_BASE:=main}"
+: "${DEFAULT_REACT_MODEL_SPEC_BASE:=${DEFAULT_MODEL_SPEC_BASE}}"
+: "${DEFAULT_REACT_MODEL_BRANCH_BASE:=${DEFAULT_MODEL_BRANCH_BASE}}"
 
-readonly DEFAULT_PLANNER_MODEL_REPO_BASE="bartowski/Qwen_Qwen3-8B-GGUF"
-readonly DEFAULT_PLANNER_MODEL_FILE_BASE="Qwen_Qwen3-8B-Q4_K_M.gguf"
-readonly DEFAULT_PLANNER_MODEL_SPEC_BASE="${DEFAULT_PLANNER_MODEL_REPO_BASE}:${DEFAULT_PLANNER_MODEL_FILE_BASE}"
-readonly DEFAULT_PLANNER_MODEL_BRANCH_BASE="main"
+: "${DEFAULT_PLANNER_MODEL_REPO_BASE:=bartowski/Qwen_Qwen3-8B-GGUF}"
+: "${DEFAULT_PLANNER_MODEL_FILE_BASE:=Qwen_Qwen3-8B-Q4_K_M.gguf}"
+: "${DEFAULT_PLANNER_MODEL_SPEC_BASE:=${DEFAULT_PLANNER_MODEL_REPO_BASE}:${DEFAULT_PLANNER_MODEL_FILE_BASE}}"
+: "${DEFAULT_PLANNER_MODEL_BRANCH_BASE:=main}"
+
+readonly DEFAULT_MODEL_REPO_BASE DEFAULT_MODEL_FILE_BASE DEFAULT_MODEL_SPEC_BASE DEFAULT_MODEL_BRANCH_BASE
+readonly DEFAULT_REACT_MODEL_SPEC_BASE DEFAULT_REACT_MODEL_BRANCH_BASE
+readonly DEFAULT_PLANNER_MODEL_REPO_BASE DEFAULT_PLANNER_MODEL_FILE_BASE
+readonly DEFAULT_PLANNER_MODEL_SPEC_BASE DEFAULT_PLANNER_MODEL_BRANCH_BASE
 
 normalize_boolean_input() {
 	# Arguments:
@@ -122,8 +125,7 @@ detect_config_file() {
 load_config() {
 	# Load file-backed configuration first so environment overrides and CLI flags
 	# can layer on top in a predictable order.
-	local model_spec_override model_branch_override preexisting_okso_google_cse_api_key preexisting_okso_google_cse_id
-	local model_spec_was_set planner_model_spec_was_set model_branch_was_set planner_model_branch_was_set
+	local model_branch_override preexisting_okso_google_cse_api_key preexisting_okso_google_cse_id
 	# string: preserve preexisting environment values so they can override config file entries.
 	preexisting_okso_google_cse_api_key="${OKSO_GOOGLE_CSE_API_KEY:-}"
 	preexisting_okso_google_cse_id="${OKSO_GOOGLE_CSE_ID:-}"
@@ -135,42 +137,35 @@ load_config() {
 	OKSO_GOOGLE_CSE_API_KEY="${preexisting_okso_google_cse_api_key:-${OKSO_GOOGLE_CSE_API_KEY:-}}"
 	OKSO_GOOGLE_CSE_ID="${preexisting_okso_google_cse_id:-${OKSO_GOOGLE_CSE_ID:-}}"
 
-	model_spec_was_set=${MODEL_SPEC+x}
-	planner_model_spec_was_set=${PLANNER_MODEL_SPEC+x}
-	model_branch_was_set=${MODEL_BRANCH+x}
-	planner_model_branch_was_set=${PLANNER_MODEL_BRANCH+x}
-
 	DEFAULT_MODEL_FILE=${DEFAULT_MODEL_FILE:-${DEFAULT_MODEL_FILE_BASE}}
 	DEFAULT_PLANNER_MODEL_FILE=${DEFAULT_PLANNER_MODEL_FILE:-${DEFAULT_PLANNER_MODEL_FILE_BASE}}
 
-	MODEL_SPEC=${MODEL_SPEC:-"${DEFAULT_REACT_MODEL_SPEC_BASE}"}
-	MODEL_BRANCH=${MODEL_BRANCH:-${DEFAULT_REACT_MODEL_BRANCH_BASE}}
+	if [[ -n "${MODEL_SPEC:-}" && -z "${PLANNER_MODEL_SPEC:-}" && -z "${REACT_MODEL_SPEC:-}" ]]; then
+		PLANNER_MODEL_SPEC="${MODEL_SPEC}"
+		REACT_MODEL_SPEC="${MODEL_SPEC}"
+	fi
+	if [[ -n "${MODEL_BRANCH:-}" && -z "${PLANNER_MODEL_BRANCH:-}" && -z "${REACT_MODEL_BRANCH:-}" ]]; then
+		PLANNER_MODEL_BRANCH="${MODEL_BRANCH}"
+		REACT_MODEL_BRANCH="${MODEL_BRANCH}"
+	fi
+
 	PLANNER_MODEL_SPEC=${PLANNER_MODEL_SPEC:-"${DEFAULT_PLANNER_MODEL_SPEC_BASE}"}
 	PLANNER_MODEL_BRANCH=${PLANNER_MODEL_BRANCH:-${DEFAULT_PLANNER_MODEL_BRANCH_BASE}}
-	REACT_MODEL_SPEC=${REACT_MODEL_SPEC:-"${MODEL_SPEC}"}
-	REACT_MODEL_BRANCH=${REACT_MODEL_BRANCH:-${MODEL_BRANCH}}
+	REACT_MODEL_SPEC=${REACT_MODEL_SPEC:-"${DEFAULT_REACT_MODEL_SPEC_BASE}"}
+	REACT_MODEL_BRANCH=${REACT_MODEL_BRANCH:-${DEFAULT_REACT_MODEL_BRANCH_BASE}}
 	VERBOSITY=${VERBOSITY:-1}
 	APPROVE_ALL=${APPROVE_ALL:-false}
 	FORCE_CONFIRM=${FORCE_CONFIRM:-false}
 
 	if [[ -n "${OKSO_MODEL:-}" ]]; then
-		model_spec_override="${OKSO_MODEL}"
-		MODEL_SPEC="${model_spec_override}"
+		PLANNER_MODEL_SPEC="${OKSO_MODEL}"
+		REACT_MODEL_SPEC="${OKSO_MODEL}"
 	fi
 
 	if [[ -n "${OKSO_MODEL_BRANCH:-}" ]]; then
 		model_branch_override="${OKSO_MODEL_BRANCH}"
-		MODEL_BRANCH="${model_branch_override}"
-	fi
-
-	REACT_MODEL_SPEC=${REACT_MODEL_SPEC:-"${MODEL_SPEC}"}
-	REACT_MODEL_BRANCH=${REACT_MODEL_BRANCH:-"${MODEL_BRANCH}"}
-
-	if [[ -z "${planner_model_spec_was_set:-}" && -n "${model_spec_was_set:-}" ]]; then
-		PLANNER_MODEL_SPEC="${MODEL_SPEC}"
-	fi
-	if [[ -z "${planner_model_branch_was_set:-}" && -n "${model_branch_was_set:-}" ]]; then
-		PLANNER_MODEL_BRANCH="${MODEL_BRANCH}"
+		PLANNER_MODEL_BRANCH="${model_branch_override}"
+		REACT_MODEL_BRANCH="${model_branch_override}"
 	fi
 
 	GOOGLE_SEARCH_API_KEY=${GOOGLE_SEARCH_API_KEY:-${OKSO_GOOGLE_CSE_API_KEY:-}}
@@ -197,8 +192,6 @@ write_config_file() {
 
 	mkdir -p "$(dirname "${CONFIG_FILE}")"
 	cat >"${CONFIG_FILE}" <<EOF_CONFIG
-MODEL_SPEC=$(quote_config_value "${MODEL_SPEC}")
-MODEL_BRANCH=$(quote_config_value "${MODEL_BRANCH}")
 PLANNER_MODEL_SPEC=$(quote_config_value "${PLANNER_MODEL_SPEC}")
 PLANNER_MODEL_BRANCH=$(quote_config_value "${PLANNER_MODEL_BRANCH}")
 REACT_MODEL_SPEC=$(quote_config_value "${REACT_MODEL_SPEC}")
@@ -283,37 +276,28 @@ hydrate_model_spec_to_vars() {
 
 hydrate_model_specs() {
 	# Normalizes planner and react model specs into repo and file components.
-	local model_spec_was_set model_branch_was_set
-
-	model_spec_was_set=${MODEL_SPEC+x}
-	model_branch_was_set=${MODEL_BRANCH+x}
-
 	DEFAULT_PLANNER_MODEL_FILE=${DEFAULT_PLANNER_MODEL_FILE:-${DEFAULT_PLANNER_MODEL_FILE_BASE}}
 	DEFAULT_MODEL_FILE=${DEFAULT_MODEL_FILE:-${DEFAULT_MODEL_FILE_BASE}}
 
-	MODEL_SPEC=${MODEL_SPEC:-"${DEFAULT_REACT_MODEL_SPEC_BASE}"}
-	MODEL_BRANCH=${MODEL_BRANCH:-"${DEFAULT_REACT_MODEL_BRANCH_BASE}"}
-
-	REACT_MODEL_SPEC=${REACT_MODEL_SPEC:-"${MODEL_SPEC}"}
-	REACT_MODEL_BRANCH=${REACT_MODEL_BRANCH:-"${MODEL_BRANCH}"}
-
-	if [[ -z "${PLANNER_MODEL_SPEC:-}" ]]; then
-		if [[ -n "${model_spec_was_set}" ]]; then
-			PLANNER_MODEL_SPEC="${MODEL_SPEC}"
-		else
-			PLANNER_MODEL_SPEC="${DEFAULT_PLANNER_MODEL_SPEC_BASE}"
-		fi
+	if [[ -z "${PLANNER_MODEL_SPEC:-}" && -n "${MODEL_SPEC:-}" ]]; then
+		PLANNER_MODEL_SPEC="${MODEL_SPEC}"
 	fi
 
-	if [[ -z "${PLANNER_MODEL_BRANCH:-}" ]]; then
-		if [[ -n "${model_branch_was_set}" ]]; then
-			PLANNER_MODEL_BRANCH="${MODEL_BRANCH}"
-		else
-			PLANNER_MODEL_BRANCH="${DEFAULT_PLANNER_MODEL_BRANCH_BASE}"
-		fi
+	if [[ -z "${REACT_MODEL_SPEC:-}" && -n "${MODEL_SPEC:-}" ]]; then
+		REACT_MODEL_SPEC="${MODEL_SPEC}"
 	fi
 
+	if [[ -z "${PLANNER_MODEL_BRANCH:-}" && -n "${MODEL_BRANCH:-}" ]]; then
+		PLANNER_MODEL_BRANCH="${MODEL_BRANCH}"
+	fi
+
+	if [[ -z "${REACT_MODEL_BRANCH:-}" && -n "${MODEL_BRANCH:-}" ]]; then
+		REACT_MODEL_BRANCH="${MODEL_BRANCH}"
+	fi
+
+	PLANNER_MODEL_SPEC=${PLANNER_MODEL_SPEC:-"${DEFAULT_PLANNER_MODEL_SPEC_BASE}"}
 	PLANNER_MODEL_BRANCH=${PLANNER_MODEL_BRANCH:-"${DEFAULT_PLANNER_MODEL_BRANCH_BASE}"}
+	REACT_MODEL_SPEC=${REACT_MODEL_SPEC:-"${DEFAULT_REACT_MODEL_SPEC_BASE}"}
 	REACT_MODEL_BRANCH=${REACT_MODEL_BRANCH:-"${DEFAULT_REACT_MODEL_BRANCH_BASE}"}
 
 	hydrate_model_spec_to_vars "${PLANNER_MODEL_SPEC}" "${DEFAULT_PLANNER_MODEL_FILE}" PLANNER_MODEL_REPO PLANNER_MODEL_FILE

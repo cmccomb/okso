@@ -19,8 +19,6 @@
 #   ${settings_prefix}_json.default_planner_model_file (string): default GGUF filename for the planner.
 #   ${settings_prefix}_json.config_dir (string): directory for config file.
 #   ${settings_prefix}_json.config_file (string): path to the config file.
-#   ${settings_prefix}_json.model_spec (string): legacy HF repo[:file] spec used as default.
-#   ${settings_prefix}_json.model_branch (string): legacy branch or tag for downloads.
 #   ${settings_prefix}_json.planner_model_spec (string): HF repo[:file] spec for planner llama.cpp.
 #   ${settings_prefix}_json.planner_model_branch (string): branch or tag for planner downloads.
 #   ${settings_prefix}_json.planner_model_repo (string): parsed planner HF repo.
@@ -29,8 +27,6 @@
 #   ${settings_prefix}_json.react_model_branch (string): branch or tag for ReAct downloads.
 #   ${settings_prefix}_json.react_model_repo (string): parsed ReAct HF repo.
 #   ${settings_prefix}_json.react_model_file (string): parsed ReAct HF file.
-#   ${settings_prefix}_json.model_repo (string): parsed HF repo (legacy mirror of react model).
-#   ${settings_prefix}_json.model_file (string): parsed HF file (legacy mirror of react model).
 #   ${settings_prefix}_json.approve_all (bool string): true to bypass prompts.
 #   ${settings_prefix}_json.force_confirm (bool string): true to force prompts.
 #   ${settings_prefix}_json.dry_run (bool string): true to avoid execution.
@@ -129,7 +125,7 @@ set_by_name() {
 create_default_settings() {
 	# Arguments:
 	#   $1 - settings namespace prefix
-	local settings_prefix config_dir default_model_file config_file model_spec new_settings_json default_planner_model_file planner_model_spec react_model_spec
+	local settings_prefix config_dir default_model_file config_file new_settings_json default_planner_model_file planner_model_spec react_model_spec
 	settings_prefix="$1"
 
 	settings_clear_namespace "${settings_prefix}"
@@ -138,9 +134,8 @@ create_default_settings() {
 	default_model_file="${DEFAULT_MODEL_FILE_BASE:-Qwen_Qwen3-1.7B-Q4_K_M.gguf}"
 	default_planner_model_file="${DEFAULT_PLANNER_MODEL_FILE_BASE:-Qwen_Qwen3-8B-Q4_K_M.gguf}"
 	config_file="${config_dir}/config.env"
-	model_spec="${DEFAULT_REACT_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-1.7B-GGUF:${default_model_file}}"
 	planner_model_spec="${DEFAULT_PLANNER_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-8B-GGUF:${default_planner_model_file}}"
-	react_model_spec="${DEFAULT_REACT_MODEL_SPEC_BASE:-${model_spec}}"
+	react_model_spec="${DEFAULT_REACT_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-1.7B-GGUF:${default_model_file}}"
 
 	new_settings_json=$(jq -c -n \
 		--arg version "0.1.0" \
@@ -149,10 +144,8 @@ create_default_settings() {
 		--arg default_planner_model_file "${default_planner_model_file}" \
 		--arg config_dir "${config_dir}" \
 		--arg config_file "${config_file}" \
-		--arg model_spec "${model_spec}" \
 		--arg planner_model_spec "${planner_model_spec}" \
 		--arg react_model_spec "${react_model_spec}" \
-		--arg model_branch "${DEFAULT_REACT_MODEL_BRANCH_BASE:-main}" \
 		--arg planner_model_branch "${DEFAULT_PLANNER_MODEL_BRANCH_BASE:-main}" \
 		--arg react_model_branch "${DEFAULT_REACT_MODEL_BRANCH_BASE:-main}" \
 		--arg notes_dir "${HOME}/.okso" \
@@ -164,14 +157,10 @@ create_default_settings() {
                         default_planner_model_file: $default_planner_model_file,
                         config_dir: $config_dir,
                         config_file: $config_file,
-                        model_spec: $model_spec,
-                        model_branch: $model_branch,
                         planner_model_spec: $planner_model_spec,
                         planner_model_branch: $planner_model_branch,
                         react_model_spec: $react_model_spec,
                         react_model_branch: $react_model_branch,
-                        model_repo: "",
-                        model_file: "",
                         planner_model_repo: "",
                         planner_model_file: "",
                         react_model_repo: "",
@@ -200,14 +189,10 @@ default_model_file DEFAULT_MODEL_FILE
 default_planner_model_file DEFAULT_PLANNER_MODEL_FILE
 config_dir CONFIG_DIR
 config_file CONFIG_FILE
-model_spec MODEL_SPEC
-model_branch MODEL_BRANCH
 planner_model_spec PLANNER_MODEL_SPEC
 planner_model_branch PLANNER_MODEL_BRANCH
 react_model_spec REACT_MODEL_SPEC
 react_model_branch REACT_MODEL_BRANCH
-model_repo MODEL_REPO
-model_file MODEL_FILE
 planner_model_repo PLANNER_MODEL_REPO
 planner_model_file PLANNER_MODEL_FILE
 react_model_repo REACT_MODEL_REPO
