@@ -29,6 +29,7 @@ So far, we've done the following:
 ${history}
 
 Now generate the next action!
+If the information given above contains enough information to provide an answer, then you MUST call the final_answer tool.
 
 Next Action:
 
