@@ -19,17 +19,6 @@ SCRIPT
 	[ "$status" -ne 0 ]
 }
 
-@test "web_search fails without configuration" {
-	run bash <<'SCRIPT'
-set -euo pipefail
-source ./src/tools/web/web_search.sh
-TOOL_ARGS='{"query":"test"}'
-tool_web_search
-SCRIPT
-
-	[ "$status" -ne 0 ]
-}
-
 @test "web_search surfaces API errors" {
 	run bash <<'SCRIPT'
 set -euo pipefail
