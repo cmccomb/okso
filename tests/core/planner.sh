@@ -1,7 +1,6 @@
 #!/usr/bin/env bats
 
 setup() {
-	chpwd_functions=()
 	unset -f chpwd _mise_hook 2>/dev/null || true
 }
 
