@@ -93,12 +93,12 @@ python_repl_wrap_query() {
 }
 
 tool_python_repl() {
-        local query sandbox_dir startup_file repl_input status args_json text_key # strings and status code
-        args_json="${TOOL_ARGS:-}" || true
-        text_key="$(canonical_text_arg_key)"
+	local query sandbox_dir startup_file repl_input status args_json text_key # strings and status code
+	args_json="${TOOL_ARGS:-}" || true
+	text_key="$(canonical_text_arg_key)"
 
-        if [[ -n "${args_json}" ]]; then
-                query=$(jq -er --arg key "${text_key}" '
+	if [[ -n "${args_json}" ]]; then
+		query=$(jq -er --arg key "${text_key}" '
  if type != "object" then error("args must be object") end
 | if .[$key]? == null then error("missing ${key}") end
 | if (.[$key] | type) != "string" then error("${key} must be string") end
@@ -106,12 +106,12 @@ tool_python_repl() {
 | if ((del(.[$key]) | length) != 0) then error("unexpected properties") end
 | .[$key]
 ' <<<"${args_json}" 2>/dev/null || true)
-        fi
+	fi
 
-        if [[ -z "${query}" ]]; then
-                log "ERROR" "Missing TOOL_ARGS.${text_key}" "${args_json}" || true
-                return 1
-        fi
+	if [[ -z "${query}" ]]; then
+		log "ERROR" "Missing TOOL_ARGS.${text_key}" "${args_json}" || true
+		return 1
+	fi
 
 	sandbox_dir=$(python_repl_create_sandbox) || {
 		log "ERROR" "Failed to create sandbox" "${query}" || true
@@ -137,13 +137,13 @@ tool_python_repl() {
 }
 
 register_python_repl() {
-        local args_schema
+	local args_schema
 
-        args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}},"additionalProperties":false}')
-        register_tool \
-                "python_repl" \
-                "Execute Python statements in a temporary sandbox via python -i." \
-                "python_repl 'python code to evaluate'" \
+	args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}},"additionalProperties":false}')
+	register_tool \
+		"python_repl" \
+		"Execute Python statements in a temporary sandbox via python -i." \
+		"python_repl 'python code to evaluate'" \
 		"Writes are confined to an ephemeral sandbox directory." \
 		tool_python_repl \
 		"${args_schema}"

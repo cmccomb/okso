@@ -36,10 +36,10 @@ mail_build_recipient_args() {
 }
 
 tool_mail_draft() {
-        local recipients_line subject body args_json envelope text_key
-        args_json="${TOOL_ARGS:-}" || true
-        text_key="$(canonical_text_arg_key)"
-        envelope=$(jq -er --arg key "${text_key}" '
+	local recipients_line subject body args_json envelope text_key
+	args_json="${TOOL_ARGS:-}" || true
+	text_key="$(canonical_text_arg_key)"
+	envelope=$(jq -er --arg key "${text_key}" '
  if type != "object" then error("args must be object") end
 | if .[$key]? == null then error("missing ${key}") end
 | if (.[$key] | type) != "string" then error("${key} must be string") end
@@ -48,19 +48,19 @@ tool_mail_draft() {
 | .[$key]
 ' <<<"${args_json}" 2>/dev/null || true)
 
-        if [[ -z "${envelope}" ]]; then
-                log "ERROR" "Missing TOOL_ARGS.${text_key}" "${args_json}" || true
-                return 1
-        fi
+	if [[ -z "${envelope}" ]]; then
+		log "ERROR" "Missing TOOL_ARGS.${text_key}" "${args_json}" || true
+		return 1
+	fi
 
-        if ! mail_require_platform "${envelope}"; then
-                return 0
-        fi
+	if ! mail_require_platform "${envelope}"; then
+		return 0
+	fi
 
-        if ! { IFS= read -r -d '' recipients_line && IFS= read -r -d '' subject && IFS= read -r -d '' body; } < <(mail_extract_envelope "${envelope}"); then
-                log "ERROR" "Unable to parse mail envelope" "${envelope}" || true
-                return 1
-        fi
+	if ! { IFS= read -r -d '' recipients_line && IFS= read -r -d '' subject && IFS= read -r -d '' body; } < <(mail_extract_envelope "${envelope}"); then
+		log "ERROR" "Unable to parse mail envelope" "${envelope}" || true
+		return 1
+	fi
 
 	local -a recipients
 	while IFS= read -r recipient; do
@@ -91,7 +91,7 @@ APPLESCRIPT
 register_mail_draft() {
 	local args_schema
 
-        args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}},"additionalProperties":false}')
+	args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}},"additionalProperties":false}')
 	register_tool \
 		"mail_draft" \
 		"Create an Apple Mail draft using the first line for recipients and second for the subject." \

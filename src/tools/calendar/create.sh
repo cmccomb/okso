@@ -30,21 +30,21 @@ source "${BASH_SOURCE[0]%/tools/calendar/create.sh}/lib/core/logging.sh"
 source "${BASH_SOURCE[0]%/create.sh}/common.sh"
 
 calendar_dry_run_guard() {
-        local details
-        details="$1"
-        if [[ "${DRY_RUN}" == true ]]; then
-                log "INFO" "Dry run: skipping Apple Calendar event creation" "${details}" || true
-                return 0
-        fi
+	local details
+	details="$1"
+	if [[ "${DRY_RUN}" == true ]]; then
+		log "INFO" "Dry run: skipping Apple Calendar event creation" "${details}" || true
+		return 0
+	fi
 
-        return 1
+	return 1
 }
 
 tool_calendar_create() {
-        local title start_time location calendar_script args_json text_key details
-        args_json="${TOOL_ARGS:-}" || true
-        text_key="$(canonical_text_arg_key)"
-        details=$(jq -er --arg key "${text_key}" '
+	local title start_time location calendar_script args_json text_key details
+	args_json="${TOOL_ARGS:-}" || true
+	text_key="$(canonical_text_arg_key)"
+	details=$(jq -er --arg key "${text_key}" '
  if type != "object" then error("args must be object") end
 | if .[$key]? == null then error("missing ${key}") end
 | if (.[$key] | type) != "string" then error("${key} must be string") end
@@ -53,22 +53,22 @@ tool_calendar_create() {
 | .[$key]
 ' <<<"${args_json}" 2>/dev/null || true)
 
-        if [[ -z "${details}" ]]; then
-                log "ERROR" "Missing TOOL_ARGS.${text_key}" "${args_json}" || true
-                return 1
-        fi
+	if [[ -z "${details}" ]]; then
+		log "ERROR" "Missing TOOL_ARGS.${text_key}" "${args_json}" || true
+		return 1
+	fi
 
-        if calendar_dry_run_guard "${details}"; then
-                return 0
-        fi
+	if calendar_dry_run_guard "${details}"; then
+		return 0
+	fi
 
-        if ! calendar_require_platform "${details}"; then
-                return 0
-        fi
+	if ! calendar_require_platform "${details}"; then
+		return 0
+	fi
 
-        if ! { IFS= read -r -d '' title && IFS= read -r -d '' start_time && IFS= read -r -d '' location; } < <(calendar_extract_event_fields "${details}"); then
-                return 0
-        fi
+	if ! { IFS= read -r -d '' title && IFS= read -r -d '' start_time && IFS= read -r -d '' location; } < <(calendar_extract_event_fields "${details}"); then
+		return 0
+	fi
 
 	calendar_script="$(calendar_resolve_calendar_script)"
 
@@ -94,7 +94,7 @@ APPLESCRIPT
 register_calendar_create() {
 	local args_schema
 
-        args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}},"additionalProperties":false}')
+	args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}},"additionalProperties":false}')
 	register_tool \
 		"calendar_create" \
 		"Create a new Apple Calendar event (line 1: title; line 2: start time)." \

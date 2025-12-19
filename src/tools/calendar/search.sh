@@ -41,12 +41,12 @@ calendar_search_dry_run_guard() {
 }
 
 tool_calendar_search() {
-        local query calendar_script args_json text_key
-        args_json="${TOOL_ARGS:-}" || true
-        text_key="$(canonical_text_arg_key)"
-        query=""
+	local query calendar_script args_json text_key
+	args_json="${TOOL_ARGS:-}" || true
+	text_key="$(canonical_text_arg_key)"
+	query=""
 
-        query=$(jq -er --arg key "${text_key}" '
+	query=$(jq -er --arg key "${text_key}" '
  if type != "object" then error("args must be object") end
 | if .[$key]? == null then error("missing ${key}") end
 | if (.[$key] | type) != "string" then error("${key} must be string") end
@@ -55,18 +55,18 @@ tool_calendar_search() {
 | .[$key]
 ' <<<"${args_json}" 2>/dev/null || true)
 
-        if calendar_search_dry_run_guard "${query}"; then
-                return 0
-        fi
+	if calendar_search_dry_run_guard "${query}"; then
+		return 0
+	fi
 
-        if ! calendar_require_platform "${query}"; then
-                return 0
-        fi
+	if ! calendar_require_platform "${query}"; then
+		return 0
+	fi
 
-        if [[ -z "${query//[[:space:]]/}" ]]; then
-                log "ERROR" "Search term is required" "${args_json}" || true
-                return 1
-        fi
+	if [[ -z "${query//[[:space:]]/}" ]]; then
+		log "ERROR" "Search term is required" "${args_json}" || true
+		return 1
+	fi
 
 	calendar_script="$(calendar_resolve_calendar_script)"
 

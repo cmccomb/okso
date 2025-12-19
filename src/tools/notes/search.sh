@@ -35,12 +35,12 @@ derive_notes_search_query() {
 }
 
 tool_notes_search() {
-        local query folder_script args_json text_key
-        args_json="${TOOL_ARGS:-}" || true
-        text_key="$(canonical_text_arg_key)"
-        query=""
+	local query folder_script args_json text_key
+	args_json="${TOOL_ARGS:-}" || true
+	text_key="$(canonical_text_arg_key)"
+	query=""
 
-        query=$(jq -er --arg key "${text_key}" '
+	query=$(jq -er --arg key "${text_key}" '
  if type != "object" then error("args must be object") end
 | if .[$key]? == null then error("missing ${key}") end
 | if (.[$key] | type) != "string" then error("${key} must be string") end
@@ -49,14 +49,14 @@ tool_notes_search() {
 | .[$key]
 ' <<<"${args_json}" 2>/dev/null || true)
 
-        if ! notes_require_platform; then
-                return 0
-        fi
+	if ! notes_require_platform; then
+		return 0
+	fi
 
-        if [[ -z "${query//[[:space:]]/}" ]]; then
-                log "ERROR" "Search term is required" "${args_json}" || true
-                return 1
-        fi
+	if [[ -z "${query//[[:space:]]/}" ]]; then
+		log "ERROR" "Search term is required" "${args_json}" || true
+		return 1
+	fi
 
 	folder_script="$(notes_resolve_folder_script)"
 

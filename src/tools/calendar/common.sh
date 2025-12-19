@@ -35,47 +35,47 @@ calendar_name() {
 }
 
 calendar_require_platform() {
-        # Ensures Apple Calendar tools only run on macOS with osascript available.
-        local context
-        context="$1"
+	# Ensures Apple Calendar tools only run on macOS with osascript available.
+	local context
+	context="$1"
 
-        if [[ "${IS_MACOS}" != true ]]; then
-                log "WARN" "Apple Calendar is only available on macOS" "${context}" || true
-                return 1
-        fi
+	if [[ "${IS_MACOS}" != true ]]; then
+		log "WARN" "Apple Calendar is only available on macOS" "${context}" || true
+		return 1
+	fi
 
-        if ! command -v "${CALENDAR_OSASCRIPT_BIN:-osascript}" >/dev/null 2>&1; then
-                log "WARN" "osascript missing; cannot reach Apple Calendar" "${context}" || true
-                return 1
-        fi
+	if ! command -v "${CALENDAR_OSASCRIPT_BIN:-osascript}" >/dev/null 2>&1; then
+		log "WARN" "osascript missing; cannot reach Apple Calendar" "${context}" || true
+		return 1
+	fi
 
-        return 0
+	return 0
 }
 
 calendar_extract_event_fields() {
-        # Splits the provided details string into title, start time, and optional location.
-        # Emits three NUL-delimited fields: title, start time, location.
-        local details title start_time location rest
-        details="$1"
+	# Splits the provided details string into title, start time, and optional location.
+	# Emits three NUL-delimited fields: title, start time, location.
+	local details title start_time location rest
+	details="$1"
 
-        if [[ -z "${details//[[:space:]]/}" ]]; then
-                log "ERROR" "Event title and time are required" "" || true
-                return 1
-        fi
+	if [[ -z "${details//[[:space:]]/}" ]]; then
+		log "ERROR" "Event title and time are required" "" || true
+		return 1
+	fi
 
-        title=${details%%$'\n'*}
-        rest=${details#"${title}"}
-        rest=${rest#$'\n'}
-        start_time=${rest%%$'\n'*}
-        location=${rest#"${start_time}"}
-        location=${location#$'\n'}
+	title=${details%%$'\n'*}
+	rest=${details#"${title}"}
+	rest=${rest#$'\n'}
+	start_time=${rest%%$'\n'*}
+	location=${rest#"${start_time}"}
+	location=${location#$'\n'}
 
-        if [[ -z "${title//[[:space:]]/}" || -z "${start_time//[[:space:]]/}" ]]; then
-                log "ERROR" "Event title and time are required" "${details}" || true
-                return 1
-        fi
+	if [[ -z "${title//[[:space:]]/}" || -z "${start_time//[[:space:]]/}" ]]; then
+		log "ERROR" "Event title and time are required" "${details}" || true
+		return 1
+	fi
 
-        printf '%s\0%s\0%s\0' "${title}" "${start_time}" "${location}"
+	printf '%s\0%s\0%s\0' "${title}" "${start_time}" "${location}"
 }
 
 calendar_run_script() {
