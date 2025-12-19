@@ -64,6 +64,6 @@ Use `--dry-run` to stop after plan generation and approvals if you want to inspe
 
 - Tool metadata (name, description, command, safety notes) is bundled into the planner prompt so llama.cpp can rank them for the outline and initial suggestions.
 - Without llama.cpp, a keyword heuristic orders tools; this ordering is reused during deterministic execution.
-- Each tool wrapper lives under `src/tools/` and enforces its own guards (sandboxed directories, platform checks, interactive deletes).
+- Each tool wrapper lives under `src/tools/` (with suites like `src/tools/web/` grouping related helpers) and enforces its own guards (sandboxed directories, platform checks, interactive deletes).
 - The `terminal` tool keeps a persistent working directory per request, while helpers such as `python_repl`, `file_search`, and macOS-specific tools run in isolated contexts.
 - Traces and logs for each invocation help you audit decisions and replay failures.

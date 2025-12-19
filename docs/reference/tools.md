@@ -1,13 +1,14 @@
 # Tools
 
-The planner registers these tools (each implemented under `src/tools/<name>.sh`). Handlers expect structured arguments in `TOOL_ARGS`
-that follow the registered JSON schema. Free-form, single-string payloads always use the canonical `input` property so prompts and
-schemas can reference `args.input` consistently across tools:
+The planner registers these tools (implemented under `src/tools/`, with suites such as `src/tools/web/` grouping related helpers).
+Handlers expect structured arguments in `TOOL_ARGS` that follow the registered JSON schema. Free-form, single-string payloads always
+use the canonical `input` property so prompts and schemas can reference `args.input` consistently across tools:
 
 - `terminal`: persistent working directory with `pwd`, `ls`, `cd`, `find`, `grep`, `stat`, `wc`, `du`, `base64 encode|decode`, and guarded mutations (`rm -i`, `mkdir`, `mv`, `cp`, `touch`). Uses `open` on macOS.
 - `python_repl`: run Python snippets in an ephemeral sandbox using quiet `python -i` startup guards that confine writes.
 - `file_search`: search for files and contents using `mdfind` on macOS with `fd`/`rg` fallbacks elsewhere. Accepts an `input` string.
 - `web_search`: query the Google Custom Search API with a structured payload (`query` and optional `num`) and return JSON results.
+- `web_fetch`: retrieve HTTP response bodies with a configurable size cap, returning JSON metadata.
 - `*_search`: Notes, Calendar, and Mail searches reuse the same `input` field for the search term.
 - `clipboard_copy` / `clipboard_paste`: macOS clipboard helpers.
 - `notes_*`: create, append, list, read, or search Apple Notes entries.

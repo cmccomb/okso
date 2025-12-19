@@ -4,7 +4,7 @@
 # Web search tool backed by Google Custom Search API.
 #
 # Usage:
-#   source "${BASH_SOURCE[0]%/tools/web_search.sh}/tools/web_search.sh"
+#   source "${BASH_SOURCE[0]%/tools/web/web_search.sh}/tools/web/web_search.sh"
 #
 # Environment variables:
 #   TOOL_ARGS (JSON object): structured args with required `query` and optional `num`.
@@ -21,10 +21,13 @@
 # Exit codes:
 #   Non-zero on validation errors, missing configuration, or API failures.
 
-# shellcheck source=../lib/logging.sh disable=SC1091
-source "${BASH_SOURCE[0]%/tools/web_search.sh}/lib/logging.sh"
-# shellcheck source=./registry.sh disable=SC1091
-source "${BASH_SOURCE[0]%/web_search.sh}/registry.sh"
+WEB_TOOLS_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+SRC_ROOT=$(cd -- "${WEB_TOOLS_DIR}/../.." && pwd)
+
+# shellcheck source=../../lib/logging.sh disable=SC1091
+source "${SRC_ROOT}/lib/logging.sh"
+# shellcheck source=../registry.sh disable=SC1091
+source "${SRC_ROOT}/tools/registry.sh"
 
 web_search_parse_args() {
 	# Parses TOOL_ARGS JSON for the web_search tool.
