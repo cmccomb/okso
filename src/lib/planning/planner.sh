@@ -9,8 +9,10 @@
 # Environment variables:
 #   USER_QUERY (string): user-provided request for planning.
 #   LLAMA_BIN (string): llama.cpp binary path.
-#   MODEL_REPO (string): Hugging Face repository name.
-#   MODEL_FILE (string): model file within the repository.
+#   PLANNER_MODEL_REPO (string): Hugging Face repository name for planner inference.
+#   PLANNER_MODEL_FILE (string): model file within the repository for planner inference.
+#   REACT_MODEL_REPO (string): Hugging Face repository name for ReAct inference.
+#   REACT_MODEL_FILE (string): model file within the repository for ReAct inference.
 #   TOOLS (array): optional array of tool names available to the planner.
 #   PLAN_ONLY, DRY_RUN (bool): control execution and preview behaviour.
 #   APPROVE_ALL, FORCE_CONFIRM (bool): confirmation toggles.
@@ -45,6 +47,16 @@ source "${PLANNING_LIB_DIR}/../core/state.sh"
 source "${PLANNING_LIB_DIR}/llama_client.sh"
 # shellcheck source=../formatting.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/../formatting.sh"
+# shellcheck source=../config.sh disable=SC1091
+source "${PLANNING_LIB_DIR}/../config.sh"
+
+initialize_planner_models() {
+	if [[ -z "${PLANNER_MODEL_REPO:-}" || -z "${PLANNER_MODEL_FILE:-}" || -z "${REACT_MODEL_REPO:-}" || -z "${REACT_MODEL_FILE:-}" ]]; then
+		hydrate_model_specs
+	fi
+}
+
+initialize_planner_models
 
 lowercase() {
 	# Arguments:
