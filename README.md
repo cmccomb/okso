@@ -33,3 +33,10 @@ See [docs/user-guides/usage.md](docs/user-guides/usage.md) for task-based walkth
 - [Execution model](docs/reference/execution-model.md): how planning and ReAct loops interact with tool calls.
 - [Prompt assets](docs/reference/prompts.md): where prompts live and how they load.
 - [Architecture overview](docs/reference/architecture.md): deeper look at the planner pass, ReAct loop, llama.cpp fallbacks, and tool ranking.
+
+## Logging and output channels
+
+- Diagnostics emit structured JSON logs to `stderr`; control verbosity with
+  `--quiet`/`--verbose` or the `VERBOSITY` environment variable.
+- User-facing answers stay on `stdout` so they can be piped or captured without
+  mixing with diagnostic output.

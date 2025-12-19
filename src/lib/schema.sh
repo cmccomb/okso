@@ -17,6 +17,9 @@
 
 LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
+# shellcheck source=./logging.sh disable=SC1091
+source "${LIB_DIR}/logging.sh"
+
 # Returns the absolute path to the schema directory.
 schema_root_dir() {
 	cd "${LIB_DIR}/../schemas" && pwd
@@ -29,21 +32,21 @@ schema_path() {
 	local schema_name schema_file
 	schema_name="$1"
 
-	case "${schema_name}" in
-	react_action)
+        case "${schema_name}" in
+        react_action)
 		schema_file="react_action.schema.json"
 		;;
 	planner_plan)
 		schema_file="planner_plan.schema.json"
 		;;
-	concise_response)
-		schema_file="concise_response.schema.json"
-		;;
-	*)
-		printf 'Unknown schema requested: %s\n' "${schema_name}" >&2
-		return 1
-		;;
-	esac
+        concise_response)
+                schema_file="concise_response.schema.json"
+                ;;
+        *)
+                log "ERROR" "Unknown schema requested" "${schema_name}" || true
+                return 1
+                ;;
+        esac
 
 	printf '%s/%s' "$(schema_root_dir)" "${schema_file}"
 }

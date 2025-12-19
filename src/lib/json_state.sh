@@ -16,6 +16,11 @@
 # Exit codes:
 #   Functions return non-zero on misuse or jq failures; callers should handle failures.
 
+LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# shellcheck source=./logging.sh disable=SC1091
+source "${LIB_DIR}/logging.sh"
+
 json_state_namespace_var() {
 	# Arguments:
 	#   $1 - namespace prefix (string)
@@ -102,10 +107,10 @@ json_state_set_document() {
 	document="$2"
 	json_var=$(json_state_namespace_var "${prefix}")
 
-	if ! sanitized=$(printf '%s' "${document}" | jq -c '.' 2>/dev/null); then
-		printf 'json_state_set_document: invalid JSON for namespace %s\n' "${prefix}" >&2
-		return 1
-	fi
+        if ! sanitized=$(printf '%s' "${document}" | jq -c '.' 2>/dev/null); then
+                log "ERROR" "json_state_set_document: invalid JSON" "namespace=${prefix}" || true
+                return 1
+        fi
 
 	printf -v "${json_var}" '%s' "${sanitized}"
 	json_state_write_cache "${prefix}" "${sanitized}"
@@ -122,10 +127,10 @@ json_state_set_key() {
 	value="$3"
 
 	json_state_get_document "${prefix}" '{}' base_json >/dev/null
-	if ! updated=$(jq -c --arg key "${key}" --arg value "${value}" '.[$key] = $value' <<<"${base_json}" 2>/dev/null); then
-		printf 'json_state_set_key: failed to set %s for namespace %s\n' "${key}" "${prefix}" >&2
-		return 1
-	fi
+        if ! updated=$(jq -c --arg key "${key}" --arg value "${value}" '.[$key] = $value' <<<"${base_json}" 2>/dev/null); then
+                log "ERROR" "json_state_set_key: failed to set value" "namespace=${prefix} key=${key}" || true
+                return 1
+        fi
 
 	json_state_set_document "${prefix}" "${updated}"
 }
@@ -151,10 +156,10 @@ json_state_increment_key() {
 	key="$2"
 	increment="${3:-1}"
 	json_state_get_document "${prefix}" '{}' base_json >/dev/null
-	if ! updated=$(jq -c --arg key "${key}" --argjson inc "${increment}" '.[$key] = ((try (.[$key]|tonumber) catch 0) + $inc)' <<<"${base_json}" 2>/dev/null); then
-		printf 'json_state_increment_key: failed to increment %s for namespace %s\n' "${key}" "${prefix}" >&2
-		return 1
-	fi
+        if ! updated=$(jq -c --arg key "${key}" --argjson inc "${increment}" '.[$key] = ((try (.[$key]|tonumber) catch 0) + $inc)' <<<"${base_json}" 2>/dev/null); then
+                log "ERROR" "json_state_increment_key: failed to increment" "namespace=${prefix} key=${key}" || true
+                return 1
+        fi
 	json_state_set_document "${prefix}" "${updated}"
 }
 
@@ -166,9 +171,9 @@ json_state_append_history() {
 	prefix="$1"
 	entry="$2"
 	json_state_get_document "${prefix}" '{}' base_json >/dev/null
-	if ! updated=$(jq -c --arg entry "${entry}" '(.history //= []) | .history += [$entry]' <<<"${base_json}" 2>/dev/null); then
-		printf 'json_state_append_history: failed to append history for namespace %s\n' "${prefix}" >&2
-		return 1
-	fi
+        if ! updated=$(jq -c --arg entry "${entry}" '(.history //= []) | .history += [$entry]' <<<"${base_json}" 2>/dev/null); then
+                log "ERROR" "json_state_append_history: failed to append history" "namespace=${prefix}" || true
+                return 1
+        fi
 	json_state_set_document "${prefix}" "${updated}"
 }

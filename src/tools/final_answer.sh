@@ -19,6 +19,8 @@
 
 # shellcheck source=../lib/logging.sh disable=SC1091
 source "${BASH_SOURCE[0]%/tools/final_answer.sh}/lib/logging.sh"
+# shellcheck source=../lib/output.sh disable=SC1091
+source "${BASH_SOURCE[0]%/tools/final_answer.sh}/lib/output.sh"
 # shellcheck source=./registry.sh disable=SC1091
 source "${BASH_SOURCE[0]%/final_answer.sh}/registry.sh"
 
@@ -46,7 +48,7 @@ tool_final_answer() {
 	fi
 
 	log "INFO" "final_answer tool invoked" "$(printf 'length=%s' "${#message}")" >&2
-	printf '%s' "${message}" || true
+        user_output "${message}" || true
 }
 
 register_final_answer() {

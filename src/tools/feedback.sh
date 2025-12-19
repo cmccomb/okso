@@ -108,13 +108,13 @@ feedback_capture_input() {
 			comment_input=""
 		fi
 	else
-		printf 'Current plan item:%s%s\n' $' ' "${plan_item}" >&2
-		if [[ -n "${observations}" ]]; then
-			printf 'Recent tool results:%s%s\n' $' ' "${observations}" >&2
-		fi
-		read -r -p "Please rate this step (1-5): " rating_input || true
-		read -r -p "Comments (optional): " comment_input || true
-	fi
+                log "INFO" "Current plan item" "${plan_item}" || true
+                if [[ -n "${observations}" ]]; then
+                        log_pretty "INFO" "Recent tool results" "${observations}" || true
+                fi
+                read -r -p "Please rate this step (1-5): " rating_input || true
+                read -r -p "Comments (optional): " comment_input || true
+        fi
 
 	if [[ -z "${rating_input}" || ! "${rating_input}" =~ ^[1-5]$ ]]; then
 		log "ERROR" "Invalid feedback rating" "${rating_input:-empty}" || true

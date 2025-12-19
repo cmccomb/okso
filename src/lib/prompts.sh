@@ -18,6 +18,9 @@
 LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 PROMPTS_DIR="${LIB_DIR%/lib}/prompts"
 
+# shellcheck source=./logging.sh disable=SC1091
+source "${LIB_DIR}/logging.sh"
+
 # shellcheck source=./schema.sh disable=SC1091
 source "${LIB_DIR}/schema.sh"
 
@@ -26,12 +29,12 @@ load_prompt_template() {
 	#   $1 - prompt name (string)
 	local prompt_name prompt_path
 	prompt_name="$1"
-	prompt_path="${PROMPTS_DIR}/${prompt_name}.txt"
+        prompt_path="${PROMPTS_DIR}/${prompt_name}.txt"
 
-	if [[ ! -f "${prompt_path}" ]]; then
-		printf 'prompt template missing: %s\n' "${prompt_path}" >&2
-		return 1
-	fi
+        if [[ ! -f "${prompt_path}" ]]; then
+                log "ERROR" "prompt template missing" "${prompt_path}" || true
+                return 1
+        fi
 
 	cat "${prompt_path}"
 }
@@ -46,14 +49,14 @@ render_prompt_template() {
 	local prompt_name prompt_text
 	local -a substitutions=()
 
-	prompt_name="$1"
-	shift
-	prompt_text="$(load_prompt_template "${prompt_name}")" || return 1
+        prompt_name="$1"
+        shift
+        prompt_text="$(load_prompt_template "${prompt_name}")" || return 1
 
-	if (($# % 2 != 0)); then
-		printf 'render_prompt_template expects an even number of substitution arguments\n' >&2
-		return 1
-	fi
+        if (($# % 2 != 0)); then
+                log "ERROR" "render_prompt_template expects substitution pairs" "args_count=$#" || true
+                return 1
+        fi
 
 	while (($# > 0)); do
 		local key value

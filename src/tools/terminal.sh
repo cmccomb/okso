@@ -24,6 +24,8 @@
 
 # shellcheck source=../lib/logging.sh disable=SC1091
 source "${BASH_SOURCE[0]%/tools/terminal.sh}/lib/logging.sh"
+# shellcheck source=../lib/output.sh disable=SC1091
+source "${BASH_SOURCE[0]%/tools/terminal.sh}/lib/output.sh"
 # shellcheck source=./registry.sh disable=SC1091
 source "${BASH_SOURCE[0]%/terminal.sh}/registry.sh"
 
@@ -57,30 +59,30 @@ derive_terminal_query() {
 	# Arguments:
 	#   $1 - user query (string)
 	local user_query lower_query
-	user_query="$1"
-	lower_query=$(printf '%s' "${user_query}" | tr '[:upper:]' '[:lower:]')
+        user_query="$1"
+        lower_query=$(printf '%s' "${user_query}" | tr '[:upper:]' '[:lower:]')
 
-	if [[ "${user_query}" =~ \`([^\`]+)\` ]]; then
-		printf '%s\n' "${BASH_REMATCH[1]}"
-		return
-	fi
+        if [[ "${user_query}" =~ \`([^\`]+)\` ]]; then
+                user_output_line "${BASH_REMATCH[1]}"
+                return
+        fi
 
-	if [[ "${lower_query}" == *"todo"* ]]; then
-		printf 'rg -n "TODO" .\n'
-		return
-	fi
+        if [[ "${lower_query}" == *"todo"* ]]; then
+                user_output_line 'rg -n "TODO" .'
+                return
+        fi
 
-	if [[ "${lower_query}" == *"list files"* || "${lower_query}" == *"show directory"* || "${lower_query}" == *"show folder"* ]]; then
-		printf 'ls -la\n'
-		return
-	fi
+        if [[ "${lower_query}" == *"list files"* || "${lower_query}" == *"show directory"* || "${lower_query}" == *"show folder"* ]]; then
+                user_output_line 'ls -la'
+                return
+        fi
 
-	if [[ "${user_query}" =~ (^|[[:space:]])(ls|cd|cat|grep|find|pwd|rg)([[:space:]]|$) ]]; then
-		printf '%s\n' "${BASH_REMATCH[2]}"
-		return
-	fi
+        if [[ "${user_query}" =~ (^|[[:space:]])(ls|cd|cat|grep|find|pwd|rg)([[:space:]]|$) ]]; then
+                user_output_line "${BASH_REMATCH[2]}"
+                return
+        fi
 
-	printf 'status\n'
+        user_output_line 'status'
 }
 
 terminal_args_from_json() {
@@ -164,13 +166,14 @@ terminal_change_dir() {
 	fi
 
 	TERMINAL_WORKDIR="${resolved}"
-	printf '%s\n' "${TERMINAL_WORKDIR}"
+        user_output_line "${TERMINAL_WORKDIR}"
 }
 
 terminal_print_status() {
-	printf 'Session: %s\n' "${TERMINAL_SESSION_ID}"
-	printf 'Working directory: %s\n' "${TERMINAL_WORKDIR}"
-	printf 'Allowed commands: %s\n' "${TERMINAL_ALLOWED_COMMANDS[*]}"
+        user_output_lines \
+                "Session: ${TERMINAL_SESSION_ID}" \
+                "Working directory: ${TERMINAL_WORKDIR}" \
+                "Allowed commands: ${TERMINAL_ALLOWED_COMMANDS[*]}"
 }
 
 tool_terminal() {
