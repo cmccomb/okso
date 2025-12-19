@@ -84,7 +84,10 @@ cd "$(git rev-parse --show-toplevel)"
 source ./src/lib/tools.sh
 init_tool_registry
 initialize_tools
-mapfile -t names < <(tool_names)
+names=()
+while IFS= read -r line; do
+    names+=("$line")
+done < <(tool_names)
 for name in "${names[@]}"; do
         printf '%s\n' "${name}"
 done
