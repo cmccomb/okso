@@ -48,7 +48,7 @@ tool_final_answer() {
 	fi
 
 	log "INFO" "final_answer tool invoked" "$(printf 'length=%s' "${#message}")" >&2
-        user_output "${message}" || true
+	user_output "${message}" || true
 }
 
 register_final_answer() {

@@ -59,30 +59,30 @@ derive_terminal_query() {
 	# Arguments:
 	#   $1 - user query (string)
 	local user_query lower_query
-        user_query="$1"
-        lower_query=$(printf '%s' "${user_query}" | tr '[:upper:]' '[:lower:]')
+	user_query="$1"
+	lower_query=$(printf '%s' "${user_query}" | tr '[:upper:]' '[:lower:]')
 
-        if [[ "${user_query}" =~ \`([^\`]+)\` ]]; then
-                user_output_line "${BASH_REMATCH[1]}"
-                return
-        fi
+	if [[ "${user_query}" =~ \`([^\`]+)\` ]]; then
+		user_output_line "${BASH_REMATCH[1]}"
+		return
+	fi
 
-        if [[ "${lower_query}" == *"todo"* ]]; then
-                user_output_line 'rg -n "TODO" .'
-                return
-        fi
+	if [[ "${lower_query}" == *"todo"* ]]; then
+		user_output_line 'rg -n "TODO" .'
+		return
+	fi
 
-        if [[ "${lower_query}" == *"list files"* || "${lower_query}" == *"show directory"* || "${lower_query}" == *"show folder"* ]]; then
-                user_output_line 'ls -la'
-                return
-        fi
+	if [[ "${lower_query}" == *"list files"* || "${lower_query}" == *"show directory"* || "${lower_query}" == *"show folder"* ]]; then
+		user_output_line 'ls -la'
+		return
+	fi
 
-        if [[ "${user_query}" =~ (^|[[:space:]])(ls|cd|cat|grep|find|pwd|rg)([[:space:]]|$) ]]; then
-                user_output_line "${BASH_REMATCH[2]}"
-                return
-        fi
+	if [[ "${user_query}" =~ (^|[[:space:]])(ls|cd|cat|grep|find|pwd|rg)([[:space:]]|$) ]]; then
+		user_output_line "${BASH_REMATCH[2]}"
+		return
+	fi
 
-        user_output_line 'status'
+	user_output_line 'status'
 }
 
 terminal_args_from_json() {
@@ -166,14 +166,14 @@ terminal_change_dir() {
 	fi
 
 	TERMINAL_WORKDIR="${resolved}"
-        user_output_line "${TERMINAL_WORKDIR}"
+	user_output_line "${TERMINAL_WORKDIR}"
 }
 
 terminal_print_status() {
-        user_output_lines \
-                "Session: ${TERMINAL_SESSION_ID}" \
-                "Working directory: ${TERMINAL_WORKDIR}" \
-                "Allowed commands: ${TERMINAL_ALLOWED_COMMANDS[*]}"
+	user_output_lines \
+		"Session: ${TERMINAL_SESSION_ID}" \
+		"Working directory: ${TERMINAL_WORKDIR}" \
+		"Allowed commands: ${TERMINAL_ALLOWED_COMMANDS[*]}"
 }
 
 tool_terminal() {

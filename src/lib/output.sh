@@ -20,26 +20,26 @@
 # Arguments:
 #   $1 - message (string)
 user_output() {
-        local message
-        message="$1"
-        printf '%s' "${message}"
+	local message
+	message="$1"
+	printf '%s' "${message}"
 }
 
 # Emits a message followed by a newline to stdout.
 # Arguments:
 #   $1 - message (string)
 user_output_line() {
-        local message
-        message="$1"
-        printf '%s\n' "${message}"
+	local message
+	message="$1"
+	printf '%s\n' "${message}"
 }
 
 # Emits each provided argument as a separate line to stdout.
 # Arguments:
 #   $@ - messages (string array)
 user_output_lines() {
-        local line
-        for line in "$@"; do
-                user_output_line "${line}"
-        done
+	local line
+	for line in "$@"; do
+		user_output_line "${line}"
+	done
 }

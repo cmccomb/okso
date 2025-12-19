@@ -55,11 +55,12 @@ lowercase() {
 # Normalize noisy planner output into a clean PlannerPlan JSON array of objects.
 # Reads from stdin, writes clean JSON array to stdout.
 normalize_planner_plan() {
-        local raw plan_candidate normalized fallback_json
+	local raw plan_candidate normalized fallback_json
 
-        raw="$(cat)"
+	raw="$(cat)"
 
-        plan_candidate="$(RAW_INPUT="${raw}" python3 - <<'PYTHON'
+	plan_candidate="$(
+		RAW_INPUT="${raw}" python3 - <<'PYTHON'
 import json
 import os
 import re
@@ -87,44 +88,44 @@ if candidate is None:
 
 json.dump(candidate, sys.stdout)
 PYTHON
-        )" || plan_candidate=""
+	)" || plan_candidate=""
 
-        if [[ -n "${plan_candidate:-}" ]]; then
-                normalized=$(jq -ec '
+	if [[ -n "${plan_candidate:-}" ]]; then
+		normalized=$(jq -ec '
                         map(select(type=="object"))
                         | map({tool: (.tool // ""), args: (.args // {}), thought: (.thought // "")})
                         | map(select((.tool | type) == "string" and (.tool | length) > 0))
                         ' <<<"${plan_candidate}" 2>/dev/null || true)
-                if [[ -n "${normalized}" && "${normalized}" != "[]" ]]; then
-                        printf '%s' "${normalized}"
-                        return 0
-                fi
-        fi
+		if [[ -n "${normalized}" && "${normalized}" != "[]" ]]; then
+			printf '%s' "${normalized}"
+			return 0
+		fi
+	fi
 
-        fallback_json=$(printf '%s' "$raw" |
-                sed -E 's/^[[:space:]]*[0-9]+[.)][[:space:]]*//' |
-                sed -E 's/^[[:space:]-]+//' |
-                sed '/^[[:space:]]*$/d' |
-                jq -Rsc 'split("\n") | map(select(length > 0)) | map({tool:"react_fallback",thought:.,args:{}})') || fallback_json=""
+	fallback_json=$(printf '%s' "$raw" |
+		sed -E 's/^[[:space:]]*[0-9]+[.)][[:space:]]*//' |
+		sed -E 's/^[[:space:]-]+//' |
+		sed '/^[[:space:]]*$/d' |
+		jq -Rsc 'split("\n") | map(select(length > 0)) | map({tool:"react_fallback",thought:.,args:{}})') || fallback_json=""
 
-        if [[ -n "${fallback_json}" && "${fallback_json}" != "[]" ]]; then
-                log "INFO" "normalize_planner_plan: derived plan from fallback outline" "${fallback_json}" >&2
-                printf '%s' "$fallback_json"
-                return 0
-        fi
+	if [[ -n "${fallback_json}" && "${fallback_json}" != "[]" ]]; then
+		log "INFO" "normalize_planner_plan: derived plan from fallback outline" "${fallback_json}" >&2
+		printf '%s' "$fallback_json"
+		return 0
+	fi
 
-        log "ERROR" "normalize_planner_plan: unable to parse planner output" "${raw}" >&2
-        return 1
+	log "ERROR" "normalize_planner_plan: unable to parse planner output" "${raw}" >&2
+	return 1
 }
 
 append_final_answer_step() {
-        # Ensures the plan includes a final step with the final_answer tool.
-        # Arguments:
-        #   $1 - plan JSON array (string)
-        local plan_json plan_clean has_final updated_plan
-        plan_json="${1:-[]}"
+	# Ensures the plan includes a final step with the final_answer tool.
+	# Arguments:
+	#   $1 - plan JSON array (string)
+	local plan_json plan_clean has_final updated_plan
+	plan_json="${1:-[]}"
 
-        plan_clean="$(printf '%s' "$plan_json" | normalize_planner_plan)" || return 1
+	plan_clean="$(printf '%s' "$plan_json" | normalize_planner_plan)" || return 1
 
 	has_final="$(jq -r 'map((.tool // "") | ascii_downcase == "final_answer") | any' <<<"${plan_clean}" 2>/dev/null || echo false)"
 	if [[ "${has_final}" == "true" ]]; then
@@ -137,23 +138,23 @@ append_final_answer_step() {
 }
 
 plan_json_to_outline() {
-        # Converts a JSON array of plan steps into a numbered outline string.
-        # Arguments:
-        #   $1 - plan JSON array (string)
-        local plan_json plan_clean
-        plan_json="${1:-[]}"
+	# Converts a JSON array of plan steps into a numbered outline string.
+	# Arguments:
+	#   $1 - plan JSON array (string)
+	local plan_json plan_clean
+	plan_json="${1:-[]}"
 
-        if jq -e 'type == "array"' <<<"${plan_json}" >/dev/null 2>&1; then
-                plan_clean="${plan_json}"
-        else
-                plan_clean="$(printf '%s' "$plan_json" | normalize_planner_plan)" || return 1
-        fi
+	if jq -e 'type == "array"' <<<"${plan_json}" >/dev/null 2>&1; then
+		plan_clean="${plan_json}"
+	else
+		plan_clean="$(printf '%s' "$plan_json" | normalize_planner_plan)" || return 1
+	fi
 
-        if [[ -z "${plan_clean}" ]]; then
-                return 1
-        fi
+	if [[ -z "${plan_clean}" ]]; then
+		return 1
+	fi
 
-        jq -r 'to_entries | map("\(.key + 1). " + (if (.value.thought // "") != "" then (.value.thought // "") else "Use " + (.value.tool // "unknown") end)) | join("\n")' <<<"${plan_clean}"
+	jq -r 'to_entries | map("\(.key + 1). " + (if (.value.thought // "") != "" then (.value.thought // "") else "Use " + (.value.tool // "unknown") end)) | join("\n")' <<<"${plan_clean}"
 }
 
 generate_plan_json() {

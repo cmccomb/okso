@@ -45,21 +45,21 @@ respond_text() {
 	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
 		log "INFO" "LLM unavailable; using deterministic response fallback" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}" >&2
 		log "ERROR" "Falling back to deterministic response" "${user_query}" >&2
-                user_output_line "LLM unavailable. Request received: ${user_query}"
-                return 0
-        fi
+		user_output_line "LLM unavailable. Request received: ${user_query}"
+		return 0
+	fi
 
-        if [[ "${LLAMA_BIN}" == *"mock_llama_relevance.sh" ]]; then
-                log "INFO" "Mock llama direct response path" "${user_query}" >&2
-                user_output_line "Responding directly to: ${user_query}"
-                return 0
-        fi
+	if [[ "${LLAMA_BIN}" == *"mock_llama_relevance.sh" ]]; then
+		log "INFO" "Mock llama direct response path" "${user_query}" >&2
+		user_output_line "Responding directly to: ${user_query}"
+		return 0
+	fi
 
 	prompt="$(build_concise_response_prompt "${user_query}" "${context}")"
 	log "INFO" "Invoking llama inference" "$(printf 'tokens=%s schema=%s' "${number_of_tokens}" "${concise_schema_path}")" >&2
 	local response_text
 	response_text="$(llama_infer "${prompt}" "" "${number_of_tokens}" "${concise_schema_path}")"
-        user_output "${response_text}"
-        log "INFO" "Direct response generation finished" "${user_query}" >&2
-        return 0
+	user_output "${response_text}"
+	log "INFO" "Direct response generation finished" "${user_query}" >&2
+	return 0
 }

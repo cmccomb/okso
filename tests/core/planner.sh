@@ -1,12 +1,12 @@
 #!/usr/bin/env bats
 
 setup() {
-        chpwd_functions=()
-        unset -f chpwd _mise_hook 2>/dev/null || true
+	chpwd_functions=()
+	unset -f chpwd _mise_hook 2>/dev/null || true
 }
 
 @test "normalize_planner_plan retains structured planner output" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planner.sh
 raw_plan='[{"tool":"terminal","args":{"command":"ls"},"thought":"list"}]'
@@ -30,55 +30,55 @@ SCRIPT
 	tools=$(printf '%s' "${output}" | jq -r '.[].tool')
 	thoughts=$(printf '%s' "${output}" | jq -r '.[].thought')
 	[[ "${tools}" == *"react_fallback"* ]]
-        [[ "${thoughts}" == *"first step"* ]]
-        [[ "${thoughts}" == *"second step"* ]]
+	[[ "${thoughts}" == *"first step"* ]]
+	[[ "${thoughts}" == *"second step"* ]]
 }
 
 @test "normalize_planner_plan handles structured plan with missing optional fields" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planner.sh
 raw_plan='[{"tool":"notes_create"}]'
 normalize_planner_plan <<<"${raw_plan}"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        plan_tool=$(printf '%s' "${output}" | jq -r '.[0].tool')
-        plan_thought=$(printf '%s' "${output}" | jq -r '.[0].thought // ""')
-        args_type=$(printf '%s' "${output}" | jq -r '.[0].args | type')
+	[ "$status" -eq 0 ]
+	plan_tool=$(printf '%s' "${output}" | jq -r '.[0].tool')
+	plan_thought=$(printf '%s' "${output}" | jq -r '.[0].thought // ""')
+	args_type=$(printf '%s' "${output}" | jq -r '.[0].args | type')
 
-        [ "${plan_tool}" = "notes_create" ]
-        [ "${plan_thought}" = "" ]
-        [ "${args_type}" = "object" ]
+	[ "${plan_tool}" = "notes_create" ]
+	[ "${plan_thought}" = "" ]
+	[ "${args_type}" = "object" ]
 }
 
 @test "normalize_planner_plan extracts JSON arrays from mixed text output" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planner.sh
 raw_plan=$'Here is the plan:\n[{"tool":"terminal","args":{"command":"pwd"},"thought":"check"}]\nThanks!'
 normalize_planner_plan <<<"${raw_plan}" | jq -r '.[0].tool,.[0].args.command,.[0].thought'
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ "${lines[0]}" = "terminal" ]
-        [ "${lines[1]}" = "pwd" ]
-        [ "${lines[2]}" = "check" ]
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "terminal" ]
+	[ "${lines[1]}" = "pwd" ]
+	[ "${lines[2]}" = "check" ]
 }
 
 @test "normalize_planner_plan fails on empty planner output" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planner.sh
 normalize_planner_plan <<<""
 SCRIPT
 
-        [ "$status" -ne 0 ]
-        [[ "${output}" == *"unable to parse planner output"* ]]
+	[ "$status" -ne 0 ]
+	[[ "${output}" == *"unable to parse planner output"* ]]
 }
 
 @test "append_final_answer_step adds missing summary step without duplication" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planner.sh
 without_final=$(append_final_answer_step "[{\"tool\":\"terminal\",\"args\":{},\"thought\":\"list\"}]")

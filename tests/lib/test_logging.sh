@@ -14,62 +14,62 @@
 #   Inherits Bats semantics.
 
 setup() {
-        cd "$(git rev-parse --show-toplevel)" || exit 1
+	cd "$(git rev-parse --show-toplevel)" || exit 1
 }
 
 @test "log suppresses info when quiet" {
-        run bash -lc '
+	run bash -lc '
                 source ./src/lib/logging.sh
                 VERBOSITY=0 log INFO "hidden" "detail"
         '
 
-        [ "$status" -eq 0 ]
-        [[ -z "$output" ]]
+	[ "$status" -eq 0 ]
+	[[ -z "$output" ]]
 }
 
 @test "log emits compact JSON with message metadata" {
-        run bash -lc '
+	run bash -lc '
                 source ./src/lib/logging.sh
                 VERBOSITY=1 log INFO "visible" "more-detail"
         '
 
-        [ "$status" -eq 0 ]
-        level=$(jq -r '.level' <<<"${output}")
-        message=$(jq -r '.message' <<<"${output}")
-        detail=$(jq -r '.detail' <<<"${output}")
+	[ "$status" -eq 0 ]
+	level=$(jq -r '.level' <<<"${output}")
+	message=$(jq -r '.message' <<<"${output}")
+	detail=$(jq -r '.detail' <<<"${output}")
 
-        [[ "${level}" == "INFO" ]]
-        [[ "${message}" == "visible" ]]
-        [[ "${detail}" == "more-detail" ]]
+	[[ "${level}" == "INFO" ]]
+	[[ "${message}" == "visible" ]]
+	[[ "${detail}" == "more-detail" ]]
 }
 
 @test "log_pretty emits parseable formatted JSON" {
-        run bash -lc '
+	run bash -lc '
                 source ./src/lib/logging.sh
                 VERBOSITY=2 log_pretty DEBUG "pretty" "{\"a\":1}"
         '
 
-        [ "$status" -eq 0 ]
-        compact=$(printf '%s' "${output}" | jq -c '.')
-        detail_value=$(jq -r '.detail' <<<"${compact}")
+	[ "$status" -eq 0 ]
+	compact=$(printf '%s' "${output}" | jq -c '.')
+	detail_value=$(jq -r '.detail' <<<"${compact}")
 
-        [[ "${compact}" == *'"level":"DEBUG"'* ]]
-        [[ "${compact}" == *'"message":"pretty"'* ]]
-        [[ "${detail_value}" == '{"a":1}' ]]
+	[[ "${compact}" == *'"level":"DEBUG"'* ]]
+	[[ "${compact}" == *'"message":"pretty"'* ]]
+	[[ "${detail_value}" == '{"a":1}' ]]
 }
 
 @test "log debug messages honor verbosity" {
-        run bash -lc '
+	run bash -lc '
                 source ./src/lib/logging.sh
                 VERBOSITY=1 log DEBUG "silenced" "detail"
         '
 
-        [ "$status" -eq 0 ]
-        [[ -z "$output" ]]
+	[ "$status" -eq 0 ]
+	[[ -z "$output" ]]
 }
 
 @test "user output stays on stdout while logs remain on stderr" {
-        run bash -lc '
+	run bash -lc '
                 source ./src/lib/output.sh
                 source ./src/lib/logging.sh
 
@@ -84,11 +84,11 @@ setup() {
                 printf "STDOUT:%s\nSTDERR:%s\n" "$(cat "${stdout_file}")" "$(cat "${stderr_file}")"
         '
 
-        [ "$status" -eq 0 ]
-        stdout_line=$(printf '%s' "${output}" | awk -F':' '/^STDOUT:/ {print $2}')
-        stderr_payload=$(printf '%s' "${output}" | awk -F':' '/^STDERR:/ {sub(/^STDERR:/, ""); print $0}' | tail -n1)
+	[ "$status" -eq 0 ]
+	stdout_line=$(printf '%s' "${output}" | awk -F':' '/^STDOUT:/ {print $2}')
+	stderr_payload=$(printf '%s' "${output}" | awk -F':' '/^STDERR:/ {sub(/^STDERR:/, ""); print $0}' | tail -n1)
 
-        [[ "${stdout_line}" == "user-facing" ]]
-        [[ -n "${stderr_payload}" ]]
-        [[ "${stderr_payload}" == *'"level":"WARN"'* ]]
+	[[ "${stdout_line}" == "user-facing" ]]
+	[[ -n "${stderr_payload}" ]]
+	[[ "${stderr_payload}" == *'"level":"WARN"'* ]]
 }
