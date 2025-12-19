@@ -29,7 +29,7 @@ FORCE_CONFIRM=false
 - `PLANNER_MODEL_BRANCH`: Optional branch or tag for the planner download (default: `main`).
 - `REACT_MODEL_SPEC`: Hugging Face `repo[:file]` identifier for the ReAct llama.cpp model (default: `bartowski/Qwen_Qwen3-1.7B-GGUF:Qwen_Qwen3-1.7B-Q4_K_M.gguf`).
 - `REACT_MODEL_BRANCH`: Optional branch or tag for the ReAct download (default: `main`).
-- `MODEL_SPEC`: Legacy shared model identifier; still accepted and used when planner/React flags are omitted.
+- `MODEL_SPEC`: Legacy shared model identifier used when planner/React flags are omitted (default: `bartowski/Qwen_Qwen3-1.7B-GGUF:Qwen_Qwen3-1.7B-Q4_K_M.gguf`).
 - `MODEL_BRANCH`: Legacy shared branch or tag (default: `main`).
 - `LLAMA_BIN`: Path to the llama.cpp binary used for scoring (default: `llama-cli`).
 - `TESTING_PASSTHROUGH`: `true` to bypass llama.cpp for offline or deterministic runs.

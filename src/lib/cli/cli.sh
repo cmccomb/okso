@@ -23,14 +23,14 @@ CLI_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${CLI_LIB_DIR}/../core/logging.sh"
 
 build_usage_text() {
-	local default_model_spec default_model_branch entrypoint_display default_planner_spec default_planner_branch default_react_spec default_react_branch
-	default_model_spec="${DEFAULT_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-4B-GGUF:Qwen_Qwen3-4B-Q4_K_M.gguf}"
-	default_model_branch="${DEFAULT_MODEL_BRANCH_BASE:-main}"
-	default_planner_spec="${DEFAULT_PLANNER_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-8B-GGUF:Qwen_Qwen3-8B-Q4_K_M.gguf}"
-	default_planner_branch="${DEFAULT_PLANNER_MODEL_BRANCH_BASE:-main}"
-	default_react_spec="${DEFAULT_REACT_MODEL_SPEC_BASE:-${default_model_spec}}"
-	default_react_branch="${DEFAULT_REACT_MODEL_BRANCH_BASE:-${default_model_branch}}"
-	entrypoint_display="${OKSO_ENTRYPOINT:-./src/bin/okso}"
+        local default_model_spec default_model_branch entrypoint_display default_planner_spec default_planner_branch default_react_spec default_react_branch
+        default_model_spec="${DEFAULT_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-1.7B-GGUF:Qwen_Qwen3-1.7B-Q4_K_M.gguf}"
+        default_model_branch="${DEFAULT_MODEL_BRANCH_BASE:-main}"
+        default_planner_spec="${DEFAULT_PLANNER_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-8B-GGUF:Qwen_Qwen3-8B-Q4_K_M.gguf}"
+        default_planner_branch="${DEFAULT_PLANNER_MODEL_BRANCH_BASE:-main}"
+        default_react_spec="${DEFAULT_REACT_MODEL_SPEC_BASE:-${default_model_spec}}"
+        default_react_branch="${DEFAULT_REACT_MODEL_BRANCH_BASE:-${default_model_branch}}"
+        entrypoint_display="${OKSO_ENTRYPOINT:-./src/bin/okso}"
 
 	cat <<USAGE
 Usage: ${entrypoint_display} [OPTIONS] -- "user query"
