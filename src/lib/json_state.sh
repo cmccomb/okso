@@ -108,6 +108,7 @@ json_state_set_document() {
 	fi
 
 	printf -v "${json_var}" '%s' "${sanitized}"
+	json_state_write_cache "${prefix}" "${sanitized}"
 }
 
 json_state_set_key() {
