@@ -320,128 +320,176 @@ validate_react_action() {
 	# Arguments:
 	#   $1 - raw action JSON string
 	#   $2 - schema path
-	local raw_action schema_path
+	local raw_action schema_path action_json schema_json allowed_tools tool tool_schema properties_json additional_properties
+	local err_log required_args thought_trimmed
 	raw_action="$1"
 	schema_path="$2"
 
-	python3 - "$raw_action" "$schema_path" <<'PY'
-import json
-import sys
-from pathlib import Path
+	err_log=$(mktemp)
 
-raw = sys.argv[1]
-schema_path = Path(sys.argv[2])
+	if ! action_json=$(jq -ce '.' <<<"${raw_action}" 2>"${err_log}"); then
+		printf 'Invalid JSON: %s\n' "$(<"${err_log}")" >&2
+		rm -f "${err_log}"
+		return 1
+	fi
 
-try:
-    action = json.loads(raw)
-except Exception as exc:  # noqa: BLE001
-    print(f"Invalid JSON: {exc}", file=sys.stderr)
-    sys.exit(1)
+	if ! schema_json=$(jq -ce '.' "${schema_path}" 2>"${err_log}"); then
+		printf 'Schema load failed: %s\n' "$(<"${err_log}")" >&2
+		rm -f "${err_log}"
+		return 1
+	fi
 
-try:
-    schema = json.loads(schema_path.read_text())
-except Exception as exc:  # noqa: BLE001
-    print(f"Schema load failed: {exc}", file=sys.stderr)
-    sys.exit(1)
+	rm -f "${err_log}"
 
-required_keys = ("thought", "tool", "args")
-for key in required_keys:
-    if key not in action:
-        print(f"Missing field: {key}", file=sys.stderr)
-        sys.exit(1)
+	for key in thought tool args; do
+		if ! jq -e --arg key "${key}" 'has($key)' <<<"${action_json}" >/dev/null; then
+			printf 'Missing field: %s\n' "${key}" >&2
+			return 1
+		fi
+	done
 
-for key in action:
-    if key not in required_keys:
-        print(f"Unexpected field: {key}", file=sys.stderr)
-        sys.exit(1)
+	local unexpected
+	unexpected=$(jq -er 'keys_unsorted | map(select(. != "thought" and . != "tool" and . != "args")) | first? // empty' <<<"${action_json}" 2>/dev/null || true)
+	if [[ -n "${unexpected}" ]]; then
+		printf 'Unexpected field: %s\n' "${unexpected}" >&2
+		return 1
+	fi
 
-thought = action.get("thought")
-if not isinstance(thought, str) or not thought.strip():
-    print("thought must be a non-empty string", file=sys.stderr)
-    sys.exit(1)
+	if ! jq -e '.thought | type == "string" and (gsub("^\\s+|\\s+$"; "") | length > 0)' <<<"${action_json}" >/dev/null; then
+		printf 'thought must be a non-empty string\n' >&2
+		return 1
+	fi
 
-tool = action.get("tool")
-if not isinstance(tool, str):
-    print("tool must be a string", file=sys.stderr)
-    sys.exit(1)
+	if ! jq -e '.tool | type == "string"' <<<"${action_json}" >/dev/null; then
+		printf 'tool must be a string\n' >&2
+		return 1
+	fi
 
-allowed_tools = schema.get("properties", {}).get("tool", {}).get("enum", [])
-if tool not in allowed_tools:
-    print(f"Unsupported tool: {tool}", file=sys.stderr)
-    sys.exit(1)
+	tool=$(jq -r '.tool' <<<"${action_json}")
+	allowed_tools=$(jq -cr '.properties.tool.enum // []' <<<"${schema_json}")
+	if ! jq -e --arg tool "${tool}" --argjson allowed "${allowed_tools}" '$allowed | index($tool)' <<<"null" >/dev/null; then
+		printf 'Unsupported tool: %s\n' "${tool}" >&2
+		return 1
+	fi
 
-args = action.get("args")
-if not isinstance(args, dict):
-    print("args must be an object", file=sys.stderr)
-    sys.exit(1)
+	if ! jq -e '.args | type == "object"' <<<"${action_json}" >/dev/null; then
+		printf 'args must be an object\n' >&2
+		return 1
+	fi
 
-tool_schemas = schema.get("$defs", {}).get("args_by_tool", {})
-tool_schema = tool_schemas.get(tool)
-if tool_schema is None:
-    print(f"No schema for tool: {tool}", file=sys.stderr)
-    sys.exit(1)
+	tool_schema=$(jq -c --arg tool "${tool}" '."$defs".args_by_tool[$tool]' <<<"${schema_json}")
+	if [[ -z "${tool_schema}" || "${tool_schema}" == "null" ]]; then
+		printf 'No schema for tool: %s\n' "${tool}" >&2
+		return 1
+	fi
 
-properties = tool_schema.get("properties", {})
-if not isinstance(properties, dict):
-    properties = {}
-required_args = tool_schema.get("required", [])
-additional_properties = tool_schema.get("additionalProperties")
-if additional_properties is None:
-    additional_properties = False
+	properties_json=$(jq -c 'if (.properties | type == "object") then .properties else {} end' <<<"${tool_schema}")
+	required_args=$(jq -r '(.required // [])[]?' <<<"${tool_schema}")
+	additional_properties=$(jq -c 'if .additionalProperties == null then false else .additionalProperties end' <<<"${tool_schema}")
 
-TYPE_MAP = {
-    "string": str,
-    "object": dict,
-    "array": list,
-    "boolean": bool,
-    "number": (int, float),
-    "integer": int,
-}
+	local required
+	for required in ${required_args}; do
+		if ! jq -e --arg key "${required}" '.args | has($key)' <<<"${action_json}" >/dev/null; then
+			printf 'Missing arg: %s\n' "${required}" >&2
+			return 1
+		fi
+	done
 
-def enforce_type(key: str, value, schema: dict) -> None:
-    expected_type = schema.get("type")
-    python_type = TYPE_MAP.get(expected_type)
+	_react_enforce_arg_type() {
+		# Validates an argument value against a schema fragment using jq types.
+		# Arguments:
+		#   $1 - argument key (string)
+		#   $2 - argument JSON value (string)
+		#   $3 - schema JSON string
+		local arg_key value_json schema_fragment expected_type min_length item_type
+		arg_key="$1"
+		value_json="$2"
+		schema_fragment="$3"
 
-    if python_type is not None and not isinstance(value, python_type):
-        print(f"Arg {key} must be a {expected_type}", file=sys.stderr)
-        sys.exit(1)
+		expected_type=$(jq -r '.type // empty' <<<"${schema_fragment}")
+		if [[ -z "${expected_type}" ]]; then
+			return 0
+		fi
 
-    if expected_type == "string":
-        min_length = schema.get("minLength", 0)
-        if min_length > 0 and isinstance(value, str) and not value.strip():
-            print(f"Arg {key} cannot be empty", file=sys.stderr)
-            sys.exit(1)
+		case "${expected_type}" in
+		string)
+			if ! jq -e 'type == "string"' <<<"${value_json}" >/dev/null; then
+				printf 'Arg %s must be a string\n' "${arg_key}" >&2
+				return 1
+			fi
+			min_length=$(jq -r '.minLength // 0' <<<"${schema_fragment}")
+			if [[ "${min_length}" -gt 0 ]] && [[ -z "$(jq -r 'gsub("^\\s+|\\s+$"; "")' <<<"${value_json}")" ]]; then
+				printf 'Arg %s cannot be empty\n' "${arg_key}" >&2
+				return 1
+			fi
+			;;
+		object)
+			if ! jq -e 'type == "object"' <<<"${value_json}" >/dev/null; then
+				printf 'Arg %s must be a object\n' "${arg_key}" >&2
+				return 1
+			fi
+			;;
+		array)
+			if ! jq -e 'type == "array"' <<<"${value_json}" >/dev/null; then
+				printf 'Arg %s must be a array\n' "${arg_key}" >&2
+				return 1
+			fi
+			item_type=$(jq -r '.items.type // empty' <<<"${schema_fragment}")
+			if [[ "${item_type}" == "string" ]] && ! jq -e 'all(.[]?; type == "string")' <<<"${value_json}" >/dev/null; then
+				printf 'Arg %s items must be strings\n' "${arg_key}" >&2
+				return 1
+			fi
+			;;
+		boolean)
+			if ! jq -e 'type == "boolean"' <<<"${value_json}" >/dev/null; then
+				printf 'Arg %s must be a boolean\n' "${arg_key}" >&2
+				return 1
+			fi
+			;;
+		number)
+			if ! jq -e 'type == "number"' <<<"${value_json}" >/dev/null; then
+				printf 'Arg %s must be a number\n' "${arg_key}" >&2
+				return 1
+			fi
+			;;
+		integer)
+			if ! jq -e '(type == "number") and (.|floor == .)' <<<"${value_json}" >/dev/null; then
+				printf 'Arg %s must be a integer\n' "${arg_key}" >&2
+				return 1
+			fi
+			;;
+		esac
 
-    if expected_type == "array":
-        item_schema = schema.get("items", {})
-        item_type = item_schema.get("type")
-        if item_type == "string" and any(not isinstance(item, str) for item in value):
-            print(f"Arg {key} items must be strings", file=sys.stderr)
-            sys.exit(1)
+		return 0
+	}
 
-for key in required_args:
-    if key not in args:
-        print(f"Missing arg: {key}", file=sys.stderr)
-        sys.exit(1)
+	local arg_key arg_value prop_schema
+	for arg_key in $(jq -r '.args | keys_unsorted[]' <<<"${action_json}"); do
+		arg_value=$(jq -c --arg key "${arg_key}" '.args[$key]' <<<"${action_json}")
+		prop_schema=$(jq -c --arg key "${arg_key}" --argjson props "${properties_json}" '$props[$key]' <<<"null")
 
-for key, value in args.items():
-    if key in properties:
-        enforce_type(key, value, properties.get(key, {}))
-        continue
+		if [[ -n "${prop_schema}" && "${prop_schema}" != "null" ]]; then
+			if ! _react_enforce_arg_type "${arg_key}" "${arg_value}" "${prop_schema}"; then
+				return 1
+			fi
+			continue
+		fi
 
-    if additional_properties is False:
-        print(f"Unexpected arg: {key}", file=sys.stderr)
-        sys.exit(1)
+		if [[ "${additional_properties}" == "false" ]]; then
+			printf 'Unexpected arg: %s\n' "${arg_key}" >&2
+			return 1
+		fi
 
-    if isinstance(additional_properties, dict):
-        enforce_type(key, value, additional_properties)
+		if [[ "${additional_properties}" != "false" && "${additional_properties}" != "null" ]]; then
+			if ! _react_enforce_arg_type "${arg_key}" "${arg_value}" "${additional_properties}"; then
+				return 1
+			fi
+		fi
+	done
 
-print(json.dumps({
-    "thought": thought.strip(),
-    "tool": tool,
-    "args": args,
-}, separators=(",", ":")))
-PY
+	thought_trimmed=$(jq -r '.thought | gsub("^\\s+|\\s+$"; "")' <<<"${action_json}")
+
+	jq -c --arg thought "${thought_trimmed}" '.thought = $thought' <<<"${action_json}"
 }
 
 select_next_action() {

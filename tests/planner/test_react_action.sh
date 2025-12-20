@@ -99,6 +99,98 @@ INNERSCRIPT
 	[ "$status" -eq 0 ]
 }
 
+@test "validate_react_action rejects unsupported tools" {
+	script=$(
+		cat <<'INNERSCRIPT'
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+source ./src/lib/planning/planner.sh
+
+schema_path=$(mktemp)
+cat >"${schema_path}" <<'JSON'
+{
+  "$defs": {
+    "args_by_tool": {
+      "alpha": {
+        "type": "object",
+        "properties": {"input": {"type": "string"}},
+        "required": ["input"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "properties": {"tool": {"enum": ["alpha"]}}
+}
+JSON
+
+invalid_action='{"thought":"go","tool":"beta","args":{"input":"hi"}}'
+
+set +e
+validate_react_action "${invalid_action}" "${schema_path}" 2>err.log
+status=$?
+set -e
+
+if [[ ${status} -eq 0 ]]; then
+        echo "validation unexpectedly succeeded"
+        exit 1
+fi
+
+grep -F "Unsupported tool: beta" err.log
+rm -f "${schema_path}" err.log
+INNERSCRIPT
+	)
+
+	run bash -lc "${script}"
+	[ "$status" -eq 0 ]
+}
+
+@test "validate_react_action enforces argument type schemas" {
+	script=$(
+		cat <<'INNERSCRIPT'
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+source ./src/lib/planning/planner.sh
+
+schema_path=$(mktemp)
+cat >"${schema_path}" <<'JSON'
+{
+  "$defs": {
+    "args_by_tool": {
+      "alpha": {
+        "type": "object",
+        "properties": {"input": {"type": "string", "minLength": 1}},
+        "required": ["input"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "properties": {"tool": {"enum": ["alpha"]}}
+}
+JSON
+
+invalid_action='{"thought":"go","tool":"alpha","args":{"input":1}}'
+
+set +e
+validate_react_action "${invalid_action}" "${schema_path}" 2>err.log
+status=$?
+set -e
+
+if [[ ${status} -eq 0 ]]; then
+        echo "validation unexpectedly succeeded"
+        exit 1
+fi
+
+grep -F "Arg input must be a string" err.log
+rm -f "${schema_path}" err.log
+INNERSCRIPT
+	)
+
+	run bash -lc "${script}"
+	[ "$status" -eq 0 ]
+}
+
 @test "validate_react_action accepts terminal arg arrays" {
 	script=$(
 		cat <<'INNERSCRIPT'
