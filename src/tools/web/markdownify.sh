@@ -113,7 +113,7 @@ convert_json() {
 		printf '%s\n' "invalid JSON" >&2
 		return 1
 	fi
-	printf '```json\n%s\n```' "${formatted}"
+        printf '%s\n%s\n%s\n' '```json' "${formatted}" '```'
 }
 
 convert_xml() {
@@ -129,7 +129,7 @@ convert_xml() {
 		printf '%s\n' "invalid XML" >&2
 		return 1
 	fi
-	printf '```xml\n%s\n```' "${formatted}"
+        printf '%s\n%s\n%s\n' '```xml' "${formatted}" '```'
 }
 
 convert_plain() {
