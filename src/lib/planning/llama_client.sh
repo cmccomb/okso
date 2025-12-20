@@ -30,14 +30,14 @@ PLANNING_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${PLANNING_LIB_DIR}/../core/logging.sh"
 
 estimate_token_count() {
-        # Estimates the number of tokens in a string based on character length.
-        # Arguments:
-        #   $1 - text content (string)
-        local text length token_estimate
-        text="$1"
-        length=${#text}
-        token_estimate=$(((length + 3) / 4))
-        printf '%s' "${token_estimate}"
+	# Estimates the number of tokens in a string based on character length.
+	# Arguments:
+	#   $1 - text content (string)
+	local text length token_estimate
+	text="$1"
+	length=${#text}
+	token_estimate=$(((length + 3) / 4))
+	printf '%s' "${token_estimate}"
 }
 
 sanitize_llama_output() {
@@ -115,47 +115,47 @@ llama_infer() {
 		else
 			additional_args+=(--grammar-file "${schema_file_path}")
 		fi
-        fi
+	fi
 
-        local llama_args llama_arg_string stderr_file exit_code llama_stderr start_time_ns end_time_ns elapsed_ms llama_output
-        local default_context_size context_cap margin_percent prompt_tokens total_tokens computed_context target_context
-        llama_args=(
-                "${LLAMA_BIN}"
-                --hf-repo "${repo_override}"
-                --hf-file "${file_override}"
-                -no-cnv --no-display-prompt --simple-io --verbose
-                -n "${number_of_tokens}"
-        )
+	local llama_args llama_arg_string stderr_file exit_code llama_stderr start_time_ns end_time_ns elapsed_ms llama_output
+	local default_context_size context_cap margin_percent prompt_tokens total_tokens computed_context target_context
+	llama_args=(
+		"${LLAMA_BIN}"
+		--hf-repo "${repo_override}"
+		--hf-file "${file_override}"
+		-no-cnv --no-display-prompt --simple-io --verbose
+		-n "${number_of_tokens}"
+	)
 
-        default_context_size=${LLAMA_DEFAULT_CONTEXT_SIZE:-4096}
-        context_cap=${LLAMA_CONTEXT_CAP:-8192}
-        margin_percent=${LLAMA_CONTEXT_MARGIN_PERCENT:-15}
+	default_context_size=${LLAMA_DEFAULT_CONTEXT_SIZE:-4096}
+	context_cap=${LLAMA_CONTEXT_CAP:-8192}
+	margin_percent=${LLAMA_CONTEXT_MARGIN_PERCENT:-15}
 
-        if [[ ${context_cap} -lt ${default_context_size} ]]; then
-                context_cap=${default_context_size}
-        fi
+	if [[ ${context_cap} -lt ${default_context_size} ]]; then
+		context_cap=${default_context_size}
+	fi
 
-        prompt_tokens=$(estimate_token_count "${prompt}")
-        total_tokens=$((prompt_tokens + number_of_tokens))
-        computed_context=$(((total_tokens * (100 + margin_percent) + 99) / 100))
-        target_context=${computed_context}
+	prompt_tokens=$(estimate_token_count "${prompt}")
+	total_tokens=$((prompt_tokens + number_of_tokens))
+	computed_context=$(((total_tokens * (100 + margin_percent) + 99) / 100))
+	target_context=${computed_context}
 
-        if [[ ${target_context} -gt ${default_context_size} ]]; then
-                if [[ ${target_context} -gt ${context_cap} ]]; then
-                        log "INFO" "llama context capped" "required_context=${target_context} capped_context=${context_cap} default_context=${default_context_size}"
-                        target_context=${context_cap}
-                fi
+	if [[ ${target_context} -gt ${default_context_size} ]]; then
+		if [[ ${target_context} -gt ${context_cap} ]]; then
+			log "INFO" "llama context capped" "required_context=${target_context} capped_context=${context_cap} default_context=${default_context_size}"
+			target_context=${context_cap}
+		fi
 
-                llama_args+=(-c "${target_context}")
-        fi
+		llama_args+=(-c "${target_context}")
+	fi
 
-        if [[ -n "${stop_string}" ]]; then
-                llama_args+=(-r "${stop_string}")
-        fi
+	if [[ -n "${stop_string}" ]]; then
+		llama_args+=(-r "${stop_string}")
+	fi
 
-        llama_args+=("${additional_args[@]}")
+	llama_args+=("${additional_args[@]}")
 
-        llama_args+=(-p "${prompt}")
+	llama_args+=(-p "${prompt}")
 
 	llama_arg_string=$(printf '%s ' "${llama_args[@]:1}")
 	llama_arg_string=${llama_arg_string% }

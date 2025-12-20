@@ -147,8 +147,8 @@ SCRIPT
 }
 
 @test "llama_infer fails when JSON schema cannot be read" {
-        local missing_schema
-        missing_schema="${BATS_TMPDIR}/missing-schema.json"
+	local missing_schema
+	missing_schema="${BATS_TMPDIR}/missing-schema.json"
 
 	run env BASH_ENV= ENV= MISSING_SCHEMA="${missing_schema}" bash --noprofile --norc -c '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
@@ -170,13 +170,13 @@ SCRIPT
         '
 	[ "$status" -eq 1 ]
 	message=$(printf '%s\n' "${output}" | jq -r '.message')
-        [[ "${message}" == "failed to read JSON schema" ]]
-        detail=$(printf '%s\n' "${output}" | jq -r '.detail')
-        [[ "${detail}" == *"${missing_schema}"* ]]
+	[[ "${message}" == "failed to read JSON schema" ]]
+	detail=$(printf '%s\n' "${output}" | jq -r '.detail')
+	[[ "${detail}" == *"${missing_schema}"* ]]
 }
 
 @test "llama_infer keeps default context when estimate fits" {
-        run env BASH_ENV= ENV= bash --noprofile --norc -c '
+	run env BASH_ENV= ENV= bash --noprofile --norc -c '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 args_dir="$(mktemp -d)"
                 args_file="${args_dir}/args.txt"
@@ -201,11 +201,11 @@ SCRIPT
                 done <"${args_file}"
                 [[ " ${args[*]} " != *" -c "* ]]
         '
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "llama_infer expands context for large prompts" {
-        run env BASH_ENV= ENV= bash --noprofile --norc -c '
+	run env BASH_ENV= ENV= bash --noprofile --norc -c '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 args_dir="$(mktemp -d)"
                 args_file="${args_dir}/args.txt"
@@ -237,11 +237,11 @@ SCRIPT
                 done
                 [[ "${context_value}" == "81" ]]
         '
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "llama_infer caps requested context" {
-        run env BASH_ENV= ENV= bash --noprofile --norc -c '
+	run env BASH_ENV= ENV= bash --noprofile --norc -c '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 args_dir="$(mktemp -d)"
                 args_file="${args_dir}/args.txt"
@@ -273,10 +273,10 @@ SCRIPT
                 done
                 [[ "${context_value}" == "90" ]]
         '
-        [ "$status" -eq 0 ]
-        message=$(printf '%s\n' "${output}" | jq -r '.message')
-        detail=$(printf '%s\n' "${output}" | jq -r '.detail')
-        [[ "${message}" == "llama context capped" ]]
-        [[ "${detail}" == *"required_context=161"* ]]
-        [[ "${detail}" == *"capped_context=90"* ]]
+	[ "$status" -eq 0 ]
+	message=$(printf '%s\n' "${output}" | jq -r '.message')
+	detail=$(printf '%s\n' "${output}" | jq -r '.detail')
+	[[ "${message}" == "llama context capped" ]]
+	[[ "${detail}" == *"required_context=161"* ]]
+	[[ "${detail}" == *"capped_context=90"* ]]
 }
