@@ -104,7 +104,7 @@ tool_web_fetch() {
 		body_snippet=$(head -c "${snippet_limit}" "${body_path}" | base64 | tr -d '\n')
 	else
 		local converter_output
-		if converter_output=$(python3 "${WEB_TOOLS_DIR}/markdownify.py" --path "${body_path}" --content-type "${content_type}" --limit "${snippet_limit}" 2>&1); then
+		if converter_output=$("${WEB_TOOLS_DIR}/markdownify.sh" --path "${body_path}" --content-type "${content_type}" --limit "${snippet_limit}" 2>&1); then
 			if body_markdown=$(jq -er '.markdown' <<<"${converter_output}" 2>/dev/null) && body_snippet=$(jq -er '.preview' <<<"${converter_output}" 2>/dev/null); then
 				true
 			else
