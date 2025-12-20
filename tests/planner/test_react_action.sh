@@ -10,8 +10,8 @@
 #   - bash 3.2+
 
 @test "react_action schema defines terminal and final_answer branches without oneOf" {
-        script=$(
-                cat <<'INNERSCRIPT'
+	script=$(
+		cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
@@ -29,7 +29,7 @@ jq -e '
         and (any(.allOf[]; .if.properties.tool.const == "final_answer" and (.then.properties.args.required | sort == ["input"])) )
 ' "${schema_path}"
 INNERSCRIPT
-        )
+	)
 
 	run bash -lc "${script}"
 	[ "$status" -eq 0 ]
@@ -89,8 +89,8 @@ INNERSCRIPT
 }
 
 @test "build_react_action_schema encodes tool args in if/then branches" {
-        script=$(
-                cat <<'INNERSCRIPT'
+	script=$(
+		cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
