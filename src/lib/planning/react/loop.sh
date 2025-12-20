@@ -283,7 +283,7 @@ _select_action_from_llama() {
 	fi
 	validation_error_file="$(mktemp)"
 
-	raw_action="$(llama_infer "${react_prompt}" "" 256 "${react_schema_text}" "${REACT_MODEL_REPO}" "${REACT_MODEL_FILE}")"
+        raw_action="$(llama_infer "${react_prompt}" "" 256 "${react_schema_text}" "${REACT_MODEL_REPO:-}" "${REACT_MODEL_FILE:-}")"
 	log_pretty "INFO" "Action received" "${raw_action}"
 
 	if ! validated_action=$(validate_react_action "${raw_action}" "${react_schema_path}" 2>"${validation_error_file}"); then
@@ -321,14 +321,17 @@ select_next_action() {
 		react_fallback_action=""
 	fi
 
-	if ! _select_action_from_llama "${state_name}" react_action_json; then
-		if [[ -z "${react_fallback_action}" ]]; then
-			return 1
-		fi
-		react_action_json="${react_fallback_action}"
-	else
-		state_set "${state_name}" "plan_index" "$((plan_index + 1))"
-	fi
+        if ! _select_action_from_llama "${state_name}" react_action_json; then
+                if [[ "${USE_REACT_LLAMA:-false}" == true && "${LLAMA_AVAILABLE}" == true ]]; then
+                        return 1
+                fi
+                if [[ -z "${react_fallback_action}" ]]; then
+                        return 1
+                fi
+                react_action_json="${react_fallback_action}"
+        else
+                state_set "${state_name}" "plan_index" "$((plan_index + 1))"
+        fi
 
 	if [[ -n "${output_name}" ]]; then
 		printf -v "${output_name}" '%s' "${react_action_json}"

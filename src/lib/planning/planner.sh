@@ -103,7 +103,7 @@ generate_plan_json() {
 
 	prompt="$(build_planner_prompt_with_tools "${user_query}" "${planner_tools[@]}")"
 	log "DEBUG" "Generated planner prompt" "${prompt}" >&2
-	raw_plan="$(llama_infer "${prompt}" '' 512 "${planner_schema_text}" "${PLANNER_MODEL_REPO}" "${PLANNER_MODEL_FILE}")" || raw_plan="[]"
+        raw_plan="$(llama_infer "${prompt}" '' 512 "${planner_schema_text}" "${PLANNER_MODEL_REPO:-}" "${PLANNER_MODEL_FILE:-}")" || raw_plan="[]"
 	if ! plan_json="$(append_final_answer_step "${raw_plan}")"; then
 		log "ERROR" "Planner output failed validation; request regeneration" "${raw_plan}" >&2
 		return 1
