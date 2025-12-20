@@ -139,12 +139,6 @@ web_http_request() {
 		return 1
 	fi
 
-	if ((http_code >= 400)); then
-		log "ERROR" "HTTP error response" "status=${http_code} url=${url}" >&2
-		rm -f "${body_file}" "${header_file}" "${stderr_file}"
-		return 1
-	fi
-
 	local body_size truncated truncated_bool
 	body_size=$(wc -c <"${body_file}")
 	truncated=false

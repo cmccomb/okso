@@ -66,3 +66,63 @@ SCRIPT
 
 	[ "$status" -ne 0 ]
 }
+
+@test "web_search returns results with url field" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+mock_bin="$(mktemp -d)"
+cat >"${mock_bin}/curl" <<'MOCK'
+#!/usr/bin/env bash
+output_file=""
+header_file=""
+while [[ $# -gt 0 ]]; do
+        case "$1" in
+        --output)
+                output_file="$2"
+                shift 2
+                ;;
+        --dump-header)
+                header_file="$2"
+                shift 2
+                ;;
+        --write-out)
+                shift 2
+                ;;
+        *)
+                shift
+                ;;
+        esac
+done
+cat >"${output_file}" <<'JSON'
+{
+  "queries": { "request": [ { "searchTerms": "demo" } ] },
+  "searchInformation": { "totalResults": "1" },
+  "items": [
+    {
+      "title": "Example",
+      "link": "https://example.com",
+      "snippet": "An example site",
+      "displayLink": "example.com"
+    }
+  ]
+}
+JSON
+cat >"${header_file}" <<'HDR'
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+HDR
+printf '200\nhttps://www.googleapis.com/customsearch/v1\napplication/json\n100'
+MOCK
+chmod +x "${mock_bin}/curl"
+export PATH="${mock_bin}:$PATH"
+export GOOGLE_SEARCH_API_KEY="key"
+export GOOGLE_SEARCH_CX="cx"
+source ./src/tools/web/web_search.sh
+TOOL_ARGS='{"query":"demo"}'
+tool_web_search
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.items[0].url == "https://example.com"'
+}

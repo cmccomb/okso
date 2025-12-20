@@ -102,7 +102,19 @@ tool_web_fetch() {
 		body_snippet=$(head -c "${snippet_limit}" "${body_path}")
 	fi
 
+	local status_code
+	status_code=$(jq -r '.status' <<<"${payload}")
+
 	rm -f "${body_path}"
+
+	if [[ "${status_code}" -ge 400 ]]; then
+		jq -nc \
+			--arg url "${url}" \
+			--arg status "${status_code}" \
+			--arg body "${body_snippet}" \
+			' { observation: "Failed to fetch \($url): HTTP \($status). Response body: \($body)" }'
+		return 0
+	fi
 
 	jq -nc \
 		--arg url "${url}" \
@@ -132,7 +144,7 @@ register_web_fetch() {
 
 	register_tool \
 		"web_fetch" \
-		"Retrieve the raw HTTP response body for a URL." \
+		"Retrieve the raw HTTP response body for a URL. Only retrieve URLs that you know exist (e.g. from web_search results)." \
 		"web_fetch <url>" \
 		"Performs external HTTP requests; avoid sharing sensitive data." \
 		tool_web_fetch \

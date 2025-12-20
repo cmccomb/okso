@@ -94,7 +94,7 @@ tool_web_search() {
                 total_results: ((.searchInformation.totalResults // "0") | tonumber? // 0),
                 items: (.items // []) | map({
                         title: (.title // ""),
-                        link: (.link // ""),
+                        url: (.link // ""),
                         snippet: (.snippet // ""),
                         displayLink: (.displayLink // "")
                 })
