@@ -60,11 +60,29 @@ log_emit() {
 		--arg level "${level}" \
 		--arg message "${message}" \
 		--arg detail "${detail}" \
-		'{time:$time, level:$level, message:$message, detail:$detail}')
+		'{
+			time: $time,
+			level: $level,
+			message: $message,
+			detail: $detail
+		}')
 
 	case "${format_style}" in
 	pretty)
-		printf '%s\n' "${payload}" | jq '.' >&2
+		printf '%s\n' "${payload}" | jq '
+		.detail |= (
+			if type == "string" then
+				. as $d
+				| if $d == "" then $d
+					else (try ($d | fromjson) catch
+						(if ($d | test("\n")) then ($d | split("\n")) else $d end)
+					)
+				  end
+			else
+				.
+			end
+		)
+	' >&2
 		;;
 	*)
 		printf '%s\n' "${payload}" | jq -c '.' >&2

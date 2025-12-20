@@ -24,8 +24,8 @@ setup() {
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 export LLAMA_AVAILABLE=false
                 export LLAMA_BIN=/nonexistent
-                export MODEL_REPO=repo
-                export MODEL_FILE=file
+                export REACT_MODEL_REPO=repo
+                export REACT_MODEL_FILE=file
                 source ./src/lib/planning/llama_client.sh
                 llama_infer "prompt" "" 10
         '
@@ -47,8 +47,8 @@ SCRIPT
                 chmod +x "${mock_binary}"
                 export LLAMA_AVAILABLE=true
                 export LLAMA_BIN="${mock_binary}"
-                export MODEL_REPO=demo/repo
-                export MODEL_FILE=model.gguf
+                export REACT_MODEL_REPO=demo/repo
+                export REACT_MODEL_FILE=model.gguf
                 source ./src/lib/planning/llama_client.sh
                 llama_infer "example prompt" "STOP" 12 "${json_schema}"
                 args=()
@@ -76,8 +76,8 @@ SCRIPT
                 chmod +x "${mock_binary}"
                 export LLAMA_AVAILABLE=true
                 export LLAMA_BIN="${mock_binary}"
-                export MODEL_REPO=demo/repo
-                export MODEL_FILE=model.gguf
+                export REACT_MODEL_REPO=demo/repo
+                export REACT_MODEL_FILE=model.gguf
                 source ./src/lib/planning/llama_client.sh
                 llama_infer "prompt" "" 8 "${args_dir}/schema.gbnf"
                 args=()
@@ -104,8 +104,8 @@ SCRIPT
                 chmod +x "${mock_binary}"
                 export LLAMA_AVAILABLE=true
                 export LLAMA_BIN="${mock_binary}"
-                export MODEL_REPO=demo/repo
-                export MODEL_FILE=model.gguf
+                export REACT_MODEL_REPO=demo/repo
+                export REACT_MODEL_FILE=model.gguf
                 source ./src/lib/planning/llama_client.sh
                 llama_infer "prompt" "STOP" 5
         '
@@ -132,8 +132,8 @@ SCRIPT
                 chmod +x "${mock_binary}"
                 export LLAMA_AVAILABLE=true
                 export LLAMA_BIN="${mock_binary}"
-                export MODEL_REPO=demo/repo
-                export MODEL_FILE=model.gguf
+                export REACT_MODEL_REPO=demo/repo
+                export REACT_MODEL_FILE=model.gguf
                 export LLAMA_TIMEOUT_SECONDS=1
                 source ./src/lib/planning/llama_client.sh
                 llama_infer "prompt" "" 4
@@ -163,8 +163,8 @@ SCRIPT
                 chmod +x "${mock_binary}"
                 export LLAMA_AVAILABLE=true
                 export LLAMA_BIN="${mock_binary}"
-                export MODEL_REPO=demo/repo
-                export MODEL_FILE=model.gguf
+                export REACT_MODEL_REPO=demo/repo
+                export REACT_MODEL_FILE=model.gguf
                 source ./src/lib/planning/llama_client.sh
                 llama_infer "prompt" "" 8 "${missing_schema}"
         '

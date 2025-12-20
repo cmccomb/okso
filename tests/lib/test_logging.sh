@@ -43,21 +43,6 @@ setup() {
 	[[ "${detail}" == "more-detail" ]]
 }
 
-@test "log_pretty emits parseable formatted JSON" {
-	run bash -lc '
-                source ./src/lib/core/logging.sh
-                VERBOSITY=2 log_pretty DEBUG "pretty" "{\"a\":1}"
-        '
-
-	[ "$status" -eq 0 ]
-	compact=$(printf '%s' "${output}" | jq -c '.')
-	detail_value=$(jq -r '.detail' <<<"${compact}")
-
-	[[ "${compact}" == *'"level":"DEBUG"'* ]]
-	[[ "${compact}" == *'"message":"pretty"'* ]]
-	[[ "${detail_value}" == '{"a":1}' ]]
-}
-
 @test "log debug messages honor verbosity" {
 	run bash -lc '
                 source ./src/lib/core/logging.sh

@@ -1044,7 +1044,7 @@ finalize_react_result() {
 	emit_boxed_summary \
 		"$(state_get "${state_name}" "user_query")" \
 		"$(state_get "${state_name}" "plan_outline")" \
-		"$(format_tool_history "$(state_get_history_lines "${state_name}")")" \
+		"$(state_get_history_lines "${state_name}")" \
 		"$(state_get "${state_name}" "final_answer")"
 }
 

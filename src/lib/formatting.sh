@@ -40,9 +40,9 @@ format_tool_descriptions() {
 		return 1
 	fi
 
-	while IFS= read -r tool; do
+	while IFS= read -r tool || [[ -n "${tool}" ]]; do
 		[[ -z "${tool}" ]] && continue
-		formatted_line="$(${formatter} "${tool}")"
+		formatted_line="$("${formatter}" "${tool}")"
 		if [[ -n "${formatted_line}" ]]; then
 			tool_lines+="${formatted_line}"$'\n'
 		fi
@@ -105,11 +105,9 @@ render_box() {
 	fi
 
 	lines=()
-	while IFS= read -r line || [ -n "${line}" ]; do
+	while IFS= read -r line || [[ -n "${line}" ]]; do
 		lines+=("${line}")
-	done <<EOF
-$(printf '%s\n' "${content}" | fold -s -w "${width_limit}")
-EOF
+	done < <(printf '%s\n' "${content}" | fold -s -w "${width_limit}")
 
 	if ((${#lines[@]} == 0)); then
 		lines=("")
@@ -184,7 +182,9 @@ render_boxed_summary() {
 		"$(format_box_section "Plan" "${plan_outline}")" \
 		"$(format_box_section "Tool runs" "${formatted_tools}")" \
 		"$(format_box_section "Final answer" "${final_answer}")")
+
 	if command -v gum >/dev/null 2>&1; then
+		# gum format can be slow on large inputs, but for summaries it adds nice markdown rendering.
 		formatted_content="$(printf '%s\n' "${formatted_content}" | gum format)"
 	fi
 
@@ -209,12 +209,12 @@ format_tool_history() {
 			return
 		fi
 
-		output_lines+=(" - Step ${current_step}")
+		output_lines+=("- Step ${current_step}")
 		if [[ -n "${current_action}" ]]; then
-			output_lines+=("   action: ${current_action}")
+			output_lines+=("  action: ${current_action}")
 		fi
 		if [[ -n "${current_observation}" ]]; then
-			output_lines+=("   observation: ${current_observation//$'\n'/$'\n'"   "}")
+			output_lines+=("  observation: ${current_observation//$'\n'/$'\n'"  "}")
 		fi
 
 		current_step=""
@@ -223,7 +223,7 @@ format_tool_history() {
 		collecting_observation=false
 	}
 
-	while IFS= read -r line || [ -n "${line}" ]; do
+	while IFS= read -r line || [[ -n "${line}" ]]; do
 		# Try to parse line as a JSON entry from record_tool_execution
 		if jq -e '.step != null and .action != null' <<<"${line}" >/dev/null 2>&1; then
 			append_current_entry
@@ -232,7 +232,6 @@ format_tool_history() {
 			tool=$(jq -r '.action.tool' <<<"${line}")
 			args=$(jq -c '.action.args' <<<"${line}")
 			thought=$(jq -r '.thought' <<<"${line}")
-			obs=$(jq -c '.observation' <<<"${line}")
 
 			# Pretty print observation if it's JSON object
 			if jq -e '.observation | type == "object"' <<<"${line}" >/dev/null 2>&1; then
@@ -244,6 +243,8 @@ format_tool_history() {
 				fi
 			elif jq -e '.observation | type == "string"' <<<"${line}" >/dev/null 2>&1; then
 				obs=$(jq -r '.observation' <<<"${line}")
+			else
+				obs=$(jq -c '.observation' <<<"${line}")
 			fi
 
 			current_action="${thought} (tool: ${tool}, args: ${args})"
@@ -252,7 +253,7 @@ format_tool_history() {
 			continue
 		fi
 
-		if [[ "${line}" =~ ^[[:space:]]*Step[[:space:]]+([0-9]+)[[:space:]]*(.*)$ ]]; then
+		if [[ "${line}" =~ ^[[:space:]-]*Step[[:space:]]+([0-9]+)[[:space:]]*(.*)$ ]]; then
 			append_current_entry
 
 			current_step="${BASH_REMATCH[1]}"
@@ -266,15 +267,29 @@ format_tool_history() {
 			collecting_observation=false
 			continue
 		fi
-		if [[ "${line}" =~ ^[[:space:]]*[Oo][Bb][Ss][Ee][Rr][Vv][Aa][Tt][Ii][Oo][Nn]:[[:space:]]*(.*)$ ]]; then
+
+		if [[ "${line}" =~ ^[[:space:]-]*[Oo][Bb][Ss][Ee][Rr][Vv][Aa][Tt][Ii][Oo][Nn]:?[[:space:]]*(.*)$ ]]; then
 			current_observation="${BASH_REMATCH[1]}"
 			collecting_observation=true
 			continue
 		fi
+
 		if [[ -z "${current_step}" ]]; then
-			output_lines+=(" - ${line}")
+			if [[ "${line}" =~ ^[[:space:]]*-[[:space:]]+(.*)$ ]]; then
+				output_lines+=("${line}")
+			else
+				output_lines+=(" - ${line}")
+			fi
 			continue
 		fi
+
+		# Strip existing action/observation prefixes if we are re-formatting
+		line="${line#"${line%%[![:space:]]*}"}"
+		line="${line#"${line##*[![:space:]]}"}"
+		line="${line#action: }"
+		line="${line#Action: }"
+		line="${line#observation: }"
+		line="${line#Observation: }"
 
 		if [[ "${collecting_observation}" == true ]]; then
 			if [[ -n "${current_observation}" ]]; then
@@ -282,13 +297,12 @@ format_tool_history() {
 			else
 				current_observation="${line}"
 			fi
-			continue
-		fi
-
-		if [[ -n "${current_action}" ]]; then
-			current_action+=" ${line}"
 		else
-			current_action="${line}"
+			if [[ -n "${current_action}" ]]; then
+				current_action+=" ${line}"
+			else
+				current_action="${line}"
+			fi
 		fi
 	done <<<"${tool_history}"
 
@@ -303,35 +317,28 @@ emit_boxed_summary() {
 	#   $2 - planner outline (string)
 	#   $3 - tool invocation history (newline-delimited string)
 	#   $4 - final answer (string)
-	render_boxed_summary "$1" "$2" "$3" "$4"
+	render_boxed_summary "$@"
+}
+
+format_tool_line() {
+	# Arguments:
+	#   $1 - tool name (string)
+	local tool detail_text
+	tool="$1"
+	detail_text="$(format_tool_details "${tool}")"
+
+	if [[ -n "${detail_text}" ]]; then
+		printf -- '- %s: %s' "${tool}" "${detail_text}"
+		return 0
+	fi
+
+	printf -- '- %s' "${tool}"
 }
 
 format_tool_summary_line() {
-	# Arguments:
-	#   $1 - tool name (string)
-	local tool detail_text
-	tool="$1"
-	detail_text="$(format_tool_details "${tool}")"
-
-	if [[ -n "${detail_text}" ]]; then
-		printf -- '- %s: %s' "${tool}" "${detail_text}"
-		return 0
-	fi
-
-	printf -- '- %s' "${tool}"
+	format_tool_line "$1"
 }
 
 format_tool_example_line() {
-	# Arguments:
-	#   $1 - tool name (string)
-	local tool detail_text
-	tool="$1"
-	detail_text="$(format_tool_details "${tool}")"
-
-	if [[ -n "${detail_text}" ]]; then
-		printf -- '- %s: %s' "${tool}" "${detail_text}"
-		return 0
-	fi
-
-	printf -- '- %s' "${tool}"
+	format_tool_line "$1"
 }

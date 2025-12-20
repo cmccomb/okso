@@ -51,21 +51,21 @@ EOF
 
 @test "format_tool_history collects multi-line observations case-insensitively" {
 	run bash -lc '
+                set -e
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 source ./src/lib/formatting.sh
 
-                tool_history=$'"'"'Step 1 action search query=weather\nobservation: first line\n  second line\ntrailing text\nStep 2 action finalize\nObservation: done'"'"'
-                lines=()
-                while IFS= read -r line; do
-                        lines+=("$line")
-                done < <(format_tool_history "${tool_history}")
-                output="${lines[*]//$'"'"'\n'"'"'/\n}"
+                tool_history=$(printf "Step 1 action search query=weather\nobservation: first line\n  second line\ntrailing text\nStep 2 action finalize\nObservation: done")
+                output=$(format_tool_history "${tool_history}")
 
-                [[ "${output}" == *"Step 1: search query=weather"* ]]
-                [[ "${output}" == *"Result:"* ]]
-                [[ "${output}" == *"  first line"* ]]
-                [[ "${output}" == *"Step 2: finalize"* ]]
-                [[ "${output}" == *"done"* ]]
+                [[ "${output}" == *"- Step 1"* ]]
+                [[ "${output}" == *"action: search query=weather"* ]]
+                [[ "${output}" == *"observation: first line"* ]]
+                [[ "${output}" == *"  second line"* ]]
+                [[ "${output}" == *"  trailing text"* ]]
+                [[ "${output}" == *"- Step 2"* ]]
+                [[ "${output}" == *"action: finalize"* ]]
+                [[ "${output}" == *"observation: done"* ]]
         '
 	[ "$status" -eq 0 ]
 }

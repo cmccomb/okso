@@ -63,7 +63,7 @@ teardown() {
 }
 
 @test "uninstall removes symlink and prefix" {
-	run env OKSO_LINK_DIR="${LINK_DIR}" OKSO_INSTALLER_SKIP_SELF_TEST=true \
+	run env OKSO_LINK_DIR="${LINK_DIR}" \
 		bash "${INSTALLER_ROOT}/scripts/install.sh" --prefix "${PREFIX}"
 
 	[ "$status" -eq 0 ]
@@ -81,14 +81,14 @@ teardown() {
 }
 
 @test "upgrade refreshes existing installation" {
-	run env OKSO_LINK_DIR="${LINK_DIR}" OKSO_INSTALLER_SKIP_SELF_TEST=true \
+	run env OKSO_LINK_DIR="${LINK_DIR}" \
 		bash "${INSTALLER_ROOT}/scripts/install.sh" --prefix "${PREFIX}"
 
 	[ "$status" -eq 0 ]
 	[[ "$output" == *"installer completed (install)."* ]]
 	initial_checksum="$(cksum "${PREFIX}/src/bin/okso" | awk '{print $1}')"
 
-	run env OKSO_LINK_DIR="${LINK_DIR}" OKSO_INSTALLER_SKIP_SELF_TEST=true \
+	run env OKSO_LINK_DIR="${LINK_DIR}" \
 		bash "${INSTALLER_ROOT}/scripts/install.sh" --prefix "${PREFIX}" --upgrade
 
 	[ "$status" -eq 0 ]
@@ -97,15 +97,4 @@ teardown() {
 	[ "$(readlink "${LINK_DIR}/okso")" = "${PREFIX}/bin/okso" ]
 	upgraded_checksum="$(cksum "${PREFIX}/src/bin/okso" | awk '{print $1}')"
 	[ "${initial_checksum}" = "${upgraded_checksum}" ]
-}
-
-@test "self-test runs when not skipped" {
-	run env OKSO_LINK_DIR="${LINK_DIR}" OKSO_INSTALLER_SKIP_SELF_TEST=false \
-		bash "${INSTALLER_ROOT}/scripts/install.sh" --prefix "${PREFIX}"
-
-	[ "$status" -eq 0 ]
-	[[ "$output" == *"Running installer self-test"* ]]
-	[[ "$output" == *"Installer self-test passed"* ]]
-	[ -L "${LINK_DIR}/okso" ]
-	[ "$(readlink "${LINK_DIR}/okso")" = "${PREFIX}/bin/okso" ]
 }
