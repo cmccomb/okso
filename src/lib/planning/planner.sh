@@ -428,7 +428,12 @@ execute_tool_with_query() {
 	if ((status != 0)); then
 		log "WARN" "Tool reported non-zero exit" "${tool_name}" >&2
 	fi
-	printf '%s\n' "${output}"
+
+	jq -nc \
+		--arg output "${output}" \
+		--arg error "${stderr_output}" \
+		--argjson exit_code "${status}" \
+		'{output: $output, error: $error, exit_code: $exit_code}'
 	return 0
 }
 

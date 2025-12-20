@@ -32,7 +32,8 @@ initialize_react_state() {
                         step: 0,
                         plan_index: 0,
                         max_steps: $max_steps,
-                        final_answer: ""
+                        final_answer: "",
+                        last_action: null
                 }')"
 }
 
@@ -82,7 +83,7 @@ format_tool_args() {
 	python_repl)
 		jq -nc --arg code "${payload}" '{code:$code}'
 		;;
-	file_search | notes_search | calendar_search | mail_search)
+	notes_search | calendar_search | mail_search)
 		jq -nc --arg key "${text_key}" --arg value "${payload}" '{($key):$value}'
 		;;
 	web_search)
@@ -167,7 +168,7 @@ extract_tool_query() {
 	python_repl)
 		jq -r '(.code // "")' <<<"${args_json}" 2>/dev/null || printf ''
 		;;
-	file_search | notes_search | calendar_search | mail_search)
+	notes_search | calendar_search | mail_search)
 		jq -r --arg key "${text_key}" '.[$key] // ""' <<<"${args_json}" 2>/dev/null || printf ''
 		;;
 	web_search)
@@ -601,15 +602,23 @@ PY
 finalize_react_result() {
 	# Arguments:
 	#   $1 - state prefix
-	local state_name history_formatted
+	local state_name history_formatted final_answer observation
 	state_name="$1"
-	if [[ -z "$(state_get "${state_name}" "final_answer")" ]]; then
+	observation="$(state_get "${state_name}" "final_answer")"
+	if [[ -z "${observation}" ]]; then
 		log "ERROR" "Final answer missing; generating fallback" "${state_name}"
 		history_formatted="$(format_tool_history "$(state_get_history_lines "${state_name}")")"
-		state_set "${state_name}" "final_answer" "$(respond_text "$(state_get "${state_name}" "user_query")" 1000 "${history_formatted}")"
+		final_answer="$(respond_text "$(state_get "${state_name}" "user_query")" 1000 "${history_formatted}")"
+		state_set "${state_name}" "final_answer" "${final_answer}"
+	else
+		if jq -e '.output != null and .exit_code != null' <<<"${observation}" >/dev/null 2>&1; then
+			final_answer=$(jq -r '.output' <<<"${observation}")
+		else
+			final_answer="${observation}"
+		fi
 	fi
 
-	log_pretty "INFO" "Final answer" "$(state_get "${state_name}" "final_answer")"
+	log_pretty "INFO" "Final answer" "${final_answer}"
 	if [[ -z "$(format_tool_history "$(state_get_history_lines "${state_name}")")" ]]; then
 		log "INFO" "Execution summary" "No tool runs"
 	else
@@ -620,7 +629,7 @@ finalize_react_result() {
 		"$(state_get "${state_name}" "user_query")" \
 		"$(state_get "${state_name}" "plan_outline")" \
 		"$(state_get_history_lines "${state_name}")" \
-		"$(state_get "${state_name}" "final_answer")"
+		"${final_answer}"
 }
 
 react_loop() {
@@ -642,6 +651,24 @@ react_loop() {
 		tool="$(printf '%s' "${action_json}" | jq -r '.tool // empty' 2>/dev/null || true)"
 		thought="$(printf '%s' "${action_json}" | jq -r '.thought // empty' 2>/dev/null || true)"
 		args_json="$(printf '%s' "${action_json}" | jq -c '.args // {}' 2>/dev/null || printf '{}')"
+
+		# Duplicate action detection
+		local last_action
+		last_action="$(state_get "${state_prefix}" "last_action")"
+		if [[ "${last_action}" != "null" ]]; then
+			local last_tool last_args
+			last_tool="$(printf '%s' "${last_action}" | jq -r '.tool // empty')"
+			last_args="$(printf '%s' "${last_action}" | jq -c '.args // {}')"
+			if [[ "${tool}" == "${last_tool}" && "${args_json}" == "${last_args}" && "${tool}" != "final_answer" ]]; then
+				log "WARN" "Duplicate action detected" "${tool}"
+				observation="Duplicate action detected. Please try a different approach or call final_answer if you are stuck."
+				record_tool_execution "${state_prefix}" "${tool}" "${thought} (REPEATED)" "${args_json}" "${observation}" "${current_step}"
+				state_set "${state_prefix}" "step" "${current_step}"
+				continue
+			fi
+		fi
+		state_set_json_document "${state_prefix}" "$(state_get_json_document "${state_prefix}" | jq -c --argjson action "${action_json}" '.last_action = $action')"
+
 		query="$(extract_tool_query "${tool}" "${args_json}")"
 		action_context="$(format_action_context "${thought}" "${tool}" "${args_json}")"
 
@@ -652,6 +679,19 @@ react_loop() {
 
 		observation="$(execute_tool_action "${tool}" "${query}" "${action_context}" "${args_json}")"
 		record_tool_execution "${state_prefix}" "${tool}" "${thought}" "${args_json}" "${observation}" "${current_step}"
+
+		# Check for failure and consider falling back to LLM if following a plan
+		local exit_code
+		exit_code=$(printf '%s' "${observation}" | jq -r '.exit_code // 0' 2>/dev/null || echo 0)
+		if ((exit_code != 0)); then
+			local plan_entries
+			plan_entries="$(state_get "${state_prefix}" "plan_entries")"
+			if [[ -n "${plan_entries}" && "${LLAMA_AVAILABLE}" == true ]]; then
+				log "INFO" "Tool failed during planned execution; falling back to LLM" "${tool}"
+				# Clear remaining plan entries to force LLM selection in next step
+				state_set "${state_prefix}" "plan_entries" ""
+			fi
+		fi
 
 		state_set "${state_prefix}" "step" "${current_step}"
 		if [[ "${tool}" == "final_answer" ]]; then

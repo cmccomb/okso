@@ -12,6 +12,12 @@ We all believe in you!
 # Calling Tools
 Tool arguments must be well-formed JSON objects that match each tool's fields (e.g., terminal {command:string, args:[]}, notes_create {title:string, body:string}, reminders_create {title:string, time:string, notes:string}).
 Do not collapse fields into a single string.
+
+# Observations
+Observations may contain the output of the tool, but also errors and exit codes if something went wrong.
+Use these observations to decide if you need to retry an action or try a different approach.
+If a tool fails, look at the "Error" field in the observation to understand why.
+
 Specifically, your response must follow the format:
 ${react_schema}
 

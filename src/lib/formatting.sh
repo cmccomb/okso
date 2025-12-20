@@ -238,6 +238,23 @@ format_tool_history() {
 				# Try to make it a bit more readable if it's a known search result format
 				if [[ "${tool}" == "web_search" ]]; then
 					obs=$(jq -r '.observation.items // [] | map("- " + .title + ": " + .snippet) | join("\n")' <<<"${line}" 2>/dev/null || jq -r '.observation | tostring' <<<"${line}")
+				elif jq -e '.observation.output != null and .observation.exit_code != null' <<<"${line}" >/dev/null 2>&1; then
+					# Enriched observation format
+					local exit_code output error
+					exit_code=$(jq -r '.observation.exit_code' <<<"${line}")
+					output=$(jq -r '.observation.output' <<<"${line}")
+					error=$(jq -r '.observation.error' <<<"${line}")
+					if ((exit_code == 0)); then
+						obs="${output}"
+					else
+						obs="FAILED (exit code ${exit_code})"
+						if [[ -n "${output}" ]]; then
+							obs+=$'\n'"Output: ${output}"
+						fi
+						if [[ -n "${error}" ]]; then
+							obs+=$'\n'"Error: ${error}"
+						fi
+					fi
 				else
 					obs=$(jq -r '.observation | tostring' <<<"${line}")
 				fi
