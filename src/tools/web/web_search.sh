@@ -34,10 +34,10 @@ source "${SRC_ROOT}/tools/registry.sh"
 web_search_parse_args() {
 	# Parses TOOL_ARGS JSON for the web_search tool.
 	# Returns a JSON object with `query` and `num`.
-	local args_json
+	local args_json err
 	args_json="${TOOL_ARGS:-}" || true
 
-	jq -cer '
+	if ! err=$(jq -cer '
                 if (type != "object") then error("args must be object") end
                 | if (.query? == null) then error("missing query") end
                 | if (.query | type) != "string" or (.query | length) == 0 then error("query must be non-empty string") end
@@ -49,16 +49,18 @@ web_search_parse_args() {
                 end
                 | if ((del(.query, .num) | length) != 0) then error("unexpected properties") end
                 | {query: .query, num: (.num // 5)}
-        ' <<<"${args_json}" 2>/dev/null
+        ' <<<"${args_json}" 2>&1); then
+		log "ERROR" "Invalid web_search arguments" "${err}" >&2
+		return 1
+	fi
+	printf '%s' "${err}"
 }
 
 tool_web_search() {
 	# Executes a Google Custom Search request and emits structured JSON results.
 	local parsed_args query num api_key cx helper_payload body_path response
 
-	parsed_args=$(web_search_parse_args)
-	if [[ -z "${parsed_args}" ]]; then
-		log "ERROR" "Invalid TOOL_ARGS for web_search" "${TOOL_ARGS:-}" >&2
+	if ! parsed_args=$(web_search_parse_args); then
 		return 1
 	fi
 

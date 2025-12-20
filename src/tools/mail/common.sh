@@ -33,13 +33,11 @@ mail_require_platform() {
 	local context
 	context="$1"
 
-	if [[ "${IS_MACOS}" != true ]]; then
-		log "WARN" "Apple Mail is only available on macOS" "${context}" || true
-		return 1
-	fi
-
-	if ! command -v "${MAIL_OSASCRIPT_BIN:-osascript}" >/dev/null 2>&1; then
-		log "WARN" "osascript missing; cannot reach Apple Mail" "${context}" || true
+	if ! assert_osascript_available \
+		"Apple Mail is only available on macOS" \
+		"osascript missing; cannot reach Apple Mail" \
+		"${MAIL_OSASCRIPT_BIN:-osascript}" \
+		"${context}"; then
 		return 1
 	fi
 

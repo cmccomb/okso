@@ -41,13 +41,11 @@ calendar_require_platform() {
 	local context
 	context="$1"
 
-	if [[ "${IS_MACOS}" != true ]]; then
-		log "WARN" "Apple Calendar is only available on macOS" "${context}" || true
-		return 1
-	fi
-
-	if ! command -v "${CALENDAR_OSASCRIPT_BIN:-osascript}" >/dev/null 2>&1; then
-		log "WARN" "osascript missing; cannot reach Apple Calendar" "${context}" || true
+	if ! assert_osascript_available \
+		"Apple Calendar is only available on macOS" \
+		"osascript missing; cannot reach Apple Calendar" \
+		"${CALENDAR_OSASCRIPT_BIN:-osascript}" \
+		"${context}"; then
 		return 1
 	fi
 

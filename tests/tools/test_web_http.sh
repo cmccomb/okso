@@ -22,7 +22,7 @@ SCRIPT
 	[ "$status" -ne 0 ]
 }
 
-@test "web_http_request fails on HTTP errors" {
+@test "web_http_request returns metadata for HTTP errors" {
 	run bash <<'SCRIPT'
 set -euo pipefail
 mock_bin="$(mktemp -d)"
@@ -62,5 +62,6 @@ source ./src/tools/web/http.sh
 web_http_request "https://example.com/error" 1024
 SCRIPT
 
-	[ "$status" -ne 0 ]
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.status == 500'
 }

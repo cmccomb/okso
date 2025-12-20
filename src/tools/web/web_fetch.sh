@@ -32,10 +32,10 @@ source "${SRC_ROOT}/tools/registry.sh"
 web_fetch_parse_args() {
 	# Parses TOOL_ARGS JSON for the web_fetch tool.
 	# Returns a JSON object with `url` and `max_bytes`.
-	local args_json
+	local args_json err
 	args_json="${TOOL_ARGS:-}" || true
 
-	jq -cer '
+	if ! err=$(jq -cer '
                 if (type != "object") then error("args must be object") end
                 | if (.url? == null) then error("missing url") end
                 | if (.url | type) != "string" or (.url | length) == 0 then error("url must be non-empty string") end
@@ -47,16 +47,18 @@ web_fetch_parse_args() {
                 end
                 | if ((del(.url, .max_bytes) | length) != 0) then error("unexpected properties") end
                 | {url: .url, max_bytes: (.max_bytes // 1)}
-        ' <<<"${args_json}" 2>/dev/null
+        ' <<<"${args_json}" 2>&1); then
+		log "ERROR" "Invalid web_fetch arguments" "${err}" >&2
+		return 1
+	fi
+	printf '%s' "${err}"
 }
 
 tool_web_fetch() {
 	# Downloads the response body for a URL, enforcing size limits and returning JSON metadata.
 	local parsed_args url max_bytes response payload body_path content_type truncated body_size headers final_url body_encoding body_snippet snippet_limit
 
-	parsed_args=$(web_fetch_parse_args)
-	if [[ -z "${parsed_args}" ]]; then
-		log "ERROR" "Invalid TOOL_ARGS for web_fetch" "${TOOL_ARGS:-}" >&2
+	if ! parsed_args=$(web_fetch_parse_args); then
 		return 1
 	fi
 

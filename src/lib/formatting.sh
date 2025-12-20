@@ -244,32 +244,17 @@ format_tool_history() {
 
 			# Pretty print observation if it's JSON object
 			if jq -e '.observation | type == "object"' <<<"${line}" >/dev/null 2>&1; then
-				# Try to make it a bit more readable if it's a known search result format
-				if [[ "${tool}" == "web_search" ]]; then
-					local search_json
-					if jq -e '.observation.output != null' <<<"${line}" >/dev/null 2>&1; then
-						search_json=$(jq -r '.observation.output' <<<"${line}")
-					else
-						search_json=$(jq -c '.observation' <<<"${line}")
-					fi
-					obs=$(jq -r '.items // [] | map("- " + .title + ": " + .snippet) | join("\n")' <<<"${search_json}" 2>/dev/null || printf '%s' "${search_json}")
-				elif [[ "${tool}" == "web_fetch" ]]; then
-					local fetch_json
-					if jq -e '.observation.output != null' <<<"${line}" >/dev/null 2>&1; then
-						fetch_json=$(jq -r '.observation.output' <<<"${line}")
-					else
-						fetch_json=$(jq -c '.observation' <<<"${line}")
-					fi
-					obs=$(jq -r '"URL: " + .url + "\nContent: " + .body_snippet' <<<"${fetch_json}" 2>/dev/null || printf '%s' "${fetch_json}")
-				elif jq -e '.observation.output != null and .observation.exit_code != null' <<<"${line}" >/dev/null 2>&1; then
-					# Enriched observation format
+				local obs_obj
+				obs_obj=$(jq -c '.observation' <<<"${line}")
+
+				# Check for enriched format first to handle failures generally
+				if jq -e '.output != null and .exit_code != null' <<<"${obs_obj}" >/dev/null 2>&1; then
 					local exit_code output error
-					exit_code=$(jq -r '.observation.exit_code' <<<"${line}")
-					output=$(jq -r '.observation.output' <<<"${line}")
-					error=$(jq -r '.observation.error' <<<"${line}")
-					if ((exit_code == 0)); then
-						obs="${output}"
-					else
+					exit_code=$(jq -r '.exit_code' <<<"${obs_obj}")
+					output=$(jq -r '.output' <<<"${obs_obj}")
+					error=$(jq -r '.error' <<<"${obs_obj}")
+
+					if ((exit_code != 0)); then
 						obs="FAILED (exit code ${exit_code})"
 						if [[ -n "${output}" ]]; then
 							obs+=$'\n'"Output: ${output}"
@@ -277,9 +262,47 @@ format_tool_history() {
 						if [[ -n "${error}" ]]; then
 							obs+=$'\n'"Error: ${error}"
 						fi
+					else
+						# Success, try tool-specific formatting on the output string
+						if [[ "${tool}" == "web_search" ]]; then
+							if jq -e '.items | type == "array"' <<<"${output}" >/dev/null 2>&1; then
+								obs=$(jq -r '.items | map("- " + .title + ": " + .snippet + " (URL: " + .url + ")") | join("\n")' <<<"${output}")
+								[[ -z "${obs}" ]] && obs="(no results)"
+							else
+								obs=$(jq -r '.observation // .' <<<"${output}")
+							fi
+						elif [[ "${tool}" == "web_fetch" ]]; then
+							if jq -e '.url != null and .body_snippet != null' <<<"${output}" >/dev/null 2>&1; then
+								obs=$(jq -r '"URL: " + .url + "\nContent: " + .body_snippet' <<<"${output}")
+							else
+								obs=$(jq -r '.observation // .' <<<"${output}")
+							fi
+						elif jq -e '.observation != null' <<<"${output}" >/dev/null 2>&1; then
+							obs=$(jq -r '.observation' <<<"${output}" 2>/dev/null || printf '%s' "${output}")
+						else
+							obs="${output}"
+						fi
 					fi
 				else
-					obs=$(jq -r '.observation | tostring' <<<"${line}")
+					# Object but not enriched format (backward compatibility or direct state)
+					if [[ "${tool}" == "web_search" ]]; then
+						if jq -e '.items | type == "array"' <<<"${obs_obj}" >/dev/null 2>&1; then
+							obs=$(jq -r '.items | map("- " + .title + ": " + .snippet + " (URL: " + .url + ")") | join("\n")' <<<"${obs_obj}")
+							[[ -z "${obs}" ]] && obs="(no results)"
+						else
+							obs=$(jq -r '.observation // .' <<<"${obs_obj}")
+						fi
+					elif [[ "${tool}" == "web_fetch" ]]; then
+						if jq -e '.url != null and .body_snippet != null' <<<"${obs_obj}" >/dev/null 2>&1; then
+							obs=$(jq -r '"URL: " + .url + "\nContent: " + .body_snippet' <<<"${obs_obj}")
+						else
+							obs=$(jq -r '.observation // .' <<<"${obs_obj}")
+						fi
+					elif jq -e '.observation != null' <<<"${obs_obj}" >/dev/null 2>&1; then
+						obs=$(jq -r '.observation' <<<"${obs_obj}" 2>/dev/null || printf '%s' "${obs_obj}")
+					else
+						obs=$(jq -c '.' <<<"${obs_obj}")
+					fi
 				fi
 			elif jq -e '.observation | type == "string"' <<<"${line}" >/dev/null 2>&1; then
 				obs=$(jq -r '.observation' <<<"${line}")

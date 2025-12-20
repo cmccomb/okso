@@ -21,7 +21,7 @@
 #   - logging helpers from logging.sh
 #
 # Exit codes:
-#   Non-zero on validation errors, curl failures, or HTTP error responses.
+#   Non-zero on validation errors or curl failures.
 
 WEB_HTTP_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 SRC_ROOT=$(cd -- "${WEB_HTTP_DIR}/../.." && pwd)
