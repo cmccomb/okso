@@ -16,6 +16,11 @@
 #
 # Exit codes:
 #   None directly; functions return status of operations.
+
+PLANNING_REACT_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# shellcheck source=./context_budget.sh disable=SC1091
+source "${PLANNING_REACT_DIR}/context_budget.sh"
 #
 
 initialize_react_state() {
@@ -512,15 +517,29 @@ select_next_action() {
 		local history
 		history="$(format_tool_history "$(state_get_history_lines "${state_name}")")"
 
-		react_prompt="$(
-			build_react_prompt \
-				"$(state_get "${state_name}" "user_query")" \
-				"${allowed_tool_descriptions}" \
-				"$(state_get "${state_name}" "plan_outline")" \
-				"${history}" \
-				"${react_schema_text}" \
-				"${plan_step_guidance}"
-		)"
+                react_prompt="$(
+                        build_react_prompt \
+                                "$(state_get "${state_name}" "user_query")" \
+                                "${allowed_tool_descriptions}" \
+                                "$(state_get "${state_name}" "plan_outline")" \
+                                "${history}" \
+                                "${react_schema_text}" \
+                                "${plan_step_guidance}"
+                )"
+                local summarized_history
+                summarized_history="$(apply_prompt_context_budget "${react_prompt}" "${history}" 256 "react_history")"
+                if [[ "${summarized_history}" != "${history}" ]]; then
+                        history="${summarized_history}"
+                        react_prompt="$(
+                                build_react_prompt \
+                                        "$(state_get "${state_name}" "user_query")" \
+                                        "${allowed_tool_descriptions}" \
+                                        "$(state_get "${state_name}" "plan_outline")" \
+                                        "${history}" \
+                                        "${react_schema_text}" \
+                                        "${plan_step_guidance}"
+                        )"
+                fi
 		validation_error_file="$(mktemp)"
 
 		raw_action="$(llama_infer "${react_prompt}" "" 256 "${react_schema_path}" "${REACT_MODEL_REPO}" "${REACT_MODEL_FILE}")"

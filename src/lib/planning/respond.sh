@@ -26,6 +26,8 @@ source "${PLANNING_RESPOND_DIR}/../cli/output.sh"
 source "${PLANNING_RESPOND_DIR}/prompts.sh"
 # shellcheck source=./schema.sh disable=SC1091
 source "${PLANNING_RESPOND_DIR}/schema.sh"
+# shellcheck source=./context_budget.sh disable=SC1091
+source "${PLANNING_RESPOND_DIR}/context_budget.sh"
 # shellcheck source=./llama_client.sh disable=SC1091
 source "${PLANNING_RESPOND_DIR}/llama_client.sh"
 
@@ -56,7 +58,10 @@ respond_text() {
 		return 0
 	fi
 
-	prompt="$(build_concise_response_prompt "${user_query}" "${context}")"
+        local context_for_prompt
+        prompt="$(build_concise_response_prompt "${user_query}" "${context}")"
+        context_for_prompt="$(apply_prompt_context_budget "${prompt}" "${context}" "${number_of_tokens}" "direct_response")"
+        prompt="$(build_concise_response_prompt "${user_query}" "${context_for_prompt}")"
 	log "INFO" "Invoking llama inference" "$(printf 'tokens=%s schema=%s' "${number_of_tokens}" "${concise_schema_path}")" >&2
 	local response_text
 	response_text="$(llama_infer "${prompt}" "" "${number_of_tokens}" "${concise_schema_path}" "${REACT_MODEL_REPO}" "${REACT_MODEL_FILE}")"

@@ -13,6 +13,7 @@ Prompt templates live alongside schema definitions so the assistant behaviour st
 - Edit templates directly to adjust tone or required fields. Keep schema changes in sync to avoid model errors.
 - Store reusable snippets (such as safety disclaimers) in dedicated files and compose them within the main prompt templates.
 - Keep prompts minimal and version-controlled; avoid inlining large instructions in code so they remain discoverable for audits.
+- Oversized context (for example, verbose `web_fetch` results) is summarized automatically before llama.cpp is invoked so prompts stay within the configured token budget.
 
 ## Related resources
 
