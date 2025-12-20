@@ -1,0 +1,460 @@
+#!/usr/bin/env bash
+# shellcheck shell=bash
+#
+# Execution loop for ReAct planning.
+#
+# Usage:
+#   source "${BASH_SOURCE[0]%/loop.sh}/loop.sh"
+#
+# Environment variables:
+#   CANONICAL_TEXT_ARG_KEY (string): key for single-string tool arguments; default: "input".
+#   MAX_STEPS (int): maximum number of ReAct turns; default: 6.
+#
+# Dependencies:
+#   - bash 3.2+
+#   - jq
+#
+# Exit codes:
+#   Functions return non-zero on invalid actions or tool execution failures.
+
+PLANNING_REACT_ROOT_DIR=${PLANNING_REACT_ROOT_DIR:-$(cd -- "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
+
+# shellcheck source=../../formatting.sh disable=SC1091
+source "${PLANNING_REACT_ROOT_DIR}/../formatting.sh"
+# shellcheck source=../prompts.sh disable=SC1091
+source "${PLANNING_REACT_ROOT_DIR}/prompts.sh"
+# shellcheck source=../prompting.sh disable=SC1091
+source "${PLANNING_REACT_ROOT_DIR}/prompting.sh"
+# shellcheck source=../llama_client.sh disable=SC1091
+source "${PLANNING_REACT_ROOT_DIR}/llama_client.sh"
+# shellcheck source=../execution.sh disable=SC1091
+source "${PLANNING_REACT_ROOT_DIR}/execution.sh"
+# shellcheck source=../../core/logging.sh disable=SC1091
+source "${PLANNING_REACT_ROOT_DIR}/../core/logging.sh"
+# shellcheck source=../../core/state.sh disable=SC1091
+source "${PLANNING_REACT_ROOT_DIR}/../core/state.sh"
+# shellcheck source=./schema.sh disable=SC1091
+source "${PLANNING_REACT_ROOT_DIR}/react/schema.sh"
+# shellcheck source=./history.sh disable=SC1091
+source "${PLANNING_REACT_ROOT_DIR}/react/history.sh"
+# shellcheck source=../context_budget.sh disable=SC1091
+source "${PLANNING_REACT_ROOT_DIR}/context_budget.sh"
+
+format_tool_args() {
+        # Formats tool arguments into a JSON object.
+        # Arguments:
+        #   $1 - tool name (string)
+        #   $2 - primary payload string (string)
+        # Returns:
+        #   A JSON string representing the tool arguments.
+        local tool payload text_key
+        tool="$1"
+        payload="$2"
+        text_key="${CANONICAL_TEXT_ARG_KEY:-input}"
+        case "${tool}" in
+        terminal)
+                read -r -a terminal_tokens <<<"${payload}"
+                if ((${#terminal_tokens[@]} == 0)); then
+                        terminal_tokens=("status")
+                fi
+                jq -nc --arg command "${terminal_tokens[0]}" --argjson args "$(printf '%s\n' "${terminal_tokens[@]:1}" | jq -Rcs 'split("\n") | map(select(length > 0))')" '{command:$command,args:$args}'
+                ;;
+        python_repl)
+                jq -nc --arg code "${payload}" '{code:$code}'
+                ;;
+        notes_search | calendar_search | mail_search)
+                jq -nc --arg key "${text_key}" --arg value "${payload}" '{($key):$value}'
+                ;;
+        web_search)
+                jq -nc --arg query "${payload}" '{query:$query}'
+                ;;
+        clipboard_copy)
+                jq -nc --arg text "${payload}" '{text:$text}'
+                ;;
+        clipboard_paste | notes_list | reminders_list | calendar_list | mail_list_inbox | mail_list_unread)
+                jq -nc '{}'
+                ;;
+        notes_create | notes_append)
+                local title body
+                title=${payload%%$'\n'*}
+                body=${payload#"${title}"}
+                body=${body#$'\n'}
+                jq -nc --arg title "${title}" --arg body "${body}" '{title:$title,body:$body}'
+                ;;
+        notes_read)
+                jq -nc --arg title "${payload}" '{title:$title}'
+                ;;
+        reminders_create)
+                local title notes time
+                title=${payload%%$'\n'*}
+                notes=${payload#"${title}"}
+                notes=${notes#$'\n'}
+                time=""
+                jq -nc --arg title "${title}" --arg time "${time}" --arg notes "${notes}" '{title:$title,time:$time,notes:$notes}'
+                ;;
+        reminders_complete)
+                jq -nc --arg title "${payload}" '{title:$title}'
+                ;;
+        calendar_create)
+                local title start_time location
+                title=${payload%%$'\n'*}
+                start_time=${payload#"${title}"}
+                start_time=${start_time#$'\n'}
+                location=${start_time#*$'\n'}
+                start_time=${start_time%%$'\n'*}
+                jq -nc --arg title "${title}" --arg start_time "${start_time}" --arg location "${location}" '{title:$title,start_time:$start_time,location:$location}'
+                ;;
+        mail_draft | mail_send)
+                jq -nc --arg envelope "${payload}" '{envelope:$envelope}'
+                ;;
+        applescript)
+                jq -nc --arg key "${text_key}" --arg value "${payload}" '{($key):$value}'
+                ;;
+        final_answer)
+                jq -nc --arg key "${text_key}" --arg value "${payload}" '{($key):$value}'
+                ;;
+        *)
+                jq -nc --arg key "${text_key}" --arg value "${payload}" '{($key):$value}'
+                ;;
+        esac
+}
+
+extract_tool_query() {
+        # Arguments:
+        #   $1 - tool name
+        #   $2 - args JSON
+        # Returns a human-readable summary derived from structured args.
+        local tool args_json text_key
+        tool="$1"
+        args_json="$2"
+        text_key="${CANONICAL_TEXT_ARG_KEY:-input}"
+        case "${tool}" in
+        terminal)
+                jq -r '(.command // "") as $cmd | ($cmd + " " + ((.args // []) | map(tostring) | join(" ")))|rtrimstr(" ")' <<<"${args_json}" 2>/dev/null || printf ''
+                ;;
+        notes_create | notes_append)
+                jq -r '[(.title // ""), (.body // "")] | map(select(length>0)) | join("\n")' <<<"${args_json}" 2>/dev/null || printf ''
+                ;;
+        reminders_create)
+                jq -r '[(.title // ""), (.time // ""), (.notes // "")] | map(select(length>0)) | join("\n")' <<<"${args_json}" 2>/dev/null || printf ''
+                ;;
+        notes_read | reminders_complete)
+                jq -r '(.title // "")' <<<"${args_json}" 2>/dev/null || printf ''
+                ;;
+        calendar_create)
+                jq -r '[(.title // ""), (.start_time // ""), (.location // "")] | map(select(length>0)) | join("\n")' <<<"${args_json}" 2>/dev/null || printf ''
+                ;;
+        python_repl)
+                jq -r '(.code // "")' <<<"${args_json}" 2>/dev/null || printf ''
+                ;;
+        notes_search | calendar_search | mail_search)
+                jq -r --arg key "${text_key}" '.[$key] // ""' <<<"${args_json}" 2>/dev/null || printf ''
+                ;;
+        web_search)
+                jq -r '.query // ""' <<<"${args_json}" 2>/dev/null || printf ''
+                ;;
+        clipboard_copy)
+                jq -r '(.text // "")' <<<"${args_json}" 2>/dev/null || printf ''
+                ;;
+        mail_draft | mail_send)
+                jq -r '(.envelope // "")' <<<"${args_json}" 2>/dev/null || printf ''
+                ;;
+        applescript)
+                jq -r --arg key "${text_key}" '.[$key] // ""' <<<"${args_json}" 2>/dev/null || printf ''
+                ;;
+        final_answer)
+                jq -r --arg key "${text_key}" '.[$key] // ""' <<<"${args_json}" 2>/dev/null || printf ''
+                ;;
+        clipboard_paste | notes_list | reminders_list | calendar_list | mail_list_inbox | mail_list_unread)
+                printf ''
+                ;;
+        *)
+                jq -r --arg key "${text_key}" '.[$key] // .query // ""' <<<"${args_json}" 2>/dev/null || printf ''
+                ;;
+        esac
+}
+
+format_action_context() {
+        # Arguments:
+        #   $1 - thought text
+        #   $2 - tool name
+        #   $3 - args JSON
+        local thought tool args_json args_pretty
+        thought="$1"
+        tool="$2"
+        args_json="$3"
+        args_pretty="$(jq -c '.' <<<"${args_json}" 2>/dev/null || printf '%s' "${args_json}")"
+        printf 'Thought: %s\nTool: %s\nArgs: %s' "${thought}" "${tool}" "${args_pretty}"
+}
+
+_select_action_from_llama() {
+        # Selects an action via llama.cpp, validates it, and writes into the provided variable name.
+        # Arguments:
+        #   $1 - state prefix
+        #   $2 - output variable name for validated JSON
+        local state_name output_name allowed_tools react_schema_path react_schema_text react_prompt raw_action validated_action validation_error_file validation_error
+        local history plan_step_guidance plan_index planned_entry tool planned_thought planned_args_json invoke_llama allowed_tool_lines allowed_tool_descriptions summarized_history
+        state_name="$1"
+        output_name="$2"
+
+        plan_index="$(state_get "${state_name}" "plan_index")"
+        plan_index=${plan_index:-0}
+        planned_entry=$(printf '%s\n' "$(state_get "${state_name}" "plan_entries")" | sed -n "$((plan_index + 1))p")
+        tool=""
+        planned_thought="Following planned step"
+        planned_args_json="{}"
+        plan_step_guidance="Planner provided no additional steps; choose the best next action."
+        if [[ -n "${planned_entry}" ]]; then
+                tool="$(printf '%s' "${planned_entry}" | jq -r '.tool // empty' 2>/dev/null || printf '')"
+                planned_thought="$(printf '%s' "${planned_entry}" | jq -r '.thought // "Following planned step"' 2>/dev/null || printf '')"
+                planned_args_json="$(printf '%s' "${planned_entry}" | jq -c '.args // {}' 2>/dev/null || printf '{}')"
+                plan_step_guidance="$(
+                        jq -rn \
+                                --arg step "$((plan_index + 1))" \
+                                --arg tool "${tool:-}" \
+                                --arg thought "${planned_thought}" \
+                                --argjson args "${planned_args_json}" \
+                                '"Step \($step) suggested by the planner:\n- tool: \($tool // "(unspecified)")\n- thought: \($thought // "")\n- args: \($args|@json)"'
+                )"
+        fi
+
+        invoke_llama=false
+        if [[ "${USE_REACT_LLAMA:-false}" == true && "${LLAMA_AVAILABLE}" == true ]]; then
+                invoke_llama=true
+        fi
+        if [[ "${tool}" == "react_fallback" && "${LLAMA_AVAILABLE}" == true ]]; then
+                invoke_llama=true
+        fi
+
+        allowed_tools="$(state_get "${state_name}" "allowed_tools")"
+        if [[ -z "${allowed_tools}" ]]; then
+                allowed_tools="$(tool_names)"
+        fi
+
+        if [[ "${tool}" == "react_fallback" ]]; then
+                allowed_tools="$(tool_names)"
+        fi
+
+        if [[ -n "${allowed_tools}" ]] && ! grep -Fxq "final_answer" <<<"${allowed_tools}"; then
+                allowed_tools+=$'\nfinal_answer'
+        fi
+
+        allowed_tools="$(printf '%s\n' "${allowed_tools}" | sed '/^react_fallback$/d' | awk '!seen[$0]++')"
+
+        if [[ -z "${plan_step_guidance}" ]]; then
+                plan_step_guidance="Planner provided no additional steps; choose the best next action."
+        fi
+
+        if [[ "${invoke_llama}" != true ]]; then
+                return 1
+        fi
+
+        allowed_tool_lines="$(format_tool_descriptions "${allowed_tools}" format_tool_example_line)"
+        allowed_tool_descriptions="Available tools:"
+        if [[ -n "${allowed_tool_lines}" ]]; then
+                allowed_tool_descriptions+=$'\n'"${allowed_tool_lines}"
+        fi
+
+        react_schema_path="$(build_react_action_schema "${allowed_tools}")" || return 1
+        react_schema_text="$(cat "${react_schema_path}")" || return 1
+        history="$(format_tool_history "$(state_get_history_lines "${state_name}")")"
+
+        react_prompt="$(
+                build_react_prompt \
+                        "$(state_get "${state_name}" "user_query")" \
+                        "${allowed_tool_descriptions}" \
+                        "$(state_get "${state_name}" "plan_outline")" \
+                        "${history}" \
+                        "${react_schema_text}" \
+                        "${plan_step_guidance}"
+        )"
+        summarized_history="$(apply_prompt_context_budget "${react_prompt}" "${history}" 256 "react_history")"
+        if [[ "${summarized_history}" != "${history}" ]]; then
+                history="${summarized_history}"
+                react_prompt="$(
+                        build_react_prompt \
+                                "$(state_get "${state_name}" "user_query")" \
+                                "${allowed_tool_descriptions}" \
+                                "$(state_get "${state_name}" "plan_outline")" \
+                                "${history}" \
+                                "${react_schema_text}" \
+                                "${plan_step_guidance}"
+                )"
+        fi
+        validation_error_file="$(mktemp)"
+
+        raw_action="$(llama_infer "${react_prompt}" "" 256 "${react_schema_text}" "${REACT_MODEL_REPO}" "${REACT_MODEL_FILE}")"
+        log_pretty "INFO" "Action received" "${raw_action}"
+
+        if ! validated_action=$(validate_react_action "${raw_action}" "${react_schema_path}" 2>"${validation_error_file}"); then
+                validation_error="$(cat "${validation_error_file}")"
+                record_history "${state_name}" "$(printf 'Invalid action from model: %s' "${validation_error}")"
+                log "WARN" "Invalid action output from llama" "${validation_error}"
+                rm -f "${validation_error_file}"
+                rm -f "${react_schema_path}"
+                return 1
+        fi
+
+        rm -f "${validation_error_file}"
+        rm -f "${react_schema_path}"
+
+        printf -v "${output_name}" '%s' "${validated_action}"
+        return 0
+}
+
+select_next_action() {
+        # Chooses the next action either from the plan or LLM.
+        # Arguments:
+        #   $1 - state prefix
+        #   $2 - (optional) name of variable to receive JSON action output
+        local state_name output_name react_fallback_action react_action_json plan_index planned_entry planned_thought planned_args_json
+        state_name="$1"
+        output_name="${2:-}"
+
+        plan_index="$(state_get "${state_name}" "plan_index")"
+        plan_index=${plan_index:-0}
+        planned_entry=$(printf '%s\n' "$(state_get "${state_name}" "plan_entries")" | sed -n "$((plan_index + 1))p")
+
+        if [[ -n "${planned_entry}" ]]; then
+                react_fallback_action=$(jq -nc --arg thought "$(printf '%s' "${planned_entry}" | jq -r '.thought // "Following planned step"' 2>/dev/null || printf '')" --arg tool "$(printf '%s' "${planned_entry}" | jq -r '.tool // empty' 2>/dev/null || printf '')" --argjson args "$(printf '%s' "${planned_entry}" | jq -c '.args // {}' 2>/dev/null || printf '{}')" '{thought:$thought,tool:$tool,args:$args}')
+        else
+                react_fallback_action=""
+        fi
+
+        if ! _select_action_from_llama "${state_name}" react_action_json; then
+                if [[ -z "${react_fallback_action}" ]]; then
+                        return 1
+                fi
+                react_action_json="${react_fallback_action}"
+        else
+                state_set "${state_name}" "plan_index" "$((plan_index + 1))"
+        fi
+
+        if [[ -n "${output_name}" ]]; then
+                printf -v "${output_name}" '%s' "${react_action_json}"
+        else
+                printf '%s' "${react_action_json}"
+        fi
+}
+
+validate_tool_permission() {
+        # Confirms that the provided tool is permitted for the current run.
+        # Arguments:
+        #   $1 - state prefix
+        #   $2 - tool name to validate
+        local state_name tool
+        state_name="$1"
+        tool="$2"
+        if grep -Fxq "${tool}" <<<"$(state_get "${state_name}" "allowed_tools")"; then
+                return 0
+        fi
+
+        record_history "${state_name}" "$(printf 'Tool %s not permitted.' "${tool}")"
+        return 1
+}
+
+execute_tool_action() {
+        # Executes the selected tool.
+        # Arguments:
+        #   $1 - tool name
+        #   $2 - tool query
+        #   $3 - human-readable context (optional)
+        #   $4 - structured args JSON (optional)
+        local tool query context args_json
+        tool="$1"
+        query="$2"
+        context="$3"
+        args_json="$4"
+        execute_tool_with_query "${tool}" "${query}" "${context}" "${args_json}" || true
+}
+
+is_duplicate_action() {
+        # Determines whether the supplied action matches the previous non-final answer action.
+        # Arguments:
+        #   $1 - last action JSON
+        #   $2 - candidate tool name
+        #   $3 - candidate args JSON
+        local last_action tool args_json last_tool last_args
+        last_action="$1"
+        tool="$2"
+        args_json="$3"
+
+        if [[ "${last_action}" == "null" ]]; then
+                return 1
+        fi
+
+        last_tool="$(printf '%s' "${last_action}" | jq -r '.tool // empty')"
+        last_args="$(printf '%s' "${last_action}" | jq -c '.args // {}')"
+        if [[ "${tool}" == "${last_tool}" && "${args_json}" == "${last_args}" && "${tool}" != "final_answer" ]]; then
+                return 0
+        fi
+
+        return 1
+}
+
+react_loop() {
+        local user_query allowed_tools plan_entries plan_outline action_json tool query observation current_step thought args_json action_context
+        local state_prefix last_action
+        user_query="$1"
+        allowed_tools="$2"
+        plan_entries="$3"
+        plan_outline="$4"
+
+        state_prefix="react_state"
+        initialize_react_state "${state_prefix}" "${user_query}" "${allowed_tools}" "${plan_entries}" "${plan_outline}"
+        action_json=""
+
+        while (($(state_get "${state_prefix}" "step") < $(state_get "${state_prefix}" "max_steps"))); do
+                current_step=$(($(state_get "${state_prefix}" "step") + 1))
+                action_json=""
+
+                if ! select_next_action "${state_prefix}" action_json; then
+                        log "WARN" "Skipping step due to invalid action selection" "step=${current_step}"
+                        state_set "${state_prefix}" "step" "${current_step}"
+                        continue
+                fi
+                tool="$(printf '%s' "${action_json}" | jq -r '.tool // empty' 2>/dev/null || true)"
+                thought="$(printf '%s' "${action_json}" | jq -r '.thought // empty' 2>/dev/null || true)"
+                args_json="$(printf '%s' "${action_json}" | jq -c '.args // {}' 2>/dev/null || printf '{}')"
+
+                last_action="$(state_get "${state_prefix}" "last_action")"
+                if is_duplicate_action "${last_action}" "${tool}" "${args_json}"; then
+                        log "WARN" "Duplicate action detected" "${tool}"
+                        observation="Duplicate action detected. Please try a different approach or call final_answer if you are stuck."
+                        record_tool_execution "${state_prefix}" "${tool}" "${thought} (REPEATED)" "${args_json}" "${observation}" "${current_step}"
+                        state_set "${state_prefix}" "step" "${current_step}"
+                        continue
+                fi
+                state_set_json_document "${state_prefix}" "$(state_get_json_document "${state_prefix}" | jq -c --argjson action "${action_json}" '.last_action = $action')"
+
+                query="$(extract_tool_query "${tool}" "${args_json}")"
+                action_context="$(format_action_context "${thought}" "${tool}" "${args_json}")"
+
+                if ! validate_tool_permission "${state_prefix}" "${tool}"; then
+                        state_set "${state_prefix}" "step" "${current_step}"
+                        continue
+                fi
+
+                observation="$(execute_tool_action "${tool}" "${query}" "${action_context}" "${args_json}")"
+                record_tool_execution "${state_prefix}" "${tool}" "${thought}" "${args_json}" "${observation}" "${current_step}"
+
+                local exit_code
+                exit_code=$(printf '%s' "${observation}" | jq -r '.exit_code // 0' 2>/dev/null || echo 0)
+                if ((exit_code != 0)); then
+                        local plan_entries_text
+                        plan_entries_text="$(state_get "${state_prefix}" "plan_entries")"
+                        if [[ -n "${plan_entries_text}" && "${LLAMA_AVAILABLE}" == true ]]; then
+                                log "INFO" "Tool failed during planned execution; falling back to LLM" "${tool}"
+                                state_set "${state_prefix}" "plan_entries" ""
+                        fi
+                fi
+
+                state_set "${state_prefix}" "step" "${current_step}"
+                if [[ "${tool}" == "final_answer" ]]; then
+                        state_set "${state_prefix}" "final_answer" "${observation}"
+                        break
+                fi
+        done
+
+        finalize_react_result "${state_prefix}"
+}
