@@ -604,10 +604,10 @@ select_next_action() {
 		fi
 		validation_error_file="$(mktemp)"
 
-		raw_action="$(llama_infer "${react_prompt}" "" 256 "${react_schema_path}" "${REACT_MODEL_REPO}" "${REACT_MODEL_FILE}")"
+		raw_action="$(llama_infer "${react_prompt}" "" 256 "${react_schema_text}" "${REACT_MODEL_REPO}" "${REACT_MODEL_FILE}")"
 		if ! validated_action=$(validate_react_action "${raw_action}" "${react_schema_path}" 2>"${validation_error_file}"); then
 			corrective_prompt="${react_prompt}"$'\n'"The previous response was invalid: $(cat "${validation_error_file}"). Respond with a valid JSON action that follows the schema."
-			raw_action="$(llama_infer "${corrective_prompt}" "" 256 "${react_schema_path}" "${REACT_MODEL_REPO}" "${REACT_MODEL_FILE}")"
+			raw_action="$(llama_infer "${corrective_prompt}" "" 256 "${react_schema_text}" "${REACT_MODEL_REPO}" "${REACT_MODEL_FILE}")"
 
 			if ! validated_action=$(validate_react_action "${raw_action}" "${react_schema_path}" 2>"${validation_error_file}"); then
 				log "ERROR" "Invalid action output from llama" "$(cat "${validation_error_file}")"

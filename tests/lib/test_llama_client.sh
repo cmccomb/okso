@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# shellcheck shell=bash
 # shellcheck disable=SC2154,SC2016
 #
 # Tests for llama.cpp client helpers.
@@ -50,7 +51,7 @@ SCRIPT
                 export REACT_MODEL_REPO=demo/repo
                 export REACT_MODEL_FILE=model.gguf
                 source ./src/lib/planning/llama_client.sh
-                llama_infer "example prompt" "STOP" 12 "${json_schema}"
+                llama_infer "example prompt" "STOP" 12 "$(cat "${json_schema}")"
                 args=()
                 while IFS= read -r line; do
                         args+=("$line")
@@ -63,30 +64,35 @@ SCRIPT
 	[ "$status" -eq 0 ]
 }
 
-@test "llama_infer uses grammar file flag for non-JSON schemas" {
+@test "llama_infer accepts multiline schema strings" {
 	run env BASH_ENV= ENV= bash --noprofile --norc -c '
+                set -euo pipefail
                 cd "$(git rev-parse --show-toplevel)" || exit 1
-                args_dir="$(mktemp -d)"
-                args_file="${args_dir}/args.txt"
-                mock_binary="${args_dir}/mock_llama.sh"
-                cat >"${mock_binary}" <<SCRIPT
+                script_dir="$(mktemp -d)"
+                runner="${script_dir}/runner.sh"
+                cat >"${runner}" <<"SCRIPT"
+#!/usr/bin/env bash
+set -euo pipefail
+args_dir="$(mktemp -d)"
+args_file="${args_dir}/args.txt"
+mock_binary="${args_dir}/mock_llama.sh"
+cat >"${mock_binary}" <<INNER
 #!/usr/bin/env bash
 printf "%s\n" "\$@" >"${args_file}"
+INNER
+chmod +x "${mock_binary}"
+export LLAMA_AVAILABLE=true
+export LLAMA_BIN="${mock_binary}"
+export REACT_MODEL_REPO=demo/repo
+export REACT_MODEL_FILE=model.gguf
+source ./src/lib/planning/llama_client.sh
+                schema_doc="{\"type\":\"object\",\"properties\":{\"key\":{\"type\":\"string\"}}}"
+                llama_infer "prompt" "" 8 "${schema_doc}"
+                schema_args=$(tr -d '[[:space:]]' <"${args_file}")
+                grep -Fq -- "\"properties\":{\"key\":{\"type\":\"string\"}}" <<<"${schema_args}"
 SCRIPT
-                chmod +x "${mock_binary}"
-                export LLAMA_AVAILABLE=true
-                export LLAMA_BIN="${mock_binary}"
-                export REACT_MODEL_REPO=demo/repo
-                export REACT_MODEL_FILE=model.gguf
-                source ./src/lib/planning/llama_client.sh
-                llama_infer "prompt" "" 8 "${args_dir}/schema.gbnf"
-                args=()
-                while IFS= read -r line; do
-                        args+=("$line")
-                done <"${args_file}"
-                [[ "${args[*]}" == *"--grammar-file"* ]]
-                [[ "${args[*]}" == *"${args_dir}/schema.gbnf"* ]]
-                [[ " ${args[*]} " != *" -r "* ]]
+                chmod +x "${runner}"
+                "${runner}"
         '
 	[ "$status" -eq 0 ]
 }
@@ -144,35 +150,6 @@ SCRIPT
 	detail=$(printf '%s\n' "${output}" | jq -r '.detail')
 	[[ "${detail}" == *"timeout_seconds=1"* ]]
 	[[ "${detail}" == *"elapsed_ms="* ]]
-}
-
-@test "llama_infer fails when JSON schema cannot be read" {
-	local missing_schema
-	missing_schema="${BATS_TMPDIR}/missing-schema.json"
-
-	run env BASH_ENV= ENV= MISSING_SCHEMA="${missing_schema}" bash --noprofile --norc -c '
-                cd "$(git rev-parse --show-toplevel)" || exit 1
-                args_dir="$(mktemp -d)"
-                missing_schema="${MISSING_SCHEMA}"
-                mock_binary="${args_dir}/mock_llama.sh"
-                cat >"${mock_binary}" <<SCRIPT
-#!/usr/bin/env bash
-printf "%s\n" "should not run" >&2
-exit 99
-SCRIPT
-                chmod +x "${mock_binary}"
-                export LLAMA_AVAILABLE=true
-                export LLAMA_BIN="${mock_binary}"
-                export REACT_MODEL_REPO=demo/repo
-                export REACT_MODEL_FILE=model.gguf
-                source ./src/lib/planning/llama_client.sh
-                llama_infer "prompt" "" 8 "${missing_schema}"
-        '
-	[ "$status" -eq 1 ]
-	message=$(printf '%s\n' "${output}" | jq -r '.message')
-	[[ "${message}" == "failed to read JSON schema" ]]
-	detail=$(printf '%s\n' "${output}" | jq -r '.detail')
-	[[ "${detail}" == *"${missing_schema}"* ]]
 }
 
 @test "llama_infer keeps default context when estimate fits" {
