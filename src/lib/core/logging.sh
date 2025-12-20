@@ -10,7 +10,7 @@
 #   VERBOSITY (int): 0=quiet, 1=info (default), 2=debug.
 #
 # Dependencies:
-#   - bash 5+
+#   - bash 3.2+
 #   - date (coreutils)
 #   - jq
 #
@@ -23,8 +23,9 @@ CORE_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${CORE_LIB_DIR}/errors.sh"
 
 log_emit() {
+	# Internal helper for emitting structured log entries.
 	# Arguments:
-	#   $1 - level (string)
+	#   $1 - level (string: DEBUG|INFO|WARN|ERROR)
 	#   $2 - message (string)
 	#   $3 - detail (string, optional)
 	#   $4 - format style (string: compact|pretty)
@@ -91,16 +92,18 @@ log_emit() {
 }
 
 log() {
+	# Emits a compact JSON log entry to stderr.
 	# Arguments:
-	#   $1 - level (string)
+	#   $1 - level (string: DEBUG|INFO|WARN|ERROR)
 	#   $2 - message (string)
 	#   $3 - detail (string, optional)
 	log_emit "$1" "$2" "${3:-""}" "compact"
 }
 
 log_pretty() {
+	# Emits a pretty-printed JSON log entry to stderr.
 	# Arguments:
-	#   $1 - level (string)
+	#   $1 - level (string: DEBUG|INFO|WARN|ERROR)
 	#   $2 - message (string)
 	#   $3 - detail (string, optional)
 	log_emit "$1" "$2" "${3:-""}" "pretty"

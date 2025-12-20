@@ -7,7 +7,7 @@
 #
 # Dependencies:
 #   - bats
-#   - bash 5+
+#   - bash 3.2+
 
 @test "generate_plan_outline works when mapfile builtin is unavailable" {
 	run bash -lc '

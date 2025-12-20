@@ -15,7 +15,7 @@
 #   VERBOSITY (int): log verbosity.
 #
 # Dependencies:
-#   - bash 5+
+#   - bash 3.2+
 #   - jq
 #
 # Exit codes:
@@ -65,14 +65,16 @@ llama_with_timeout() {
 }
 
 llama_infer() {
-	# Runs llama.cpp with HF caching enabled for the configured model.
+	# Runs llama.cpp with Hugging Face repository caching for inference.
 	# Arguments:
-	#   $1 - prompt string
-	#   $2 - stop string (optional)
-	#   $3 - max tokens (optional)
-	#   $4 - schema file path (optional)
-	#   $5 - model repo override (optional)
-	#   $6 - model file override (optional)
+	#   $1 - prompt string (string)
+	#   $2 - stop string (string, optional)
+	#   $3 - max tokens to generate (int, default: 256)
+	#   $4 - schema file path for constrained decoding (string, optional)
+	#   $5 - model repository override (string, optional)
+	#   $6 - model file override (string, optional)
+	# Returns:
+	#   The generated text (string).
 	local prompt stop_string number_of_tokens schema_file_path schema_content repo_override file_override
 	prompt="$1"
 	stop_string="${2:-}"

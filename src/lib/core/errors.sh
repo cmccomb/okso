@@ -11,7 +11,7 @@
 #   TOOL_NAME (string): optional tool identifier used when ERROR_CONTEXT is unset.
 #
 # Dependencies:
-#   - bash 5+
+#   - bash 3.2+
 #   - jq
 #
 # Exit codes:

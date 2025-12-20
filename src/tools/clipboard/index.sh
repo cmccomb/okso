@@ -11,7 +11,7 @@
 #   IS_MACOS (bool): indicates whether macOS-specific tooling should run.
 #
 # Dependencies:
-#   - bash 5+
+#   - bash 3.2+
 #   - pbcopy/pbpaste (macOS only)
 #   - logging helpers from logging.sh
 #   - register_tool from tools/registry.sh

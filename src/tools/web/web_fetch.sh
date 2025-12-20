@@ -10,7 +10,7 @@
 #   TOOL_ARGS (JSON object): structured args with required `url` and optional `max_bytes`.
 #
 # Dependencies:
-#   - bash 5+
+#   - bash 3.2+
 #   - curl
 #   - jq
 #   - logging helpers from logging.sh
@@ -86,7 +86,9 @@ tool_web_fetch() {
 	snippet_limit=4096
 	body_encoding="text"
 	if [[ -n "${content_type}" ]]; then
-		case "${content_type,,}" in
+		local content_type_lower
+		content_type_lower=$(printf '%s' "${content_type}" | tr '[:upper:]' '[:lower:]')
+		case "${content_type_lower}" in
 		text/* | *json* | *xml*) ;;
 		*)
 			body_encoding="base64"

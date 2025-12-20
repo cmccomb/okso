@@ -40,7 +40,7 @@
 #   ${settings_prefix}_json.user_query (string): provided user query.
 #
 # Dependencies:
-#   - bash 3+
+#   - bash 3.2+
 #   - jq
 #   - config.sh, cli.sh, planner.sh, respond.sh
 #

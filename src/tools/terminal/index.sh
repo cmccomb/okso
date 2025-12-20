@@ -14,7 +14,7 @@
 #   TERMINAL_WORKDIR (string, optional): starting working directory for the session.
 #
 # Dependencies:
-#   - bash 5+
+#   - bash 3.2+
 #   - coreutils (ls, pwd, cat, head, tail, stat, wc, du, base64, cp, mv, rm, mkdir, rmdir, touch)
 #   - logging helpers from logging.sh
 #   - register_tool from tools/registry.sh

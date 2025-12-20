@@ -12,7 +12,7 @@
 #   GOOGLE_SEARCH_CX (string): Custom search engine identifier.
 #
 # Dependencies:
-#   - bash 5+
+#   - bash 3.2+
 #   - curl
 #   - jq
 #   - logging helpers from logging.sh

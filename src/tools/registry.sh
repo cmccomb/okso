@@ -10,7 +10,7 @@
 #   None
 #
 # Dependencies:
-#   - bash 3+
+#   - bash 3.2+
 #   - jq
 #   - logging helpers from logging.sh
 #

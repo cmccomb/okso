@@ -7,7 +7,7 @@
 #
 # Dependencies:
 #   - bats
-#   - bash 5+
+#   - bash 3.2+
 
 @test "finalize_react_result emits boxed summary" {
 	run bash -lc '

@@ -10,7 +10,7 @@
 #   TOOL_ARGS (JSON object): structured args including `input` with Python statements.
 #
 # Dependencies:
-#   - bash 5+
+#   - bash 3.2+
 #   - python 3+
 #   - mktemp
 #   - logging helpers from logging.sh

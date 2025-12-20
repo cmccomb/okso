@@ -13,7 +13,7 @@
 #   VERBOSITY (int): logging verbosity; see logging.sh.
 #
 # Dependencies:
-#   - bash 5+
+#   - bash 3.2+
 #   - osascript (optional; required on macOS)
 #   - logging helpers from logging.sh
 #   - osascript helpers from osascript_helpers.sh

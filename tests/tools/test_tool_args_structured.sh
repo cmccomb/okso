@@ -93,12 +93,12 @@ tool_two=$(jq -r '.tool' <<<"${second_action}")
 args_two=$(jq -c '.args' <<<"${second_action}")
 observation_two=$(execute_tool_action "${tool_two}" "legacy" "ctx" "${args_two}")
 
-if [[ "${observation_one}" != "beep" ]]; then
+if [[ "$(jq -r '.output' <<<"${observation_one}")" != "beep" ]]; then
         echo "unexpected first observation: ${observation_one}"
         exit 1
 fi
 
-if [[ "${observation_two}" != "done" ]]; then
+if [[ "$(jq -r '.output' <<<"${observation_two}")" != "done" ]]; then
         echo "unexpected second observation: ${observation_two}"
         exit 1
 fi

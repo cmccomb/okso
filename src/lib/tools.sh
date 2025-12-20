@@ -11,7 +11,7 @@
 #   IS_MACOS (bool): platform flag used by macOS-only tools.
 #
 # Dependencies:
-#   - bash 5+
+#   - bash 3.2+
 #   - coreutils (ls, pwd)
 #   - fd, rg (optional for search tool)
 #   - logging helpers from logging.sh

@@ -7,7 +7,7 @@
 #
 # Dependencies:
 #   - bats
-#   - bash 5+
+#   - bash 3.2+
 #
 # Exit codes:
 #   Inherits Bats semantics; individual tests assert helper behaviour.

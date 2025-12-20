@@ -7,7 +7,7 @@
 #
 # Dependencies:
 #   - bats
-#   - bash 5+
+#   - bash 3.2+
 
 @test "validate_react_action accepts actions without type" {
 	script=$(

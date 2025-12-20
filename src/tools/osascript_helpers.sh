@@ -12,7 +12,7 @@
 #   OSASCRIPT_ALLOWED_FLAGS (array): optional allowlist for flags forwarded to osascript.
 #
 # Dependencies:
-#   - bash 5+
+#   - bash 3.2+
 #   - osascript (optional; required when IS_MACOS=true)
 #   - logging helpers from logging.sh
 #

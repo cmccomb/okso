@@ -11,7 +11,7 @@
 #   None.
 #
 # Dependencies:
-#   - bash 5+
+#   - bash 3.2+
 #
 # Exit codes:
 #   Functions return 0 on success.
@@ -19,6 +19,8 @@
 # Emits a message to stdout without an automatic trailing newline.
 # Arguments:
 #   $1 - message (string)
+# Returns:
+#   None.
 user_output() {
 	local message
 	message="$1"
@@ -28,6 +30,8 @@ user_output() {
 # Emits a message followed by a newline to stdout.
 # Arguments:
 #   $1 - message (string)
+# Returns:
+#   None.
 user_output_line() {
 	local message
 	message="$1"

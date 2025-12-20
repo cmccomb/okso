@@ -10,7 +10,7 @@
 #   None.
 #
 # Dependencies:
-#   - bash 5+
+#   - bash 3.2+
 #   - jq
 #
 # Exit codes:
@@ -22,18 +22,26 @@ CORE_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${CORE_LIB_DIR}/json_state.sh"
 
 state_namespace_json_var() {
+	# Proxies to json_state_namespace_var.
 	# Arguments:
 	#   $1 - state prefix (string)
+	# Returns:
+	#   The variable name (string).
 	json_state_namespace_var "$@"
 }
 
 state_get_json_document() {
+	# Proxies to json_state_get_document.
 	# Arguments:
 	#   $1 - state prefix (string)
+	#   $2 - fallback JSON document (string, optional)
+	# Returns:
+	#   The JSON document (string).
 	json_state_get_document "$@"
 }
 
 state_set_json_document() {
+	# Proxies to json_state_set_document.
 	# Arguments:
 	#   $1 - state prefix (string)
 	#   $2 - JSON document (string)
@@ -41,6 +49,7 @@ state_set_json_document() {
 }
 
 state_set() {
+	# Proxies to json_state_set_key.
 	# Arguments:
 	#   $1 - state prefix (string)
 	#   $2 - key (string)
@@ -49,21 +58,26 @@ state_set() {
 }
 
 state_get() {
+	# Proxies to json_state_get_key.
 	# Arguments:
 	#   $1 - state prefix (string)
 	#   $2 - key (string)
+	# Returns:
+	#   The value for the key (string).
 	json_state_get_key "$@"
 }
 
 state_increment() {
+	# Proxies to json_state_increment_key.
 	# Arguments:
 	#   $1 - state prefix (string)
 	#   $2 - key (string)
-	#   $3 - increment amount (int, optional; defaults to 1)
+	#   $3 - increment amount (int, optional)
 	json_state_increment_key "$@"
 }
 
 state_append_history() {
+	# Proxies to json_state_append_history.
 	# Arguments:
 	#   $1 - state prefix (string)
 	#   $2 - entry to append (string)

@@ -13,7 +13,7 @@
 #   MAIL_OSASCRIPT_BIN (string): override path for osascript; defaults to "osascript".
 #
 # Dependencies:
-#   - bash 5+
+#   - bash 3.2+
 #   - osascript (optional on macOS)
 #   - logging helpers from logging.sh
 #   - mail helpers from mail/common.sh

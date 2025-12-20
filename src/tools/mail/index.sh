@@ -12,7 +12,7 @@
 #   MAIL_INBOX_LIMIT (int): maximum results to return when listing inbox entries.
 #
 # Dependencies:
-#   - bash 5+
+#   - bash 3.2+
 #   - logging helpers from logging.sh
 #   - register_tool utilities from tools/registry.sh
 #

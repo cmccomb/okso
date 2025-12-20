@@ -10,7 +10,7 @@
 #   None.
 #
 # Dependencies:
-#   - bash 5+
+#   - bash 3.2+
 #
 # Exit codes:
 #   Functions return non-zero when an unknown schema name is requested.
@@ -28,6 +28,8 @@ schema_root_dir() {
 # Resolves a schema name to its file path.
 # Arguments:
 #   $1 - schema key (string)
+# Returns:
+#   Absolute path to the schema file (string).
 schema_path() {
 	local schema_name schema_file
 	schema_name="$1"

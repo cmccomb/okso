@@ -10,7 +10,7 @@
 #   None.
 #
 # Dependencies:
-#   - bash 5+
+#   - bash 3.2+
 #   - jq
 #
 # Exit codes:

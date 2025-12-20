@@ -24,7 +24,7 @@
 #   LLAMA_BIN       llama.cpp binary (default: llama-cli).
 #
 # Dependencies:
-#   - bash 3.2+ (matches the macOS system baseline)
+#   - bash 3.2+
 #   - Optional: llama.cpp binary available on PATH for real scoring.
 #   - Optional: fd, rg for faster search tooling.
 #

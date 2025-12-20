@@ -19,7 +19,7 @@
 #       JSON payload. Must reside in an allowlisted directory.
 #
 # Dependencies:
-#   - bash 5+
+#   - bash 3.2+
 #   - jq
 #   - logging helpers from logging.sh
 #   - register_tool from tools/registry.sh

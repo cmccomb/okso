@@ -12,7 +12,7 @@
 #   IS_MACOS (bool): indicates whether macOS-specific tooling should run.
 #
 # Dependencies:
-#   - bash 5+
+#   - bash 3.2+
 #   - osascript (optional on macOS)
 #   - logging helpers from logging.sh
 #   - notes helpers from notes/common.sh

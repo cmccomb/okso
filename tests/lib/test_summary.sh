@@ -7,7 +7,7 @@
 #
 # Dependencies:
 #   - bats
-#   - bash 5+
+#   - bash 3.2+
 
 @test "render_boxed_summary builds boxed output with nested tool history" {
 	lines=()

@@ -13,7 +13,7 @@
 #   DRY_RUN (bool): when true, logs intent without executing AppleScript.
 #
 # Dependencies:
-#   - bash 5+
+#   - bash 3.2+
 #   - osascript (optional on macOS)
 #   - logging helpers from logging.sh
 #   - calendar helpers from calendar/common.sh

@@ -15,7 +15,7 @@
 #   WEB_HTTP_RETRY_DELAY (integer): delay between retries in seconds (default: 1).
 #
 # Dependencies:
-#   - bash 5+
+#   - bash 3.2+
 #   - curl
 #   - jq
 #   - logging helpers from logging.sh

@@ -11,7 +11,7 @@
 #   VERBOSITY (int): log verbosity level.
 #
 # Dependencies:
-#   - bash 5+
+#   - bash 3.2+
 #
 # Exit codes:
 #   Functions print responses and return 0 on success.
@@ -30,6 +30,7 @@ source "${PLANNING_RESPOND_DIR}/schema.sh"
 source "${PLANNING_RESPOND_DIR}/llama_client.sh"
 
 respond_text() {
+	# Generates a concise response using the LLM for a given user query.
 	# Arguments:
 	#   $1 - user query (string)
 	#   $2 - number of tokens to generate (int)

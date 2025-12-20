@@ -10,7 +10,7 @@
 #   None.
 #
 # Dependencies:
-#   - bash 5+
+#   - bash 3.2+
 #   - jq
 #
 # Exit codes:
@@ -22,14 +22,20 @@ CORE_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${CORE_LIB_DIR}/logging.sh"
 
 json_state_namespace_var() {
+	# Generates the shell variable name for a given namespace.
 	# Arguments:
 	#   $1 - namespace prefix (string)
+	# Returns:
+	#   The variable name (string).
 	printf '%s_json' "$1"
 }
 
 json_state_cache_path() {
+	# Returns the absolute path to the persistent JSON cache file for a namespace.
 	# Arguments:
 	#   $1 - namespace prefix (string)
+	# Returns:
+	#   The file path (string).
 	local prefix cache_dir
 	prefix="$1"
 	cache_dir="${TMPDIR:-/tmp}/okso_json_state"

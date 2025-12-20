@@ -7,7 +7,7 @@
 #   source "${BASH_SOURCE[0]%/tools/web/index.sh}/tools/web/index.sh"
 #
 # Dependencies:
-#   - bash 5+
+#   - bash 3.2+
 #   - logging helpers from logging.sh
 #   - register_tool utilities from tools/registry.sh
 

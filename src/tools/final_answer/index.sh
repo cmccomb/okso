@@ -10,7 +10,7 @@
 #   TOOL_ARGS (JSON object): structured args including `input`.
 #
 # Dependencies:
-#   - bash 5+
+#   - bash 3.2+
 #   - logging helpers from logging.sh
 #   - register_tool from tools/registry.sh
 #

@@ -22,7 +22,7 @@
 #   5: Filesystem permission error :(
 #
 # Dependencies:
-#   - bash 5+
+#   - bash 3.2+
 #   - git
 #   - curl
 #   - Homebrew (https://brew.sh)

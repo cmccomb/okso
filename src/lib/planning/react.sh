@@ -6,14 +6,26 @@
 # Usage:
 #   source "${BASH_SOURCE[0]%/react.sh}/react.sh"
 #
+# Environment variables:
+#   MAX_STEPS (int): maximum number of ReAct turns; default: 6.
+#   CANONICAL_TEXT_ARG_KEY (string): key for single-string tool arguments; default: "input".
+#
+# Dependencies:
+#   - bash 3.2+
+#   - jq
+#
+# Exit codes:
+#   None directly; functions return status of operations.
+#
 
 initialize_react_state() {
+	# Initializes the ReAct state document with user query, tools, and plan.
 	# Arguments:
-	#   $1 - state prefix to populate
-	#   $2 - user query
-	#   $3 - allowed tools (newline delimited)
-	#   $4 - ranked plan entries
-	#   $5 - plan outline text
+	#   $1 - state prefix to populate (string)
+	#   $2 - user query (string)
+	#   $3 - allowed tools (string, newline delimited)
+	#   $4 - ranked plan entries (string)
+	#   $5 - plan outline text (string)
 	local state_prefix
 	state_prefix="$1"
 
@@ -38,19 +50,21 @@ initialize_react_state() {
 }
 
 record_history() {
+	# Appends a formatted history entry to the ReAct state.
 	# Arguments:
-	#   $1 - state prefix
-	#   $2 - formatted history entry
+	#   $1 - state prefix (string)
+	#   $2 - formatted history entry (string)
 	local entry
 	entry="$2"
 	state_append_history "$1" "${entry}"
 }
 
 state_get_history_lines() {
+	# Retrieves history as a newline-delimited string.
 	# Arguments:
-	#   $1 - state prefix
-	# Returns the history as a newline-delimited string regardless of whether the
-	# underlying storage is an array or pre-formatted text.
+	#   $1 - state prefix (string)
+	# Returns:
+	#   Newline-delimited string of history entries.
 	local state_prefix history_raw
 	state_prefix="$1"
 	history_raw="$(state_get "${state_prefix}" "history")"
@@ -64,10 +78,12 @@ state_get_history_lines() {
 }
 
 format_tool_args() {
+	# Formats tool arguments into a JSON object.
 	# Arguments:
-	#   $1 - tool name
-	#   $2 - primary payload string
-	# Returns JSON describing structured args for the tool.
+	#   $1 - tool name (string)
+	#   $2 - primary payload string (string)
+	# Returns:
+	#   A JSON string representing the tool arguments.
 	local tool payload text_key
 	tool="$1"
 	payload="$2"
