@@ -193,14 +193,14 @@ generate_plan_json() {
 		return 0
 	fi
 
-        local prompt raw_plan planner_schema_text plan_json
+	local prompt raw_plan planner_schema_text plan_json
 	local tool_lines
 	if ((${#planner_tools[@]} > 0)); then
 		tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_summary_line)"
 	else
 		tool_lines=""
 	fi
-        planner_schema_text="$(load_schema_text planner_plan)"
+	planner_schema_text="$(load_schema_text planner_plan)"
 
 	prompt="$(build_planner_prompt "${user_query}" "${tool_lines}")"
 	log "DEBUG" "Generated planner prompt" "${prompt}" >&2
