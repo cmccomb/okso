@@ -68,7 +68,7 @@ SCRIPT
 }
 
 @test "web_search returns results with url field" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 mock_bin="$(mktemp -d)"
 cat >"${mock_bin}/curl" <<'MOCK'
@@ -123,12 +123,12 @@ TOOL_ARGS='{"query":"demo"}'
 tool_web_search
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        echo "$output" | jq -e '.items[0].url == "https://example.com"'
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.items[0].url == "https://example.com"'
 }
 
 @test "web_search uses default num when not provided" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 mock_bin="$(mktemp -d)"
 capture_file="$(mktemp)"
@@ -196,12 +196,12 @@ tool_web_search
 printf 'CAPTURE:%s' "$(cat "${capture_file}")"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [[ "$output" =~ CAPTURE:5 ]]
+	[ "$status" -eq 0 ]
+	[[ "$output" =~ CAPTURE:5 ]]
 }
 
 @test "web_search forwards provided num to API" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 mock_bin="$(mktemp -d)"
 capture_file="$(mktemp)"
@@ -272,6 +272,6 @@ tool_web_search
 printf 'CAPTURE:%s' "$(tr '\n' ',' <"${capture_file}")"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [[ "$output" =~ CAPTURE:3,10,? ]]
+	[ "$status" -eq 0 ]
+	[[ "$output" =~ CAPTURE:3,10,? ]]
 }
