@@ -102,14 +102,19 @@ terminal_args_from_json() {
 		return 1
 	fi
 
-	if [[ -z "${TERMINAL_CMD}" ]]; then
-		TERMINAL_CMD="status"
-	fi
+        if [[ -z "${TERMINAL_CMD}" ]]; then
+                TERMINAL_CMD="status"
+        fi
 
-	TERMINAL_CMD_ARGS=()
-	while IFS= read -r line; do
-		TERMINAL_CMD_ARGS+=("$line")
-	done < <(jq -r '(.args // []) | map(tostring) | .[]' <<<"${args_json}" 2>/dev/null || true)
+        if ! terminal_allowed "${TERMINAL_CMD}"; then
+                log "ERROR" "terminal command not permitted" "${TERMINAL_CMD}" || true
+                return 1
+        fi
+
+        TERMINAL_CMD_ARGS=()
+        while IFS= read -r line; do
+                TERMINAL_CMD_ARGS+=("$line")
+        done < <(jq -r '(.args // []) | map(tostring) | .[]' <<<"${args_json}" 2>/dev/null || true)
 	return 0
 }
 
@@ -345,11 +350,11 @@ tool_terminal() {
 register_terminal() {
 	local args_schema
 
-	args_schema=$(
-		cat <<'JSON'
-{"type":"object","required":["command"],"properties":{"command":{"type":"string","minLength":1},"args":{"type":"array","items":{"type":"string"}}},"additionalProperties":false}
+        args_schema=$(
+                cat <<'JSON'
+{"type":"object","required":["command"],"properties":{"command":{"type":"string","enum":["status","pwd","ls","cd","cat","head","tail","find","grep","open","mkdir","rmdir","mv","cp","touch","rm","stat","wc","du","base64"]},"args":{"type":"array","items":{"type":"string"}}},"additionalProperties":false}
 JSON
-	)
+        )
 	register_tool \
 		"terminal" \
 		"Persistent terminal session for navigation, inspection, and safe mutations (pwd, ls, du, cd, cat, head, tail, find, grep, stat, wc, base64 encode/decode, mkdir, rmdir, mv, cp, touch, rm -i default; open on macOS)." \

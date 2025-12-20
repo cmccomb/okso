@@ -26,10 +26,10 @@
 	[[ "${lines[$last_index]}" == *"/tests" ]]
 }
 
-@test "unknown command falls back to status" {
-	run bash -lc 'source ./src/tools/terminal/index.sh; VERBOSITY=0; TOOL_ARGS="{\"command\":\"launch\",\"args\":[\"rockets\"]}"; tool_terminal'
-	[ "$status" -eq 0 ]
-	[[ "${output}" == *"Allowed commands:"* ]]
+@test "rejects commands outside allowed enum" {
+        run bash -lc 'source ./src/tools/terminal/index.sh; VERBOSITY=0; TOOL_ARGS="{\"command\":\"launch\",\"args\":[\"rockets\"]}"; tool_terminal'
+        [ "$status" -eq 1 ]
+        [[ "${output}" == *"terminal command not permitted"* ]]
 }
 
 @test "mkdir and rmdir operate within working directory" {
