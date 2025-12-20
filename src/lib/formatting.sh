@@ -246,7 +246,21 @@ format_tool_history() {
 			if jq -e '.observation | type == "object"' <<<"${line}" >/dev/null 2>&1; then
 				# Try to make it a bit more readable if it's a known search result format
 				if [[ "${tool}" == "web_search" ]]; then
-					obs=$(jq -r '.observation.items // [] | map("- " + .title + ": " + .snippet) | join("\n")' <<<"${line}" 2>/dev/null || jq -r '.observation | tostring' <<<"${line}")
+					local search_json
+					if jq -e '.observation.output != null' <<<"${line}" >/dev/null 2>&1; then
+						search_json=$(jq -r '.observation.output' <<<"${line}")
+					else
+						search_json=$(jq -c '.observation' <<<"${line}")
+					fi
+					obs=$(jq -r '.items // [] | map("- " + .title + ": " + .snippet) | join("\n")' <<<"${search_json}" 2>/dev/null || printf '%s' "${search_json}")
+				elif [[ "${tool}" == "web_fetch" ]]; then
+					local fetch_json
+					if jq -e '.observation.output != null' <<<"${line}" >/dev/null 2>&1; then
+						fetch_json=$(jq -r '.observation.output' <<<"${line}")
+					else
+						fetch_json=$(jq -c '.observation' <<<"${line}")
+					fi
+					obs=$(jq -r '"URL: " + .url + "\nContent: " + .body_snippet' <<<"${fetch_json}" 2>/dev/null || printf '%s' "${fetch_json}")
 				elif jq -e '.observation.output != null and .observation.exit_code != null' <<<"${line}" >/dev/null 2>&1; then
 					# Enriched observation format
 					local exit_code output error
