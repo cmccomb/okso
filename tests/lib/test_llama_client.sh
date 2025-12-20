@@ -33,7 +33,7 @@ setup() {
 }
 
 @test "llama_infer forwards JSON schema content and stop arguments" {
-        run env BASH_ENV= ENV= bash --noprofile --norc -c '
+	run env BASH_ENV= ENV= bash --noprofile --norc -c '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 args_dir="$(mktemp -d)"
                 args_file="${args_dir}/args.txt"
@@ -60,11 +60,11 @@ SCRIPT
                 [[ "${args[*]}" == *"-r"* ]]
                 [[ "${args[*]}" == *"STOP"* ]]
         '
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "llama_infer accepts multiline schema strings" {
-        run env BASH_ENV= ENV= bash --noprofile --norc -c '
+	run env BASH_ENV= ENV= bash --noprofile --norc -c '
                 set -euo pipefail
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 script_dir="$(mktemp -d)"
@@ -93,7 +93,7 @@ SCRIPT
                 chmod +x "${runner}"
                 "${runner}"
         '
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "llama_infer returns llama exit code and logs stderr" {

@@ -84,18 +84,18 @@ llama_infer() {
 	#   $1 - prompt string (string)
 	#   $2 - stop string (string, optional)
 	#   $3 - max tokens to generate (int, default: 256)
-        #   $4 - JSON schema document for constrained decoding (string, optional)
+	#   $4 - JSON schema document for constrained decoding (string, optional)
 	#   $5 - model repository override (string, optional)
 	#   $6 - model file override (string, optional)
 	# Returns:
 	#   The generated text (string).
-        local prompt stop_string number_of_tokens schema_json repo_override file_override
-        prompt="$1"
-        stop_string="${2:-}"
-        number_of_tokens="${3:-256}"
-        schema_json="${4:-}"
-        repo_override="${5:-${REACT_MODEL_REPO}}"
-        file_override="${6:-${REACT_MODEL_FILE}}"
+	local prompt stop_string number_of_tokens schema_json repo_override file_override
+	prompt="$1"
+	stop_string="${2:-}"
+	number_of_tokens="${3:-256}"
+	schema_json="${4:-}"
+	repo_override="${5:-${REACT_MODEL_REPO}}"
+	file_override="${6:-${REACT_MODEL_FILE}}"
 
 	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
 		log "WARN" "llama unavailable; skipping inference" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}"
@@ -105,9 +105,9 @@ llama_infer() {
 	local additional_args
 	additional_args=()
 
-        if [[ -n "${schema_json}" ]]; then
-                additional_args+=(--json-schema "${schema_json}")
-        fi
+	if [[ -n "${schema_json}" ]]; then
+		additional_args+=(--json-schema "${schema_json}")
+	fi
 
 	local llama_args llama_arg_string stderr_file exit_code llama_stderr start_time_ns end_time_ns elapsed_ms llama_output
 	local default_context_size context_cap margin_percent prompt_tokens total_tokens computed_context target_context

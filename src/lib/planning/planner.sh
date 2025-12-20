@@ -193,19 +193,19 @@ generate_plan_json() {
 		return 0
 	fi
 
-        local prompt raw_plan planner_schema_path planner_schema_text plan_json
+	local prompt raw_plan planner_schema_path planner_schema_text plan_json
 	local tool_lines
 	if ((${#planner_tools[@]} > 0)); then
 		tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_summary_line)"
 	else
 		tool_lines=""
 	fi
-        planner_schema_path="$(schema_path planner_plan)"
-        planner_schema_text="$(load_schema_text planner_plan)"
+	planner_schema_path="$(schema_path planner_plan)"
+	planner_schema_text="$(load_schema_text planner_plan)"
 
 	prompt="$(build_planner_prompt "${user_query}" "${tool_lines}")"
 	log "DEBUG" "Generated planner prompt" "${prompt}" >&2
-        raw_plan="$(llama_infer "${prompt}" '' 512 "${planner_schema_text}" "${PLANNER_MODEL_REPO}" "${PLANNER_MODEL_FILE}")" || raw_plan="[]"
+	raw_plan="$(llama_infer "${prompt}" '' 512 "${planner_schema_text}" "${PLANNER_MODEL_REPO}" "${PLANNER_MODEL_FILE}")" || raw_plan="[]"
 	if ! plan_json="$(append_final_answer_step "${raw_plan}")"; then
 		log "ERROR" "Planner output failed validation; request regeneration" "${raw_plan}" >&2
 		return 1
