@@ -19,19 +19,15 @@ SCRIPT
 	[ "${lines[2]}" = "list" ]
 }
 
-@test "normalize_planner_plan builds react fallback from outlines" {
-	run bash <<'SCRIPT'
+@test "normalize_planner_plan rejects unstructured outline text" {
+        run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/planner.sh
 normalize_planner_plan <<<"1) first step\n- second step"
 SCRIPT
 
-	[ "$status" -eq 0 ]
-	tools=$(printf '%s' "${output}" | jq -r '.[].tool')
-	thoughts=$(printf '%s' "${output}" | jq -r '.[].thought')
-	[[ "${tools}" == *"react_fallback"* ]]
-	[[ "${thoughts}" == *"first step"* ]]
-	[[ "${thoughts}" == *"second step"* ]]
+        [ "$status" -ne 0 ]
+        [[ "${output}" == *"unable to parse planner output"* ]]
 }
 
 @test "append_final_answer_step adds missing summary step without duplication" {
@@ -52,15 +48,15 @@ SCRIPT
 	[ "${second_thought}" = "done" ]
 }
 
-@test "derive_allowed_tools_from_plan respects react fallback and final answer" {
-	run bash <<'SCRIPT'
+@test "derive_allowed_tools_from_plan gathers unique tools and ensures summary" {
+        run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/planner.sh
 tool_names() { printf "%s\n" terminal notes_create final_answer; }
-plan_json='[{"tool":"react_fallback","args":{},"thought":"choose"},{"tool":"notes_create","args":{},"thought":"capture"}]'
+plan_json='[{"tool":"terminal","args":{},"thought":"choose"},{"tool":"notes_create","args":{},"thought":"capture"}]'
 tools=()
 while IFS= read -r line; do
-	tools+=("$line")
+        tools+=("$line")
 done < <(derive_allowed_tools_from_plan "${plan_json}")
 printf "%s\n" "${tools[@]}"
 SCRIPT

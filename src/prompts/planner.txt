@@ -5,8 +5,8 @@ Given a user request and a list of available tools, draft an ordered list of hig
 
 # General Rules
 Format the output as a JSON array of objects with the following shape: {tool, args, thought}.
-Each step must set the tool field. Include args when you know the concrete structured arguments for that tool.
-If you cannot provide concrete arguments, emit a {tool: "react_fallback", args: {}, thought: "why"} entry so the ReAct agent can decide interactively.
+Every step must choose a concrete tool from the allowed set and include structured args for that tool.
+If you are unsure, request a new plan rather than deferring to the ReAct agent.
 Do NOT include fully executable shell commands; keep the guidance conceptual.
 
 # Tool Selection Rules

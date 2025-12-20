@@ -67,7 +67,7 @@ lowercase() {
 # Normalize noisy planner output into a clean PlannerPlan JSON array of objects.
 # Reads from stdin, writes clean JSON array to stdout.
 normalize_planner_plan() {
-	local raw plan_candidate normalized fallback_json
+        local raw plan_candidate normalized
 
 	raw="$(cat)"
 
@@ -104,32 +104,20 @@ PYTHON
 
 	) || plan_candidate=""
 
-	if [[ -n "${plan_candidate:-}" ]]; then
-		normalized=$(jq -ec '
+        if [[ -n "${plan_candidate:-}" ]]; then
+                normalized=$(jq -ec '
                         map(select(type=="object"))
                         | map({tool: (.tool // ""), args: (.args // {}), thought: (.thought // "")})
                         | map(select((.tool | type) == "string" and (.tool | length) > 0))
                         ' <<<"${plan_candidate}" 2>/dev/null || true)
-		if [[ -n "${normalized}" && "${normalized}" != "[]" ]]; then
-			printf '%s' "${normalized}"
-			return 0
-		fi
-	fi
+                if [[ -n "${normalized}" && "${normalized}" != "[]" ]]; then
+                        printf '%s' "${normalized}"
+                        return 0
+                fi
+        fi
 
-	fallback_json=$(printf '%s' "$raw" |
-		sed -E 's/^[[:space:]]*[0-9]+[.)][[:space:]]*//' |
-		sed -E 's/^[[:space:]-]+//' |
-		sed '/^[[:space:]]*$/d' |
-		jq -Rsc 'split("\n") | map(select(length > 0)) | map({tool:"react_fallback",thought:.,args:{}})') || fallback_json=""
-
-	if [[ -n "${fallback_json}" && "${fallback_json}" != "[]" ]]; then
-		log "INFO" "normalize_planner_plan: derived plan from fallback outline" "${fallback_json}" >&2
-		printf '%s' "$fallback_json"
-		return 0
-	fi
-
-	log "ERROR" "normalize_planner_plan: unable to parse planner output" "${raw}" >&2
-	return 1
+        log "ERROR" "normalize_planner_plan: unable to parse planner output" "${raw}" >&2
+        return 1
 }
 
 append_final_answer_step() {
@@ -141,10 +129,10 @@ append_final_answer_step() {
 
 	plan_clean="$(printf '%s' "$plan_json" | normalize_planner_plan)" || return 1
 
-	has_final="$(jq -r 'map((.tool // "") | ascii_downcase == "final_answer") | any' <<<"${plan_clean}" 2>/dev/null || echo false)"
-	if [[ "${has_final}" == "true" ]]; then
-		printf '%s' "${plan_clean}"
-		return 0
+        has_final="$(jq -r 'map((.tool // "") | ascii_downcase == "final_answer") | any' <<<"${plan_clean}" 2>/dev/null || echo false)"
+        if [[ "${has_final}" == "true" ]]; then
+                printf '%s' "${plan_clean}"
+                return 0
 	fi
 
 	updated_plan="$(jq -c '. + [{tool:"final_answer",thought:"Summarize the result for the user.",args:{}}]' <<<"${plan_clean}" 2>/dev/null || printf '%s' "${plan_json}")"
@@ -206,9 +194,12 @@ generate_plan_json() {
 
 	prompt="$(build_planner_prompt "${user_query}" "${tool_lines}")"
 	log "DEBUG" "Generated planner prompt" "${prompt}" >&2
-	raw_plan="$(llama_infer "${prompt}" '' 512 "${planner_schema_path}" "${PLANNER_MODEL_REPO}" "${PLANNER_MODEL_FILE}")" || raw_plan="[]"
-	plan_json="$(append_final_answer_step "${raw_plan}")" || plan_json="${raw_plan}"
-	printf '%s' "${plan_json}"
+        raw_plan="$(llama_infer "${prompt}" '' 512 "${planner_schema_path}" "${PLANNER_MODEL_REPO}" "${PLANNER_MODEL_FILE}")" || raw_plan="[]"
+        if ! plan_json="$(append_final_answer_step "${raw_plan}")"; then
+                log "ERROR" "Planner output failed validation; request regeneration" "${raw_plan}" >&2
+                return 1
+        fi
+        printf '%s' "${plan_json}"
 }
 
 generate_plan_outline() {
@@ -286,20 +277,10 @@ emit_plan_json() {
 }
 
 derive_allowed_tools_from_plan() {
-	# Arguments:
-	#   $1 - plan JSON array (string)
-	local plan_json tool seen allow_all
-	plan_json="${1:-[]}"
-	allow_all=false
-
-	if jq -e 'map((.tool // "") == "react_fallback") | any' <<<"${plan_json}" >/dev/null 2>&1; then
-		allow_all=true
-	fi
-
-	if [[ "${allow_all}" == true ]]; then
-		tool_names
-		return 0
-	fi
+        # Arguments:
+        #   $1 - plan JSON array (string)
+        local plan_json tool seen
+        plan_json="${1:-[]}"
 
 	seen=""
 	local -a required=()

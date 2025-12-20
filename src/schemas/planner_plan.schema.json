@@ -4,7 +4,7 @@
   "type": "array",
   "items": {
     "type": "object",
-    "required": ["tool"],
+    "required": ["tool", "args"],
     "additionalProperties": false,
     "properties": {
       "thought": {
@@ -15,12 +15,13 @@
       "tool": {
         "type": "string",
         "minLength": 1,
-        "description": "Name of the tool to invoke for this step. Use react_fallback to defer tool choice to ReAct."
+        "description": "Name of the tool to invoke for this step."
       },
       "args": {
         "type": "object",
-        "description": "Structured arguments for the tool. Leave empty for react_fallback entries when arguments are unknown.",
-        "default": {}
+        "description": "Structured arguments for the tool. Provide the exact fields that the tool expects; use an empty object only when the tool accepts no arguments.",
+        "default": {},
+        "additionalProperties": true
       }
     }
   },
@@ -29,24 +30,26 @@
   "examples": [
     [
       {
-        "thought": "Explore tools interactively when the right arguments are unclear.",
-        "tool": "react_fallback",
-        "args": {}
+        "thought": "Record the requested notes.",
+        "tool": "notes_create",
+        "args": {
+          "title": "Research notes",
+          "body": "The next delivery step for the research are..."
+        }
       },
       {
-        "thought": "Report findings for the user.",
+        "thought": "Share the notes back to the user.",
         "tool": "final_answer",
         "args": {}
       }
     ],
     [
       {
-        "thought": "Record the requested notes.",
-        "tool": "notes_create",
+        "thought": "Inspect the current directory tree.",
+        "tool": "terminal",
         "args": {
-          "thought": "Record the requested notes.",
-          "title": "Research notes",
-          "body": "The next delivery step for the research are..."
+          "command": "ls",
+          "args": ["-la"]
         }
       },
       {
