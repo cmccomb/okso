@@ -6,7 +6,7 @@ use the canonical `input` property so prompts and schemas can reference `args.in
 
 - `terminal`: persistent working directory with `pwd`, `ls`, `cd`, `find`, `grep`, `stat`, `wc`, `du`, `base64 encode|decode`, and guarded mutations (`rm -i`, `mkdir`, `mv`, `cp`, `touch`). Uses `open` on macOS.
 - `python_repl`: run Python snippets in an ephemeral sandbox using quiet `python -i` startup guards that confine writes.
-- `web_search`: query the Google Custom Search API with a structured payload (`query` and optional `num`) and return JSON results.
+- `web_search`: query the Google Custom Search API with a structured payload (`query` and optional `num`, default `5`, maximum `10`) and return JSON results.
 - `web_fetch`: retrieve HTTP response bodies with a configurable size cap, returning JSON metadata (final URL, HTTP status, content type, headers, byte length, truncation flag, body encoding, and body snippet).
 - `*_search`: Notes, Calendar, and Mail searches reuse the same `input` field for the search term.
 - `clipboard_copy` / `clipboard_paste`: macOS clipboard helpers.

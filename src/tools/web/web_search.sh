@@ -48,7 +48,7 @@ web_search_parse_args() {
                         .num = 5
                 end
                 | if ((del(.query, .num) | length) != 0) then error("unexpected properties") end
-                | {query: .query, num: (.num // 5)}
+                | {query: .query, num: (.num // 1)}
         ' <<<"${args_json}" 2>&1); then
 		log "ERROR" "Invalid web_search arguments" "${err}" >&2
 		return 1
