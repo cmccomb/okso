@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# shellcheck shell=bash
 # shellcheck disable=SC2154,SC2016
 #
 # Tests for llama.cpp client helpers.
@@ -20,7 +21,7 @@ setup() {
 }
 
 @test "llama_infer short-circuits when unavailable" {
-	run env BASH_ENV= ENV= bash --noprofile --norc -c '
+        run env BASH_ENV= ENV= bash --noprofile --norc -c '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 export LLAMA_AVAILABLE=false
                 export LLAMA_BIN=/nonexistent
@@ -64,7 +65,7 @@ SCRIPT
 }
 
 @test "llama_infer accepts multiline schema strings" {
-	run env BASH_ENV= ENV= bash --noprofile --norc -c '
+        run env BASH_ENV= ENV= bash --noprofile --norc -c '
                 set -euo pipefail
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 script_dir="$(mktemp -d)"
@@ -77,7 +78,7 @@ args_file="${args_dir}/args.txt"
 mock_binary="${args_dir}/mock_llama.sh"
 cat >"${mock_binary}" <<INNER
 #!/usr/bin/env bash
-printf "%s\n" "$@" >"${args_file}"
+printf "%s\n" "\$@" >"${args_file}"
 INNER
 chmod +x "${mock_binary}"
 export LLAMA_AVAILABLE=true
@@ -85,15 +86,15 @@ export LLAMA_BIN="${mock_binary}"
 export REACT_MODEL_REPO=demo/repo
 export REACT_MODEL_FILE=model.gguf
 source ./src/lib/planning/llama_client.sh
-schema_doc=$'{"type":"object",\n"properties":{"key":{"type":"string"}}}'
-llama_infer "prompt" "" 8 "${schema_doc}"
-schema_args=$(tr '\n' ' ' <"${args_file}" | tr -d ' ')
-[[ "${schema_args}" == *'"properties":{"key":{"type":"string"}}'* ]]
+                schema_doc="{\"type\":\"object\",\"properties\":{\"key\":{\"type\":\"string\"}}}"
+                llama_infer "prompt" "" 8 "${schema_doc}"
+                schema_args=$(tr -d '[[:space:]]' <"${args_file}")
+                grep -Fq -- "\"properties\":{\"key\":{\"type\":\"string\"}}" <<<"${schema_args}"
 SCRIPT
                 chmod +x "${runner}"
                 "${runner}"
         '
-	[ "$status" -eq 0 ]
+        [ "$status" -eq 0 ]
 }
 
 @test "llama_infer returns llama exit code and logs stderr" {
