@@ -38,7 +38,7 @@ SCRIPT
 }
 
 @test "web tools register through the aggregator" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 source ./src/lib/tools.sh
@@ -53,13 +53,13 @@ for name in "${names[@]}"; do
 done
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [[ " ${lines[*]} " == *" web_search "* ]]
-        [[ " ${lines[*]} " == *" web_fetch "* ]]
+	[ "$status" -eq 0 ]
+	[[ " ${lines[*]} " == *" web_search "* ]]
+	[[ " ${lines[*]} " == *" web_fetch "* ]]
 }
 
 @test "web_fetch converts html bodies to markdown previews" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 body_file="$(mktemp)"
 cp tests/fixtures/web_fetch_sample.html "${body_file}"
@@ -74,11 +74,11 @@ jq -e '(.body_markdown | length) > 0' <<<"${output}" >/dev/null
 jq -e '(.body_snippet | contains("Example Title"))' <<<"${output}" >/dev/null
 SCRIPT
 
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "web_fetch truncates lengthy markdown previews" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 body_file="$(mktemp)"
 cp tests/fixtures/web_fetch_long.txt "${body_file}"
@@ -99,11 +99,11 @@ PY
 [[ "${snippet}" == *"…" ]]
 SCRIPT
 
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "web_fetch falls back when markdown conversion fails" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 body_file="$(mktemp)"
 printf '%s' "not json" >"${body_file}"
@@ -116,5 +116,5 @@ jq -e '.body_markdown == null' <<<"${output}" >/dev/null
 jq -e '.body_snippet == "not json"' <<<"${output}" >/dev/null
 SCRIPT
 
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
