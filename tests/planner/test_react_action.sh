@@ -62,6 +62,44 @@ INNERSCRIPT
 	[ "$status" -eq 0 ]
 }
 
+@test "build_react_action_schema encodes tool args in oneOf with const tool" {
+	script=$(
+		cat <<'INNERSCRIPT'
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+source ./src/lib/planning/planner.sh
+
+tool_registry_json() {
+        cat <<'JSON'
+{"names":["alpha","beta"],"registry":{"alpha":{"args_schema":{"type":"object","required":["input"],"properties":{"input":{"type":"string"}},"additionalProperties":false}},"beta":{"args_schema":{"type":"object","required":["command"],"properties":{"command":{"type":"string"}},"additionalProperties":false}}}}
+JSON
+}
+
+tool_names() {
+        printf "%s\n" "alpha" "beta"
+}
+
+schema_path="$(build_react_action_schema $'alpha\nbeta')"
+
+jq -e '
+        (.required | sort) == ["args", "thought", "tool"] and
+        (.properties.tool.enum | sort) == ["alpha", "beta"] and
+        (.oneOf | length) == 2 and
+        (all(.oneOf[]; (.required | sort) == ["args", "tool"])) and
+        (any(.oneOf[]; .properties.tool.const == "alpha" and .properties.args["$ref"] == "#/$defs/args_by_tool/alpha")) and
+        (any(.oneOf[]; .properties.tool.const == "beta" and .properties.args["$ref"] == "#/$defs/args_by_tool/beta")) and
+        (.additionalProperties == false)
+' "${schema_path}"
+
+rm -f "${schema_path}"
+INNERSCRIPT
+	)
+
+	run bash -lc "${script}"
+	[ "$status" -eq 0 ]
+}
+
 @test "validate_react_action rejects extraneous arguments" {
 	script=$(
 		cat <<'INNERSCRIPT'

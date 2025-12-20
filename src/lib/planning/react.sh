@@ -300,12 +300,15 @@ schema_doc = {
         "args": {"type": "object"},
     },
     "$defs": {"args_by_tool": args_by_tool},
-    "allOf": [
+    "oneOf": [
         {
-            "if": {"properties": {"tool": {"const": name}}, "required": ["tool"]},
-            "then": {"properties": {"args": tool_schema}},
+            "properties": {
+                "tool": {"const": name},
+                "args": {"$ref": f"#/$defs/args_by_tool/{name}"},
+            },
+            "required": ["tool", "args"],
         }
-        for name, tool_schema in args_by_tool.items()
+        for name in tool_enum
     ],
 }
 
