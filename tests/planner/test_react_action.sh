@@ -9,9 +9,36 @@
 #   - bats
 #   - bash 3.2+
 
+@test "react_action schema defines terminal and final_answer branches" {
+        script=$(
+                cat <<'INNERSCRIPT'
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+schema_path="./src/schemas/react_action.schema.json"
+
+jq -e '
+        (.additionalProperties == false)
+        and (.required | sort == ["args","thought","tool"])
+        and (.properties.tool.enum == ["terminal","final_answer"])
+        and (."$defs".terminal_args.additionalProperties == false)
+        and (."$defs".final_answer_args.additionalProperties == false)
+        and (.oneOf | length == 2)
+        and (.oneOf[0].properties.tool.const == "terminal")
+        and (.oneOf[1].properties.tool.const == "final_answer")
+        and (.oneOf[0].required | sort == ["args","tool"])
+        and (.oneOf[1].required | sort == ["args","tool"])
+' "${schema_path}"
+INNERSCRIPT
+        )
+
+        run bash -lc "${script}"
+        [ "$status" -eq 0 ]
+}
+
 @test "validate_react_action accepts actions without type" {
-	script=$(
-		cat <<'INNERSCRIPT'
+        script=$(
+                cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 

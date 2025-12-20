@@ -1,13 +1,75 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "ReactActionBase",
-  "description": "Base ReAct action shape; runtime schemas are generated from the tool registry and allowed tool list.",
+  "title": "ReactAction",
+  "description": "Compiled ReAct action schema limiting tool calls to terminal and final_answer with branch-specific args definitions.",
   "type": "object",
-  "required": ["thought", "tool", "args"],
   "additionalProperties": false,
+  "required": ["thought", "tool", "args"],
   "properties": {
-    "thought": { "type": "string", "minLength": 50 },
-    "tool": { "type": "string", "minLength": 1 },
+    "thought": { "type": "string", "minLength": 1 },
+    "tool": { "type": "string", "enum": ["terminal", "final_answer"] },
     "args": { "type": "object" }
-  }
+  },
+  "$defs": {
+    "terminal_args": {
+      "type": "object",
+      "required": ["command"],
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "type": "string",
+          "enum": [
+            "status",
+            "pwd",
+            "ls",
+            "cd",
+            "cat",
+            "head",
+            "tail",
+            "find",
+            "grep",
+            "open",
+            "mkdir",
+            "rmdir",
+            "mv",
+            "cp",
+            "touch",
+            "rm",
+            "stat",
+            "wc",
+            "du",
+            "base64"
+          ]
+        },
+        "args": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "final_answer_args": {
+      "type": "object",
+      "required": ["input"],
+      "additionalProperties": false,
+      "properties": {
+        "input": { "type": "string", "minLength": 1 }
+      }
+    }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "tool": { "const": "terminal" },
+        "args": { "$ref": "#/$defs/terminal_args" }
+      },
+      "required": ["tool", "args"]
+    },
+    {
+      "properties": {
+        "tool": { "const": "final_answer" },
+        "args": { "$ref": "#/$defs/final_answer_args" }
+      },
+      "required": ["tool", "args"]
+    }
+  ]
 }

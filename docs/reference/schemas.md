@@ -5,7 +5,7 @@ Structured outputs keep planner interactions predictable. Schema files live in `
 ## Available schemas
 
 - `planner_plan.schema.json`: numbered outline that proposes tools and ends with `final_answer`.
-- `react_action.schema.json`: single tool call per ReAct turn with thought, tool name, and arguments.
+- `react_action.schema.json`: compiled ReAct shape with `terminal` and `final_answer` oneOf branches, const tool names, and args objects that reject extra properties.
 - `concise_response.schema.json`: short direct answers when no tools should run.
 
 Free-form text arguments always appear under `args.input` in planner and ReAct payloads, keeping prompt templates and registry-driven
