@@ -51,12 +51,11 @@ source "${PLANNING_LIB_DIR}/../formatting.sh"
 source "${PLANNING_LIB_DIR}/../config.sh"
 
 initialize_planner_models() {
-	if [[ -z "${PLANNER_MODEL_REPO:-}" || -z "${PLANNER_MODEL_FILE:-}" || -z "${REACT_MODEL_REPO:-}" || -z "${REACT_MODEL_FILE:-}" ]]; then
-		hydrate_model_specs
-	fi
+        if [[ -z "${PLANNER_MODEL_REPO:-}" || -z "${PLANNER_MODEL_FILE:-}" || -z "${REACT_MODEL_REPO:-}" || -z "${REACT_MODEL_FILE:-}" ]]; then
+                hydrate_model_specs
+        fi
 }
-
-initialize_planner_models
+export -f initialize_planner_models
 
 lowercase() {
 	# Arguments:

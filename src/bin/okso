@@ -113,6 +113,7 @@ main() {
 	fi
 
 	prepare_environment_with_settings "${settings_prefix}"
+	initialize_planner_models
 	# Planner flow:
 	# 1. Generate an outline, 2. identify tools, 3. build concrete plan entries
 	# for execution, then 4. render plan outputs before proceeding.
