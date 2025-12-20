@@ -63,6 +63,17 @@ SCRIPT
 set -euo pipefail
 body_file="$(mktemp)"
 cp tests/fixtures/web_fetch_sample.html "${body_file}"
+mock_bin="$(mktemp -d)"
+cat >"${mock_bin}/lynx" <<'MOCK'
+#!/usr/bin/env bash
+if [[ "$1" == "-dump" && "$2" == "-stdin" ]]; then
+        sed -E 's/<[^>]+>//g'
+        exit 0
+fi
+exit 1
+MOCK
+chmod +x "${mock_bin}/lynx"
+export PATH="${mock_bin}:$PATH"
 mock_response=$(jq -nc --arg body_path "${body_file}" --arg final_url "https://example.com/final" --arg content_type "text/html" --arg headers "X-Test: 1" '{status:200, final_url:$final_url, content_type:$content_type, headers:$headers, bytes:200, truncated:false, body_path:$body_path}')
 source ./src/tools/web/web_fetch.sh
 web_http_request() { printf '%s' "${mock_response}"; }
@@ -88,13 +99,7 @@ web_http_request() { printf '%s' "${mock_response}"; }
 TOOL_ARGS='{"url":"https://example.com"}'
 output=$(tool_web_fetch)
 snippet=$(jq -r '.body_snippet' <<<"${output}")
-length=$(python - "$output" <<'PY'
-import json
-import sys
-snippet = json.loads(sys.argv[1])["body_snippet"]
-print(len(snippet))
-PY
-)
+length=${#snippet}
 [[ "${length}" -eq 1024 ]]
 [[ "${snippet}" == *"…" ]]
 SCRIPT
