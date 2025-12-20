@@ -134,6 +134,26 @@ SCRIPT
 	[ "${lines[2]}" = "final_answer" ]
 }
 
+@test "derive_allowed_tools_from_plan expands react_fallback to available tools" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+source ./src/lib/planning/planner.sh
+tool_names() { printf "%s\n" terminal notes_create calendar_list; }
+plan_json='[{"tool":"react_fallback"},{"tool":"final_answer"}]'
+tools=()
+while IFS= read -r line; do
+        tools+=("$line")
+done < <(derive_allowed_tools_from_plan "${plan_json}")
+printf "%s\n" "${tools[@]}"
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "terminal" ]
+	[ "${lines[1]}" = "notes_create" ]
+	[ "${lines[2]}" = "calendar_list" ]
+	[ "${lines[3]}" = "final_answer" ]
+}
+
 @test "select_next_action uses deterministic plan when llama disabled" {
 	run bash <<'SCRIPT'
 set -euo pipefail

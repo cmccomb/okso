@@ -121,19 +121,22 @@ build_react_prompt() {
 	#   $3 - high-level plan outline (string)
 	#   $4 - prior interaction history (string)
 	#   $5 - JSON schema describing allowed ReAct actions (string)
+	#   $6 - current plan step guidance (string)
 	# Returns:
 	#   The full prompt text (string).
-	local user_query allowed_tools plan_outline history react_schema
+	local user_query allowed_tools plan_outline history react_schema plan_step
 	user_query="$1"
 	allowed_tools="$2"
 	plan_outline="$3"
 	history="$4"
 	react_schema="$5"
+	plan_step="$6"
 
 	render_prompt_template "react" \
 		user_query "${user_query}" \
 		allowed_tools "${allowed_tools}" \
 		plan_outline "${plan_outline}" \
 		history "${history}" \
-		react_schema "${react_schema}"
+		react_schema "${react_schema}" \
+		plan_step "${plan_step}"
 }

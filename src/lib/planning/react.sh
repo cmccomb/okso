@@ -443,7 +443,7 @@ select_next_action() {
 	# Arguments:
 	#   $1 - state prefix
 	#   $2 - (optional) name of variable to receive JSON action output
-	local state_name output_name react_prompt plan_index planned_entry tool query next_action_payload allowed_tool_descriptions allowed_tool_lines args_json allowed_tools react_schema_path react_schema_text invoke_llama thought
+	local state_name output_name react_prompt plan_index planned_entry tool query next_action_payload allowed_tool_descriptions allowed_tool_lines args_json allowed_tools react_schema_path react_schema_text invoke_llama thought plan_step_guidance planned_thought planned_args_json
 	state_name="$1"
 	output_name="${2:-}"
 
@@ -451,8 +451,25 @@ select_next_action() {
 	plan_index=${plan_index:-0}
 	planned_entry=$(printf '%s\n' "$(state_get "${state_name}" "plan_entries")" | sed -n "$((plan_index + 1))p")
 	tool=""
+	planned_thought="Following planned step"
+	planned_args_json="{}"
 	if [[ -n "${planned_entry}" ]]; then
 		tool="$(printf '%s' "${planned_entry}" | jq -r '.tool // empty' 2>/dev/null || printf '')"
+		planned_thought="$(printf '%s' "${planned_entry}" | jq -r '.thought // "Following planned step"' 2>/dev/null || printf '')"
+		planned_args_json="$(printf '%s' "${planned_entry}" | jq -c '.args // {}' 2>/dev/null || printf '{}')"
+
+		plan_step_guidance="$(
+			jq -rn \
+				--arg step "$((plan_index + 1))" \
+				--arg tool "${tool:-}" \
+				--arg thought "${planned_thought}" \
+				--argjson args "${planned_args_json}" \
+				'"Step \($step) suggested by the planner:\n- tool: \($tool // "(unspecified)")\n- thought: \($thought // "")\n- args: \($args|@json)"'
+		)"
+
+		state_increment "${state_name}" "plan_index" 1 >/dev/null
+	else
+		plan_step_guidance="Planner provided no additional steps; choose the best next action."
 	fi
 
 	invoke_llama=false
@@ -461,11 +478,28 @@ select_next_action() {
 	fi
 	if [[ "${tool}" == "react_fallback" && "${LLAMA_AVAILABLE}" == true ]]; then
 		invoke_llama=true
-		state_increment "${state_name}" "plan_index" 1 >/dev/null
+	fi
+
+	allowed_tools="$(state_get "${state_name}" "allowed_tools")"
+	if [[ -z "${allowed_tools}" ]]; then
+		allowed_tools="$(tool_names)"
+	fi
+
+	if [[ "${tool}" == "react_fallback" ]]; then
+		allowed_tools="$(tool_names)"
+	fi
+
+	if [[ -n "${allowed_tools}" ]] && ! grep -Fxq "final_answer" <<<"${allowed_tools}"; then
+		allowed_tools+=$'\nfinal_answer'
+	fi
+
+	allowed_tools="$(printf '%s\n' "${allowed_tools}" | sed '/^react_fallback$/d' | awk '!seen[$0]++')"
+
+	if [[ -z "${plan_step_guidance}" ]]; then
+		plan_step_guidance="Planner provided no additional steps; choose the best next action."
 	fi
 
 	if [[ "${invoke_llama}" == true ]]; then
-		allowed_tools="$(state_get "${state_name}" "allowed_tools")"
 		allowed_tool_lines="$(format_tool_descriptions "${allowed_tools}" format_tool_example_line)"
 		allowed_tool_descriptions="Available tools:"
 		if [[ -n "${allowed_tool_lines}" ]]; then
@@ -484,7 +518,8 @@ select_next_action() {
 				"${allowed_tool_descriptions}" \
 				"$(state_get "${state_name}" "plan_outline")" \
 				"${history}" \
-				"${react_schema_text}"
+				"${react_schema_text}" \
+				"${plan_step_guidance}"
 		)"
 		validation_error_file="$(mktemp)"
 
@@ -512,11 +547,10 @@ select_next_action() {
 		return
 	fi
 
-	if [[ -n "${planned_entry}" ]]; then
-		state_increment "${state_name}" "plan_index" 1 >/dev/null
+	if [[ -n "${planned_entry}" && "${tool}" != "react_fallback" ]]; then
 		tool="$(printf '%s' "${planned_entry}" | jq -r '.tool // empty' 2>/dev/null || printf '')"
-		thought="$(printf '%s' "${planned_entry}" | jq -r '.thought // "Following planned step"' 2>/dev/null || printf '')"
-		args_json="$(printf '%s' "${planned_entry}" | jq -c '.args // {}' 2>/dev/null || printf '{}')"
+		thought="${planned_thought}"
+		args_json="${planned_args_json}"
 		next_action_payload="$(jq -nc --arg thought "${thought}" --arg tool "${tool}" --argjson args "${args_json}" '{thought:$thought, tool:$tool, args:$args}')"
 	else
 		local final_query history_formatted
@@ -532,7 +566,6 @@ select_next_action() {
 		printf '%s\n' "${next_action_payload}"
 	fi
 }
-
 validate_tool_permission() {
 	# Arguments:
 	#   $1 - state prefix

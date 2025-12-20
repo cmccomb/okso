@@ -144,6 +144,61 @@ INNERSCRIPT
 	[ "$status" -eq 0 ]
 }
 
+@test "select_next_action invokes llama even when plan step is fully specified" {
+	script=$(
+		cat <<'INNERSCRIPT'
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+source ./src/lib/planning/planner.sh
+
+llama_prompt_file=$(mktemp)
+llama_infer() {
+        printf '%s' "$1" >"${llama_prompt_file}"
+        printf '%s' '{"thought":"llama chose","tool":"terminal","args":{"command":"echo","args":["hi"]}}'
+}
+
+state_prefix=react
+plan_entry=$(jq -nc '{tool:"terminal",args:{command:"echo",args:["hi"]},thought:"planned guidance"}')
+plan_outline=$'1. terminal -> echo hi\n2. final_answer -> summarize'
+
+initialize_react_state "${state_prefix}" "demo request" $'terminal\nfinal_answer' "${plan_entry}" "${plan_outline}"
+
+USE_REACT_LLAMA=true
+LLAMA_AVAILABLE=true
+
+select_next_action "${state_prefix}" action_json
+
+if [[ ! -s "${llama_prompt_file}" ]]; then
+        echo "llama_infer was not called"
+        exit 1
+fi
+
+plan_index="$(state_get "${state_prefix}" "plan_index")"
+if [[ "${plan_index}" -ne 1 ]]; then
+        echo "plan index did not advance: ${plan_index}"
+        exit 1
+fi
+
+if ! grep -F 'planned guidance' "${llama_prompt_file}" >/dev/null; then
+        echo "plan thought missing from prompt"
+        exit 1
+fi
+
+if ! grep -F '"command":"echo"' "${llama_prompt_file}" >/dev/null; then
+        echo "plan args missing from prompt"
+        exit 1
+fi
+
+jq -e '.tool == "terminal" and .args.command == "echo" and .thought == "llama chose"' <<<"${action_json}"
+rm -f "${llama_prompt_file}"
+INNERSCRIPT
+	)
+
+	run bash -lc "${script}"
+	[ "$status" -eq 0 ]
+}
+
 @test "build_react_prompt includes allowed tool schemas" {
 	script=$(
 		cat <<'INNERSCRIPT'
@@ -170,7 +225,7 @@ fi
 react_schema_path="$(build_react_action_schema "${allowed_tools}")"
 react_schema_text="$(cat "${react_schema_path}")"
 
-prompt="$(build_react_prompt "demo request" "${allowed_tool_descriptions}" "demo plan" "demo history" "${react_schema_text}")"
+prompt="$(build_react_prompt "demo request" "${allowed_tool_descriptions}" "demo plan" "demo history" "${react_schema_text}" "step 1")"
 
 rm -f "${react_schema_path}"
 

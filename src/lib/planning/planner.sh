@@ -287,25 +287,41 @@ emit_plan_json() {
 }
 
 derive_allowed_tools_from_plan() {
-	# Arguments:
-	#   $1 - plan JSON array (string)
-	local plan_json tool seen
-	plan_json="${1:-[]}"
+        # Arguments:
+        #   $1 - plan JSON array (string)
+        local plan_json tool seen
+        plan_json="${1:-[]}"
 
-	seen=""
-	local -a required=()
-	while IFS= read -r tool; do
-		[[ -z "${tool}" ]] && continue
-		if grep -Fxq "${tool}" <<<"${seen}"; then
-			continue
-		fi
-		required+=("${tool}")
-		seen+="${tool}"$'\n'
-	done < <(jq -r '.[] | .tool // empty' <<<"${plan_json}" 2>/dev/null || true)
+        seen=""
+        local -a required=()
+        local plan_contains_fallback=false
+        if jq -e '.[] | select(.tool == "react_fallback")' <<<"${plan_json}" >/dev/null 2>&1; then
+                plan_contains_fallback=true
+        fi
 
-	if ! grep -Fxq "final_answer" <<<"${seen}"; then
-		required+=("final_answer")
-	fi
+        if [[ "${plan_contains_fallback}" == true ]]; then
+                while IFS= read -r tool; do
+                        [[ -z "${tool}" ]] && continue
+                        if grep -Fxq "${tool}" <<<"${seen}"; then
+                                continue
+                        fi
+                        required+=("${tool}")
+                        seen+="${tool}"$'\n'
+                done < <(tool_names)
+        else
+                while IFS= read -r tool; do
+                        [[ -z "${tool}" ]] && continue
+                        if grep -Fxq "${tool}" <<<"${seen}"; then
+                                continue
+                        fi
+                        required+=("${tool}")
+                        seen+="${tool}"$'\n'
+                done < <(jq -r '.[] | .tool // empty' <<<"${plan_json}" 2>/dev/null || true)
+        fi
+
+        if ! grep -Fxq "final_answer" <<<"${seen}"; then
+                required+=("final_answer")
+        fi
 
 	printf '%s\n' "${required[@]}"
 }
