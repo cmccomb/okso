@@ -20,14 +20,14 @@ SCRIPT
 }
 
 @test "normalize_planner_plan rejects unstructured outline text" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/planner.sh
 normalize_planner_plan <<<"1) first step\n- second step"
 SCRIPT
 
-        [ "$status" -ne 0 ]
-        [[ "${output}" == *"unable to parse planner output"* ]]
+	[ "$status" -ne 0 ]
+	[[ "${output}" == *"unable to parse planner output"* ]]
 }
 
 @test "append_final_answer_step adds missing summary step without duplication" {
@@ -48,8 +48,20 @@ SCRIPT
 	[ "${second_thought}" = "done" ]
 }
 
+@test "normalize_planner_plan rejects steps with non-object args" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+source ./src/lib/planning/planner.sh
+raw_plan='[{"tool":"notes_create","args":"title"}]'
+normalize_planner_plan <<<"${raw_plan}"
+SCRIPT
+
+	[ "$status" -ne 0 ]
+	[[ "${output}" == *"unable to parse planner output"* ]]
+}
+
 @test "derive_allowed_tools_from_plan gathers unique tools and ensures summary" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/planner.sh
 tool_names() { printf "%s\n" terminal notes_create final_answer; }
