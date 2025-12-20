@@ -31,6 +31,9 @@ ${user_query}
 The high level plan that we are following is:
 ${plan_outline}
 
+Current plan step guidance:
+${plan_step}
+
 So far, we've done the following:
 ${history}
 
