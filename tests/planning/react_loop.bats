@@ -111,7 +111,7 @@ SCRIPT
 }
 
 @test "react_loop allows retries after failed actions" {
-        run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
+	run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
 MAX_STEPS=2
 LLAMA_AVAILABLE=false
@@ -149,12 +149,12 @@ printf 'first_thought=%s second_thought=%s' \
         "$(printf '%s' "${second_entry}" | jq -r '.thought')"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ "$output" = "first_thought=initial second_thought=retry" ]
+	[ "$status" -eq 0 ]
+	[ "$output" = "first_thought=initial second_thought=retry" ]
 }
 
 @test "react_loop records tool invocation failures" {
-        run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
+	run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
 MAX_STEPS=1
 LLAMA_AVAILABLE=false
@@ -179,11 +179,11 @@ log_count=${#log_messages[@]}
 printf 'exit=%s error=%s logs=%s' "${last_action_exit}" "${last_error}" "${log_count}"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        echo "$output"
-        [[ "$output" == *"exit=9"* ]]
-        [[ "$output" == *"error="* ]]
-        [[ "$output" == *"logs="* ]]
+	[ "$status" -eq 0 ]
+	echo "$output"
+	[[ "$output" == *"exit=9"* ]]
+	[[ "$output" == *"error="* ]]
+	[[ "$output" == *"logs="* ]]
 }
 
 @test "react_loop clears plan entries after tool failure" {
