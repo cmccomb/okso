@@ -54,6 +54,7 @@ initialize_react_state() {
                         plan_index: 0,
                         max_steps: $max_steps,
                         final_answer: "",
+                        final_answer_action: "",
                         last_action: null
                 }')"
 }
@@ -144,14 +145,19 @@ finalize_react_result() {
 	# Finalizes and emits the ReAct run result.
 	# Arguments:
 	#   $1 - state prefix
-	local state_name history_formatted final_answer observation
+	local state_name history_formatted final_answer observation final_answer_action
 	state_name="$1"
 	observation="$(state_get "${state_name}" "final_answer")"
+	final_answer_action="$(state_get "${state_name}" "final_answer_action")"
 	if [[ -z "${observation}" ]]; then
-		log "ERROR" "Final answer missing; generating fallback" "${state_name}"
-		history_formatted="$(format_tool_history "$(state_get_history_lines "${state_name}")")"
-		final_answer="$(respond_text "$(state_get "${state_name}" "user_query")" 1000 "${history_formatted}")"
-		state_set "${state_name}" "final_answer" "${final_answer}"
+		if [[ -n "${final_answer_action}" ]]; then
+			final_answer="${final_answer_action}"
+		else
+			log "ERROR" "Final answer missing; generating fallback" "${state_name}"
+			history_formatted="$(format_tool_history "$(state_get_history_lines "${state_name}")")"
+			final_answer="$(respond_text "$(state_get "${state_name}" "user_query")" 1000 "${history_formatted}")"
+			state_set "${state_name}" "final_answer" "${final_answer}"
+		fi
 	else
 		if jq -e '.output != null and .exit_code != null' <<<"${observation}" >/dev/null 2>&1; then
 			final_answer=$(jq -r '.output' <<<"${observation}")

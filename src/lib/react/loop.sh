@@ -396,7 +396,7 @@ is_duplicate_action() {
 	#   $1 - last action JSON
 	#   $2 - candidate tool name
 	#   $3 - candidate args JSON
-	local last_action tool args_json last_tool last_args last_exit_code normalized_current normalized_last
+	local last_action tool args_json last_tool last_exit_code normalized_current normalized_last
 	last_action="$1"
 	tool="$2"
 	args_json="$3"
@@ -411,7 +411,6 @@ is_duplicate_action() {
 	fi
 
 	last_tool="$(printf '%s' "${last_action}" | jq -r '.tool // empty')"
-	last_args="$(printf '%s' "${last_action}" | jq -cS '.args // {}' 2>/dev/null || printf '{}')"
 	normalized_current="$(normalize_action "${tool}" "${args_json}")"
 	normalized_last="$(jq -cS '{tool,args}' <<<"$(jq -c '.' <<<"${last_action}" 2>/dev/null || printf '{}')" 2>/dev/null || printf '{}')"
 	if [[ "${tool}" == "${last_tool}" && "${normalized_current}" == "${normalized_last}" && "${tool}" != "final_answer" ]]; then
@@ -423,7 +422,7 @@ is_duplicate_action() {
 
 react_loop() {
 	local user_query allowed_tools plan_entries plan_outline action_json tool query observation current_step thought args_json action_context
-	local normalized_args_json
+	local normalized_args_json final_answer_payload
 	local state_prefix last_action
 	user_query="$1"
 	allowed_tools="$2"
@@ -450,6 +449,12 @@ react_loop() {
 
 		last_action="$(state_get "${state_prefix}" "last_action")"
 
+		final_answer_payload=""
+		if [[ "${tool}" == "final_answer" ]]; then
+			final_answer_payload="$(extract_tool_query "${tool}" "${normalized_args_json}")"
+			state_set "${state_prefix}" "final_answer_action" "${final_answer_payload}"
+		fi
+
 		if ! validate_tool_permission "${state_prefix}" "${tool}"; then
 			state_set "${state_prefix}" "step" "${current_step}"
 			continue
@@ -463,7 +468,10 @@ react_loop() {
 			continue
 		fi
 
-		query="$(extract_tool_query "${tool}" "${normalized_args_json}")"
+		if [[ -z "${final_answer_payload}" ]]; then
+			final_answer_payload="$(extract_tool_query "${tool}" "${normalized_args_json}")"
+		fi
+		query="${final_answer_payload}"
 		action_context="$(format_action_context "${thought}" "${tool}" "${normalized_args_json}")"
 
 		observation="$(execute_tool_action "${tool}" "${query}" "${action_context}" "${normalized_args_json}")"

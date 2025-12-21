@@ -5,7 +5,7 @@ setup() {
 }
 
 @test "plan_json_to_outline numbers steps from raw planner text" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/prompting.sh
 raw_plan='[{"tool":"terminal","args":{"command":"ls"},"thought":"list"},{"tool":"final_answer","args":{},"thought":"wrap up"}]'
@@ -31,7 +31,7 @@ SCRIPT
 }
 
 @test "planner prompt static prefix stays constant across invocations" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 real_date="$(command -v date)"
 mock_bin_dir="$(mktemp -d)"
@@ -82,7 +82,7 @@ SCRIPT
 }
 
 @test "react prompt segments recombine into full prompt" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 real_date="$(command -v date)"
 mock_bin_dir="$(mktemp -d)"
