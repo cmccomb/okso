@@ -40,20 +40,6 @@ estimate_token_count() {
 	printf '%s' "${token_estimate}"
 }
 
-sanitize_llama_output() {
-	# Normalizes llama.cpp output before downstream usage.
-	# Arguments:
-	#   $1 - raw llama output (string)
-	local raw sanitized
-	raw="$1"
-	sanitized="${raw//$'\r\n'/$'\n'}"
-	sanitized="${sanitized//$'\r'/$'\n'}"
-	sanitized="${sanitized//$'\t'/ }"
-	sanitized="${sanitized//\[end of text\]/}"
-	sanitized="$(printf '%s' "${sanitized}" | sed -e 's/[[:space:]]\+$//')"
-	printf '%s' "${sanitized}"
-}
-
 llama_with_timeout() {
 	# Executes llama.cpp with an optional timeout.
 	# Arguments:
@@ -78,6 +64,20 @@ llama_with_timeout() {
 	"$@"
 }
 
+sanitize_llama_output() {
+	# Normalizes llama.cpp output before downstream usage.
+	# Arguments:
+	#   $1 - raw llama output (string)
+	local raw sanitized
+	raw="$1"
+	sanitized="${raw//$'\r\n'/$'\n'}"
+	sanitized="${sanitized//$'\r'/$'\n'}"
+	sanitized="${sanitized//$'\t'/ }"
+	sanitized="${sanitized//\[end of text\]/}"
+	sanitized="$(printf '%s' "${sanitized}" | sed -e 's/[[:space:]]\+$//')"
+	printf '%s' "${sanitized}"
+}
+
 llama_infer() {
 	# Runs llama.cpp with Hugging Face repository caching for inference.
 	# Arguments:
@@ -87,30 +87,26 @@ llama_infer() {
 	#   $4 - JSON schema document for constrained decoding (string, optional)
 	#   $5 - model repository override (string, optional)
 	#   $6 - model file override (string, optional)
+	#   $7 - prompt cache path (string, optional)
 	# Returns:
 	#   The generated text (string).
-	local prompt stop_string number_of_tokens schema_json repo_override file_override
+	local prompt stop_string number_of_tokens schema_json repo_override file_override cache_file
 	prompt="$1"
 	stop_string="${2:-}"
 	number_of_tokens="${3:-256}"
 	schema_json="${4:-}"
 	repo_override="${5:-${REACT_MODEL_REPO:-}}"
 	file_override="${6:-${REACT_MODEL_FILE:-}}"
+	cache_file="${7:-}"
 
 	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
 		log "WARN" "llama unavailable; skipping inference" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}"
 		return 1
 	fi
 
-	local additional_args
-	additional_args=()
-
-	if [[ -n "${schema_json}" ]]; then
-		additional_args+=(--json-schema "${schema_json}")
-	fi
-
 	local llama_args llama_arg_string stderr_file exit_code llama_stderr start_time_ns end_time_ns elapsed_ms llama_output
 	local default_context_size context_cap margin_percent prompt_tokens total_tokens computed_context target_context
+	local rope_freq_base rope_freq_scale template_descriptor
 	llama_args=(
 		"${LLAMA_BIN}"
 		--hf-repo "${repo_override}"
@@ -130,9 +126,10 @@ llama_infer() {
 	prompt_tokens=$(estimate_token_count "${prompt}")
 	total_tokens=$((prompt_tokens + number_of_tokens))
 	computed_context=$(((total_tokens * (100 + margin_percent) + 99) / 100))
-	target_context=${computed_context}
+	target_context=${default_context_size}
 
-	if [[ ${target_context} -gt ${default_context_size} ]]; then
+	if [[ ${computed_context} -gt ${default_context_size} ]]; then
+		target_context=${computed_context}
 		if [[ ${target_context} -gt ${context_cap} ]]; then
 			log "INFO" "llama context capped" "required_context=${target_context} capped_context=${context_cap} default_context=${default_context_size}"
 			target_context=${context_cap}
@@ -145,7 +142,33 @@ llama_infer() {
 		llama_args+=(-r "${stop_string}")
 	fi
 
-	llama_args+=("${additional_args[@]}")
+	rope_freq_base="${LLAMA_ROPE_FREQ_BASE:-}"
+	rope_freq_scale="${LLAMA_ROPE_FREQ_SCALE:-}"
+	template_descriptor="${LLAMA_TEMPLATE:-}"
+
+	if [[ -n "${schema_json}" ]]; then
+		llama_args+=(--json-schema "${schema_json}")
+	fi
+
+	if [[ -n "${rope_freq_base}" ]]; then
+		llama_args+=(--rope-freq-base "${rope_freq_base}")
+	fi
+
+	if [[ -n "${rope_freq_scale}" ]]; then
+		llama_args+=(--rope-freq-scale "${rope_freq_scale}")
+	fi
+
+	if [[ -n "${template_descriptor}" ]]; then
+		llama_args+=(--template "${template_descriptor}")
+	fi
+
+	if [[ -n "${LLAMA_GRAMMAR:-}" ]]; then
+		llama_args+=(--grammar "${LLAMA_GRAMMAR}")
+	fi
+
+	if [[ -n "${cache_file}" ]]; then
+		llama_args+=(--prompt-cache "${cache_file}")
+	fi
 
 	llama_args+=(-p "${prompt}")
 

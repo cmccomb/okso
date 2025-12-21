@@ -101,14 +101,28 @@ build_final_answer_fallback_prompt() {
 		current_weekday "${current_weekday}"
 }
 
-build_planner_prompt() {
-	# Builds a prompt for the high-level planner.
+build_planner_prompt_static_prefix() {
+	# Returns the deterministic planner prompt prefix that excludes runtime fields.
+	local template anchor
+	template="$(load_prompt_template "planner")" || return 1
+	anchor="\${current_date}"
+
+	if [[ "${template}" != *"${anchor}"* ]]; then
+		printf '%s' "${template}"
+		return 0
+	fi
+
+	printf '%s' "${template%%"${anchor}"*}"
+}
+
+build_planner_prompt_dynamic_suffix() {
+	# Builds the runtime portion of the planner prompt.
 	# Arguments:
 	#   $1 - user query (string)
 	#   $2 - formatted tool descriptions (string)
 	# Returns:
-	#   The full prompt text (string).
-	local user_query tool_lines planner_schema current_date current_time current_weekday
+	#   The dynamic suffix for the planner prompt (string).
+	local user_query tool_lines planner_schema current_date current_time current_weekday rendered prefix
 	user_query="$1"
 	tool_lines="$2"
 	planner_schema="$(load_schema_text planner_plan)"
@@ -116,13 +130,79 @@ build_planner_prompt() {
 	current_time="$(date -u '+%H:%M:%S')"
 	current_weekday="$(date -u '+%A')"
 
-	render_prompt_template "planner" \
+	rendered="$(render_prompt_template "planner" \
 		user_query "${user_query}" \
 		tool_lines "${tool_lines}" \
 		planner_schema "${planner_schema}" \
 		current_date "${current_date}" \
 		current_time "${current_time}" \
-		current_weekday "${current_weekday}"
+		current_weekday "${current_weekday}")"
+	prefix="$(build_planner_prompt_static_prefix)" || return 1
+	printf '%s' "${rendered#"${prefix}"}"
+}
+
+build_planner_prompt() {
+	# Builds a prompt for the high-level planner.
+	# Arguments:
+	#   $1 - user query (string)
+	#   $2 - formatted tool descriptions (string)
+	# Returns:
+	#   The full prompt text (string).
+	local prefix suffix
+	prefix="$(build_planner_prompt_static_prefix)" || return 1
+	suffix="$(build_planner_prompt_dynamic_suffix "$1" "$2")" || return 1
+	printf '%s%s' "${prefix}" "${suffix}"
+}
+
+build_react_prompt_static_prefix() {
+	# Returns the deterministic ReAct prompt prefix that excludes runtime fields.
+	local template anchor
+	template="$(load_prompt_template "react")" || return 1
+	anchor="\${current_date}"
+
+	if [[ "${template}" != *"${anchor}"* ]]; then
+		printf '%s' "${template}"
+		return 0
+	fi
+
+	printf '%s' "${template%%"${anchor}"*}"
+}
+
+build_react_prompt_dynamic_suffix() {
+	# Builds the runtime portion of the ReAct execution prompt.
+	# Arguments:
+	#   $1 - user query (string)
+	#   $2 - formatted allowed tool descriptions (string)
+	#   $3 - high-level plan outline (string)
+	#   $4 - prior interaction history (string)
+	#   $5 - JSON schema describing allowed ReAct actions (string)
+	#   $6 - current plan step guidance (string)
+	# Returns:
+	#   The dynamic suffix for the ReAct prompt (string).
+	local user_query allowed_tools plan_outline history react_schema plan_step current_date current_time current_weekday
+	local rendered prefix
+	user_query="$1"
+	allowed_tools="$2"
+	plan_outline="$3"
+	history="$4"
+	react_schema="$5"
+	plan_step="$6"
+	current_date="$(date -u '+%Y-%m-%d')"
+	current_time="$(date -u '+%H:%M:%S')"
+	current_weekday="$(date -u '+%A')"
+
+	rendered="$(render_prompt_template "react" \
+		user_query "${user_query}" \
+		allowed_tools "${allowed_tools}" \
+		plan_outline "${plan_outline}" \
+		history "${history}" \
+		react_schema "${react_schema}" \
+		plan_step "${plan_step}" \
+		current_date "${current_date}" \
+		current_time "${current_time}" \
+		current_weekday "${current_weekday}")"
+	prefix="$(build_react_prompt_static_prefix)" || return 1
+	printf '%s' "${rendered#"${prefix}"}"
 }
 
 build_react_prompt() {
@@ -136,26 +216,8 @@ build_react_prompt() {
 	#   $6 - current plan step guidance (string)
 	# Returns:
 	#   The full prompt text (string).
-	local user_query allowed_tools plan_outline history react_schema plan_step
-	local current_date current_time current_weekday
-	user_query="$1"
-	allowed_tools="$2"
-	plan_outline="$3"
-	history="$4"
-	react_schema="$5"
-	plan_step="$6"
-	current_date="$(date -u '+%Y-%m-%d')"
-	current_time="$(date -u '+%H:%M:%S')"
-	current_weekday="$(date -u '+%A')"
-
-	render_prompt_template "react" \
-		user_query "${user_query}" \
-		allowed_tools "${allowed_tools}" \
-		plan_outline "${plan_outline}" \
-		history "${history}" \
-		react_schema "${react_schema}" \
-		plan_step "${plan_step}" \
-		current_date "${current_date}" \
-		current_time "${current_time}" \
-		current_weekday "${current_weekday}"
+	local prefix suffix
+	prefix="$(build_react_prompt_static_prefix)" || return 1
+	suffix="$(build_react_prompt_dynamic_suffix "$1" "$2" "$3" "$4" "$5" "$6")" || return 1
+	printf '%s%s' "${prefix}" "${suffix}"
 }

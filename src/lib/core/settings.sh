@@ -105,16 +105,20 @@ create_default_settings() {
 	#   $1 - settings namespace prefix (string)
 	#   $2 - overrides JSON to merge with defaults (string, optional)
 	local settings_prefix overrides default_model_file default_planner_model_file config_dir config_file
-	local planner_model_spec react_model_spec default_json override_json
+	local planner_model_spec react_model_spec default_json override_json cache_dir run_id planner_cache_file react_cache_file
 	settings_prefix="$1"
 	overrides="${2:-}"
 
 	config_dir="${XDG_CONFIG_HOME:-${HOME}/.config}/okso"
+	cache_dir="${OKSO_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/okso}"
+	run_id="${OKSO_RUN_ID:-$(date -u +"%Y%m%dT%H%M%SZ")}"
 	default_model_file="${DEFAULT_MODEL_FILE_BASE:-Qwen_Qwen3-4B-Q4_K_M.gguf}"
 	default_planner_model_file="${DEFAULT_PLANNER_MODEL_FILE_BASE:-Qwen_Qwen3-8B-Q4_K_M.gguf}"
 	config_file="${config_dir}/config.env"
 	planner_model_spec="${DEFAULT_PLANNER_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-8B-GGUF:${default_planner_model_file}}"
 	react_model_spec="${DEFAULT_REACT_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-4B-GGUF:${default_model_file}}"
+	planner_cache_file="${OKSO_PLANNER_CACHE_FILE:-${cache_dir}/planner.prompt-cache}"
+	react_cache_file="${OKSO_REACT_CACHE_FILE:-${cache_dir}/runs/${run_id}/react.prompt-cache}"
 
 	default_json=$(jq -c -n \
 		--arg version "0.1.0" \
@@ -123,6 +127,10 @@ create_default_settings() {
 		--arg default_planner_model_file "${default_planner_model_file}" \
 		--arg config_dir "${config_dir}" \
 		--arg config_file "${config_file}" \
+		--arg cache_dir "${cache_dir}" \
+		--arg planner_cache_file "${planner_cache_file}" \
+		--arg react_cache_file "${react_cache_file}" \
+		--arg run_id "${run_id}" \
 		--arg planner_model_spec "${planner_model_spec}" \
 		--arg react_model_spec "${react_model_spec}" \
 		--arg planner_model_branch "${DEFAULT_PLANNER_MODEL_BRANCH_BASE:-main}" \
@@ -136,6 +144,10 @@ create_default_settings() {
                         default_planner_model_file: $default_planner_model_file,
                         config_dir: $config_dir,
                         config_file: $config_file,
+                        cache_dir: $cache_dir,
+                        planner_cache_file: $planner_cache_file,
+                        react_cache_file: $react_cache_file,
+                        run_id: $run_id,
                         planner_model_spec: $planner_model_spec,
                         planner_model_branch: $planner_model_branch,
                         react_model_spec: $react_model_spec,

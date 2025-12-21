@@ -259,8 +259,9 @@ _select_action_from_llama() {
 	react_schema_text="$(cat "${react_schema_path}")" || return 1
 	history="$(format_tool_history "$(state_get_history_lines "${state_name}")")"
 
-	react_prompt="$(
-		build_react_prompt \
+	react_prompt_prefix="$(build_react_prompt_static_prefix)" || return 1
+	react_prompt_suffix="$(
+		build_react_prompt_dynamic_suffix \
 			"$(state_get "${state_name}" "user_query")" \
 			"${allowed_tool_descriptions}" \
 			"$(state_get "${state_name}" "plan_outline")" \
@@ -268,11 +269,12 @@ _select_action_from_llama() {
 			"${react_schema_text}" \
 			"${plan_step_guidance}"
 	)"
+	react_prompt="${react_prompt_prefix}${react_prompt_suffix}"
 	summarized_history="$(apply_prompt_context_budget "${react_prompt}" "${history}" 256 "react_history")"
 	if [[ "${summarized_history}" != "${history}" ]]; then
 		history="${summarized_history}"
-		react_prompt="$(
-			build_react_prompt \
+		react_prompt_suffix="$(
+			build_react_prompt_dynamic_suffix \
 				"$(state_get "${state_name}" "user_query")" \
 				"${allowed_tool_descriptions}" \
 				"$(state_get "${state_name}" "plan_outline")" \
@@ -280,10 +282,11 @@ _select_action_from_llama() {
 				"${react_schema_text}" \
 				"${plan_step_guidance}"
 		)"
+		react_prompt="${react_prompt_prefix}${react_prompt_suffix}"
 	fi
 	validation_error_file="$(mktemp)"
 
-	raw_action="$(llama_infer "${react_prompt}" "" 256 "${react_schema_text}" "${REACT_MODEL_REPO:-}" "${REACT_MODEL_FILE:-}")"
+	raw_action="$(llama_infer "${react_prompt}" "" 256 "${react_schema_text}" "${REACT_MODEL_REPO:-}" "${REACT_MODEL_FILE:-}" "${REACT_CACHE_FILE:-}" "${react_prompt_prefix}")"
 	log_pretty "INFO" "Action received" "${raw_action}"
 
 	if ! validated_action=$(validate_react_action "${raw_action}" "${react_schema_path}" 2>"${validation_error_file}"); then

@@ -18,6 +18,10 @@ PLANNER_MODEL_SPEC=bartowski/Qwen_Qwen3-8B-GGUF:Qwen_Qwen3-8B-Q4_K_M.gguf
 PLANNER_MODEL_BRANCH=main
 REACT_MODEL_SPEC=bartowski/Qwen_Qwen3-4B-GGUF:Qwen_Qwen3-4B-Q4_K_M.gguf
 REACT_MODEL_BRANCH=main
+OKSO_CACHE_DIR=${XDG_CACHE_HOME:-~/.cache}/okso
+OKSO_PLANNER_CACHE_FILE=${OKSO_CACHE_DIR}/planner.prompt-cache
+OKSO_REACT_CACHE_FILE=${OKSO_CACHE_DIR}/runs/${OKSO_RUN_ID}/react.prompt-cache
+OKSO_RUN_ID=20240101T000000Z
 VERBOSITY=1
 APPROVE_ALL=false
 FORCE_CONFIRM=false
@@ -30,6 +34,10 @@ LLAMA_CONTEXT_MARGIN_PERCENT=15
 - `PLANNER_MODEL_BRANCH`: Optional branch or tag for the planner download (default: `main`).
 - `REACT_MODEL_SPEC`: Hugging Face `repo[:file]` identifier for the ReAct llama.cpp model (default: `bartowski/Qwen_Qwen3-4B-GGUF:Qwen_Qwen3-4B-Q4_K_M.gguf`).
 - `REACT_MODEL_BRANCH`: Optional branch or tag for the ReAct download (default: `main`).
+- `OKSO_CACHE_DIR`: Base directory for llama.cpp prompt caches (default: `${XDG_CACHE_HOME:-~/.cache}/okso`).
+- `OKSO_PLANNER_CACHE_FILE`: Prompt cache for planner llama.cpp calls (default: `${OKSO_CACHE_DIR}/planner.prompt-cache`).
+- `OKSO_REACT_CACHE_FILE`: Prompt cache for the ReAct loop (default: `${OKSO_CACHE_DIR}/runs/${OKSO_RUN_ID}/react.prompt-cache`).
+- `OKSO_RUN_ID`: Run identifier used to scope the ReAct prompt cache (default: UTC timestamp). Override to reuse a run-scoped cache across invocations.
 - `LLAMA_BIN`: Path to the llama.cpp binary used for scoring (default: `llama-cli`).
 - `LLAMA_DEFAULT_CONTEXT_SIZE`: Assumed default llama.cpp context window used when no override is requested (default: `4096`).
 - `LLAMA_CONTEXT_CAP`: Maximum context window okso will request for llama.cpp invocations (default: `8192`).
@@ -42,6 +50,8 @@ LLAMA_CONTEXT_MARGIN_PERCENT=15
 - `OKSO_GOOGLE_CSE_ID`: Google Custom Search Engine ID used by the `web_search` tool.
 
 Environment variables with the same names as the config keys take precedence over file values when set. Google Custom Search credentials can also be provided via `OKSO_GOOGLE_CSE_API_KEY` and `OKSO_GOOGLE_CSE_ID`.
+
+ReAct runs create a cache directory under `${OKSO_CACHE_DIR}/runs/${OKSO_RUN_ID}` for the duration of the invocation. Successful runs remove that directory, while failures keep it intact for debugging.
 
 API keys and other secrets belong in `~/.config/okso/config.env` or a locally sourced `.env` file—never commit them to version control. Consider adding local files containing secrets to `.gitignore` if you keep them alongside your working directory.
 

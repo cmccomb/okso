@@ -19,6 +19,10 @@
 #   DEFAULT_MODEL_FILE (string): fallback file name for parsing model spec.
 #   OKSO_GOOGLE_CSE_API_KEY (string): Google Custom Search API key; may be overridden by environment.
 #   OKSO_GOOGLE_CSE_ID (string): Google Custom Search Engine ID; may be overridden by environment.
+#   OKSO_CACHE_DIR (string): base directory for prompt caches (default: ${XDG_CACHE_HOME:-${HOME}/.cache}/okso).
+#   OKSO_PLANNER_CACHE_FILE (string): prompt cache file used for planning llama.cpp calls.
+#   OKSO_REACT_CACHE_FILE (string): run-scoped prompt cache file for ReAct llama.cpp calls.
+#   OKSO_RUN_ID (string): unique identifier for the current run used to scope caches.
 #
 # Dependencies:
 #   - bash 3.2+
@@ -50,6 +54,11 @@ readonly DEFAULT_REACT_MODEL_SPEC_BASE DEFAULT_REACT_MODEL_BRANCH_BASE
 readonly DEFAULT_PLANNER_MODEL_REPO_BASE DEFAULT_PLANNER_MODEL_FILE_BASE
 readonly DEFAULT_PLANNER_MODEL_SPEC_BASE DEFAULT_PLANNER_MODEL_BRANCH_BASE
 
+default_run_id() {
+	# Generates a stable run identifier for cache scoping.
+	date -u +"%Y%m%dT%H%M%SZ"
+}
+
 detect_config_file() {
 	# Parse the config path early so subsequent helpers can honor user-provided
 	# locations before any other arguments are interpreted.
@@ -78,6 +87,10 @@ load_config() {
 	# can layer on top in a predictable order.
 	local preexisting_okso_google_cse_api_key preexisting_okso_google_cse_api_key_set
 	local preexisting_okso_google_cse_id preexisting_okso_google_cse_id_set
+	local preexisting_okso_cache_dir preexisting_okso_cache_dir_set
+	local preexisting_okso_planner_cache_file preexisting_okso_planner_cache_file_set
+	local preexisting_okso_react_cache_file preexisting_okso_react_cache_file_set
+	local preexisting_okso_run_id preexisting_okso_run_id_set
 	local preexisting_planner_model_spec preexisting_planner_model_spec_set
 	local preexisting_planner_model_branch preexisting_planner_model_branch_set
 	local preexisting_react_model_spec preexisting_react_model_spec_set
@@ -90,6 +103,10 @@ load_config() {
 
 	preexisting_okso_google_cse_api_key_set=false
 	preexisting_okso_google_cse_id_set=false
+	preexisting_okso_cache_dir_set=false
+	preexisting_okso_planner_cache_file_set=false
+	preexisting_okso_react_cache_file_set=false
+	preexisting_okso_run_id_set=false
 	preexisting_planner_model_spec_set=false
 	preexisting_planner_model_branch_set=false
 	preexisting_react_model_spec_set=false
@@ -107,6 +124,22 @@ load_config() {
 	if [[ -n "${OKSO_GOOGLE_CSE_ID+x}" ]]; then
 		preexisting_okso_google_cse_id="${OKSO_GOOGLE_CSE_ID}"
 		preexisting_okso_google_cse_id_set=true
+	fi
+	if [[ -n "${OKSO_CACHE_DIR+x}" ]]; then
+		preexisting_okso_cache_dir="${OKSO_CACHE_DIR}"
+		preexisting_okso_cache_dir_set=true
+	fi
+	if [[ -n "${OKSO_PLANNER_CACHE_FILE+x}" ]]; then
+		preexisting_okso_planner_cache_file="${OKSO_PLANNER_CACHE_FILE}"
+		preexisting_okso_planner_cache_file_set=true
+	fi
+	if [[ -n "${OKSO_REACT_CACHE_FILE+x}" ]]; then
+		preexisting_okso_react_cache_file="${OKSO_REACT_CACHE_FILE}"
+		preexisting_okso_react_cache_file_set=true
+	fi
+	if [[ -n "${OKSO_RUN_ID+x}" ]]; then
+		preexisting_okso_run_id="${OKSO_RUN_ID}"
+		preexisting_okso_run_id_set=true
 	fi
 	if [[ -n "${PLANNER_MODEL_SPEC+x}" ]]; then
 		preexisting_planner_model_spec="${PLANNER_MODEL_SPEC}"
@@ -202,6 +235,42 @@ load_config() {
 		FORCE_CONFIRM=${FORCE_CONFIRM:-false}
 	fi
 
+	OKSO_RUN_ID=${OKSO_RUN_ID:-$(default_run_id)}
+
+	local default_cache_dir
+	default_cache_dir="${XDG_CACHE_HOME:-${HOME}/.cache}/okso"
+
+	if [[ "${preexisting_okso_cache_dir_set}" == true ]]; then
+		OKSO_CACHE_DIR="${preexisting_okso_cache_dir}"
+	else
+		OKSO_CACHE_DIR=${OKSO_CACHE_DIR:-${default_cache_dir}}
+	fi
+
+	CACHE_DIR="${OKSO_CACHE_DIR}"
+
+	if [[ "${preexisting_okso_planner_cache_file_set}" == true ]]; then
+		OKSO_PLANNER_CACHE_FILE="${preexisting_okso_planner_cache_file}"
+	else
+		OKSO_PLANNER_CACHE_FILE=${OKSO_PLANNER_CACHE_FILE:-${CACHE_DIR}/planner.prompt-cache}
+	fi
+
+	PLANNER_CACHE_FILE="${OKSO_PLANNER_CACHE_FILE}"
+
+	if [[ "${preexisting_okso_react_cache_file_set}" == true ]]; then
+		OKSO_REACT_CACHE_FILE="${preexisting_okso_react_cache_file}"
+	else
+		OKSO_REACT_CACHE_FILE=${OKSO_REACT_CACHE_FILE:-${CACHE_DIR}/runs/${OKSO_RUN_ID}/react.prompt-cache}
+	fi
+
+	REACT_CACHE_FILE="${OKSO_REACT_CACHE_FILE}"
+
+	if [[ "${preexisting_okso_run_id_set}" == true ]]; then
+		OKSO_RUN_ID="${preexisting_okso_run_id}"
+	fi
+
+	# shellcheck disable=SC2034
+	RUN_ID="${OKSO_RUN_ID}"
+
 	GOOGLE_SEARCH_API_KEY=${GOOGLE_SEARCH_API_KEY:-${OKSO_GOOGLE_CSE_API_KEY:-}}
 	GOOGLE_SEARCH_CX=${GOOGLE_SEARCH_CX:-${OKSO_GOOGLE_CSE_ID:-}}
 }
@@ -227,6 +296,8 @@ PLANNER_MODEL_SPEC=$(quote_config_value "${PLANNER_MODEL_SPEC}")
 PLANNER_MODEL_BRANCH=$(quote_config_value "${PLANNER_MODEL_BRANCH}")
 REACT_MODEL_SPEC=$(quote_config_value "${REACT_MODEL_SPEC}")
 REACT_MODEL_BRANCH=$(quote_config_value "${REACT_MODEL_BRANCH}")
+OKSO_CACHE_DIR=$(quote_config_value "${CACHE_DIR}")
+OKSO_PLANNER_CACHE_FILE=$(quote_config_value "${PLANNER_CACHE_FILE}")
 VERBOSITY=${VERBOSITY}
 APPROVE_ALL=${APPROVE_ALL}
 FORCE_CONFIRM=${FORCE_CONFIRM}
@@ -343,5 +414,6 @@ init_environment() {
 		LLAMA_AVAILABLE=false
 	fi
 
+	mkdir -p "${CACHE_DIR}" "$(dirname "${PLANNER_CACHE_FILE}")" "$(dirname "${REACT_CACHE_FILE}")"
 	mkdir -p "${NOTES_DIR}"
 }

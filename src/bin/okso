@@ -113,6 +113,8 @@ main() {
 	fi
 
 	prepare_environment_with_settings "${settings_prefix}"
+	ensure_react_run_cache_dir
+	trap 'cleanup_react_run_cache_dir "$?"' EXIT
 	initialize_planner_models
 	# Planner flow:
 	# 1. Generate an outline, 2. identify tools, 3. build concrete plan entries
