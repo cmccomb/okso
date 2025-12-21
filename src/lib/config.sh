@@ -268,7 +268,8 @@ load_config() {
 		OKSO_RUN_ID="${preexisting_okso_run_id}"
 	fi
 
-	RUN_ID="${OKSO_RUN_ID}"
+# shellcheck disable=SC2034
+RUN_ID="${OKSO_RUN_ID}"
 
 	GOOGLE_SEARCH_API_KEY=${GOOGLE_SEARCH_API_KEY:-${OKSO_GOOGLE_CSE_API_KEY:-}}
 	GOOGLE_SEARCH_CX=${GOOGLE_SEARCH_CX:-${OKSO_GOOGLE_CSE_ID:-}}

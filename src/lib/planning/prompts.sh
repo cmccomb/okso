@@ -102,17 +102,17 @@ build_final_answer_fallback_prompt() {
 }
 
 build_planner_prompt_static_prefix() {
-	# Returns the deterministic planner prompt prefix that excludes runtime fields.
-	local template anchor
-	template="$(load_prompt_template "planner")" || return 1
-	anchor='${current_date}'
+        # Returns the deterministic planner prompt prefix that excludes runtime fields.
+        local template anchor
+        template="$(load_prompt_template "planner")" || return 1
+        anchor="\${current_date}"
 
-	if [[ "${template}" != *"${anchor}"* ]]; then
-		printf '%s' "${template}"
-		return 0
-	fi
+        if [[ "${template}" != *"${anchor}"* ]]; then
+                printf '%s' "${template}"
+                return 0
+        fi
 
-	printf '%s' "${template%%${anchor}*}"
+        printf '%s' "${template%%"${anchor}"*}"
 }
 
 build_planner_prompt_dynamic_suffix() {
@@ -130,15 +130,15 @@ build_planner_prompt_dynamic_suffix() {
 	current_time="$(date -u '+%H:%M:%S')"
 	current_weekday="$(date -u '+%A')"
 
-	rendered="$(render_prompt_template "planner" \
-		user_query "${user_query}" \
-		tool_lines "${tool_lines}" \
-		planner_schema "${planner_schema}" \
-		current_date "${current_date}" \
-		current_time "${current_time}" \
-		current_weekday "${current_weekday}")"
-	prefix="$(build_planner_prompt_static_prefix)" || return 1
-	printf '%s' "${rendered#${prefix}}"
+        rendered="$(render_prompt_template "planner" \
+                user_query "${user_query}" \
+                tool_lines "${tool_lines}" \
+                planner_schema "${planner_schema}" \
+                current_date "${current_date}" \
+                current_time "${current_time}" \
+                current_weekday "${current_weekday}")"
+        prefix="$(build_planner_prompt_static_prefix)" || return 1
+        printf '%s' "${rendered#"${prefix}"}"
 }
 
 build_planner_prompt() {
@@ -155,17 +155,17 @@ build_planner_prompt() {
 }
 
 build_react_prompt_static_prefix() {
-	# Returns the deterministic ReAct prompt prefix that excludes runtime fields.
-	local template anchor
-	template="$(load_prompt_template "react")" || return 1
-	anchor='${current_date}'
+        # Returns the deterministic ReAct prompt prefix that excludes runtime fields.
+        local template anchor
+        template="$(load_prompt_template "react")" || return 1
+        anchor="\${current_date}"
 
-	if [[ "${template}" != *"${anchor}"* ]]; then
-		printf '%s' "${template}"
-		return 0
-	fi
+        if [[ "${template}" != *"${anchor}"* ]]; then
+                printf '%s' "${template}"
+                return 0
+        fi
 
-	printf '%s' "${template%%${anchor}*}"
+        printf '%s' "${template%%"${anchor}"*}"
 }
 
 build_react_prompt_dynamic_suffix() {
@@ -191,18 +191,18 @@ build_react_prompt_dynamic_suffix() {
 	current_time="$(date -u '+%H:%M:%S')"
 	current_weekday="$(date -u '+%A')"
 
-	rendered="$(render_prompt_template "react" \
-		user_query "${user_query}" \
-		allowed_tools "${allowed_tools}" \
-		plan_outline "${plan_outline}" \
-		history "${history}" \
-		react_schema "${react_schema}" \
-		plan_step "${plan_step}" \
-		current_date "${current_date}" \
-		current_time "${current_time}" \
-		current_weekday "${current_weekday}")"
-	prefix="$(build_react_prompt_static_prefix)" || return 1
-	printf '%s' "${rendered#${prefix}}"
+        rendered="$(render_prompt_template "react" \
+                user_query "${user_query}" \
+                allowed_tools "${allowed_tools}" \
+                plan_outline "${plan_outline}" \
+                history "${history}" \
+                react_schema "${react_schema}" \
+                plan_step "${plan_step}" \
+                current_date "${current_date}" \
+                current_time "${current_time}" \
+                current_weekday "${current_weekday}")"
+        prefix="$(build_react_prompt_static_prefix)" || return 1
+        printf '%s' "${rendered#"${prefix}"}"
 }
 
 build_react_prompt() {
