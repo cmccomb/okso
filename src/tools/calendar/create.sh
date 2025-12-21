@@ -20,7 +20,7 @@
 #   - register_tool from tools/registry.sh
 #
 # Exit codes:
-#   Returns non-zero only when registration is misused.
+#   Returns non-zero when input validation fails or registration is misused.
 
 # shellcheck source=../registry.sh disable=SC1091
 source "${BASH_SOURCE[0]%/calendar/create.sh}/registry.sh"
@@ -66,9 +66,9 @@ tool_calendar_create() {
 		return 0
 	fi
 
-	if ! { IFS= read -r -d '' title && IFS= read -r -d '' start_time && IFS= read -r -d '' location; } < <(calendar_extract_event_fields "${details}"); then
-		return 0
-	fi
+        if ! { IFS= read -r -d '' title && IFS= read -r -d '' start_time && IFS= read -r -d '' location; } < <(calendar_extract_event_fields "${details}"); then
+                return 1
+        fi
 
 	calendar_script="$(calendar_resolve_calendar_script)"
 
