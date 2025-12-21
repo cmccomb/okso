@@ -98,19 +98,19 @@ generate_plan_json() {
 		return 0
 	fi
 
-        local prompt raw_plan planner_schema_text plan_json planner_prompt_prefix planner_suffix tool_lines
-        planner_schema_text="$(load_schema_text planner_plan)"
+	local prompt raw_plan planner_schema_text plan_json planner_prompt_prefix planner_suffix tool_lines
+	planner_schema_text="$(load_schema_text planner_plan)"
 
-        tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_summary_line)"
-        planner_prompt_prefix="$(build_planner_prompt_static_prefix)"
-        planner_suffix="$(build_planner_prompt_dynamic_suffix "${user_query}" "${tool_lines}")"
-        prompt="${planner_prompt_prefix}${planner_suffix}"
-        log "DEBUG" "Generated planner prompt" "${prompt}" >&2
-        raw_plan="$(llama_infer "${prompt}" '' 512 "${planner_schema_text}" "${PLANNER_MODEL_REPO:-}" "${PLANNER_MODEL_FILE:-}" "${PLANNER_CACHE_FILE:-}" "${planner_prompt_prefix}")" || raw_plan="[]"
-        if ! plan_json="$(append_final_answer_step "${raw_plan}")"; then
-                log "ERROR" "Planner output failed validation; request regeneration" "${raw_plan}" >&2
-                return 1
-        fi
+	tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_summary_line)"
+	planner_prompt_prefix="$(build_planner_prompt_static_prefix)"
+	planner_suffix="$(build_planner_prompt_dynamic_suffix "${user_query}" "${tool_lines}")"
+	prompt="${planner_prompt_prefix}${planner_suffix}"
+	log "DEBUG" "Generated planner prompt" "${prompt}" >&2
+	raw_plan="$(llama_infer "${prompt}" '' 512 "${planner_schema_text}" "${PLANNER_MODEL_REPO:-}" "${PLANNER_MODEL_FILE:-}" "${PLANNER_CACHE_FILE:-}" "${planner_prompt_prefix}")" || raw_plan="[]"
+	if ! plan_json="$(append_final_answer_step "${raw_plan}")"; then
+		log "ERROR" "Planner output failed validation; request regeneration" "${raw_plan}" >&2
+		return 1
+	fi
 	printf '%s' "${plan_json}"
 }
 

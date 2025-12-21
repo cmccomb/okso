@@ -18,20 +18,20 @@ SCRIPT
 }
 
 @test "build_planner_prompt_with_tools injects tool descriptions when provided" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/prompting.sh
 prompt=$(build_planner_prompt_with_tools "find files" terminal notes_create)
 printf '%s' "${prompt}"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [[ "${output}" == *"terminal"* ]]
-        [[ "${output}" == *"notes_create"* ]]
+	[ "$status" -eq 0 ]
+	[[ "${output}" == *"terminal"* ]]
+	[[ "${output}" == *"notes_create"* ]]
 }
 
 @test "planner prompt static prefix stays constant across invocations" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 real_date="$(command -v date)"
 mock_bin_dir="$(mktemp -d)"
@@ -77,12 +77,12 @@ fi
 printf 'ok\n'
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ "${output}" = "ok" ]
+	[ "$status" -eq 0 ]
+	[ "${output}" = "ok" ]
 }
 
 @test "react prompt segments recombine into full prompt" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 real_date="$(command -v date)"
 mock_bin_dir="$(mktemp -d)"
@@ -110,6 +110,6 @@ fi
 printf 'ok\n'
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ "${output}" = "ok" ]
+	[ "$status" -eq 0 ]
+	[ "${output}" = "ok" ]
 }

@@ -98,10 +98,10 @@ SCRIPT
 }
 
 @test "llama_infer records prompt cache metadata" {
-        cd "$(git rev-parse --show-toplevel)" || exit 1
-        args_dir=$(mktemp -d)
-        args_file="${args_dir}/args.txt"
-        cache_file="${args_dir}/react.prompt-cache"
+	cd "$(git rev-parse --show-toplevel)" || exit 1
+	args_dir=$(mktemp -d)
+	args_file="${args_dir}/args.txt"
+	cache_file="${args_dir}/react.prompt-cache"
 	mock_binary="${args_dir}/mock_llama.sh"
 	cat >"${mock_binary}" <<SCRIPT
 #!/usr/bin/env bash
@@ -125,32 +125,32 @@ SCRIPT
 	args=()
 	while IFS= read -r line; do
 		args+=("$line")
-        done <"${args_dir}/args.txt"
-        [[ " ${args[*]} " == *" --prompt-cache ${args_dir}/react.prompt-cache "* ]]
+	done <"${args_dir}/args.txt"
+	[[ " ${args[*]} " == *" --prompt-cache ${args_dir}/react.prompt-cache "* ]]
 }
 
 @test "llama_infer forwards static prompt prefixes to llama" {
-        cd "$(git rev-parse --show-toplevel)" || exit 1
-        args_dir=$(mktemp -d)
-        args_file="${args_dir}/args.txt"
-        cache_file="${args_dir}/react.prompt-cache"
-        mock_binary="${args_dir}/mock_llama.sh"
-        cat >"${mock_binary}" <<SCRIPT
+	cd "$(git rev-parse --show-toplevel)" || exit 1
+	args_dir=$(mktemp -d)
+	args_file="${args_dir}/args.txt"
+	cache_file="${args_dir}/react.prompt-cache"
+	mock_binary="${args_dir}/mock_llama.sh"
+	cat >"${mock_binary}" <<SCRIPT
 #!/usr/bin/env bash
 printf "%s\n" "\$@" >"${args_file}"
 SCRIPT
-        chmod +x "${mock_binary}"
-        export LLAMA_AVAILABLE=true
-        export LLAMA_BIN="${mock_binary}"
-        export REACT_MODEL_REPO=demo/repo
-        export REACT_MODEL_FILE=model.gguf
-        source ./src/lib/planning/llama_client.sh
-        llama_infer "prompt text" "" 8 "" "${REACT_MODEL_REPO}" "${REACT_MODEL_FILE}" "${cache_file}" "system-prefix"
-        args=()
-        while IFS= read -r line; do
-                args+=("$line")
-        done <"${args_file}"
-        [[ " ${args[*]} " == *" --prompt-cache-static system-prefix "* ]]
+	chmod +x "${mock_binary}"
+	export LLAMA_AVAILABLE=true
+	export LLAMA_BIN="${mock_binary}"
+	export REACT_MODEL_REPO=demo/repo
+	export REACT_MODEL_FILE=model.gguf
+	source ./src/lib/planning/llama_client.sh
+	llama_infer "prompt text" "" 8 "" "${REACT_MODEL_REPO}" "${REACT_MODEL_FILE}" "${cache_file}" "system-prefix"
+	args=()
+	while IFS= read -r line; do
+		args+=("$line")
+	done <"${args_file}"
+	[[ " ${args[*]} " == *" --prompt-cache-static system-prefix "* ]]
 }
 
 @test "llama_infer returns llama exit code and logs stderr" {
