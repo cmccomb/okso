@@ -139,14 +139,15 @@ web_http_request() {
 		return 1
 	fi
 
-	local body_size truncated truncated_bool
-	body_size=$(wc -c <"${body_file}")
-	truncated=false
-	if ((body_size > max_bytes)); then
-		head -c "${max_bytes}" "${body_file}" >"${body_file}.trimmed"
-		mv "${body_file}.trimmed" "${body_file}"
-		truncated=true
-	fi
+        local body_size truncated truncated_bool
+        body_size=$(wc -c <"${body_file}")
+        truncated=false
+        if ((body_size > max_bytes)); then
+                head -c "${max_bytes}" "${body_file}" >"${body_file}.trimmed"
+                mv "${body_file}.trimmed" "${body_file}"
+                truncated=true
+        fi
+        body_size=$(wc -c <"${body_file}")
 
 	truncated_bool=false
 	if [[ "${truncated}" == "true" ]]; then
