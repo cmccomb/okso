@@ -80,3 +80,54 @@ SCRIPT
 	[ "$status" -eq 1 ]
 	[[ "${output}" == *"File writes restricted to sandbox"* ]]
 }
+
+@test "fails on malformed TOOL_ARGS JSON" {
+	script=$(
+		cat <<'SCRIPT'
+cd "$(git rev-parse --show-toplevel)"
+source ./src/tools/python_repl/index.sh
+VERBOSITY=0
+TOOL_ARGS='{input:"unterminated"}'
+tool_python_repl
+SCRIPT
+	)
+	run bash -lc "${script}"
+	[ "$status" -ne 0 ]
+	[[ "${output}" == *"Invalid TOOL_ARGS for python_repl"* ]]
+}
+
+@test "propagates sandbox creation failures" {
+	script=$(
+		cat <<'SCRIPT'
+cd "$(git rev-parse --show-toplevel)"
+source ./src/tools/python_repl/index.sh
+python_repl_create_sandbox() { return 42; }
+VERBOSITY=0
+TOOL_ARGS=$(jq -nc --arg code 'print("ok")' '{input:$code}')
+tool_python_repl
+SCRIPT
+	)
+	run bash -lc "${script}"
+	[ "$status" -eq 42 ]
+	[[ "${output}" == *"Failed to create sandbox"* ]]
+}
+
+@test "propagates startup write failures and cleans sandbox" {
+	local sandbox_dir
+	sandbox_dir=$(mktemp -d "/tmp/python_repl_failed_startup.XXXXXX")
+	script=$(
+		cat <<'SCRIPT'
+cd "$(git rev-parse --show-toplevel)"
+source ./src/tools/python_repl/index.sh
+python_repl_create_sandbox() { printf '%s\n' "${SANDBOX_DIR}"; return 0; }
+python_repl_write_startup() { return 7; }
+VERBOSITY=0
+TOOL_ARGS=$(jq -nc --arg code 'print("ok")' '{input:$code}')
+tool_python_repl
+SCRIPT
+	)
+	SANDBOX_DIR="${sandbox_dir}" run bash -lc "${script}"
+	[ "$status" -eq 7 ]
+	[[ "${output}" == *"Failed to write startup script"* ]]
+	[ ! -d "${sandbox_dir}" ]
+}

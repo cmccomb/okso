@@ -94,48 +94,66 @@ python_repl_wrap_query() {
 
 python_repl_resolve_query() {
 	# Resolves the Python input text from TOOL_ARGS or TOOL_QUERY (deprecated).
-	local text_key query
+	local args_json text_key jq_error_file jq_error query
 	text_key="$(canonical_text_arg_key)"
-	query=$(jq -er --arg key "${text_key}" 'if type == "object" then .[$key] // empty else empty end' <<<"${TOOL_ARGS:-{}}" 2>/dev/null || true)
+	args_json="${TOOL_ARGS:-}"
 
-	if [[ -z "${query}" ]]; then
-		query=${TOOL_QUERY:-""}
+	if [[ -z "${args_json}" ]]; then
+		printf '%s' "${TOOL_QUERY:-""}"
+		return 0
 	fi
 
-	printf '%s' "${query}"
-}
+	jq_error_file=$(mktemp -t python_repl_jq.XXXXXX)
+	if [[ -z "${jq_error_file}" ]]; then
+		log "ERROR" "Failed to create temp file for jq stderr" "${args_json}"
+		return 1
+	fi
 
-tool_python_repl() {
-	local query sandbox_dir startup_file repl_input status args_json text_key # strings and status code
-	args_json="${TOOL_ARGS:-}" || true
-	text_key="$(canonical_text_arg_key)"
-
-	if [[ -n "${args_json}" ]]; then
-		query=$(jq -er --arg key "${text_key}" '
+	if ! query=$(jq -er --arg key "${text_key}" '
  if type != "object" then error("args must be object") end
 | if .[$key]? == null then error("missing ${key}") end
 | if (.[$key] | type) != "string" then error("${key} must be string") end
 | if (.[$key] | length) == 0 then error("${key} cannot be empty") end
 | if ((del(.[$key]) | length) != 0) then error("unexpected properties") end
 | .[$key]
-' <<<"${args_json}" 2>/dev/null || true)
+' <<<"${args_json}" 2>"${jq_error_file}"); then
+		jq_error=$(<"${jq_error_file}")
+		rm -f "${jq_error_file}"
+		log "ERROR" "Invalid TOOL_ARGS for python_repl" "${jq_error}"
+		return 1
+	fi
+
+	rm -f "${jq_error_file}"
+	printf '%s' "${query}"
+}
+
+tool_python_repl() {
+	local query sandbox_dir startup_file repl_input status text_key create_status startup_status # strings and status code
+	text_key="$(canonical_text_arg_key)"
+
+	if ! query=$(python_repl_resolve_query); then
+		return 1
 	fi
 
 	if [[ -z "${query}" ]]; then
-		log "ERROR" "Missing TOOL_ARGS.${text_key}" "${args_json}" || true
+		log "ERROR" "Missing TOOL_ARGS.${text_key}" "${TOOL_ARGS:-${TOOL_QUERY:-}}"
 		return 1
 	fi
 
-	sandbox_dir=$(python_repl_create_sandbox) || {
-		log "ERROR" "Failed to create sandbox" "${query}" || true
-		return 1
-	}
+	sandbox_dir=$(python_repl_create_sandbox)
+	create_status=$?
+	if [[ ${create_status} -ne 0 ]]; then
+		log "ERROR" "Failed to create sandbox" "${query}"
+		return "${create_status}"
+	fi
 
-	startup_file=$(python_repl_write_startup "${sandbox_dir}") || {
-		log "ERROR" "Failed to write startup script" "${sandbox_dir}" || true
+	startup_file=$(python_repl_write_startup "${sandbox_dir}")
+	startup_status=$?
+	if [[ ${startup_status} -ne 0 ]]; then
+		log "ERROR" "Failed to write startup script" "${sandbox_dir}"
 		rm -rf "${sandbox_dir}"
-		return 1
-	}
+		return "${startup_status}"
+	fi
 
 	repl_input=$(python_repl_wrap_query "${query}")
 	repl_input+=$'\n\nexit()\n'
