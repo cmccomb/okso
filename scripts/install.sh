@@ -195,7 +195,7 @@ uninstall_with_brew() {
 	local list_output
 	if ! list_output="$(brew list --formula --versions "${APP_NAME}" 2>&1)"; then
 		case "${list_output}" in
-		*"No such keg"* | *"not installed"* | *"is not installed"*)
+		*"No such keg"* | *"not installed"*)
 			log "INFO" "${APP_NAME} is not installed via Homebrew; skipping uninstall"
 			return 0
 			;;
