@@ -160,24 +160,24 @@ validate_react_action() {
 		return 1
 	fi
 
-        tool=$(jq -r '.tool' <<<"${action_json}")
-        allowed_tools=$(jq -cr '
+	tool=$(jq -r '.tool' <<<"${action_json}")
+	allowed_tools=$(jq -cr '
                 if (.properties.tool.enum // null) then .properties.tool.enum
                 elif (.oneOf | type == "array") then [.oneOf[].properties.tool.const]
                 else []
                 end
         ' <<<"${schema_json}" 2>/dev/null || printf '[]')
-        if ! jq -e --arg tool "${tool}" --argjson allowed "${allowed_tools}" '$allowed | index($tool)' <<<"null" >/dev/null; then
-                printf 'Unsupported tool: %s\n' "${tool}" >&2
-                return 1
-        fi
+	if ! jq -e --arg tool "${tool}" --argjson allowed "${allowed_tools}" '$allowed | index($tool)' <<<"null" >/dev/null; then
+		printf 'Unsupported tool: %s\n' "${tool}" >&2
+		return 1
+	fi
 
 	if ! jq -e '.args | type == "object"' <<<"${action_json}" >/dev/null; then
 		printf 'args must be an object\n' >&2
 		return 1
 	fi
 
-        tool_schema=$(jq -c --arg tool "${tool}" '
+	tool_schema=$(jq -c --arg tool "${tool}" '
                 ((."$defs"?.args_by_tool[$tool]) // null) as $def_schema
                 | (([.oneOf[]? | select(.properties.tool.const == $tool) | .properties.args] | first) // null) as $variant_schema
                 | ($def_schema // $variant_schema // empty)
