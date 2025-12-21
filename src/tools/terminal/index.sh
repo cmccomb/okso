@@ -30,8 +30,8 @@ source "${BASH_SOURCE[0]%/tools/terminal/index.sh}/lib/cli/output.sh"
 source "${BASH_SOURCE[0]%/terminal/index.sh}/registry.sh"
 
 TERMINAL_ALLOWED_COMMANDS=(
-	"status"
-	"pwd"
+        "status"
+        "pwd"
 	"ls"
 	"cd"
 	"cat"
@@ -50,8 +50,11 @@ TERMINAL_ALLOWED_COMMANDS=(
 	"wc"
 	"du"
 	"base64"
-	"date"
+        "date"
 )
+
+TERMINAL_CMD=""       # string command parsed from TOOL_ARGS
+TERMINAL_CMD_ARGS=()   # array command arguments parsed from TOOL_ARGS
 
 TERMINAL_SESSION_ID="${TERMINAL_SESSION_ID:-}" # string session identifier
 TERMINAL_WORKDIR="${TERMINAL_WORKDIR:-}"       # string working directory for the persistent session
@@ -202,8 +205,11 @@ tool_terminal() {
 	if ! terminal_args_from_json; then
 		return 1
 	fi
-	command="${TERMINAL_CMD}"
-	args=("${TERMINAL_CMD_ARGS[@]}")
+        command="${TERMINAL_CMD}"
+        args=()
+        if [[ ${TERMINAL_CMD_ARGS+set} == set && ${#TERMINAL_CMD_ARGS[@]} -gt 0 ]]; then
+                args=("${TERMINAL_CMD_ARGS[@]}")
+        fi
 
 	if ! terminal_allowed "${command}"; then
 		log "WARN" "Unknown terminal command; showing status" "${command}"

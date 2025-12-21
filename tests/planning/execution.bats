@@ -24,7 +24,7 @@ SCRIPT
 }
 
 @test "execute_tool_with_query runs handler and emits structured response" {
-	run bash <<'SCRIPT'
+        run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/exec/dispatch.sh
 APPROVE_ALL=true
@@ -41,9 +41,32 @@ execute_tool_with_query "example" "do it" "context" '{"foo":1}'
 SCRIPT
 
 	[ "$status" -eq 0 ]
-	payload=$(printf '%s' "${output}")
-	body=$(printf '%s' "${payload}" | jq -r '.output')
-	exit_code=$(printf '%s' "${payload}" | jq -r '.exit_code')
-	[ "${body}" = 'ran:do it:{"foo":1}' ]
-	[ "${exit_code}" -eq 0 ]
+        payload=$(printf '%s\n' "${output}" | tail -n 1)
+        body=$(printf '%s' "${payload}" | jq -r '.output')
+        exit_code=$(printf '%s' "${payload}" | jq -r '.exit_code')
+        [ "${body}" = 'ran:do it:{"foo":1}' ]
+        [ "${exit_code}" -eq 0 ]
+}
+
+@test "terminal executes once via dispatch with normalized args" {
+        run bash <<'SCRIPT'
+set -euo pipefail
+source ./src/lib/exec/dispatch.sh
+source ./src/tools/terminal/index.sh
+
+VERBOSITY=0
+APPROVE_ALL=true
+PLAN_ONLY=false
+DRY_RUN=false
+
+register_terminal
+normalized_args='{"args":[],"command":"status"}'
+payload=$(execute_tool_with_query "terminal" "" "" "${normalized_args}")
+printf '%s' "${payload}"
+SCRIPT
+
+        [ "$status" -eq 0 ]
+        payload=$(printf '%s\n' "${output}" | tail -n 1)
+        body=$(printf '%s' "${payload}" | jq -r '.output')
+        [[ "${body}" == *"Working directory:"* ]]
 }

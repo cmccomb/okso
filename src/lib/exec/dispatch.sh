@@ -30,6 +30,11 @@ source "${EXEC_LIB_DIR}/../config.sh"
 # shellcheck source=../tools.sh disable=SC1091
 source "${EXEC_LIB_DIR}/../tools.sh"
 
+: "${PLAN_ONLY:=false}"
+: "${DRY_RUN:=false}"
+: "${FORCE_CONFIRM:=false}"
+: "${APPROVE_ALL:=false}"
+
 should_prompt_for_tool() {
 	if [[ "${PLAN_ONLY}" == true || "${DRY_RUN}" == true ]]; then
 		return 1
@@ -120,10 +125,9 @@ execute_tool_with_query() {
 	stdout_file="$(mktemp)"
 	stderr_file="$(mktemp)"
 
-	log "INFO" "Right before tool call" ""
-	TOOL_QUERY="${tool_query}" TOOL_ARGS="${tool_args_json}" ${handler}
-	TOOL_QUERY="${tool_query}" TOOL_ARGS="${tool_args_json}" ${handler} >"${stdout_file}" 2>"${stderr_file}"
-	log "INFO" "Right after tool call" ""
+        log "INFO" "Right before tool call" ""
+        TOOL_QUERY="${tool_query}" TOOL_ARGS="${tool_args_json}" ${handler} >"${stdout_file}" 2>"${stderr_file}"
+        log "INFO" "Right after tool call" ""
 
 	status=$?
 	output="$(cat "${stdout_file}")"
