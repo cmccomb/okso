@@ -376,18 +376,18 @@ validate_tool_permission() {
 }
 
 execute_tool_action() {
-	# Executes the selected tool.
-	# Arguments:
-	#   $1 - tool name
-	#   $2 - tool query
-	#   $3 - human-readable context (optional)
-	#   $4 - structured args JSON (optional)
-	local tool query context args_json
-	tool="$1"
-	query="$2"
-	context="$3"
-	args_json="$4"
-	execute_tool_with_query "${tool}" "${query}" "${context}" "${args_json}" || true
+        # Executes the selected tool.
+        # Arguments:
+        #   $1 - tool name
+        #   $2 - tool query
+        #   $3 - human-readable context (optional)
+        #   $4 - structured args JSON (optional)
+        local tool query context args_json
+        tool="$1"
+        query="$2"
+        context="$3"
+        args_json="$4"
+        execute_tool_with_query "${tool}" "${query}" "${context}" "${args_json}"
 }
 
 is_duplicate_action() {
@@ -474,12 +474,65 @@ react_loop() {
 		query="${final_answer_payload}"
 		action_context="$(format_action_context "${thought}" "${tool}" "${normalized_args_json}")"
 
-		observation="$(execute_tool_action "${tool}" "${query}" "${action_context}" "${normalized_args_json}")"
+                local tool_status failure_detail errexit_enabled
+                observation=""
+                errexit_enabled=false
+                if [[ $- == *e* ]]; then
+                        errexit_enabled=true
+                fi
+                set +e
+                observation="$(execute_tool_action "${tool}" "${query}" "${action_context}" "${normalized_args_json}")"
+                tool_status=$?
+                if [[ "${errexit_enabled}" == true ]]; then
+                        set -e
+                fi
+                if ((tool_status != 0)); then
+                        failure_detail="Tool ${tool} failed to run (exit ${tool_status}). Check stderr logs for details."
+                        log "ERROR" "Tool execution failed" "$(printf 'step=%s tool=%s exit_code=%s' "${current_step}" "${tool}" "${tool_status}")"
+                        observation=$(jq -nc \
+                                --arg output "${observation}" \
+                                --arg error "${failure_detail}" \
+                                --argjson exit_code "${tool_status}" \
+                                '{output:$output,error:$error,exit_code:$exit_code}')
+                fi
 
-		record_tool_execution "${state_prefix}" "${tool}" "${thought}" "${normalized_args_json}" "${observation}" "${current_step}"
+                if [[ -z "${observation}" ]]; then
+                        observation=$(jq -nc \
+                                --arg output "" \
+                                --arg error "Tool produced no output; marking as failure." \
+                                --argjson exit_code "${tool_status}" \
+                                '{output:$output,error:$error,exit_code:$exit_code}')
+                fi
 
-		local exit_code
-		exit_code=$(printf '%s' "${observation}" | jq -r '.exit_code // 0' 2>/dev/null || echo 0)
+                local exit_code
+                exit_code=$(printf '%s' "${observation}" | jq -r '.exit_code // empty' 2>/dev/null || printf '')
+                if [[ -z "${exit_code}" ]]; then
+                        exit_code=${tool_status:-0}
+                        observation=$(jq -c \
+                                --argjson exit_code "${exit_code}" \
+                                '. + {exit_code:$exit_code}' <<<"${observation}" 2>/dev/null || jq -nc \
+                                --arg output "" \
+                                --arg error "Tool returned invalid observation payload." \
+                                --argjson exit_code "${exit_code}" \
+                                '{output:$output,error:$error,exit_code:$exit_code}')
+                fi
+
+                local failure_record failure_error
+                failure_error=$(printf '%s' "${observation}" | jq -r '.error // empty' 2>/dev/null || printf '')
+                if ((exit_code != 0)); then
+                        failure_record=$(jq -nc \
+                                --arg tool "${tool}" \
+                                --argjson step "${current_step}" \
+                                --argjson exit_code "${exit_code}" \
+                                --arg error "${failure_error:-"Tool execution failed"}" \
+                                '{tool:$tool,step:$step,exit_code:$exit_code,error:$error}')
+                        state_set_json_document "${state_prefix}" "$(state_get_json_document "${state_prefix}" | jq -c --argjson failure "${failure_record}" '.last_tool_error = $failure')"
+                        log "ERROR" "Tool reported failure" "$(printf 'step=%s tool=%s exit_code=%s error=%s' "${current_step}" "${tool}" "${exit_code}" "${failure_error:-"(none)"}")"
+                else
+                        state_set_json_document "${state_prefix}" "$(state_get_json_document "${state_prefix}" | jq -c '.last_tool_error = null')"
+                fi
+
+                record_tool_execution "${state_prefix}" "${tool}" "${thought}" "${normalized_args_json}" "${observation}" "${current_step}"
 		if ((exit_code != 0)); then
 			local plan_entries_text
 			plan_entries_text="$(state_get "${state_prefix}" "plan_entries")"
