@@ -202,7 +202,7 @@ tool_terminal() {
 	local command args mode shifted_args has_interactive rm_args
 	terminal_init_session
 
-if ! terminal_args_from_json; then
+	if ! terminal_args_from_json; then
 		return 1
 	fi
 	command="${TERMINAL_CMD}"
@@ -256,7 +256,11 @@ if ! terminal_args_from_json; then
 		terminal_run_in_workdir grep "${args[@]}"
 		;;
 	date)
-		terminal_run_in_workdir date "${args[@]}"
+		if [[ ${#args[@]} -eq 0 ]]; then
+			terminal_run_in_workdir date
+		else
+			terminal_run_in_workdir date "${args[@]}"
+		fi
 		;;
 	open)
 		if [[ "${IS_MACOS}" != true ]]; then
