@@ -173,6 +173,35 @@ format_action_context() {
 	printf 'Thought: %s\nTool: %s\nArgs: %s' "${thought}" "${tool}" "${args_pretty}"
 }
 
+normalize_args_json() {
+	# Normalizes argument JSON into canonical form.
+	# Arguments:
+	#   $1 - args JSON string
+	# Returns:
+	#   Canonical JSON string with sorted keys.
+	local args_json normalized
+	args_json="$1"
+	if [[ -z "${args_json}" ]]; then
+		args_json="{}"
+	fi
+	normalized="$(jq -cS '.' <<<"${args_json}" 2>/dev/null || printf '{}')"
+	printf '%s' "${normalized}"
+}
+
+normalize_action() {
+	# Builds a normalized action object for comparison and storage.
+	# Arguments:
+	#   $1 - tool name
+	#   $2 - args JSON
+	# Returns:
+	#   Canonical action JSON string.
+	local tool args_json normalized_args
+	tool="$1"
+	args_json="$2"
+	normalized_args="$(normalize_args_json "${args_json}")"
+	jq -ncS --arg tool "${tool}" --argjson args "${normalized_args}" '{tool:$tool,args:$args}'
+}
+
 _select_action_from_llama() {
 	# Selects an action via llama.cpp, validates it, and writes into the provided variable name.
 	# Arguments:
@@ -367,7 +396,7 @@ is_duplicate_action() {
 	#   $1 - last action JSON
 	#   $2 - candidate tool name
 	#   $3 - candidate args JSON
-	local last_action tool args_json last_tool last_args
+	local last_action tool args_json last_tool last_args last_exit_code normalized_current normalized_last
 	last_action="$1"
 	tool="$2"
 	args_json="$3"
@@ -376,9 +405,16 @@ is_duplicate_action() {
 		return 1
 	fi
 
+	last_exit_code=$(printf '%s' "${last_action}" | jq -r '.exit_code // 0' 2>/dev/null || echo 0)
+	if ((last_exit_code != 0)); then
+		return 1
+	fi
+
 	last_tool="$(printf '%s' "${last_action}" | jq -r '.tool // empty')"
-	last_args="$(printf '%s' "${last_action}" | jq -c '.args // {}')"
-	if [[ "${tool}" == "${last_tool}" && "${args_json}" == "${last_args}" && "${tool}" != "final_answer" ]]; then
+	last_args="$(printf '%s' "${last_action}" | jq -cS '.args // {}' 2>/dev/null || printf '{}')"
+	normalized_current="$(normalize_action "${tool}" "${args_json}")"
+	normalized_last="$(jq -cS '{tool,args}' <<<"$(jq -c '.' <<<"${last_action}" 2>/dev/null || printf '{}')" 2>/dev/null || printf '{}')"
+	if [[ "${tool}" == "${last_tool}" && "${normalized_current}" == "${normalized_last}" && "${tool}" != "final_answer" ]]; then
 		return 0
 	fi
 
@@ -387,6 +423,7 @@ is_duplicate_action() {
 
 react_loop() {
 	local user_query allowed_tools plan_entries plan_outline action_json tool query observation current_step thought args_json action_context
+	local normalized_args_json
 	local state_prefix last_action
 	user_query="$1"
 	allowed_tools="$2"
@@ -409,27 +446,28 @@ react_loop() {
 		tool="$(printf '%s' "${action_json}" | jq -r '.tool // empty' 2>/dev/null || true)"
 		thought="$(printf '%s' "${action_json}" | jq -r '.thought // empty' 2>/dev/null || true)"
 		args_json="$(printf '%s' "${action_json}" | jq -c '.args // {}' 2>/dev/null || printf '{}')"
+		normalized_args_json="$(normalize_args_json "${args_json}")"
 
 		last_action="$(state_get "${state_prefix}" "last_action")"
-		if is_duplicate_action "${last_action}" "${tool}" "${args_json}"; then
-			log "WARN" "Duplicate action detected" "${tool}"
-			observation="Duplicate action detected. Please try a different approach or call final_answer if you are stuck."
-			record_tool_execution "${state_prefix}" "${tool}" "${thought} (REPEATED)" "${args_json}" "${observation}" "${current_step}"
-			state_set "${state_prefix}" "step" "${current_step}"
-			continue
-		fi
-		state_set_json_document "${state_prefix}" "$(state_get_json_document "${state_prefix}" | jq -c --argjson action "${action_json}" '.last_action = $action')"
-
-		query="$(extract_tool_query "${tool}" "${args_json}")"
-		action_context="$(format_action_context "${thought}" "${tool}" "${args_json}")"
 
 		if ! validate_tool_permission "${state_prefix}" "${tool}"; then
 			state_set "${state_prefix}" "step" "${current_step}"
 			continue
 		fi
 
-		observation="$(execute_tool_action "${tool}" "${query}" "${action_context}" "${args_json}")"
-		record_tool_execution "${state_prefix}" "${tool}" "${thought}" "${args_json}" "${observation}" "${current_step}"
+		if is_duplicate_action "${last_action}" "${tool}" "${normalized_args_json}"; then
+			log "WARN" "Duplicate action detected" "${tool}"
+			observation="Duplicate action detected. Please try a different approach or call final_answer if you are stuck."
+			record_tool_execution "${state_prefix}" "${tool}" "${thought} (REPEATED)" "${normalized_args_json}" "${observation}" "${current_step}"
+			state_set "${state_prefix}" "step" "${current_step}"
+			continue
+		fi
+
+		query="$(extract_tool_query "${tool}" "${normalized_args_json}")"
+		action_context="$(format_action_context "${thought}" "${tool}" "${normalized_args_json}")"
+
+		observation="$(execute_tool_action "${tool}" "${query}" "${action_context}" "${normalized_args_json}")"
+		record_tool_execution "${state_prefix}" "${tool}" "${thought}" "${normalized_args_json}" "${observation}" "${current_step}"
 
 		local exit_code
 		exit_code=$(printf '%s' "${observation}" | jq -r '.exit_code // 0' 2>/dev/null || echo 0)
@@ -442,8 +480,12 @@ react_loop() {
 			fi
 		fi
 
+		local normalized_action
+		normalized_action="$(normalize_action "${tool}" "${normalized_args_json}")"
+		state_set_json_document "${state_prefix}" "$(state_get_json_document "${state_prefix}" | jq -c --argjson action "${normalized_action}" --argjson exit_code "${exit_code}" '.last_action = ($action + {exit_code:$exit_code})')"
+
 		state_set "${state_prefix}" "step" "${current_step}"
-		if [[ "${tool}" == "final_answer" ]]; then
+		if [[ "${tool}" == "final_answer" && ${exit_code} -eq 0 ]]; then
 			state_set "${state_prefix}" "final_answer" "${observation}"
 			break
 		fi

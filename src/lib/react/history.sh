@@ -106,6 +106,7 @@ record_tool_execution() {
 	if [[ -z "${args_json}" ]]; then
 		args_json="{}"
 	fi
+	args_json="$(jq -cS '.' <<<"${args_json}" 2>/dev/null || printf '{}')"
 	entry=$(
 		python3 - "$step_index" "$thought" "$tool" "$args_json" "$observation" <<'PY'
 import json
