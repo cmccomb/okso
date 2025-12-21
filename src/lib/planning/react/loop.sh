@@ -147,18 +147,15 @@ extract_tool_query() {
 	web_search)
 		jq -r '.query // ""' <<<"${args_json}" 2>/dev/null || printf ''
 		;;
-        mail_draft | mail_send)
-                jq -r '(.envelope // "")' <<<"${args_json}" 2>/dev/null || printf ''
-                ;;
-	applescript)
-		jq -r --arg key "${text_key}" '.[$key] // ""' <<<"${args_json}" 2>/dev/null || printf ''
-		;;
+	mail_draft | mail_send)
+			jq -r '(.envelope // "")' <<<"${args_json}" 2>/dev/null || printf ''
+			;;
 	final_answer)
 		jq -r --arg key "${text_key}" '.[$key] // ""' <<<"${args_json}" 2>/dev/null || printf ''
 		;;
-        notes_list | reminders_list | calendar_list | mail_list_inbox | mail_list_unread)
-                printf ''
-                ;;
+	notes_list | reminders_list | calendar_list | mail_list_inbox | mail_list_unread)
+			printf ''
+			;;
 	*)
 		jq -r --arg key "${text_key}" '.[$key] // .query // ""' <<<"${args_json}" 2>/dev/null || printf ''
 		;;
