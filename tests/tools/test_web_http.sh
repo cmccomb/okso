@@ -23,7 +23,7 @@ SCRIPT
 }
 
 @test "web_http_request returns metadata for HTTP errors" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 mock_bin="$(mktemp -d)"
 cat >"${mock_bin}/curl" <<'MOCK'
@@ -62,12 +62,12 @@ source ./src/tools/web/http.sh
 web_http_request "https://example.com/error" 1024
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        echo "$output" | jq -e '.status == 500'
+	[ "$status" -eq 0 ]
+	echo "$output" | jq -e '.status == 500'
 }
 
 @test "web_http_request reports truncated byte length" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 mock_bin="$(mktemp -d)"
 cat >"${mock_bin}/curl" <<'MOCK'
@@ -108,10 +108,10 @@ wc -c <"${body_path}"
 echo "${response}"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        truncated_bytes=$(echo "$output" | sed -n '1p')
-        response_json=$(echo "$output" | sed -n '2p')
-        [ "$truncated_bytes" -eq 5 ]
-        echo "$response_json" | jq -e '.truncated == true'
-        echo "$response_json" | jq -e '.bytes == 5'
+	[ "$status" -eq 0 ]
+	truncated_bytes=$(echo "$output" | sed -n '1p')
+	response_json=$(echo "$output" | sed -n '2p')
+	[ "$truncated_bytes" -eq 5 ]
+	echo "$response_json" | jq -e '.truncated == true'
+	echo "$response_json" | jq -e '.bytes == 5'
 }

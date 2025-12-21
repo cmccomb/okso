@@ -68,9 +68,9 @@ log_emit() {
 			detail: $detail
 		}')
 
-        case "${format_style}" in
-        pretty)
-                printf '%s\n' "${payload}" | jq '
+	case "${format_style}" in
+	pretty)
+		printf '%s\n' "${payload}" | jq '
                 .detail |= (
                         if type == "string" then
                                 . as $d
@@ -83,8 +83,8 @@ log_emit() {
                         | if type == "string" and (test("\n")) then split("\n") else . end
                 )
         ' >&2
-                ;;
-        *)
+		;;
+	*)
 		printf '%s\n' "${payload}" | jq -c '.' >&2
 		;;
 	esac

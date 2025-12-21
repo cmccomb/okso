@@ -12,7 +12,7 @@
 #   Inherits Bats semantics; individual tests assert script exit codes.
 
 @test "calendar_create fails when details omit start time" {
-        run bash -lc '
+	run bash -lc '
                 export CALENDAR_OSASCRIPT_BIN="$(pwd)/tests/fixtures/osascript_stub.sh"
                 export IS_MACOS=true
                 export VERBOSITY=0
@@ -21,6 +21,6 @@
                 tool_calendar_create
         '
 
-        [ "$status" -eq 1 ]
-        [[ "$output" == *"Event title and time are required"* ]]
+	[ "$status" -eq 1 ]
+	[[ "$output" == *"Event title and time are required"* ]]
 }
