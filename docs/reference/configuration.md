@@ -51,6 +51,8 @@ LLAMA_CONTEXT_MARGIN_PERCENT=15
 
 Environment variables with the same names as the config keys take precedence over file values when set. Google Custom Search credentials can also be provided via `OKSO_GOOGLE_CSE_API_KEY` and `OKSO_GOOGLE_CSE_ID`.
 
+ReAct runs create a cache directory under `${OKSO_CACHE_DIR}/runs/${OKSO_RUN_ID}` for the duration of the invocation. Successful runs remove that directory, while failures keep it intact for debugging.
+
 API keys and other secrets belong in `~/.config/okso/config.env` or a locally sourced `.env` file—never commit them to version control. Consider adding local files containing secrets to `.gitignore` if you keep them alongside your working directory.
 
 See the [Initialize config for a custom model](../user-guides/usage.md#initialize-config-for-a-custom-model) walkthrough for a step-by-step example that combines `okso init` with environment overrides.
