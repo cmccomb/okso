@@ -72,7 +72,7 @@ set_by_name() {
 }
 
 settings_field_mappings() {
-        cat <<'EOF'
+	cat <<'EOF'
 version VERSION
 llama_bin LLAMA_BIN
 default_model_file DEFAULT_MODEL_FILE
@@ -106,71 +106,71 @@ EOF
 }
 
 react_run_cache_dir() {
-        # Derives the directory that scopes the ReAct prompt cache for the current run.
-        # Returns:
-        #   The directory path (string) or empty string when unset.
-        if [[ -z "${REACT_CACHE_FILE:-}" ]]; then
-                printf ''
-                return
-        fi
+	# Derives the directory that scopes the ReAct prompt cache for the current run.
+	# Returns:
+	#   The directory path (string) or empty string when unset.
+	if [[ -z "${REACT_CACHE_FILE:-}" ]]; then
+		printf ''
+		return
+	fi
 
-        printf '%s' "$(dirname "${REACT_CACHE_FILE}")"
+	printf '%s' "$(dirname "${REACT_CACHE_FILE}")"
 }
 
 coerce_react_run_cache_path() {
-        # Ensures the ReAct prompt cache is scoped to the current run directory.
-        # Arguments:
-        #   $1 - settings namespace prefix
-        local settings_prefix cache_dir run_id cache_basename run_cache_dir coerced_path
-        settings_prefix="$1"
+	# Ensures the ReAct prompt cache is scoped to the current run directory.
+	# Arguments:
+	#   $1 - settings namespace prefix
+	local settings_prefix cache_dir run_id cache_basename run_cache_dir coerced_path
+	settings_prefix="$1"
 
-        cache_dir="${CACHE_DIR:-$(settings_get "${settings_prefix}" "cache_dir")}" || cache_dir=""
-        run_id="${RUN_ID:-$(settings_get "${settings_prefix}" "run_id")}" || run_id=""
-        cache_basename="$(basename "${REACT_CACHE_FILE:-react.prompt-cache}")"
+	cache_dir="${CACHE_DIR:-$(settings_get "${settings_prefix}" "cache_dir")}" || cache_dir=""
+	run_id="${RUN_ID:-$(settings_get "${settings_prefix}" "run_id")}" || run_id=""
+	cache_basename="$(basename "${REACT_CACHE_FILE:-react.prompt-cache}")"
 
-        if [[ -z "${cache_dir}" || -z "${run_id}" ]]; then
-                return
-        fi
+	if [[ -z "${cache_dir}" || -z "${run_id}" ]]; then
+		return
+	fi
 
-        run_cache_dir="${cache_dir}/runs/${run_id}"
-        coerced_path="${run_cache_dir}/${cache_basename}"
-        settings_set "${settings_prefix}" "react_cache_file" "${coerced_path}"
-        REACT_CACHE_FILE="${coerced_path}"
+	run_cache_dir="${cache_dir}/runs/${run_id}"
+	coerced_path="${run_cache_dir}/${cache_basename}"
+	settings_set "${settings_prefix}" "react_cache_file" "${coerced_path}"
+	REACT_CACHE_FILE="${coerced_path}"
 }
 
 ensure_react_run_cache_dir() {
-        # Ensures the run-scoped ReAct cache directory exists for llama.cpp caching.
-        local cache_dir
-        cache_dir="$(react_run_cache_dir)"
+	# Ensures the run-scoped ReAct cache directory exists for llama.cpp caching.
+	local cache_dir
+	cache_dir="$(react_run_cache_dir)"
 
-        if [[ -z "${cache_dir}" ]]; then
-                return
-        fi
+	if [[ -z "${cache_dir}" ]]; then
+		return
+	fi
 
-        mkdir -p "${cache_dir}"
-        REACT_RUN_CACHE_DIR="${cache_dir}"
-        log "INFO" "Prepared ReAct run cache" "path=${cache_dir}"
+	mkdir -p "${cache_dir}"
+	REACT_RUN_CACHE_DIR="${cache_dir}"
+	log "INFO" "Prepared ReAct run cache" "path=${cache_dir}"
 }
 
 cleanup_react_run_cache_dir() {
-        # Cleans up the run-scoped ReAct cache directory on success and retains it on failure.
-        # Arguments:
-        #   $1 - exit status to evaluate
-        local status cache_dir
-        status="${1:-0}"
-        cache_dir="${REACT_RUN_CACHE_DIR:-$(react_run_cache_dir)}"
+	# Cleans up the run-scoped ReAct cache directory on success and retains it on failure.
+	# Arguments:
+	#   $1 - exit status to evaluate
+	local status cache_dir
+	status="${1:-0}"
+	cache_dir="${REACT_RUN_CACHE_DIR:-$(react_run_cache_dir)}"
 
-        if [[ -z "${cache_dir}" || ! -d "${cache_dir}" ]]; then
-                return
-        fi
+	if [[ -z "${cache_dir}" || ! -d "${cache_dir}" ]]; then
+		return
+	fi
 
-        if [[ "${status}" -eq 0 ]]; then
-                rm -rf "${cache_dir}"
-                log "INFO" "Cleaned ReAct run cache" "path=${cache_dir}"
-                return
-        fi
+	if [[ "${status}" -eq 0 ]]; then
+		rm -rf "${cache_dir}"
+		log "INFO" "Cleaned ReAct run cache" "path=${cache_dir}"
+		return
+	fi
 
-        log "INFO" "Retaining ReAct run cache for debugging" "path=${cache_dir} status=${status}"
+	log "INFO" "Retaining ReAct run cache for debugging" "path=${cache_dir} status=${status}"
 }
 
 apply_settings_to_globals() {
@@ -216,14 +216,14 @@ load_runtime_settings() {
 
 	# Ordering matters: config file may update globals before CLI args take
 	# precedence, matching typical UNIX expectations.
-        detect_config_file "$@"
-        load_config
-        parse_args "$@"
-        normalize_approval_flags
-        hydrate_model_specs
-        coerce_react_run_cache_path "${settings_prefix}"
+	detect_config_file "$@"
+	load_config
+	parse_args "$@"
+	normalize_approval_flags
+	hydrate_model_specs
+	coerce_react_run_cache_path "${settings_prefix}"
 
-        capture_globals_into_settings "${settings_prefix}"
+	capture_globals_into_settings "${settings_prefix}"
 }
 
 prepare_environment_with_settings() {
