@@ -185,16 +185,8 @@ validate_react_action() {
 	fi
 
 	properties_json=$(jq -c 'if (.properties | type == "object") then .properties else {} end' <<<"${tool_schema}")
-	required_args=$(jq -r '(.required // [])[]?' <<<"${tool_schema}")
+	required_args=$(jq -c '.required // []' <<<"${tool_schema}")
 	additional_properties=$(jq -c 'if .additionalProperties == null then false else .additionalProperties end' <<<"${tool_schema}")
-
-	local required
-	for required in ${required_args}; do
-		if ! jq -e --arg key "${required}" '.args | has($key)' <<<"${action_json}" >/dev/null; then
-			printf 'Missing arg: %s\n' "${required}" >&2
-			return 1
-		fi
-	done
 
 	_react_enforce_arg_type() {
 		# Validates an argument value against a schema fragment using jq types.
@@ -230,10 +222,10 @@ validate_react_action() {
 			fi
 			;;
 		number)
-			jq -e 'type == "number" or type == "integer"' <<<"${value}" >/dev/null || return 1
+			jq -e 'type == "number"' <<<"${value}" >/dev/null || return 1
 			;;
 		integer)
-			jq -e 'type == "integer"' <<<"${value}" >/dev/null || return 1
+			jq -e 'type == "number" and (. == (.|floor))' <<<"${value}" >/dev/null || return 1
 			;;
 		boolean)
 			jq -e 'type == "boolean"' <<<"${value}" >/dev/null || return 1
@@ -248,12 +240,52 @@ validate_react_action() {
 
 	local arg_key
 	for arg_key in $(jq -r 'keys_unsorted[]?' <<<"${properties_json}" 2>/dev/null || true); do
-		local arg_schema arg_value
+		local arg_schema arg_value has_arg is_required
 		arg_schema=$(jq -c --arg key "${arg_key}" '.[$key]' <<<"${properties_json}")
+		if jq -e --arg key "${arg_key}" '.args | has($key)' <<<"${action_json}" >/dev/null; then
+			has_arg=true
+		else
+			has_arg=false
+		fi
+
+		if jq -e --arg key "${arg_key}" --argjson required "${required_args}" '$required | index($key)' <<<"null" >/dev/null; then
+			is_required=true
+		else
+			is_required=false
+		fi
+
+		if [[ "${has_arg}" == false ]]; then
+			if [[ "${is_required}" == true ]]; then
+				printf 'Missing arg: %s\n' "${arg_key}" >&2
+				return 1
+			fi
+			continue
+		fi
+
 		arg_value=$(jq -c --arg key "${arg_key}" '.args[$key]' <<<"${action_json}")
+		if [[ "${arg_value}" == "null" && "${is_required}" == false ]]; then
+			continue
+		fi
+
 		if ! _react_enforce_arg_type "${arg_value}" "${arg_schema}"; then
-			printf 'Invalid type for arg: %s\n' "${arg_key}" >&2
+			local expected_type enum_values
+			expected_type="$(jq -r '.type // empty' <<<"${arg_schema}" 2>/dev/null || true)"
+			enum_values="$(jq -cr '.enum // empty' <<<"${arg_schema}" 2>/dev/null || true)"
+			if [[ -n "${enum_values}" && "${enum_values}" != "null" ]]; then
+				printf 'Arg %s must be one of: %s\n' "${arg_key}" "$(jq -r '.enum | join(", ")' <<<"${arg_schema}" 2>/dev/null || printf '')" >&2
+			elif [[ -n "${expected_type}" ]]; then
+				printf 'Arg %s must be a %s\n' "${arg_key}" "${expected_type}" >&2
+			else
+				printf 'Invalid type for arg: %s\n' "${arg_key}" >&2
+			fi
 			return 1
+		fi
+
+		if jq -e '(.enum // null) != null' <<<"${arg_schema}" >/dev/null 2>&1; then
+			if ! jq -e --argjson value "${arg_value}" --argjson enums "$(jq -c '.enum' <<<"${arg_schema}" 2>/dev/null || printf '[]')" '$enums | index($value)' <<<"null" >/dev/null; then
+				printf 'Arg %s must be one of: %s\n' "${arg_key}" "$(jq -r '.enum | join(", ")' <<<"${arg_schema}" 2>/dev/null || printf '')" >&2
+				return 1
+			fi
 		fi
 	done
 
@@ -274,5 +306,6 @@ validate_react_action() {
 		fi
 	fi
 
+	printf '%s' "${action_json}"
 	return 0
 }
