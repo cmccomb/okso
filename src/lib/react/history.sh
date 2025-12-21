@@ -22,8 +22,8 @@ REACT_LIB_DIR=${REACT_LIB_DIR:-$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)}
 source "${REACT_LIB_DIR}/../core/logging.sh"
 # shellcheck source=../core/state.sh disable=SC1091
 source "${REACT_LIB_DIR}/../core/state.sh"
-# shellcheck source=../planning/respond.sh disable=SC1091
-source "${REACT_LIB_DIR}/../planning/respond.sh"
+# shellcheck source=../assistant/respond.sh disable=SC1091
+source "${REACT_LIB_DIR}/../assistant/respond.sh"
 # shellcheck source=../formatting.sh disable=SC1091
 source "${REACT_LIB_DIR}/../formatting.sh"
 

@@ -18,8 +18,8 @@
 
 REACT_LIB_DIR=${REACT_LIB_DIR:-$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)}
 
-# shellcheck source=../planning/schema.sh disable=SC1091
-source "${REACT_LIB_DIR}/../planning/schema.sh"
+# shellcheck source=../schema/schema.sh disable=SC1091
+source "${REACT_LIB_DIR}/../schema/schema.sh"
 # shellcheck source=../core/logging.sh disable=SC1091
 source "${REACT_LIB_DIR}/../core/logging.sh"
 # shellcheck source=../tools.sh disable=SC1091

@@ -16,22 +16,14 @@
 # Exit codes:
 #   Functions print derived strings and return 0 on success.
 
-PLANNING_CONTEXT_BUDGET_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+LLM_CONTEXT_BUDGET_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 PROMPT_TOKEN_BUDGET=${PROMPT_TOKEN_BUDGET:-4096}
 SUMMARY_LINE_CHAR_LIMIT=${SUMMARY_LINE_CHAR_LIMIT:-240}
 
 # shellcheck source=../core/logging.sh disable=SC1091
-source "${PLANNING_CONTEXT_BUDGET_DIR}/../core/logging.sh"
-
-_estimate_token_count() {
-	# Rough token estimate using character length heuristics (4 characters per token).
-	# Arguments:
-	#   $1 - text to estimate (string)
-	local text length
-	text="$1"
-	length=${#text}
-	echo $(((length + 3) / 4))
-}
+source "${LLM_CONTEXT_BUDGET_DIR}/../core/logging.sh"
+# shellcheck source=./tokens.sh disable=SC1091
+source "${LLM_CONTEXT_BUDGET_DIR}/tokens.sh"
 
 estimate_total_tokens() {
 	# Estimates the total tokens for a prompt plus desired completion.
@@ -41,7 +33,7 @@ estimate_total_tokens() {
 	local prompt_text completion_tokens prompt_tokens
 	prompt_text="$1"
 	completion_tokens=${2:-0}
-	prompt_tokens=$(_estimate_token_count "${prompt_text}")
+	prompt_tokens=$(estimate_token_count "${prompt_text}")
 	echo $((prompt_tokens + completion_tokens))
 }
 
@@ -129,8 +121,8 @@ apply_prompt_context_budget() {
 	local summarized_context context_tokens summarized_tokens adjusted_total prompt_tokens base_prompt_tokens
 	summarized_context="$(summarize_context_block "${context_text}" "${SUMMARY_LINE_CHAR_LIMIT}")"
 	prompt_tokens=$((estimated_total - max_completion_tokens))
-	context_tokens=$(_estimate_token_count "${context_text}")
-	summarized_tokens=$(_estimate_token_count "${summarized_context}")
+	context_tokens=$(estimate_token_count "${context_text}")
+	summarized_tokens=$(estimate_token_count "${summarized_context}")
 	base_prompt_tokens=$((prompt_tokens - context_tokens))
 	((base_prompt_tokens < 0)) && base_prompt_tokens=0
 	adjusted_total=$((base_prompt_tokens + summarized_tokens + max_completion_tokens))
@@ -147,7 +139,7 @@ apply_prompt_context_budget() {
 		else
 			max_characters_for_context=$((remaining_budget * 4))
 			summarized_context="$(_truncate_for_summary "${summarized_context}" "${max_characters_for_context}")"
-			summarized_tokens=$(_estimate_token_count "${summarized_context}")
+			summarized_tokens=$(estimate_token_count "${summarized_context}")
 			adjusted_total=$((base_prompt_tokens + summarized_tokens + max_completion_tokens))
 		fi
 	fi

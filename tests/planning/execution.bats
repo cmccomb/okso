@@ -7,7 +7,7 @@ setup() {
 @test "should_prompt_for_tool respects approval flags" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-source ./src/lib/planning/execution.sh
+source ./src/lib/exec/dispatch.sh
 PLAN_ONLY=true
 DRY_RUN=false
 FORCE_CONFIRM=false
@@ -26,7 +26,7 @@ SCRIPT
 @test "execute_tool_with_query runs handler and emits structured response" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-source ./src/lib/planning/execution.sh
+source ./src/lib/exec/dispatch.sh
 APPROVE_ALL=true
 PLAN_ONLY=false
 DRY_RUN=false

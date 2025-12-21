@@ -20,10 +20,10 @@ PLANNING_PROMPTING_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck source=../formatting.sh disable=SC1091
 source "${PLANNING_PROMPTING_DIR}/../formatting.sh"
-# shellcheck source=./prompts.sh disable=SC1091
-source "${PLANNING_PROMPTING_DIR}/prompts.sh"
-# shellcheck source=./schema.sh disable=SC1091
-source "${PLANNING_PROMPTING_DIR}/schema.sh"
+# shellcheck source=../prompt/build_planner.sh disable=SC1091
+source "${PLANNING_PROMPTING_DIR}/../prompt/build_planner.sh"
+# shellcheck source=../schema/schema.sh disable=SC1091
+source "${PLANNING_PROMPTING_DIR}/../schema/schema.sh"
 # shellcheck source=./normalization.sh disable=SC1091
 source "${PLANNING_PROMPTING_DIR}/normalization.sh"
 

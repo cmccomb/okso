@@ -21,14 +21,12 @@ REACT_LIB_DIR=${REACT_LIB_DIR:-$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)}
 
 # shellcheck source=../formatting.sh disable=SC1091
 source "${REACT_LIB_DIR}/../formatting.sh"
-# shellcheck source=../planning/prompts.sh disable=SC1091
-source "${REACT_LIB_DIR}/../planning/prompts.sh"
-# shellcheck source=../planning/prompting.sh disable=SC1091
-source "${REACT_LIB_DIR}/../planning/prompting.sh"
-# shellcheck source=../planning/llama_client.sh disable=SC1091
-source "${REACT_LIB_DIR}/../planning/llama_client.sh"
-# shellcheck source=../planning/execution.sh disable=SC1091
-source "${REACT_LIB_DIR}/../planning/execution.sh"
+# shellcheck source=../prompt/build_react.sh disable=SC1091
+source "${REACT_LIB_DIR}/../prompt/build_react.sh"
+# shellcheck source=../llm/llama_client.sh disable=SC1091
+source "${REACT_LIB_DIR}/../llm/llama_client.sh"
+# shellcheck source=../exec/dispatch.sh disable=SC1091
+source "${REACT_LIB_DIR}/../exec/dispatch.sh"
 # shellcheck source=../core/logging.sh disable=SC1091
 source "${REACT_LIB_DIR}/../core/logging.sh"
 # shellcheck source=../core/state.sh disable=SC1091
@@ -37,8 +35,8 @@ source "${REACT_LIB_DIR}/../core/state.sh"
 source "${REACT_LIB_DIR}/schema.sh"
 # shellcheck source=./history.sh disable=SC1091
 source "${REACT_LIB_DIR}/history.sh"
-# shellcheck source=../planning/context_budget.sh disable=SC1091
-source "${REACT_LIB_DIR}/../planning/context_budget.sh"
+# shellcheck source=../llm/context_budget.sh disable=SC1091
+source "${REACT_LIB_DIR}/../llm/context_budget.sh"
 
 format_tool_args() {
 	# Formats tool arguments into a JSON object.

@@ -43,24 +43,24 @@ source "${PLANNING_LIB_DIR}/../core/errors.sh"
 source "${PLANNING_LIB_DIR}/../core/logging.sh"
 # shellcheck source=../tools.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/../tools.sh"
-# shellcheck source=./respond.sh disable=SC1091
-source "${PLANNING_LIB_DIR}/respond.sh"
-# shellcheck source=./prompts.sh disable=SC1091
-source "${PLANNING_LIB_DIR}/prompts.sh"
-# shellcheck source=./schema.sh disable=SC1091
-source "${PLANNING_LIB_DIR}/schema.sh"
+# shellcheck source=../assistant/respond.sh disable=SC1091
+source "${PLANNING_LIB_DIR}/../assistant/respond.sh"
+# shellcheck source=../prompt/build_planner.sh disable=SC1091
+source "${PLANNING_LIB_DIR}/../prompt/build_planner.sh"
+# shellcheck source=../schema/schema.sh disable=SC1091
+source "${PLANNING_LIB_DIR}/../schema/schema.sh"
 # shellcheck source=../core/state.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/../core/state.sh"
-# shellcheck source=./llama_client.sh disable=SC1091
-source "${PLANNING_LIB_DIR}/llama_client.sh"
+# shellcheck source=../llm/llama_client.sh disable=SC1091
+source "${PLANNING_LIB_DIR}/../llm/llama_client.sh"
 # shellcheck source=../config.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/../config.sh"
 # shellcheck source=./normalization.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/normalization.sh"
 # shellcheck source=./prompting.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/prompting.sh"
-# shellcheck source=./execution.sh disable=SC1091
-source "${PLANNING_LIB_DIR}/execution.sh"
+# shellcheck source=../exec/dispatch.sh disable=SC1091
+source "${PLANNING_LIB_DIR}/../exec/dispatch.sh"
 
 initialize_planner_models() {
 	if [[ -z "${PLANNER_MODEL_REPO:-}" || -z "${PLANNER_MODEL_FILE:-}" || -z "${REACT_MODEL_REPO:-}" || -z "${REACT_MODEL_FILE:-}" ]]; then

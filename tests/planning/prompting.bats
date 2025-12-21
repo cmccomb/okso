@@ -5,7 +5,7 @@ setup() {
 }
 
 @test "plan_json_to_outline numbers steps from raw planner text" {
-	run bash <<'SCRIPT'
+        run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/prompting.sh
 raw_plan='[{"tool":"terminal","args":{"command":"ls"},"thought":"list"},{"tool":"final_answer","args":{},"thought":"wrap up"}]'
@@ -31,7 +31,7 @@ SCRIPT
 }
 
 @test "planner prompt static prefix stays constant across invocations" {
-	run bash <<'SCRIPT'
+        run bash <<'SCRIPT'
 set -euo pipefail
 real_date="$(command -v date)"
 mock_bin_dir="$(mktemp -d)"
@@ -57,7 +57,7 @@ fi
 DATE
 chmod +x "${mock_bin_dir}/date"
 export PATH="${mock_bin_dir}:${PATH}"
-source ./src/lib/planning/prompts.sh
+source ./src/lib/prompt/build_planner.sh
 prefix="$(build_planner_prompt_static_prefix)"
 MOCK_SLOT=first
 export MOCK_SLOT
@@ -82,7 +82,7 @@ SCRIPT
 }
 
 @test "react prompt segments recombine into full prompt" {
-	run bash <<'SCRIPT'
+        run bash <<'SCRIPT'
 set -euo pipefail
 real_date="$(command -v date)"
 mock_bin_dir="$(mktemp -d)"
@@ -100,7 +100,7 @@ fi
 DATE
 chmod +x "${mock_bin_dir}/date"
 export PATH="${mock_bin_dir}:${PATH}"
-source ./src/lib/planning/prompts.sh
+source ./src/lib/prompt/build_react.sh
 prefix="$(build_react_prompt_static_prefix)"
 suffix="$(build_react_prompt_dynamic_suffix "query" "tool list" "outline" "history" "{}" "step")"
 full="$(build_react_prompt "query" "tool list" "outline" "history" "{}" "step")"

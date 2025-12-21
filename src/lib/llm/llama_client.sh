@@ -24,21 +24,12 @@
 # Exit codes:
 #   Returns non-zero when llama.cpp is unavailable; otherwise mirrors llama.cpp.
 
-PLANNING_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+LLM_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck source=../core/logging.sh disable=SC1091
-source "${PLANNING_LIB_DIR}/../core/logging.sh"
-
-estimate_token_count() {
-	# Estimates the number of tokens in a string based on character length.
-	# Arguments:
-	#   $1 - text content (string)
-	local text length token_estimate
-	text="$1"
-	length=${#text}
-	token_estimate=$(((length + 3) / 4))
-	printf '%s' "${token_estimate}"
-}
+source "${LLM_LIB_DIR}/../core/logging.sh"
+# shellcheck source=./tokens.sh disable=SC1091
+source "${LLM_LIB_DIR}/tokens.sh"
 
 llama_with_timeout() {
 	# Executes llama.cpp with an optional timeout.

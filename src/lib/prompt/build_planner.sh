@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# shellcheck shell=bash
+#
+# Planner prompt builders.
+#
+# Usage:
+#   source "${BASH_SOURCE[0]%/build_planner.sh}/build_planner.sh"
+#
+# Dependencies:
+#   - bash 3.2+
+#   - jq
+#
+# Exit codes:
+#   Functions print prompts and return 0 on success.
+
+PROMPT_BUILD_PLANNER_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# shellcheck source=./templates.sh disable=SC1091
+source "${PROMPT_BUILD_PLANNER_DIR}/templates.sh"
+# shellcheck source=../schema/schema.sh disable=SC1091
+source "${PROMPT_BUILD_PLANNER_DIR}/../schema/schema.sh"
+# shellcheck source=../runtime/time.sh disable=SC1091
+source "${PROMPT_BUILD_PLANNER_DIR}/../runtime/time.sh"
+
+build_planner_prompt_static_prefix() {
+	# Returns the deterministic planner prompt prefix that excludes runtime fields.
+	local template anchor
+	template="$(load_prompt_template "planner")" || return 1
+	anchor="\${current_date}"
+
+	if [[ "${template}" != *"${anchor}"* ]]; then
+		printf '%s' "${template}"
+		return 0
+	fi
+
+	printf '%s' "${template%%"${anchor}"*}"
+}
+
+build_planner_prompt_dynamic_suffix() {
+	# Builds the runtime portion of the planner prompt.
+	# Arguments:
+	#   $1 - user query (string)
+	#   $2 - formatted tool descriptions (string)
+	# Returns:
+	#   The dynamic suffix for the planner prompt (string).
+	local user_query tool_lines planner_schema current_date current_time current_weekday rendered prefix
+	user_query="$1"
+	tool_lines="$2"
+	planner_schema="$(load_schema_text planner_plan)"
+	current_date="$(current_date_utc)"
+	current_time="$(current_time_utc)"
+	current_weekday="$(current_weekday_utc)"
+
+	rendered="$(render_prompt_template "planner" \
+		user_query "${user_query}" \
+		tool_lines "${tool_lines}" \
+		planner_schema "${planner_schema}" \
+		current_date "${current_date}" \
+		current_time "${current_time}" \
+		current_weekday "${current_weekday}")"
+	prefix="$(build_planner_prompt_static_prefix)" || return 1
+	printf '%s' "${rendered#"${prefix}"}"
+}
+
+build_planner_prompt() {
+	# Builds a prompt for the high-level planner.
+	# Arguments:
+	#   $1 - user query (string)
+	#   $2 - formatted tool descriptions (string)
+	# Returns:
+	#   The full prompt text (string).
+	local prefix suffix
+	prefix="$(build_planner_prompt_static_prefix)" || return 1
+	suffix="$(build_planner_prompt_dynamic_suffix "$1" "$2")" || return 1
+	printf '%s%s' "${prefix}" "${suffix}"
+}
+
+export -f build_planner_prompt
+export -f build_planner_prompt_static_prefix
+export -f build_planner_prompt_dynamic_suffix

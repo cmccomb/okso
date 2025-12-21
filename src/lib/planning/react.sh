@@ -11,7 +11,6 @@
 
 PLANNING_REACT_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 REACT_LIB_DIR="${PLANNING_REACT_DIR}/../react"
-PLANNING_REACT_ROOT_DIR="${REACT_LIB_DIR}"
 
 # shellcheck source=../react/react.sh disable=SC1091
 source "${REACT_LIB_DIR}/react.sh"

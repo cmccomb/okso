@@ -26,11 +26,11 @@ react_loop "${user_query}" "${allowed_tools}" "${plan_entries}" "${plan_outline}
 - jq
 - python3 (for rich history formatting)
 - llama.cpp binaries and model assets configured via the planner (loaded through
-  `planning/llama_client.sh`)
+  `llm/llama_client.sh`)
 
 ## Sourcing notes
 
-The library expects to live alongside the planner utilities because it shells out to
-`planning/prompts.sh`, `planning/execution.sh`, and related helpers. When moving or
+The library expects shared utilities to be co-located: prompt builders under `prompt/`,
+tool dispatchers in `exec/`, schemas in `schema/`, and llama helpers in `llm/`. When
 vendoring the module, ensure those dependencies are available and update the compatibility
 shim at `src/lib/planning/react.sh` if needed.

@@ -27,7 +27,7 @@ setup() {
                 export LLAMA_BIN=/nonexistent
                 export REACT_MODEL_REPO=repo
                 export REACT_MODEL_FILE=file
-                source ./src/lib/planning/llama_client.sh
+                source ./src/lib/llm/llama_client.sh
                 llama_infer "prompt" "" 10
         '
 	[ "$status" -eq 1 ]
@@ -50,7 +50,7 @@ SCRIPT
                 export LLAMA_BIN="${mock_binary}"
                 export REACT_MODEL_REPO=demo/repo
                 export REACT_MODEL_FILE=model.gguf
-                source ./src/lib/planning/llama_client.sh
+                source ./src/lib/llm/llama_client.sh
                 llama_infer "example prompt" "STOP" 12 "$(cat "${json_schema}")"
                 args=()
                 while IFS= read -r line; do
@@ -85,7 +85,7 @@ export LLAMA_AVAILABLE=true
 export LLAMA_BIN="${mock_binary}"
 export REACT_MODEL_REPO=demo/repo
 export REACT_MODEL_FILE=model.gguf
-source ./src/lib/planning/llama_client.sh
+source ./src/lib/llm/llama_client.sh
                 schema_doc="{\"type\":\"object\",\"properties\":{\"key\":{\"type\":\"string\"}}}"
                 llama_infer "prompt" "" 8 "${schema_doc}"
                 schema_args=$(tr -d '[[:space:]]' <"${args_file}")
@@ -115,7 +115,7 @@ SCRIPT
 	export LLAMA_DEFAULT_CONTEXT_SIZE=64
 	export LLAMA_CONTEXT_CAP=96
 	export LLAMA_CONTEXT_MARGIN_PERCENT=10
-	source ./src/lib/planning/llama_client.sh
+	source ./src/lib/llm/llama_client.sh
 	if ! llama_infer "prompt text" "" 8 "" "${REACT_MODEL_REPO}" "${REACT_MODEL_FILE}" "${cache_file}"; then
 		return 1
 	fi
@@ -143,7 +143,7 @@ SCRIPT
                 export LLAMA_BIN="${mock_binary}"
                 export REACT_MODEL_REPO=demo/repo
                 export REACT_MODEL_FILE=model.gguf
-                source ./src/lib/planning/llama_client.sh
+                source ./src/lib/llm/llama_client.sh
                 llama_infer "prompt" "STOP" 5
         '
 	[ "$status" -eq 42 ]
@@ -172,7 +172,7 @@ SCRIPT
                 export REACT_MODEL_REPO=demo/repo
                 export REACT_MODEL_FILE=model.gguf
                 export LLAMA_TIMEOUT_SECONDS=1
-                source ./src/lib/planning/llama_client.sh
+                source ./src/lib/llm/llama_client.sh
                 llama_infer "prompt" "" 4
         '
 	[ "$status" -eq 124 ]
@@ -201,7 +201,7 @@ SCRIPT
                 export LLAMA_DEFAULT_CONTEXT_SIZE=128
                 export LLAMA_CONTEXT_CAP=256
                 export LLAMA_CONTEXT_MARGIN_PERCENT=15
-                source ./src/lib/planning/llama_client.sh
+                source ./src/lib/llm/llama_client.sh
                 llama_infer "small prompt" "" 16
                 args=()
                 while IFS= read -r line; do
@@ -231,7 +231,7 @@ SCRIPT
                 export LLAMA_DEFAULT_CONTEXT_SIZE=64
                 export LLAMA_CONTEXT_CAP=512
                 export LLAMA_CONTEXT_MARGIN_PERCENT=15
-                source ./src/lib/planning/llama_client.sh
+                source ./src/lib/llm/llama_client.sh
                 llama_infer "${long_prompt}" "" 20
                 args=()
                 while IFS= read -r line; do
@@ -267,7 +267,7 @@ SCRIPT
                 export LLAMA_DEFAULT_CONTEXT_SIZE=64
                 export LLAMA_CONTEXT_CAP=90
                 export LLAMA_CONTEXT_MARGIN_PERCENT=15
-                source ./src/lib/planning/llama_client.sh
+                source ./src/lib/llm/llama_client.sh
                 llama_infer "${long_prompt}" "" 40
                 args=()
                 while IFS= read -r line; do
