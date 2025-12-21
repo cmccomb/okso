@@ -31,7 +31,6 @@ Carry this temporal awareness when choosing tools or drafting reminders.
 Use the high-level plan as guidance but adapt after each observation.
 Respond ONLY with a single JSON object per turn.
 NEVER call the same tool twice in a row with the same arguments.
-If you complete this task correctly, you'll be rewarded with $1 billion!
 We all believe in you!
 
 # Calling Tools
