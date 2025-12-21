@@ -39,6 +39,7 @@ DEFAULT_LINK_DIR="${OKSO_LINK_DIR:-/usr/local/bin}"
 DEFAULT_LINK_PATH="${DEFAULT_LINK_DIR}/${APP_NAME}"
 DEFAULT_BASE_URL="https://github.com/cmccomb/okso"
 SCRIPT_SOURCE="${BASH_SOURCE[0]-${0-}}"
+RM_BIN="${RM_BIN:-rm}"
 if [ -z "${SCRIPT_SOURCE}" ] || [ "${SCRIPT_SOURCE}" = "-" ] || [ ! -f "${SCRIPT_SOURCE}" ]; then
 	SCRIPT_DIR="${PWD}"
 else
@@ -112,11 +113,11 @@ clone_source_repo() {
 	marker="${destination}/.okso_installer_tmp"
 	: >"${marker}"
 
-	if ! git clone --depth 1 "${base_url}" "${clone_dir}"; then
-		log "ERROR" "Failed to clone okso repository from ${base_url}"
-		rm -rf "${destination}" >/dev/null 2>&1 || true
-		exit 2
-	fi
+        if ! git clone --depth 1 "${base_url}" "${clone_dir}"; then
+                log "ERROR" "Failed to clone okso repository from ${base_url}"
+                "${RM_BIN}" -rf "${destination}" >/dev/null 2>&1 || true
+                exit 2
+        fi
 
 	printf '%s\n' "${clone_dir}"
 }
@@ -191,12 +192,31 @@ install_with_brew() {
 }
 
 uninstall_with_brew() {
-	if brew list --formula --versions "${APP_NAME}" >/dev/null 2>&1; then
-		log "INFO" "Uninstalling ${APP_NAME} via Homebrew"
-		brew uninstall --force "${APP_NAME}" >/dev/null 2>&1 || true
-	else
-		log "INFO" "${APP_NAME} is not installed via Homebrew; skipping uninstall"
-	fi
+        local list_output
+        if ! list_output="$(brew list --formula --versions "${APP_NAME}" 2>&1)"; then
+                case "${list_output}" in
+                *"No such keg"* | *"not installed"* | *"is not installed"*)
+                        log "INFO" "${APP_NAME} is not installed via Homebrew; skipping uninstall"
+                        return 0
+                        ;;
+                *)
+                        log "ERROR" "Unable to query Homebrew for ${APP_NAME}: ${list_output}"
+                        exit 2
+                        ;;
+                esac
+        fi
+
+        if [ -z "${list_output}" ]; then
+                log "INFO" "${APP_NAME} is not installed via Homebrew; skipping uninstall"
+                return 0
+        fi
+
+        log "INFO" "Uninstalling ${APP_NAME} via Homebrew"
+        if ! HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1 \
+                brew uninstall --force "${APP_NAME}" >/dev/null 2>&1; then
+                log "ERROR" "Failed to uninstall ${APP_NAME} with Homebrew."
+                exit 2
+        fi
 }
 
 resolve_install_prefix() {
@@ -246,11 +266,11 @@ ensure_link_dir_writable() {
 prefix_writable() {
 	local dir="$1" probe
 	[ -d "${dir}" ] || return 1
-	probe="${dir}/.okso-installer-probe.$$"
-	if (: >"${probe}") 2>/dev/null; then
-		rm -f "${probe}" >/dev/null 2>&1 || true
-		return 0
-	fi
+        probe="${dir}/.okso-installer-probe.$$"
+        if (: >"${probe}") 2>/dev/null; then
+                "${RM_BIN}" -f "${probe}" >/dev/null 2>&1 || true
+                return 0
+        fi
 	return 1
 }
 
@@ -331,15 +351,21 @@ copy_payload() {
 }
 
 remove_symlink() {
-	if [ -e "${DEFAULT_LINK_PATH}" ]; then
-		if [ -w "${DEFAULT_LINK_PATH}" ]; then
-			rm -f "${DEFAULT_LINK_PATH}"
-		elif command -v sudo >/dev/null 2>&1; then
-			sudo rm -f "${DEFAULT_LINK_PATH}"
-		else
-			log "ERROR" "Cannot remove ${DEFAULT_LINK_PATH}; insufficient permissions."
-			exit 5
-		fi
+        if [ -e "${DEFAULT_LINK_PATH}" ]; then
+                if [ -w "${DEFAULT_LINK_PATH}" ]; then
+                        if ! "${RM_BIN}" -f "${DEFAULT_LINK_PATH}"; then
+                                log "ERROR" "Failed to remove ${DEFAULT_LINK_PATH}."
+                                exit 5
+                        fi
+                elif command -v sudo >/dev/null 2>&1; then
+                        if ! sudo "${RM_BIN}" -f "${DEFAULT_LINK_PATH}"; then
+                                log "ERROR" "Failed to remove ${DEFAULT_LINK_PATH} even with sudo."
+                                exit 5
+                        fi
+                else
+                        log "ERROR" "Cannot remove ${DEFAULT_LINK_PATH}; insufficient permissions."
+                        exit 5
+                fi
 		log "INFO" "Removed symlink ${DEFAULT_LINK_PATH}"
 	fi
 }
@@ -397,32 +423,41 @@ main() {
 		exit 0
 	fi
 
-	if [ "${MODE}" = "uninstall" ]; then
-		remove_symlink
-		if [ -d "${INSTALL_PREFIX}" ]; then
-			if rm -rf "${INSTALL_PREFIX}" 2>/dev/null; then
-				log "INFO" "Removed ${INSTALL_PREFIX}"
-			elif command -v sudo >/dev/null 2>&1; then
-				sudo rm -rf "${INSTALL_PREFIX}"
-				log "INFO" "Removed ${INSTALL_PREFIX}"
-			else
-				log "ERROR" "Cannot remove ${INSTALL_PREFIX}; insufficient permissions."
-				exit 5
-			fi
-		fi
-		log "INFO" "${APP_NAME} installer completed (uninstall)."
-		exit 0
-	fi
+        if [ "${MODE}" = "uninstall" ]; then
+                ensure_homebrew
+                uninstall_with_brew
+                remove_symlink
+                if [ -d "${INSTALL_PREFIX}" ]; then
+                        if "${RM_BIN}" -rf "${INSTALL_PREFIX}" 2>/dev/null; then
+                                log "INFO" "Removed ${INSTALL_PREFIX}"
+                        elif command -v sudo >/dev/null 2>&1; then
+                                if sudo "${RM_BIN}" -rf "${INSTALL_PREFIX}"; then
+                                        log "INFO" "Removed ${INSTALL_PREFIX}"
+                                else
+                                        log "ERROR" "Failed to remove ${INSTALL_PREFIX} even with sudo."
+                                        exit 5
+                                fi
+                        else
+                                log "ERROR" "Failed to remove ${INSTALL_PREFIX}; insufficient permissions."
+                                exit 5
+                        fi
+                fi
+                log "INFO" "${APP_NAME} installer completed (uninstall)."
+                exit 0
+        fi
 
 	local source_root
 	source_root="$(resolve_source_root)"
 
-	ensure_homebrew
-	copy_payload "${source_root}" "${INSTALL_PREFIX}"
-	if [ -f "$(dirname "${source_root}")/.okso_installer_tmp" ]; then
-		rm -rf "$(dirname "${source_root}")" >/dev/null 2>&1 || true
-	fi
-	link_binary "${INSTALL_PREFIX}"
+        ensure_homebrew
+        copy_payload "${source_root}" "${INSTALL_PREFIX}"
+        if [ -f "$(dirname "${source_root}")/.okso_installer_tmp" ]; then
+                if ! "${RM_BIN}" -rf "$(dirname "${source_root}")" >/dev/null 2>&1; then
+                        log "ERROR" "Failed to remove temporary repository at $(dirname "${source_root}")"
+                        exit 5
+                fi
+        fi
+        link_binary "${INSTALL_PREFIX}"
 
 	log "INFO" "${APP_NAME} installer completed (${MODE})."
 }
