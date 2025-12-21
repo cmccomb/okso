@@ -106,13 +106,13 @@ initialize_tools() {
 		return 1
 	fi
 
-        register_terminal
-        register_python_repl
-        register_notes_suite
-        register_reminders_suite
-        register_calendar_suite
+	register_terminal
+	register_python_repl
+	register_notes_suite
+	register_reminders_suite
+	register_calendar_suite
 	register_mail_suite
-        register_final_answer
-        register_feedback
-        register_web_suite
+	register_final_answer
+	register_feedback
+	register_web_suite
 }

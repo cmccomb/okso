@@ -68,9 +68,9 @@ format_tool_args() {
 	web_search)
 		jq -nc --arg query "${payload}" '{query:$query}'
 		;;
-        notes_list | reminders_list | calendar_list | mail_list_inbox | mail_list_unread)
-                jq -nc '{}'
-                ;;
+	notes_list | reminders_list | calendar_list | mail_list_inbox | mail_list_unread)
+		jq -nc '{}'
+		;;
 	notes_create | notes_append)
 		local title body
 		title=${payload%%$'\n'*}
@@ -104,9 +104,9 @@ format_tool_args() {
 	mail_draft | mail_send)
 		jq -nc --arg envelope "${payload}" '{envelope:$envelope}'
 		;;
-        final_answer)
-                jq -nc --arg key "${text_key}" --arg value "${payload}" '{($key):$value}'
-                ;;
+	final_answer)
+		jq -nc --arg key "${text_key}" --arg value "${payload}" '{($key):$value}'
+		;;
 	*)
 		jq -nc --arg key "${text_key}" --arg value "${payload}" '{($key):$value}'
 		;;
@@ -148,14 +148,14 @@ extract_tool_query() {
 		jq -r '.query // ""' <<<"${args_json}" 2>/dev/null || printf ''
 		;;
 	mail_draft | mail_send)
-			jq -r '(.envelope // "")' <<<"${args_json}" 2>/dev/null || printf ''
-			;;
+		jq -r '(.envelope // "")' <<<"${args_json}" 2>/dev/null || printf ''
+		;;
 	final_answer)
 		jq -r --arg key "${text_key}" '.[$key] // ""' <<<"${args_json}" 2>/dev/null || printf ''
 		;;
 	notes_list | reminders_list | calendar_list | mail_list_inbox | mail_list_unread)
-			printf ''
-			;;
+		printf ''
+		;;
 	*)
 		jq -r --arg key "${text_key}" '.[$key] // .query // ""' <<<"${args_json}" 2>/dev/null || printf ''
 		;;

@@ -37,8 +37,8 @@ INNERSCRIPT
 }
 
 @test "ReAct loop forwards structured args to custom tool" {
-        script=$(
-                cat <<'INNERSCRIPT'
+	script=$(
+		cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
