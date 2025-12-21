@@ -121,8 +121,8 @@ validate_react_action() {
 	# Arguments:
 	#   $1 - raw action JSON string
 	#   $2 - schema path
-	local raw_action schema_path action_json schema_json allowed_tools tool tool_schema properties_json additional_properties
-	local err_log required_args thought_trimmed
+        local raw_action schema_path action_json schema_json allowed_tools tool tool_schema properties_json additional_properties
+        local err_log required_args thought_trimmed
 	raw_action="$1"
 	schema_path="$2"
 
@@ -267,11 +267,27 @@ validate_react_action() {
 			continue
 		fi
 
-		if ! _react_enforce_arg_type "${arg_value}" "${arg_schema}"; then
-			printf 'Invalid type for arg: %s\n' "${arg_key}" >&2
-			return 1
-		fi
-	done
+                if ! _react_enforce_arg_type "${arg_value}" "${arg_schema}"; then
+                        local expected_type enum_values
+                        expected_type="$(jq -r '.type // empty' <<<"${arg_schema}" 2>/dev/null || true)"
+                        enum_values="$(jq -cr '.enum // empty' <<<"${arg_schema}" 2>/dev/null || true)"
+                        if [[ -n "${enum_values}" && "${enum_values}" != "null" ]]; then
+                                printf 'Arg %s must be one of: %s\n' "${arg_key}" "$(jq -r '.enum | join(", ")' <<<"${arg_schema}" 2>/dev/null || printf '')" >&2
+                        elif [[ -n "${expected_type}" ]]; then
+                                printf 'Arg %s must be a %s\n' "${arg_key}" "${expected_type}" >&2
+                        else
+                                printf 'Invalid type for arg: %s\n' "${arg_key}" >&2
+                        fi
+                        return 1
+                fi
+
+                if jq -e '(.enum // null) != null' <<<"${arg_schema}" >/dev/null 2>&1; then
+                        if ! jq -e --argjson value "${arg_value}" --argjson enums "$(jq -c '.enum' <<<"${arg_schema}" 2>/dev/null || printf '[]')" '$enums | index($value)' <<<"null" >/dev/null; then
+                                printf 'Arg %s must be one of: %s\n' "${arg_key}" "$(jq -r '.enum | join(", ")' <<<"${arg_schema}" 2>/dev/null || printf '')" >&2
+                                return 1
+                        fi
+                fi
+        done
 
 	if [[ "${additional_properties}" == "false" ]]; then
 		local unknown_arg
@@ -282,13 +298,14 @@ validate_react_action() {
 		fi
 	fi
 
-	if jq -e '.args == {}' <<<"${action_json}" >/dev/null; then
-		thought_trimmed="$(jq -r '.thought | gsub("^\\s+|\\s+$"; "")' <<<"${action_json}" 2>/dev/null || true)"
-		if [[ -z "${thought_trimmed}" ]]; then
-			printf 'Args empty but thought missing.\n' >&2
-			return 1
-		fi
-	fi
+        if jq -e '.args == {}' <<<"${action_json}" >/dev/null; then
+                thought_trimmed="$(jq -r '.thought | gsub("^\\s+|\\s+$"; "")' <<<"${action_json}" 2>/dev/null || true)"
+                if [[ -z "${thought_trimmed}" ]]; then
+                        printf 'Args empty but thought missing.\n' >&2
+                        return 1
+                fi
+        fi
 
-	return 0
+        printf '%s' "${action_json}"
+        return 0
 }
