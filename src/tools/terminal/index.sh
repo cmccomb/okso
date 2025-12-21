@@ -30,8 +30,8 @@ source "${BASH_SOURCE[0]%/tools/terminal/index.sh}/lib/cli/output.sh"
 source "${BASH_SOURCE[0]%/terminal/index.sh}/registry.sh"
 
 TERMINAL_ALLOWED_COMMANDS=(
-	"status"
-	"pwd"
+        "status"
+        "pwd"
 	"ls"
 	"cd"
 	"cat"
@@ -50,8 +50,11 @@ TERMINAL_ALLOWED_COMMANDS=(
 	"wc"
 	"du"
 	"base64"
-	"date"
+        "date"
 )
+
+TERMINAL_CMD=""       # string command parsed from TOOL_ARGS
+TERMINAL_CMD_ARGS=()   # array command arguments parsed from TOOL_ARGS
 
 TERMINAL_SESSION_ID="${TERMINAL_SESSION_ID:-}" # string session identifier
 TERMINAL_WORKDIR="${TERMINAL_WORKDIR:-}"       # string working directory for the persistent session

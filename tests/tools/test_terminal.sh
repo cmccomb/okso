@@ -171,6 +171,13 @@
         [ "$status" -eq 0 ]
 }
 
+@test "terminal operates under nounset" {
+        run bash -lc 'set -euo pipefail; source ./src/tools/terminal/index.sh; VERBOSITY=0; TOOL_ARGS="{\"command\":\"status\",\"args\":[]}"; tool_terminal'
+
+        [ "$status" -eq 0 ]
+        [[ "${lines[0]}" == Session:* ]]
+}
+
 @test "malformed TOOL_ARGS surface JSON errors" {
         run bash -lc 'source ./src/tools/terminal/index.sh; VERBOSITY=0; TOOL_ARGS="{\"command\":\"ls\",\"args\":}"; tool_terminal'
         [ "$status" -eq 1 ]
