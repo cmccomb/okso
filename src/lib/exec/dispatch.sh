@@ -19,16 +19,16 @@
 # Exit codes:
 #   Functions return non-zero on invalid configuration or handler failures.
 
-PLANNING_EXECUTION_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+EXEC_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck source=../core/logging.sh disable=SC1091
-source "${PLANNING_EXECUTION_DIR}/../core/logging.sh"
+source "${EXEC_LIB_DIR}/../core/logging.sh"
 # shellcheck source=../core/errors.sh disable=SC1091
-source "${PLANNING_EXECUTION_DIR}/../core/errors.sh"
+source "${EXEC_LIB_DIR}/../core/errors.sh"
 # shellcheck source=../config.sh disable=SC1091
-source "${PLANNING_EXECUTION_DIR}/../config.sh"
+source "${EXEC_LIB_DIR}/../config.sh"
 # shellcheck source=../tools.sh disable=SC1091
-source "${PLANNING_EXECUTION_DIR}/../tools.sh"
+source "${EXEC_LIB_DIR}/../tools.sh"
 
 should_prompt_for_tool() {
 	if [[ "${PLAN_ONLY}" == true || "${DRY_RUN}" == true ]]; then

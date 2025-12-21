@@ -16,16 +16,16 @@
 # Exit codes:
 #   Functions return non-zero on state failures.
 
-PLANNING_REACT_ROOT_DIR=${PLANNING_REACT_ROOT_DIR:-$(cd -- "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
+REACT_LIB_DIR=${REACT_LIB_DIR:-$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)}
 
-# shellcheck source=../../core/logging.sh disable=SC1091
-source "${PLANNING_REACT_ROOT_DIR}/../core/logging.sh"
-# shellcheck source=../../core/state.sh disable=SC1091
-source "${PLANNING_REACT_ROOT_DIR}/../core/state.sh"
-# shellcheck source=../respond.sh disable=SC1091
-source "${PLANNING_REACT_ROOT_DIR}/respond.sh"
-# shellcheck source=../../formatting.sh disable=SC1091
-source "${PLANNING_REACT_ROOT_DIR}/../formatting.sh"
+# shellcheck source=../core/logging.sh disable=SC1091
+source "${REACT_LIB_DIR}/../core/logging.sh"
+# shellcheck source=../core/state.sh disable=SC1091
+source "${REACT_LIB_DIR}/../core/state.sh"
+# shellcheck source=../assistant/respond.sh disable=SC1091
+source "${REACT_LIB_DIR}/../assistant/respond.sh"
+# shellcheck source=../formatting.sh disable=SC1091
+source "${REACT_LIB_DIR}/../formatting.sh"
 
 initialize_react_state() {
 	# Initializes the ReAct state document with user query, tools, and plan.
@@ -54,6 +54,7 @@ initialize_react_state() {
                         plan_index: 0,
                         max_steps: $max_steps,
                         final_answer: "",
+                        final_answer_action: "",
                         last_action: null
                 }')"
 }
@@ -106,6 +107,7 @@ record_tool_execution() {
 	if [[ -z "${args_json}" ]]; then
 		args_json="{}"
 	fi
+	args_json="$(jq -cS '.' <<<"${args_json}" 2>/dev/null || printf '{}')"
 	entry=$(
 		python3 - "$step_index" "$thought" "$tool" "$args_json" "$observation" <<'PY'
 import json
@@ -143,14 +145,19 @@ finalize_react_result() {
 	# Finalizes and emits the ReAct run result.
 	# Arguments:
 	#   $1 - state prefix
-	local state_name history_formatted final_answer observation
+	local state_name history_formatted final_answer observation final_answer_action
 	state_name="$1"
 	observation="$(state_get "${state_name}" "final_answer")"
+	final_answer_action="$(state_get "${state_name}" "final_answer_action")"
 	if [[ -z "${observation}" ]]; then
-		log "ERROR" "Final answer missing; generating fallback" "${state_name}"
-		history_formatted="$(format_tool_history "$(state_get_history_lines "${state_name}")")"
-		final_answer="$(respond_text "$(state_get "${state_name}" "user_query")" 1000 "${history_formatted}")"
-		state_set "${state_name}" "final_answer" "${final_answer}"
+		if [[ -n "${final_answer_action}" ]]; then
+			final_answer="${final_answer_action}"
+		else
+			log "ERROR" "Final answer missing; generating fallback" "${state_name}"
+			history_formatted="$(format_tool_history "$(state_get_history_lines "${state_name}")")"
+			final_answer="$(respond_text "$(state_get "${state_name}" "user_query")" 1000 "${history_formatted}")"
+			state_set "${state_name}" "final_answer" "${final_answer}"
+		fi
 	else
 		if jq -e '.output != null and .exit_code != null' <<<"${observation}" >/dev/null 2>&1; then
 			final_answer=$(jq -r '.output' <<<"${observation}")

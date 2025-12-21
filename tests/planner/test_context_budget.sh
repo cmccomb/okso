@@ -15,7 +15,7 @@ set -e
 cd "$(git rev-parse --show-toplevel)" || exit 1
 export PROMPT_TOKEN_BUDGET=20
 export SUMMARY_LINE_CHAR_LIMIT=50
-source ./src/lib/planning/context_budget.sh
+source ./src/lib/llm/context_budget.sh
 log() { :; }
 
 prompt="User: hi"
@@ -32,7 +32,7 @@ set -e
 cd "$(git rev-parse --show-toplevel)" || exit 1
 export PROMPT_TOKEN_BUDGET=200
 export SUMMARY_LINE_CHAR_LIMIT=80
-source ./src/lib/planning/context_budget.sh
+source ./src/lib/llm/context_budget.sh
 log() { :; }
 
 long_body=$(printf 'A%.0s' {1..1200})

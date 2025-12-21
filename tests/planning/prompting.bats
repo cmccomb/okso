@@ -57,7 +57,7 @@ fi
 DATE
 chmod +x "${mock_bin_dir}/date"
 export PATH="${mock_bin_dir}:${PATH}"
-source ./src/lib/planning/prompts.sh
+source ./src/lib/prompt/build_planner.sh
 prefix="$(build_planner_prompt_static_prefix)"
 MOCK_SLOT=first
 export MOCK_SLOT
@@ -100,7 +100,7 @@ fi
 DATE
 chmod +x "${mock_bin_dir}/date"
 export PATH="${mock_bin_dir}:${PATH}"
-source ./src/lib/planning/prompts.sh
+source ./src/lib/prompt/build_react.sh
 prefix="$(build_react_prompt_static_prefix)"
 suffix="$(build_react_prompt_dynamic_suffix "query" "tool list" "outline" "history" "{}" "step")"
 full="$(build_react_prompt "query" "tool list" "outline" "history" "{}" "step")"

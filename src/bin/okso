@@ -90,8 +90,8 @@ source "${LIB_DIR}/config.sh"
 source "${LIB_DIR}/tools.sh"
 # shellcheck source=../lib/planning/planner.sh disable=SC1091
 source "${LIB_DIR}/planning/planner.sh"
-# shellcheck source=../lib/planning/respond.sh disable=SC1091
-source "${LIB_DIR}/planning/respond.sh"
+# shellcheck source=../lib/assistant/respond.sh disable=SC1091
+source "${LIB_DIR}/assistant/respond.sh"
 # shellcheck source=../lib/cli/cli.sh disable=SC1091
 source "${LIB_DIR}/cli/cli.sh"
 # shellcheck source=../lib/runtime.sh disable=SC1091

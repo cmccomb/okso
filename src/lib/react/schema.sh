@@ -16,14 +16,14 @@
 # Exit codes:
 #   Functions return non-zero on validation or schema construction failures.
 
-PLANNING_REACT_ROOT_DIR=${PLANNING_REACT_ROOT_DIR:-$(cd -- "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
+REACT_LIB_DIR=${REACT_LIB_DIR:-$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)}
 
-# shellcheck source=../schema.sh disable=SC1091
-source "${PLANNING_REACT_ROOT_DIR}/schema.sh"
-# shellcheck source=../../core/logging.sh disable=SC1091
-source "${PLANNING_REACT_ROOT_DIR}/../core/logging.sh"
-# shellcheck source=../../tools.sh disable=SC1091
-source "${PLANNING_REACT_ROOT_DIR}/../tools.sh"
+# shellcheck source=../schema/schema.sh disable=SC1091
+source "${REACT_LIB_DIR}/../schema/schema.sh"
+# shellcheck source=../core/logging.sh disable=SC1091
+source "${REACT_LIB_DIR}/../core/logging.sh"
+# shellcheck source=../tools.sh disable=SC1091
+source "${REACT_LIB_DIR}/../tools.sh"
 
 build_react_action_schema() {
 	# Constructs a JSON schema for allowed ReAct tools.
@@ -185,124 +185,127 @@ validate_react_action() {
 	fi
 
 	properties_json=$(jq -c 'if (.properties | type == "object") then .properties else {} end' <<<"${tool_schema}")
-	required_args=$(jq -r '(.required // [])[]?' <<<"${tool_schema}")
+	required_args=$(jq -c '.required // []' <<<"${tool_schema}")
 	additional_properties=$(jq -c 'if .additionalProperties == null then false else .additionalProperties end' <<<"${tool_schema}")
-
-	local required
-	for required in ${required_args}; do
-		if ! jq -e --arg key "${required}" '.args | has($key)' <<<"${action_json}" >/dev/null; then
-			printf 'Missing arg: %s\n' "${required}" >&2
-			return 1
-		fi
-	done
 
 	_react_enforce_arg_type() {
 		# Validates an argument value against a schema fragment using jq types.
 		# Arguments:
-		#   $1 - argument key (string)
-		#   $2 - argument JSON value (string)
-		#   $3 - schema JSON string
-		local arg_key value_json schema_fragment expected_type min_length item_type enum_values const_value
-		arg_key="$1"
-		value_json="$2"
-		schema_fragment="$3"
-
-		expected_type=$(jq -r '.type // empty' <<<"${schema_fragment}")
-		if [[ -z "${expected_type}" ]]; then
+		#   $1 - argument value
+		#   $2 - schema fragment JSON
+		local value schema type field format
+		value="$1"
+		schema="$2"
+		type="$(jq -r '.type // empty' <<<"${schema}" 2>/dev/null || true)"
+		field="$(jq -r '.const // empty' <<<"${schema}" 2>/dev/null || true)"
+		format="$(jq -r '.format // empty' <<<"${schema}" 2>/dev/null || true)"
+		if [[ -z "${type}" ]]; then
 			return 0
 		fi
 
-		case "${expected_type}" in
-		string)
-			enum_values=$(jq -c '.enum // empty' <<<"${schema_fragment}")
-			const_value=$(jq -c '.const // empty' <<<"${schema_fragment}")
-			if ! jq -e 'type == "string"' <<<"${value_json}" >/dev/null; then
-				printf 'Arg %s must be a string\n' "${arg_key}" >&2
-				return 1
-			fi
-			min_length=$(jq -r '.minLength // 0' <<<"${schema_fragment}")
-			if [[ "${min_length}" -gt 0 ]] && [[ -z "$(jq -r 'gsub("^\\s+|\\s+$"; "")' <<<"${value_json}")" ]]; then
-				printf 'Arg %s cannot be empty\n' "${arg_key}" >&2
-				return 1
-			fi
-			if [[ -n "${const_value}" && "${const_value}" != "null" ]]; then
-				if ! jq -e --argjson const "${const_value}" --argjson val "${value_json}" '$const == $val' <<<"null" >/dev/null; then
-					printf 'Arg %s must equal %s\n' "${arg_key}" "${const_value}" >&2
-					return 1
-				fi
-			fi
-			if [[ -n "${enum_values}" && "${enum_values}" != "null" ]]; then
-				if ! jq -e --argjson enum "${enum_values}" --argjson val "${value_json}" '$enum | index($val)' <<<"null" >/dev/null; then
-					printf 'Arg %s must be one of: %s\n' "${arg_key}" "${enum_values}" >&2
-					return 1
-				fi
-			fi
-			;;
+		case "${type}" in
 		object)
-			if ! jq -e 'type == "object"' <<<"${value_json}" >/dev/null; then
-				printf 'Arg %s must be a object\n' "${arg_key}" >&2
-				return 1
-			fi
+			jq -e 'type == "object"' <<<"${value}" >/dev/null || return 1
 			;;
 		array)
-			if ! jq -e 'type == "array"' <<<"${value_json}" >/dev/null; then
-				printf 'Arg %s must be a array\n' "${arg_key}" >&2
-				return 1
-			fi
-			item_type=$(jq -r '.items.type // empty' <<<"${schema_fragment}")
-			if [[ "${item_type}" == "string" ]] && ! jq -e 'all(.[]?; type == "string")' <<<"${value_json}" >/dev/null; then
-				printf 'Arg %s items must be strings\n' "${arg_key}" >&2
-				return 1
-			fi
+			jq -e 'type == "array"' <<<"${value}" >/dev/null || return 1
 			;;
-		boolean)
-			if ! jq -e 'type == "boolean"' <<<"${value_json}" >/dev/null; then
-				printf 'Arg %s must be a boolean\n' "${arg_key}" >&2
+		string)
+			jq -e 'type == "string"' <<<"${value}" >/dev/null || return 1
+			if [[ -n "${field}" ]] && [[ "${value}" != "${field}" ]]; then
 				return 1
+			fi
+			if [[ "${format}" == "date-time" ]]; then
+				if ! jq -e 'test("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$")' <<<"${value}" >/dev/null; then
+					return 1
+				fi
 			fi
 			;;
 		number)
-			if ! jq -e 'type == "number"' <<<"${value_json}" >/dev/null; then
-				printf 'Arg %s must be a number\n' "${arg_key}" >&2
-				return 1
-			fi
+			jq -e 'type == "number"' <<<"${value}" >/dev/null || return 1
 			;;
 		integer)
-			if ! jq -e '(type == "number") and (.|floor == .)' <<<"${value_json}" >/dev/null; then
-				printf 'Arg %s must be a integer\n' "${arg_key}" >&2
-				return 1
-			fi
+			jq -e 'type == "number" and (. == (.|floor))' <<<"${value}" >/dev/null || return 1
+			;;
+		boolean)
+			jq -e 'type == "boolean"' <<<"${value}" >/dev/null || return 1
+			;;
+		null)
+			jq -e 'type == "null"' <<<"${value}" >/dev/null || return 1
 			;;
 		esac
 
 		return 0
 	}
 
-	local arg_key arg_value prop_schema
-	for arg_key in $(jq -r '.args | keys_unsorted[]' <<<"${action_json}"); do
-		arg_value=$(jq -c --arg key "${arg_key}" '.args[$key]' <<<"${action_json}")
-		prop_schema=$(jq -c --arg key "${arg_key}" --argjson props "${properties_json}" '$props[$key]' <<<"null")
+	local arg_key
+	for arg_key in $(jq -r 'keys_unsorted[]?' <<<"${properties_json}" 2>/dev/null || true); do
+		local arg_schema arg_value has_arg is_required
+		arg_schema=$(jq -c --arg key "${arg_key}" '.[$key]' <<<"${properties_json}")
+		if jq -e --arg key "${arg_key}" '.args | has($key)' <<<"${action_json}" >/dev/null; then
+			has_arg=true
+		else
+			has_arg=false
+		fi
 
-		if [[ -n "${prop_schema}" && "${prop_schema}" != "null" ]]; then
-			if ! _react_enforce_arg_type "${arg_key}" "${arg_value}" "${prop_schema}"; then
+		if jq -e --arg key "${arg_key}" --argjson required "${required_args}" '$required | index($key)' <<<"null" >/dev/null; then
+			is_required=true
+		else
+			is_required=false
+		fi
+
+		if [[ "${has_arg}" == false ]]; then
+			if [[ "${is_required}" == true ]]; then
+				printf 'Missing arg: %s\n' "${arg_key}" >&2
 				return 1
 			fi
 			continue
 		fi
 
-		if [[ "${additional_properties}" == "false" ]]; then
-			printf 'Unexpected arg: %s\n' "${arg_key}" >&2
+		arg_value=$(jq -c --arg key "${arg_key}" '.args[$key]' <<<"${action_json}")
+		if [[ "${arg_value}" == "null" && "${is_required}" == false ]]; then
+			continue
+		fi
+
+		if ! _react_enforce_arg_type "${arg_value}" "${arg_schema}"; then
+			local expected_type enum_values
+			expected_type="$(jq -r '.type // empty' <<<"${arg_schema}" 2>/dev/null || true)"
+			enum_values="$(jq -cr '.enum // empty' <<<"${arg_schema}" 2>/dev/null || true)"
+			if [[ -n "${enum_values}" && "${enum_values}" != "null" ]]; then
+				printf 'Arg %s must be one of: %s\n' "${arg_key}" "$(jq -r '.enum | join(", ")' <<<"${arg_schema}" 2>/dev/null || printf '')" >&2
+			elif [[ -n "${expected_type}" ]]; then
+				printf 'Arg %s must be a %s\n' "${arg_key}" "${expected_type}" >&2
+			else
+				printf 'Invalid type for arg: %s\n' "${arg_key}" >&2
+			fi
 			return 1
 		fi
 
-		if [[ "${additional_properties}" != "false" && "${additional_properties}" != "null" ]]; then
-			if ! _react_enforce_arg_type "${arg_key}" "${arg_value}" "${additional_properties}"; then
+		if jq -e '(.enum // null) != null' <<<"${arg_schema}" >/dev/null 2>&1; then
+			if ! jq -e --argjson value "${arg_value}" --argjson enums "$(jq -c '.enum' <<<"${arg_schema}" 2>/dev/null || printf '[]')" '$enums | index($value)' <<<"null" >/dev/null; then
+				printf 'Arg %s must be one of: %s\n' "${arg_key}" "$(jq -r '.enum | join(", ")' <<<"${arg_schema}" 2>/dev/null || printf '')" >&2
 				return 1
 			fi
 		fi
 	done
 
-	thought_trimmed=$(jq -r '.thought | gsub("^\\s+|\\s+$"; "")' <<<"${action_json}")
+	if [[ "${additional_properties}" == "false" ]]; then
+		local unknown_arg
+		unknown_arg=$(jq -er --argjson known "${properties_json}" '(.args | keys_unsorted) - ([$known | keys_unsorted] | add) | first? // empty' <<<"${action_json}" 2>/dev/null || true)
+		if [[ -n "${unknown_arg}" ]]; then
+			printf 'Unexpected arg: %s\n' "${unknown_arg}" >&2
+			return 1
+		fi
+	fi
 
-	jq -c --arg thought "${thought_trimmed}" '.thought = $thought' <<<"${action_json}"
+	if jq -e '.args == {}' <<<"${action_json}" >/dev/null; then
+		thought_trimmed="$(jq -r '.thought | gsub("^\\s+|\\s+$"; "")' <<<"${action_json}" 2>/dev/null || true)"
+		if [[ -z "${thought_trimmed}" ]]; then
+			printf 'Args empty but thought missing.\n' >&2
+			return 1
+		fi
+	fi
+
+	printf '%s' "${action_json}"
+	return 0
 }

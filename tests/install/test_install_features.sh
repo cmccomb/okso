@@ -9,7 +9,7 @@ setup() {
 	MOCK_BIN="${TEST_ROOT}/mock-bin"
 
 	mkdir -p "${INSTALLER_ROOT}/scripts" "${INSTALLER_ROOT}/src/bin" \
-		"${INSTALLER_ROOT}/src/lib/planning" "${INSTALLER_ROOT}/src/schemas" \
+		"${INSTALLER_ROOT}/src/lib/schema" "${INSTALLER_ROOT}/src/schemas" \
 		"${MOCK_BIN}" "${LINK_DIR}"
 
 	cp scripts/install.sh "${INSTALLER_ROOT}/scripts/install.sh"
@@ -17,7 +17,7 @@ setup() {
 	: >"${INSTALLER_ROOT}/scripts/okso.rb"
 	printf 'stub readme for installer tests' >"${INSTALLER_ROOT}/README.md"
 
-	cat >"${INSTALLER_ROOT}/src/lib/planning/schema.sh" <<'EOS'
+	cat >"${INSTALLER_ROOT}/src/lib/schema/schema.sh" <<'EOS'
 #!/usr/bin/env bash
 # shellcheck shell=bash
 schema_path() {

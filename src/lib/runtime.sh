@@ -46,7 +46,7 @@
 # Dependencies:
 #   - bash 3.2+
 #   - jq
-#   - config.sh, cli.sh, planner.sh, respond.sh
+#   - config.sh, cli.sh, planner.sh, assistant/respond.sh
 #
 # Exit codes:
 #   0 for success, non-zero bubbled from downstream helpers.

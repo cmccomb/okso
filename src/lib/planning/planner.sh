@@ -13,6 +13,7 @@
 #   PLANNER_MODEL_FILE (string): model file within the repository for planner inference.
 #   REACT_MODEL_REPO (string): Hugging Face repository name for ReAct inference.
 #   REACT_MODEL_FILE (string): model file within the repository for ReAct inference.
+#   REACT_ENTRYPOINT (string): optional path override for the ReAct entrypoint script.
 #   TOOLS (array): optional array of tool names available to the planner.
 #   PLAN_ONLY, DRY_RUN (bool): control execution and preview behaviour.
 #   APPROVE_ALL, FORCE_CONFIRM (bool): confirmation toggles.
@@ -42,24 +43,24 @@ source "${PLANNING_LIB_DIR}/../core/errors.sh"
 source "${PLANNING_LIB_DIR}/../core/logging.sh"
 # shellcheck source=../tools.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/../tools.sh"
-# shellcheck source=./respond.sh disable=SC1091
-source "${PLANNING_LIB_DIR}/respond.sh"
-# shellcheck source=./prompts.sh disable=SC1091
-source "${PLANNING_LIB_DIR}/prompts.sh"
-# shellcheck source=./schema.sh disable=SC1091
-source "${PLANNING_LIB_DIR}/schema.sh"
+# shellcheck source=../assistant/respond.sh disable=SC1091
+source "${PLANNING_LIB_DIR}/../assistant/respond.sh"
+# shellcheck source=../prompt/build_planner.sh disable=SC1091
+source "${PLANNING_LIB_DIR}/../prompt/build_planner.sh"
+# shellcheck source=../schema/schema.sh disable=SC1091
+source "${PLANNING_LIB_DIR}/../schema/schema.sh"
 # shellcheck source=../core/state.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/../core/state.sh"
-# shellcheck source=./llama_client.sh disable=SC1091
-source "${PLANNING_LIB_DIR}/llama_client.sh"
+# shellcheck source=../llm/llama_client.sh disable=SC1091
+source "${PLANNING_LIB_DIR}/../llm/llama_client.sh"
 # shellcheck source=../config.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/../config.sh"
 # shellcheck source=./normalization.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/normalization.sh"
 # shellcheck source=./prompting.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/prompting.sh"
-# shellcheck source=./execution.sh disable=SC1091
-source "${PLANNING_LIB_DIR}/execution.sh"
+# shellcheck source=../exec/dispatch.sh disable=SC1091
+source "${PLANNING_LIB_DIR}/../exec/dispatch.sh"
 
 initialize_planner_models() {
 	if [[ -z "${PLANNER_MODEL_REPO:-}" || -z "${PLANNER_MODEL_FILE:-}" || -z "${REACT_MODEL_REPO:-}" || -z "${REACT_MODEL_FILE:-}" ]]; then
@@ -234,5 +235,12 @@ plan_json_to_entries() {
 	printf '%s' "${plan_json}" | jq -cr '.[]'
 }
 
-# shellcheck source=./react.sh disable=SC1091
-source "${PLANNING_LIB_DIR}/react.sh"
+REACT_ENTRYPOINT=${REACT_ENTRYPOINT:-"${PLANNING_LIB_DIR}/../react/react.sh"}
+
+if [[ ! -f "${REACT_ENTRYPOINT}" ]]; then
+	log "ERROR" "ReAct entrypoint missing" "REACT_ENTRYPOINT=${REACT_ENTRYPOINT}" >&2
+	return 1 2>/dev/null
+fi
+
+# shellcheck source=../react/react.sh disable=SC1091
+source "${REACT_ENTRYPOINT}"
