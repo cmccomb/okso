@@ -53,9 +53,9 @@ build_react_prompt_dynamic_suffix() {
 	history="$4"
 	react_schema="$5"
 	plan_step="$6"
-	current_date="$(current_date_utc)"
-	current_time="$(current_time_utc)"
-	current_weekday="$(current_weekday_utc)"
+	current_date="$(current_date_local)"
+	current_time="$(current_time_local)"
+	current_weekday="$(current_weekday_local)"
 
 	rendered="$(render_prompt_template "react" \
 		user_query "${user_query}" \

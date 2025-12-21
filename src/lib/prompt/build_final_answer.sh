@@ -32,9 +32,9 @@ build_final_answer_fallback_prompt() {
 	user_query="$1"
 	context="${2:-}"
 	final_fallback_schema="$(load_schema_text concise_response)"
-	current_date="$(current_date_utc)"
-	current_time="$(current_time_utc)"
-	current_weekday="$(current_weekday_utc)"
+	current_date="$(current_date_local)"
+	current_time="$(current_time_local)"
+	current_weekday="$(current_weekday_local)"
 
 	render_prompt_template "final_answer_fallback" \
 		user_query "${user_query}" \

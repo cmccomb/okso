@@ -47,9 +47,9 @@ build_planner_prompt_dynamic_suffix() {
 	user_query="$1"
 	tool_lines="$2"
 	planner_schema="$(load_schema_text planner_plan)"
-	current_date="$(current_date_utc)"
-	current_time="$(current_time_utc)"
-	current_weekday="$(current_weekday_utc)"
+	current_date="$(current_date_local)"
+	current_time="$(current_time_local)"
+	current_weekday="$(current_weekday_local)"
 
 	rendered="$(render_prompt_template "planner" \
 		user_query "${user_query}" \
