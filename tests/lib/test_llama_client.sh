@@ -66,7 +66,7 @@ SCRIPT
 
 @test "llama_infer accepts multiline schema strings" {
 	run env BASH_ENV= ENV= bash --noprofile --norc -c '
-                set -euo pipefail
+                set -uo pipefail
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 script_dir="$(mktemp -d)"
                 runner="${script_dir}/runner.sh"
@@ -95,6 +95,38 @@ SCRIPT
                 "${runner}"
         '
 	[ "$status" -eq 0 ]
+}
+
+@test "llama_infer records prompt cache metadata" {
+	cd "$(git rev-parse --show-toplevel)" || exit 1
+	args_dir=$(mktemp -d)
+	args_file="${args_dir}/args.txt"
+	cache_file="${args_dir}/react.prompt-cache"
+	mock_binary="${args_dir}/mock_llama.sh"
+	cat >"${mock_binary}" <<SCRIPT
+#!/usr/bin/env bash
+printf "%s\n" "\$@" >"${args_file}"
+SCRIPT
+	chmod +x "${mock_binary}"
+	export LLAMA_AVAILABLE=true
+	export LLAMA_BIN="${mock_binary}"
+	export REACT_MODEL_REPO=demo/repo
+	export REACT_MODEL_FILE=model.gguf
+	export LLAMA_DEFAULT_CONTEXT_SIZE=64
+	export LLAMA_CONTEXT_CAP=96
+	export LLAMA_CONTEXT_MARGIN_PERCENT=10
+	source ./src/lib/planning/llama_client.sh
+	llama_infer "prompt text" "" 8 "" "${REACT_MODEL_REPO}" "${REACT_MODEL_FILE}" "${cache_file}"
+	[ "$?" -eq 0 ]
+	metadata_file="${args_dir}/react.prompt-cache.meta.json"
+	[[ -s "${metadata_file}" ]]
+	grep -Fq '"repo":"demo/repo"' "${metadata_file}"
+	grep -Fq '"context":64' "${metadata_file}"
+	args=()
+	while IFS= read -r line; do
+		args+=("$line")
+	done <"${args_dir}/args.txt"
+	[[ " ${args[*]} " == *" --prompt-cache ${args_dir}/react.prompt-cache "* ]]
 }
 
 @test "llama_infer returns llama exit code and logs stderr" {
@@ -150,6 +182,36 @@ SCRIPT
 	detail=$(printf '%s\n' "${output}" | jq -r '.detail')
 	[[ "${detail}" == *"timeout_seconds=1"* ]]
 	[[ "${detail}" == *"elapsed_ms="* ]]
+}
+
+@test "llama_infer rotates mismatched prompt caches" {
+	cd "$(git rev-parse --show-toplevel)" || exit 1
+	args_dir=$(mktemp -d)
+	args_file="${args_dir}/args.txt"
+	cache_file="${args_dir}/planner.prompt-cache"
+	metadata_file="${cache_file}.meta.json"
+	printf "stale-cache" >"${cache_file}"
+	printf "{\"key\":\"old-key\"}" >"${metadata_file}"
+	mock_binary="${args_dir}/mock_llama.sh"
+	cat >"${mock_binary}" <<SCRIPT
+#!/usr/bin/env bash
+printf "%s\n" "\$@" >"${args_file}"
+SCRIPT
+	chmod +x "${mock_binary}"
+	export LLAMA_AVAILABLE=true
+	export LLAMA_BIN="${mock_binary}"
+	export PLANNER_MODEL_REPO=demo/plan
+	export PLANNER_MODEL_FILE=planner.gguf
+	source ./src/lib/planning/llama_client.sh
+	llama_infer "prompt" "" 4 "" "${PLANNER_MODEL_REPO}" "${PLANNER_MODEL_FILE}" "${cache_file}"
+	[ "$?" -eq 0 ]
+	cache_file="${args_dir}/planner.prompt-cache"
+	rotated_count=$(ls "${cache_file}"*.bak 2>/dev/null | wc -l | tr -d "\n ")
+	[[ "${rotated_count}" -ge 1 ]]
+	metadata_file="${cache_file}.meta.json"
+	[[ -s "${metadata_file}" ]]
+	grep -Fq '"file":"planner.gguf"' "${metadata_file}"
+	[[ -f "${cache_file}.meta.json" ]]
 }
 
 @test "llama_infer keeps default context when estimate fits" {

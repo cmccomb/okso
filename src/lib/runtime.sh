@@ -19,6 +19,10 @@
 #   ${settings_prefix}_json.default_planner_model_file (string): default GGUF filename for the planner.
 #   ${settings_prefix}_json.config_dir (string): directory for config file.
 #   ${settings_prefix}_json.config_file (string): path to the config file.
+#   ${settings_prefix}_json.cache_dir (string): base directory for prompt caches.
+#   ${settings_prefix}_json.planner_cache_file (string): prompt cache file used for planner calls.
+#   ${settings_prefix}_json.react_cache_file (string): prompt cache file used for ReAct calls.
+#   ${settings_prefix}_json.run_id (string): run identifier scoping ReAct caches.
 #   ${settings_prefix}_json.planner_model_spec (string): HF repo[:file] spec for planner llama.cpp.
 #   ${settings_prefix}_json.planner_model_branch (string): branch or tag for planner downloads.
 #   ${settings_prefix}_json.planner_model_repo (string): parsed planner HF repo.
@@ -75,6 +79,10 @@ default_model_file DEFAULT_MODEL_FILE
 default_planner_model_file DEFAULT_PLANNER_MODEL_FILE
 config_dir CONFIG_DIR
 config_file CONFIG_FILE
+cache_dir CACHE_DIR
+planner_cache_file PLANNER_CACHE_FILE
+react_cache_file REACT_CACHE_FILE
+run_id RUN_ID
 planner_model_spec PLANNER_MODEL_SPEC
 planner_model_branch PLANNER_MODEL_BRANCH
 react_model_spec REACT_MODEL_SPEC
