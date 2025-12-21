@@ -18,15 +18,15 @@ cd "$(git rev-parse --show-toplevel)" || exit 1
 schema_path="./src/schemas/react_action.schema.json"
 
 jq -e '
-        (.additionalProperties == false)
-        and (.required | sort == ["args","thought","tool"])
-        and (.properties.tool.enum == [])
-        and (.properties.tool["$comment"] | contains("Tool list injected"))
-        and (."$defs".args_by_tool["$comment"] | contains("argument schemas injected"))
-        and (."$defs".final_answer["$comment"] | contains("Illustrative example only"))
-        and ((.oneOf // null) == null)
-        and (.allOf | length == 1)
-        and (.allOf[0]["$comment"] | contains("if/then branches are injected"))
+        (.oneOf | length == 2)
+        and (.oneOf[0].additionalProperties == false)
+        and (.oneOf[0].required | sort == ["args","thought","tool"])
+        and (.oneOf[0].properties.tool.const == "final_answer")
+        and (.oneOf[0].properties.args.required == ["input"])
+        and (.oneOf[0].properties.args.additionalProperties == false)
+        and (.oneOf[0].properties.args.properties.input.minLength == 1)
+        and (.oneOf[0]."$comment" | contains("Illustrative example only"))
+        and (.oneOf[1]."$comment" | contains("variants are injected"))
 ' "${schema_path}"
 INNERSCRIPT
 	)
@@ -78,7 +78,7 @@ tool_names() { printf "%s\n" "alpha"; }
 
 schema_path="$(build_react_action_schema "alpha")"
 
-jq -e '."$defs".args_by_tool.alpha.additionalProperties == false' "${schema_path}"
+jq -e '.oneOf[0].properties.args.additionalProperties == false' "${schema_path}"
 
 rm -f "${schema_path}"
 INNERSCRIPT
@@ -110,14 +110,11 @@ schema_path="$(build_react_action_schema $'alpha\nbeta')"
 
 jq -e '
         . as $root
-        | ($root.required | sort) == ["args", "thought", "tool"]
-        and ($root.properties.tool.enum | sort) == ["alpha", "beta"]
-        and (($root.oneOf // null) == null)
-        and ($root.allOf | length) == 2
-        and (all($root.allOf[]; (.then.required | sort) == ["args", "tool"]))
-        and (any($root.allOf[]; .if.properties.tool.const == "alpha" and .then.properties.args == $root."$defs".args_by_tool.alpha))
-        and (any($root.allOf[]; .if.properties.tool.const == "beta" and .then.properties.args == $root."$defs".args_by_tool.beta))
-        and ($root.additionalProperties == false)
+        | ($root.oneOf | length) == 2
+        and (all($root.oneOf[]; (.required | sort) == ["args", "thought", "tool"]))
+        and (any($root.oneOf[]; .properties.tool.const == "alpha" and .properties.args.required == ["input"]))
+        and (any($root.oneOf[]; .properties.tool.const == "beta" and .properties.args.required == ["command"]))
+        and (all($root.oneOf[]; .additionalProperties == false))
 ' "${schema_path}"
 
 rm -f "${schema_path}"

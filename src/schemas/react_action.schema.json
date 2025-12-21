@@ -1,36 +1,28 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "ReactAction",
-  "description": "Template ReAct action schema; the tool enum, per-tool args, and validation branches are populated during compilation/generation.",
-  "type": "object",
-  "additionalProperties": false,
-  "required": ["thought", "tool", "args"],
-  "properties": {
-    "thought": { "type": "string", "minLength": 1 },
-    "tool": {
-      "type": "string",
-      "enum": [],
-      "$comment": "Tool list injected during schema compilation/generation."
-    },
-    "args": { "type": "object" }
-  },
-  "$defs": {
-    "args_by_tool": {
-      "$comment": "Per-tool argument schemas injected during schema compilation/generation."
-    },
-    "final_answer": {
+  "description": "Template ReAct action schema; per-tool oneOf variants are populated during compilation/generation.",
+  "oneOf": [
+    {
       "type": "object",
-      "required": ["input"],
       "additionalProperties": false,
+      "required": ["thought", "tool", "args"],
       "properties": {
-        "input": { "type": "string", "minLength": 1 }
+        "thought": { "type": "string", "minLength": 1 },
+        "tool": { "const": "final_answer" },
+        "args": {
+          "type": "object",
+          "required": ["input"],
+          "additionalProperties": false,
+          "properties": {
+            "input": { "type": "string", "minLength": 1 }
+          }
+        }
       },
       "$comment": "Illustrative example only; actual tools and schemas are generated dynamically."
-    }
-  },
-  "allOf": [
+    },
     {
-      "$comment": "Per-tool if/then branches are injected during schema compilation/generation."
+      "$comment": "Per-tool variants are injected during schema compilation/generation."
     }
   ]
 }
