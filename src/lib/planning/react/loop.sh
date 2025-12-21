@@ -107,12 +107,9 @@ format_tool_args() {
 	mail_draft | mail_send)
 		jq -nc --arg envelope "${payload}" '{envelope:$envelope}'
 		;;
-	applescript)
-		jq -nc --arg key "${text_key}" --arg value "${payload}" '{($key):$value}'
-		;;
-	final_answer)
-		jq -nc --arg key "${text_key}" --arg value "${payload}" '{($key):$value}'
-		;;
+        final_answer)
+                jq -nc --arg key "${text_key}" --arg value "${payload}" '{($key):$value}'
+                ;;
 	*)
 		jq -nc --arg key "${text_key}" --arg value "${payload}" '{($key):$value}'
 		;;
@@ -159,12 +156,9 @@ extract_tool_query() {
 	mail_draft | mail_send)
 		jq -r '(.envelope // "")' <<<"${args_json}" 2>/dev/null || printf ''
 		;;
-	applescript)
-		jq -r --arg key "${text_key}" '.[$key] // ""' <<<"${args_json}" 2>/dev/null || printf ''
-		;;
-	final_answer)
-		jq -r --arg key "${text_key}" '.[$key] // ""' <<<"${args_json}" 2>/dev/null || printf ''
-		;;
+        final_answer)
+                jq -r --arg key "${text_key}" '.[$key] // ""' <<<"${args_json}" 2>/dev/null || printf ''
+                ;;
 	clipboard_paste | notes_list | reminders_list | calendar_list | mail_list_inbox | mail_list_unread)
 		printf ''
 		;;

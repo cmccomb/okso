@@ -36,9 +36,9 @@ INNERSCRIPT
 	[ "${status}" -eq 0 ]
 }
 
-@test "ReAct loop forwards structured args to applescript" {
-	script=$(
-		cat <<'INNERSCRIPT'
+@test "ReAct loop forwards structured args to custom tool" {
+        script=$(
+                cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
@@ -49,16 +49,22 @@ source ./src/lib/planning/planner.sh
 source ./src/lib/tools.sh
 
 init_tool_registry
-register_applescript
 register_final_answer
 
-extract_tool_query() { printf '%s' "legacy"; }
-assert_osascript_available() { return 0; }
-# shellcheck disable=SC2120
-osascript_run_evaluated() { printf '%s' "$2"; }
+tool_structured_echo() {
+        jq -r '.input' <<<"${TOOL_ARGS}" || true
+}
+
+register_tool \
+        "structured_echo" \
+        "Echo back structured input for testing." \
+        "structured_echo '<input>'" \
+        "Test helper tool." \
+        tool_structured_echo \
+        '{"type":"object","required":["input"],"properties":{"input":{"type":"string","minLength":1}},"additionalProperties":false}'
 
 llama_queue=$(mktemp)
-printf '%s\n' '{"thought":"run it","tool":"applescript","args":{"input":"beep"}}' '{"thought":"wrap up","tool":"final_answer","args":{"input":"done"}}' >"${llama_queue}"
+printf '%s\n' '{"thought":"run it","tool":"structured_echo","args":{"input":"beep"}}' '{"thought":"wrap up","tool":"final_answer","args":{"input":"done"}}' >"${llama_queue}"
 llama_infer() {
         local next remaining
         next=$(head -n 1 "${llama_queue}" || printf '{}')
@@ -67,9 +73,9 @@ llama_infer() {
         printf '%s' "${next}"
 }
 
-allowed_tools=$'applescript\nfinal_answer'
+allowed_tools=$'structured_echo\nfinal_answer'
 plan_entries=""
-plan_outline=$'1. run applescript\n2. wrap up'
+plan_outline=$'1. run structured_echo\n2. wrap up'
 state_prefix=react_state
 
 initialize_react_state "${state_prefix}" "demo" "${allowed_tools}" "${plan_entries}" "${plan_outline}"
@@ -86,7 +92,7 @@ FORCE_CONFIRM=false
 select_next_action "${state_prefix}" first_action
 tool_one=$(jq -r '.tool' <<<"${first_action}")
 args_one=$(jq -c '.args' <<<"${first_action}")
-observation_one=$(execute_tool_action "${tool_one}" "legacy" "ctx" "${args_one}")
+observation_one=$(execute_tool_action "${tool_one}" "beep" "ctx" "${args_one}")
 
 select_next_action "${state_prefix}" second_action
 tool_two=$(jq -r '.tool' <<<"${second_action}")

@@ -47,8 +47,6 @@ source "${TOOLS_DIR}/reminders/index.sh"
 source "${TOOLS_DIR}/calendar/index.sh"
 # shellcheck source=./tools/mail/index.sh disable=SC1091
 source "${TOOLS_DIR}/mail/index.sh"
-# shellcheck source=./tools/applescript/index.sh disable=SC1091
-source "${TOOLS_DIR}/applescript/index.sh"
 # shellcheck source=./tools/final_answer/index.sh disable=SC1091
 source "${TOOLS_DIR}/final_answer/index.sh"
 # shellcheck source=./tools/feedback/index.sh disable=SC1091
@@ -118,8 +116,7 @@ initialize_tools() {
 	register_reminders_suite
 	register_calendar_suite
 	register_mail_suite
-	register_applescript
-	register_final_answer
-	register_feedback
-	register_web_suite
+        register_final_answer
+        register_feedback
+        register_web_suite
 }
