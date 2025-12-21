@@ -87,36 +87,49 @@ derive_terminal_query() {
 }
 
 terminal_args_from_json() {
-	# Parses TOOL_ARGS into a command and argument array.
-	# Sets two global variables:
-	#   TERMINAL_CMD (string)
-	#   TERMINAL_CMD_ARGS (array)
-	local args_json
-	args_json=${TOOL_ARGS:-"{}"}
+        # Parses TOOL_ARGS into a command and argument array.
+        # Sets two global variables:
+        #   TERMINAL_CMD (string)
+        #   TERMINAL_CMD_ARGS (array)
+        local args_json args_type
+        args_json=${TOOL_ARGS:-"{}"}
 
-	if ! TERMINAL_CMD=$(jq -er '(.command // "")' <<<"${args_json}" 2>/dev/null || true); then
-		TERMINAL_CMD=""
-	fi
+        if ! TERMINAL_CMD=$(jq -er '(.command // "")' <<<"${args_json}" 2>/dev/null); then
+                log "ERROR" "terminal args must be valid JSON" "${args_json}" || true
+                TERMINAL_CMD=""
+                return 1
+        fi
 
-	if ! jq -e '(.args == null) or (.args | type=="array")' <<<"${args_json}" >/dev/null 2>&1; then
-		log "ERROR" "terminal args must supply an array for args" "${args_json}" || true
-		return 1
-	fi
+        if ! args_type=$(jq -er 'if .args == null then "null" else .args | type end' <<<"${args_json}" 2>/dev/null); then
+                log "ERROR" "terminal args must be valid JSON" "${args_json}" || true
+                return 1
+        fi
 
-	if [[ -z "${TERMINAL_CMD}" ]]; then
-		TERMINAL_CMD="status"
-	fi
+        if [[ -z "${TERMINAL_CMD}" ]]; then
+                TERMINAL_CMD="status"
+        fi
 
-	if ! terminal_allowed "${TERMINAL_CMD}"; then
-		log "ERROR" "terminal command not permitted" "${TERMINAL_CMD}" || true
-		return 1
-	fi
+        if ! terminal_allowed "${TERMINAL_CMD}"; then
+                log "ERROR" "terminal command not permitted" "${TERMINAL_CMD}" || true
+                return 1
+        fi
 
-	TERMINAL_CMD_ARGS=()
-	while IFS= read -r line; do
-		TERMINAL_CMD_ARGS+=("$line")
-	done < <(jq -r '(.args // []) | map(tostring) | .[]' <<<"${args_json}" 2>/dev/null || true)
-	return 0
+        TERMINAL_CMD_ARGS=()
+        case "${args_type}" in
+        array)
+                while IFS= read -r line; do
+                        TERMINAL_CMD_ARGS+=("$line")
+                done < <(jq -r '(.args // []) | map(tostring) | .[]' <<<"${args_json}" 2>/dev/null || true)
+                ;;
+        string | number | boolean | null)
+                TERMINAL_CMD_ARGS=()
+                ;;
+        *)
+                log "ERROR" "terminal args must supply an array for args" "${args_json}" || true
+                return 1
+                ;;
+        esac
+        return 0
 }
 
 terminal_init_session() {

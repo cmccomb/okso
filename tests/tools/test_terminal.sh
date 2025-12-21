@@ -163,10 +163,18 @@
 	[[ "${output}" == *"base64 mode must be encode or decode"* ]]
 }
 
-@test "terminal args require array input" {
-	run bash -lc 'source ./src/tools/terminal/index.sh; VERBOSITY=0; TOOL_ARGS="{\"command\":\"ls\",\"args\":\"bad\"}"; tool_terminal'
-	[ "$status" -eq 1 ]
-	[[ "${output}" == *"terminal args must supply an array for args"* ]]
+@test "terminal args normalize scalar inputs" {
+        run bash -lc 'source ./src/tools/terminal/index.sh; VERBOSITY=0; TOOL_ARGS="{\"command\":\"ls\",\"args\":\".\"}"; tool_terminal'
+        [ "$status" -eq 0 ]
+
+        run bash -lc 'source ./src/tools/terminal/index.sh; VERBOSITY=0; TOOL_ARGS="{\"command\":\"date\",\"args\":\".\"}"; tool_terminal'
+        [ "$status" -eq 0 ]
+}
+
+@test "malformed TOOL_ARGS surface JSON errors" {
+        run bash -lc 'source ./src/tools/terminal/index.sh; VERBOSITY=0; TOOL_ARGS="{\"command\":\"ls\",\"args\":}"; tool_terminal'
+        [ "$status" -eq 1 ]
+        [[ "${output}" == *"terminal args must be valid JSON"* ]]
 }
 
 @test "open warns on non-macOS hosts" {
