@@ -475,7 +475,6 @@ react_loop() {
 		action_context="$(format_action_context "${thought}" "${tool}" "${normalized_args_json}")"
 
 		observation="$(execute_tool_action "${tool}" "${query}" "${action_context}" "${normalized_args_json}")"
-		echo "INFO" "observation" "${observation}"
 
 		record_tool_execution "${state_prefix}" "${tool}" "${thought}" "${normalized_args_json}" "${observation}" "${current_step}"
 
