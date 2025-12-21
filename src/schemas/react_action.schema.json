@@ -1,125 +1,36 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "ReactAction",
-  "description": "Compiled ReAct action schema limiting tool calls to terminal and final_answer with branch-specific args definitions.",
+  "description": "Template ReAct action schema; the tool enum, per-tool args, and validation branches are populated during compilation/generation.",
   "type": "object",
   "additionalProperties": false,
   "required": ["thought", "tool", "args"],
   "properties": {
     "thought": { "type": "string", "minLength": 1 },
-    "tool": { "type": "string", "enum": ["terminal", "final_answer"] },
+    "tool": {
+      "type": "string",
+      "enum": [],
+      "$comment": "Tool list injected during schema compilation/generation."
+    },
     "args": { "type": "object" }
   },
   "$defs": {
     "args_by_tool": {
-      "terminal": {
-        "type": "object",
-        "required": ["command"],
-        "additionalProperties": false,
-        "properties": {
-          "command": {
-            "type": "string",
-            "enum": [
-              "status",
-              "pwd",
-              "ls",
-              "cd",
-              "cat",
-              "head",
-              "tail",
-              "find",
-              "grep",
-              "open",
-              "mkdir",
-              "rmdir",
-              "mv",
-              "cp",
-              "touch",
-              "rm",
-              "stat",
-              "wc",
-              "du",
-              "base64"
-            ]
-          },
-          "args": {
-            "type": "array",
-            "items": { "type": "string" }
-          }
-        }
+      "$comment": "Per-tool argument schemas injected during schema compilation/generation."
+    },
+    "final_answer": {
+      "type": "object",
+      "required": ["input"],
+      "additionalProperties": false,
+      "properties": {
+        "input": { "type": "string", "minLength": 1 }
       },
-      "final_answer": {
-        "type": "object",
-        "required": ["input"],
-        "additionalProperties": false,
-        "properties": {
-          "input": { "type": "string", "minLength": 1 }
-        }
-      }
+      "$comment": "Illustrative example only; actual tools and schemas are generated dynamically."
     }
   },
   "allOf": [
     {
-      "if": { "properties": { "tool": { "const": "terminal" } } },
-      "then": {
-        "properties": {
-          "tool": { "const": "terminal" },
-          "args": {
-            "type": "object",
-            "required": ["command"],
-            "additionalProperties": false,
-            "properties": {
-              "command": {
-                "type": "string",
-                "enum": [
-                  "status",
-                  "pwd",
-                  "ls",
-                  "cd",
-                  "cat",
-                  "head",
-                  "tail",
-                  "find",
-                  "grep",
-                  "open",
-                  "mkdir",
-                  "rmdir",
-                  "mv",
-                  "cp",
-                  "touch",
-                  "rm",
-                  "stat",
-                  "wc",
-                  "du",
-                  "base64"
-                ]
-              },
-              "args": {
-                "type": "array",
-                "items": { "type": "string" }
-              }
-            }
-          }
-        },
-        "required": ["tool", "args"]
-      }
-    },
-    {
-      "if": { "properties": { "tool": { "const": "final_answer" } } },
-      "then": {
-        "properties": {
-          "tool": { "const": "final_answer" },
-          "args": {
-            "type": "object",
-            "required": ["input"],
-            "additionalProperties": false,
-            "properties": {
-              "input": { "type": "string", "minLength": 1 }
-            }
-          }
-        },
-        "required": ["tool", "args"]
-      }
+      "$comment": "Per-tool if/then branches are injected during schema compilation/generation."
     }
   ]
 }
