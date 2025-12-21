@@ -94,8 +94,8 @@ llama_infer() {
 	stop_string="${2:-}"
 	number_of_tokens="${3:-256}"
 	schema_json="${4:-}"
-	repo_override="${5:-${REACT_MODEL_REPO}}"
-	file_override="${6:-${REACT_MODEL_FILE}}"
+	repo_override="${5:-${REACT_MODEL_REPO:-}}"
+	file_override="${6:-${REACT_MODEL_FILE:-}}"
 
 	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
 		log "WARN" "llama unavailable; skipping inference" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}"
