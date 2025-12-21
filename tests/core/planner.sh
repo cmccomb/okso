@@ -155,11 +155,16 @@ USE_REACT_LLAMA=false
 LLAMA_AVAILABLE=false
 select_next_action "${state_prefix}" action_json
 printf "%s\n" "${action_json}"
+plan_index="$(state_get "${state_prefix}" "plan_index")"
+if [[ "${plan_index}" -ne 1 ]]; then
+        echo "expected plan index to advance for fallback action"
+        exit 1
+fi
 SCRIPT
 
-	[ "$status" -eq 0 ]
-	action_json=$(printf '%s' "${output}" | tail -n 1)
-	tool=$(printf '%s' "${action_json}" | jq -r '.tool')
+        [ "$status" -eq 0 ]
+        action_json=$(printf '%s' "${output}" | tail -n 1)
+        tool=$(printf '%s' "${action_json}" | jq -r '.tool')
 	command=$(printf '%s' "${action_json}" | jq -r '.args.command')
 	arg0=$(printf '%s' "${action_json}" | jq -r '.args.args[0]')
 	thought=$(printf '%s' "${action_json}" | jq -r '.thought')

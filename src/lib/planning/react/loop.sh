@@ -324,17 +324,18 @@ select_next_action() {
 		react_fallback_action=""
 	fi
 
-	if ! _select_action_from_llama "${state_name}" react_action_json; then
-		if [[ "${USE_REACT_LLAMA:-false}" == true && "${LLAMA_AVAILABLE}" == true ]]; then
-			return 1
-		fi
-		if [[ -z "${react_fallback_action}" ]]; then
-			return 1
-		fi
-		react_action_json="${react_fallback_action}"
-	else
-		state_set "${state_name}" "plan_index" "$((plan_index + 1))"
-	fi
+        if ! _select_action_from_llama "${state_name}" react_action_json; then
+                if [[ "${USE_REACT_LLAMA:-false}" == true && "${LLAMA_AVAILABLE}" == true ]]; then
+                        return 1
+                fi
+                if [[ -z "${react_fallback_action}" ]]; then
+                        return 1
+                fi
+                react_action_json="${react_fallback_action}"
+                state_set "${state_name}" "plan_index" "$((plan_index + 1))"
+        else
+                state_set "${state_name}" "plan_index" "$((plan_index + 1))"
+        fi
 
 	if [[ -n "${output_name}" ]]; then
 		printf -v "${output_name}" '%s' "${react_action_json}"
