@@ -41,10 +41,10 @@ fi
 user_request_lower=$(to_lowercase "${user_request}")
 
 if [[ "${prompt_lower}" == *"final answer"* && "${prompt_lower}" == *"agent trace"* ]]; then
-        request=${prompt#*USER REQUEST: }
-        request=${request%%.*}
-        printf 'Responding directly to: %s\n' "${request}"
-        exit 0
+	request=${prompt#*USER REQUEST: }
+	request=${request%%.*}
+	printf 'Responding directly to: %s\n' "${request}"
+	exit 0
 fi
 
 if [[ "${prompt_lower}" == *"action schema"* ]]; then
