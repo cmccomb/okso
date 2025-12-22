@@ -51,25 +51,11 @@ format_tool_descriptions() {
 	printf '%s' "${tool_lines%$'\n'}"
 }
 
-web_search_budget_cap_value() {
-	# Determines the maximum number of web_search steps allowed in a plan.
-	# Returns:
-	#   Resolved budget cap as an integer (string)
-	local cap
-	cap="${PLANNER_WEB_SEARCH_BUDGET_CAP:-2}"
-
-	if [[ -z "${cap}" || ! "${cap}" =~ ^[0-9]+$ ]]; then
-		cap=2
-	fi
-
-	printf '%s' "${cap}"
-}
-
 format_tool_details() {
 	# Arguments:
 	#   $1 - tool name (string)
 	#   $2 - include schema (bool, optional)
-	local tool description command safety include_schema args_schema web_search_cap
+	local tool description command safety include_schema args_schema
 	local -a details=()
 	local detail_text=""
 	tool="$1"
@@ -95,11 +81,6 @@ format_tool_details() {
 
 	if [[ -n "${safety}" ]]; then
 		details+=("Safety: ${safety}")
-	fi
-
-	if [[ "${tool}" == "web_search" ]]; then
-		web_search_cap="$(web_search_budget_cap_value)"
-		details+=("Budget: up to ${web_search_cap} searches per plan")
 	fi
 
 	if ((${#details[@]} == 0)); then
@@ -415,10 +396,6 @@ format_tool_line() {
 	fi
 
 	printf -- '- %s' "${tool}"
-}
-
-format_tool_summary_line() {
-	format_tool_line "$1"
 }
 
 format_tool_example_line() {

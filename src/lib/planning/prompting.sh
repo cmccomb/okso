@@ -39,12 +39,12 @@ build_planner_prompt_with_tools() {
 	tools=("$@")
 
 	if ((${#tools[@]} > 0)); then
-		tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${tools[@]}")" format_tool_summary_line)"
+		tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${tools[@]}")" format_tool_line)"
 	else
 		tool_lines=""
 	fi
 
-	build_planner_prompt "${user_query}" "${tool_lines}"
+	build_planner_prompt "${user_query}" "${tool_lines}" ""
 }
 
 plan_json_to_outline() {

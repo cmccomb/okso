@@ -12,11 +12,16 @@
 # Exit codes:
 #   Inherits Bats semantics; assertions fail the test case.
 
-@test "generate_planner_response includes web_search budget constraints" {
+@test "generate_planner_response omits web_search caps" {
 	run bash -lc "$(
 		cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
+
+TOOL_REGISTRY_JSON='{"names":[],"registry":{}}'
+export TOOL_REGISTRY_JSON
+PLANNER_SKIP_TOOL_LOAD=true
+export PLANNER_SKIP_TOOL_LOAD
 
 source ./src/lib/planning/planner.sh
 
@@ -24,6 +29,7 @@ current_date_local() { printf '2024-01-01'; }
 current_time_local() { printf '12:00'; }
 current_weekday_local() { printf 'Monday'; }
 load_schema_text() { printf '{}'; }
+planner_fetch_search_context() { printf 'Search context unavailable.'; }
 
 llama_infer() {
         printf '%s' "$1" > /tmp/planner_prompt_budget_constraints
@@ -33,25 +39,28 @@ llama_infer() {
 tool_names() { printf '%s\n' "web_search"; }
 
 LLAMA_AVAILABLE=true
-PLANNER_WEB_SEARCH_BUDGET_CAP=2
-export PLANNER_WEB_SEARCH_BUDGET_CAP
 
 generate_planner_response "Find facts"
 
 prompt="$(cat /tmp/planner_prompt_budget_constraints)"
 
-[[ "${prompt}" == *"at most 2 short, targeted queries"* ]]
-[[ "${prompt}" == *"may not include more than 2 web_search steps"* ]]
+[[ "${prompt}" != *"web_search discipline"* ]]
+[[ "${prompt}" != *"Cap web_search"* ]]
 INNERSCRIPT
 	)"
 	[ "$status" -eq 0 ]
 }
 
-@test "generate_planner_response surfaces web_search budget in tool list" {
+@test "generate_planner_response lists tools without web_search caps" {
 	run bash -lc "$(
 		cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
+
+TOOL_REGISTRY_JSON='{"names":[],"registry":{}}'
+export TOOL_REGISTRY_JSON
+PLANNER_SKIP_TOOL_LOAD=true
+export PLANNER_SKIP_TOOL_LOAD
 
 source ./src/lib/planning/planner.sh
 
@@ -59,6 +68,7 @@ current_date_local() { printf '2024-01-01'; }
 current_time_local() { printf '12:00'; }
 current_weekday_local() { printf 'Monday'; }
 load_schema_text() { printf '{}'; }
+planner_fetch_search_context() { printf 'Search context unavailable.'; }
 
 llama_infer() {
         printf '%s' "$1" > /tmp/planner_prompt_budget_tools
@@ -68,14 +78,12 @@ llama_infer() {
 tool_names() { printf '%s\n' "terminal" "web_search"; }
 
 LLAMA_AVAILABLE=true
-PLANNER_WEB_SEARCH_BUDGET_CAP=2
-export PLANNER_WEB_SEARCH_BUDGET_CAP
 
 generate_planner_response "Find docs"
 
 prompt="$(cat /tmp/planner_prompt_budget_tools)"
 
-[[ "${prompt}" == *"- web_search: Budget: up to 2 searches per plan"* ]]
+[[ "${prompt}" != *"Budget: up to"* ]]
 INNERSCRIPT
 	)"
 	[ "$status" -eq 0 ]

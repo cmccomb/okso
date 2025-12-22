@@ -14,6 +14,7 @@ Prompt templates live alongside schema definitions so the assistant behaviour st
 - Store reusable snippets (such as safety disclaimers) in dedicated files and compose them within the main prompt templates.
 - Keep prompts minimal and version-controlled; avoid inlining large instructions in code so they remain discoverable for audits.
 - Oversized context (for example, verbose `web_fetch` results) is summarized automatically before llama.cpp is invoked so prompts stay within the configured token budget.
+- The planner prompt now includes a `search_context` block derived from a deterministic pre-plan web search using the user query; planners consume this grounding directly instead of scheduling `web_search` steps.
 
 ## Related resources
 

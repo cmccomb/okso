@@ -18,6 +18,7 @@
 #   PLAN_ONLY, DRY_RUN (bool): control execution and preview behaviour.
 #   APPROVE_ALL, FORCE_CONFIRM (bool): confirmation toggles.
 #   VERBOSITY (int): log level.
+#   PLANNER_SKIP_TOOL_LOAD (bool): skip sourcing the tool suite; useful for tests.
 #   PLANNER_SAMPLE_COUNT (int >=1): number of planner generations to sample; values below 1 are coerced to 1.
 #   PLANNER_TEMPERATURE (float 0-1): temperature forwarded to planner llama.cpp calls.
 #   PLANNER_DEBUG_LOG (string): JSONL sink for scored planner candidates; truncated at each invocation.
@@ -45,7 +46,11 @@ source "${PLANNING_LIB_DIR}/../core/errors.sh"
 # shellcheck source=../core/logging.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/../core/logging.sh"
 # shellcheck source=../tools.sh disable=SC1091
-source "${PLANNING_LIB_DIR}/../tools.sh"
+if [[ "${PLANNER_SKIP_TOOL_LOAD:-false}" != true ]]; then
+	source "${PLANNING_LIB_DIR}/../tools.sh"
+else
+	log "DEBUG" "Skipping tool suite load" "planner_skip_tool_load=true" >&2
+fi
 # shellcheck source=../assistant/respond.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/../assistant/respond.sh"
 # shellcheck source=../prompt/build_planner.sh disable=SC1091
@@ -66,25 +71,10 @@ source "${PLANNING_LIB_DIR}/normalization.sh"
 source "${PLANNING_LIB_DIR}/scoring.sh"
 # shellcheck source=./prompting.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/prompting.sh"
-# shellcheck source=../exec/dispatch.sh disable=SC1091
-source "${PLANNING_LIB_DIR}/../exec/dispatch.sh"
-
-PLANNER_WEB_SEARCH_BUDGET_FILE=${PLANNER_WEB_SEARCH_BUDGET_FILE:-"${TMPDIR:-/tmp}/okso_planner_web_search_budget"}
-export PLANNER_WEB_SEARCH_BUDGET_FILE
-PLANNER_WEB_SEARCH_BUDGET_CAP=${PLANNER_WEB_SEARCH_BUDGET_CAP:-2}
-if [[ -z "${PLANNER_WEB_SEARCH_BUDGET_CAP}" || ! "${PLANNER_WEB_SEARCH_BUDGET_CAP}" =~ ^[0-9]+$ ]]; then
-	PLANNER_WEB_SEARCH_BUDGET_CAP=2
+if [[ "${PLANNER_SKIP_TOOL_LOAD:-false}" != true ]]; then
+	# shellcheck source=../exec/dispatch.sh disable=SC1091
+	source "${PLANNING_LIB_DIR}/../exec/dispatch.sh"
 fi
-export PLANNER_WEB_SEARCH_BUDGET_CAP
-
-planner_web_search_budget_value() {
-	if [[ -f "${PLANNER_WEB_SEARCH_BUDGET_FILE}" ]]; then
-		cat "${PLANNER_WEB_SEARCH_BUDGET_FILE}" 2>/dev/null || printf '0'
-	else
-		printf '0'
-	fi
-}
-export -f planner_web_search_budget_value
 
 initialize_planner_models() {
 	if [[ -z "${PLANNER_MODEL_REPO:-}" || -z "${PLANNER_MODEL_FILE:-}" || -z "${REACT_MODEL_REPO:-}" || -z "${REACT_MODEL_FILE:-}" ]]; then
@@ -92,6 +82,66 @@ initialize_planner_models() {
 	fi
 }
 export -f initialize_planner_models
+
+planner_format_search_context() {
+	# Formats web search JSON into readable prompt text.
+	# Arguments:
+	#   $1 - raw search payload (JSON string)
+	local raw_context formatted
+	raw_context="$1"
+
+	if [[ -z "${raw_context}" ]]; then
+		printf '%s' "Search context unavailable."
+		return 0
+	fi
+
+	if ! formatted=$(jq -r '
+                def fmt(idx; item): "\(idx). \(item.title // "Untitled"): \(item.snippet // "") [\(item.url // "")";
+                if (.items | length == 0) then
+                        "No search results were captured for this query."
+                else
+                        "Query: \(.query // "")\n" +
+                        ((.items // []) | to_entries | map(fmt(.key + 1; .value)) | join("\n"))
+                end
+        ' <<<"${raw_context}" 2>/dev/null); then
+		log "ERROR" "Failed to format search context" "planner_search_context_parse_error" >&2
+		printf '%s' "Search context unavailable."
+		return 0
+	fi
+
+	printf '%s' "${formatted}"
+}
+
+planner_fetch_search_context() {
+	# Executes a deterministic web search before planning.
+	# Arguments:
+	#   $1 - user query (string)
+	# Returns:
+	#   Formatted search context (string). Fallbacks are empty but non-fatal.
+	local user_query tool_args raw_context
+	user_query="$1"
+
+	if ! declare -F tool_web_search >/dev/null 2>&1; then
+		log "WARN" "web_search tool unavailable; skipping pre-plan search" "planner_tools_missing_web_search" >&2
+		printf '%s' "Search context unavailable."
+		return 0
+	fi
+
+	tool_args=$(jq -nc --arg query "${user_query}" '{query:$query, num:5}' 2>/dev/null)
+	if [[ -z "${tool_args}" ]]; then
+		log "WARN" "Failed to encode search args" "planner_search_args_encoding_failed" >&2
+		printf '%s' "Search context unavailable."
+		return 0
+	fi
+
+	if ! raw_context=$(TOOL_ARGS="${tool_args}" tool_web_search 2>/dev/null); then
+		log "WARN" "Pre-plan search failed" "planner_preplan_search_failed" >&2
+		printf '%s' "Search context unavailable."
+		return 0
+	fi
+
+	planner_format_search_context "${raw_context}"
+}
 
 lowercase() {
 	# Arguments:
@@ -128,23 +178,17 @@ generate_planner_response() {
 		done < <(tool_names)
 	fi
 
-	if ! printf '%s\0' "${planner_tools[@]}" | grep -Fxzq "web_search"; then
-		planner_tools+=("web_search")
-		log "INFO" "Web search enabled for planning" "planner_tools_appended=web_search" >&2
-	else
-		log "DEBUG" "Web search already available to planner" "planner_tools_present=web_search" >&2
-	fi
-
 	local planner_tool_catalog
 	planner_tool_catalog="$(printf '%s\n' "${planner_tools[@]}" | paste -sd ',' -)"
 	log "DEBUG" "Planner tool catalog" "${planner_tool_catalog}" >&2
 
-	local planner_schema_text planner_prompt_prefix planner_suffix tool_lines prompt
+	local planner_schema_text planner_prompt_prefix planner_suffix tool_lines prompt search_context
 	planner_schema_text="$(load_schema_text planner_plan)"
 
-	tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_summary_line)"
+	tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_line)"
+	search_context="$(planner_fetch_search_context "${user_query}")"
 	planner_prompt_prefix="$(build_planner_prompt_static_prefix)"
-	planner_suffix="$(build_planner_prompt_dynamic_suffix "${user_query}" "${tool_lines}")"
+	planner_suffix="$(build_planner_prompt_dynamic_suffix "${user_query}" "${tool_lines}" "${search_context}")"
 	prompt="${planner_prompt_prefix}${planner_suffix}"
 	log "DEBUG" "Generated planner prompt" "${prompt}" >&2
 
@@ -336,17 +380,8 @@ emit_plan_json() {
 derive_allowed_tools_from_plan() {
 	# Arguments:
 	#   $1 - planner response JSON (object or legacy plan array)
-	local plan_json tool seen web_search_cap web_search_count
+	local plan_json tool seen
 	plan_json="${1:-[]}"
-	web_search_cap="${PLANNER_WEB_SEARCH_BUDGET_CAP}"
-
-	if [[ -z "${web_search_cap}" || ! "${web_search_cap}" =~ ^[0-9]+$ ]]; then
-		web_search_cap=2
-	fi
-
-	PLANNER_WEB_SEARCH_BUDGET=0
-	export PLANNER_WEB_SEARCH_BUDGET
-	printf '%s' "${PLANNER_WEB_SEARCH_BUDGET}" >"${PLANNER_WEB_SEARCH_BUDGET_FILE}" 2>/dev/null || true
 
 	if jq -e '.mode == "quickdraw"' <<<"${plan_json}" >/dev/null 2>&1; then
 		return 0
@@ -354,18 +389,6 @@ derive_allowed_tools_from_plan() {
 
 	if jq -e '.mode == "plan" and (.plan | type == "array")' <<<"${plan_json}" >/dev/null 2>&1; then
 		plan_json="$(jq -c '.plan' <<<"${plan_json}")"
-	fi
-
-	web_search_count=$(jq -r '[.[] | select(.tool == "web_search")] | length' <<<"${plan_json}" 2>/dev/null || printf '0')
-	PLANNER_WEB_SEARCH_BUDGET="${web_search_count}"
-	export PLANNER_WEB_SEARCH_BUDGET
-	printf '%s' "${PLANNER_WEB_SEARCH_BUDGET}" >"${PLANNER_WEB_SEARCH_BUDGET_FILE}" 2>/dev/null || true
-	if ((web_search_count > web_search_cap)); then
-		log "ERROR" "Planner web_search budget exceeded" "$(printf 'requested=%s cap=%s' "${web_search_count}" "${web_search_cap}")" >&2 || true
-		return 1
-	fi
-	if ((web_search_count > 0)); then
-		log "INFO" "Planner web_search budget accepted" "$(printf 'requested=%s cap=%s' "${web_search_count}" "${web_search_cap}")" >&2 || true
 	fi
 
 	seen=""

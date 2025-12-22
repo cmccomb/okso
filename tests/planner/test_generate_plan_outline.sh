@@ -15,13 +15,17 @@
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
+PLANNER_SKIP_TOOL_LOAD=true
+export PLANNER_SKIP_TOOL_LOAD
 source ./src/lib/planning/planner.sh
 
-tool_names() { printf "%s\n" "fallback_tool" "secondary_tool"; }
-format_tool_descriptions() { printf "%s" "$1"; }
-build_planner_prompt() { printf "TOOLS<<%s>>" "$2"; }
-schema_path() { printf "/tmp/schema"; }
-load_schema_text() { printf '{}'; }
+ tool_names() { printf "%s\n" "fallback_tool" "secondary_tool"; }
+ format_tool_descriptions() { printf "%s" "$1"; }
+ build_planner_prompt_static_prefix() { printf ''; }
+ build_planner_prompt_dynamic_suffix() { printf "TOOLS<<%s>>" "$2"; }
+ schema_path() { printf "/tmp/schema"; }
+ load_schema_text() { printf '{}'; }
+ planner_fetch_search_context() { printf 'Search context unavailable.'; }
 llama_infer() { printf "%s" "$1" > /tmp/planner_prompt; printf '[{"tool":"alpha","args":{},"thought":"step"}]'; }
 
 LLAMA_AVAILABLE=true
@@ -47,13 +51,17 @@ INNERSCRIPT
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
+PLANNER_SKIP_TOOL_LOAD=true
+export PLANNER_SKIP_TOOL_LOAD
 source ./src/lib/planning/planner.sh
 
-tool_names() { printf "%s\n" "fallback_tool"; }
-format_tool_descriptions() { printf "%s" "$1"; }
-build_planner_prompt() { printf "TOOLS<<%s>>" "$2"; }
-schema_path() { printf "/tmp/schema"; }
-load_schema_text() { printf '{}'; }
+ tool_names() { printf "%s\n" "fallback_tool"; }
+ format_tool_descriptions() { printf "%s" "$1"; }
+ build_planner_prompt_static_prefix() { printf ''; }
+ build_planner_prompt_dynamic_suffix() { printf "TOOLS<<%s>>" "$2"; }
+ schema_path() { printf "/tmp/schema"; }
+ load_schema_text() { printf '{}'; }
+ planner_fetch_search_context() { printf 'Search context unavailable.'; }
 llama_infer() { printf "%s" "$1" > /tmp/planner_prompt; printf '[{"tool":"alpha","args":{},"thought":"step"}]'; }
 
 LLAMA_AVAILABLE=true
@@ -78,13 +86,17 @@ INNERSCRIPT
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
+PLANNER_SKIP_TOOL_LOAD=true
+export PLANNER_SKIP_TOOL_LOAD
 source ./src/lib/planning/planner.sh
 
-tool_names() { printf "%s\n" "fallback_tool"; }
-format_tool_descriptions() { printf "%s" "$1"; }
-build_planner_prompt() { printf "TOOLS<<%s>>" "$2"; }
-schema_path() { printf "/tmp/schema"; }
-load_schema_text() { printf '{}'; }
+ tool_names() { printf "%s\n" "fallback_tool"; }
+ format_tool_descriptions() { printf "%s" "$1"; }
+ build_planner_prompt_static_prefix() { printf ''; }
+ build_planner_prompt_dynamic_suffix() { printf "TOOLS<<%s>>" "$2"; }
+ schema_path() { printf "/tmp/schema"; }
+ load_schema_text() { printf '{}'; }
+ planner_fetch_search_context() { printf 'Search context unavailable.'; }
 llama_infer() { printf "%s" "$1" > /tmp/planner_prompt; printf '[{"tool":"alpha","args":{},"thought":"step"}]'; }
 
 LLAMA_AVAILABLE=true
