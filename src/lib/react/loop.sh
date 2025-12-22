@@ -360,10 +360,10 @@ select_next_action() {
 }
 
 validate_tool_permission() {
-        # Confirms that the provided tool is permitted for the current run.
-        # Arguments:
-        #   $1 - state prefix
-        #   $2 - tool name to validate
+	# Confirms that the provided tool is permitted for the current run.
+	# Arguments:
+	#   $1 - state prefix
+	#   $2 - tool name to validate
 	local state_name tool
 	state_name="$1"
 	tool="$2"
@@ -372,50 +372,50 @@ validate_tool_permission() {
 	fi
 
 	record_history "${state_name}" "$(printf 'Tool %s not permitted.' "${tool}")"
-        return 1
+	return 1
 }
 
 enforce_web_search_budget() {
-        # Prevents web_search actions from exceeding the planned budget.
-        # Arguments:
-        #   $1 - state prefix
-        #   $2 - tool name
-        #   $3 - current step index
-        local state_name tool current_step budget consumed
-        state_name="$1"
-        tool="$2"
-        current_step="$3"
+	# Prevents web_search actions from exceeding the planned budget.
+	# Arguments:
+	#   $1 - state prefix
+	#   $2 - tool name
+	#   $3 - current step index
+	local state_name tool current_step budget consumed
+	state_name="$1"
+	tool="$2"
+	current_step="$3"
 
-        if [[ "${tool}" != "web_search" ]]; then
-                return 0
-        fi
+	if [[ "${tool}" != "web_search" ]]; then
+		return 0
+	fi
 
-        budget="$(state_get "${state_name}" "web_search_budget")"
-        consumed="$(state_get "${state_name}" "web_search_consumed")"
+	budget="$(state_get "${state_name}" "web_search_budget")"
+	consumed="$(state_get "${state_name}" "web_search_consumed")"
 
-        if ! [[ "${budget}" =~ ^[0-9]+$ ]]; then
-                budget=0
-        fi
-        if ! [[ "${consumed}" =~ ^[0-9]+$ ]]; then
-                consumed=0
-        fi
+	if ! [[ "${budget}" =~ ^[0-9]+$ ]]; then
+		budget=0
+	fi
+	if ! [[ "${consumed}" =~ ^[0-9]+$ ]]; then
+		consumed=0
+	fi
 
-        if ((budget <= 0 || consumed >= budget)); then
-                log "WARN" "Web search budget exceeded" "$(printf 'budget=%s consumed=%s' "${budget}" "${consumed}")"
-                record_history "${state_name}" "$(printf 'Step %s skipped: web_search budget exceeded (budget=%s, consumed=%s).' "${current_step}" "${budget}" "${consumed}")"
-                return 1
-        fi
+	if ((budget <= 0 || consumed >= budget)); then
+		log "WARN" "Web search budget exceeded" "$(printf 'budget=%s consumed=%s' "${budget}" "${consumed}")"
+		record_history "${state_name}" "$(printf 'Step %s skipped: web_search budget exceeded (budget=%s, consumed=%s).' "${current_step}" "${budget}" "${consumed}")"
+		return 1
+	fi
 
-        state_increment "${state_name}" "web_search_consumed" 1
-        log "INFO" "Consuming web_search budget" "$(printf 'step=%s budget=%s consumed=%s' "${current_step}" "${budget}" "${consumed}")"
-        return 0
+	state_increment "${state_name}" "web_search_consumed" 1
+	log "INFO" "Consuming web_search budget" "$(printf 'step=%s budget=%s consumed=%s' "${current_step}" "${budget}" "${consumed}")"
+	return 0
 }
 
 execute_tool_action() {
-        # Executes the selected tool.
-        # Arguments:
-        #   $1 - tool name
-        #   $2 - tool query
+	# Executes the selected tool.
+	# Arguments:
+	#   $1 - tool name
+	#   $2 - tool query
 	#   $3 - human-readable context (optional)
 	#   $4 - structured args JSON (optional)
 	local tool query context args_json
@@ -486,28 +486,28 @@ react_loop() {
 		last_action="$(state_get "${state_prefix}" "last_action")"
 
 		final_answer_payload=""
-                if [[ "${tool}" == "final_answer" ]]; then
-                        final_answer_payload="$(extract_tool_query "${tool}" "${normalized_args_json}")"
-                        state_set "${state_prefix}" "final_answer_action" "${final_answer_payload}"
-                fi
+		if [[ "${tool}" == "final_answer" ]]; then
+			final_answer_payload="$(extract_tool_query "${tool}" "${normalized_args_json}")"
+			state_set "${state_prefix}" "final_answer_action" "${final_answer_payload}"
+		fi
 
-                if ! validate_tool_permission "${state_prefix}" "${tool}"; then
-                        state_set "${state_prefix}" "step" "${current_step}"
-                        continue
-                fi
+		if ! validate_tool_permission "${state_prefix}" "${tool}"; then
+			state_set "${state_prefix}" "step" "${current_step}"
+			continue
+		fi
 
-                if is_duplicate_action "${last_action}" "${tool}" "${normalized_args_json}"; then
-                        log "WARN" "Duplicate action detected" "${tool}"
-                        observation="Duplicate action detected. Please try a different approach or call final_answer if you are stuck."
-                        record_tool_execution "${state_prefix}" "${tool}" "${thought} (REPEATED)" "${normalized_args_json}" "${observation}" "${current_step}"
-                        state_set "${state_prefix}" "step" "${current_step}"
-                        continue
-                fi
+		if is_duplicate_action "${last_action}" "${tool}" "${normalized_args_json}"; then
+			log "WARN" "Duplicate action detected" "${tool}"
+			observation="Duplicate action detected. Please try a different approach or call final_answer if you are stuck."
+			record_tool_execution "${state_prefix}" "${tool}" "${thought} (REPEATED)" "${normalized_args_json}" "${observation}" "${current_step}"
+			state_set "${state_prefix}" "step" "${current_step}"
+			continue
+		fi
 
-                if ! enforce_web_search_budget "${state_prefix}" "${tool}" "${current_step}"; then
-                        state_set "${state_prefix}" "step" "${current_step}"
-                        continue
-                fi
+		if ! enforce_web_search_budget "${state_prefix}" "${tool}" "${current_step}"; then
+			state_set "${state_prefix}" "step" "${current_step}"
+			continue
+		fi
 
 		if [[ -z "${final_answer_payload}" ]]; then
 			final_answer_payload="$(extract_tool_query "${tool}" "${normalized_args_json}")"

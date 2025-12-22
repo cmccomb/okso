@@ -68,11 +68,11 @@ PLANNER_WEB_SEARCH_BUDGET_FILE=${PLANNER_WEB_SEARCH_BUDGET_FILE:-"${TMPDIR:-/tmp
 export PLANNER_WEB_SEARCH_BUDGET_FILE
 
 planner_web_search_budget_value() {
-        if [[ -f "${PLANNER_WEB_SEARCH_BUDGET_FILE}" ]]; then
-                cat "${PLANNER_WEB_SEARCH_BUDGET_FILE}" 2>/dev/null || printf '0'
-        else
-                printf '0'
-        fi
+	if [[ -f "${PLANNER_WEB_SEARCH_BUDGET_FILE}" ]]; then
+		cat "${PLANNER_WEB_SEARCH_BUDGET_FILE}" 2>/dev/null || printf '0'
+	else
+		printf '0'
+	fi
 }
 export -f planner_web_search_budget_value
 
@@ -90,82 +90,82 @@ lowercase() {
 }
 
 generate_planner_response() {
-        # Arguments:
-        #   $1 - user query (string)
-        local user_query
-        local -a planner_tools=()
-        user_query="$1"
+	# Arguments:
+	#   $1 - user query (string)
+	local user_query
+	local -a planner_tools=()
+	user_query="$1"
 
-        if ! require_llama_available "planner generation"; then
-                log "ERROR" "Planner cannot generate steps without llama.cpp" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}" >&2
-                local fallback
-                fallback="LLM unavailable. Request received: ${user_query}"
-                jq -nc \
-                        --arg answer "${fallback}" \
-                        --arg rationale "Respond directly; tools skipped because llama.cpp is unavailable." \
-                        '{mode:"quickdraw", plan: [], quickdraw:{final_answer:$answer, confidence:0, rationale:$rationale}}'
-                return 0
-        fi
+	if ! require_llama_available "planner generation"; then
+		log "ERROR" "Planner cannot generate steps without llama.cpp" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}" >&2
+		local fallback
+		fallback="LLM unavailable. Request received: ${user_query}"
+		jq -nc \
+			--arg answer "${fallback}" \
+			--arg rationale "Respond directly; tools skipped because llama.cpp is unavailable." \
+			'{mode:"quickdraw", plan: [], quickdraw:{final_answer:$answer, confidence:0, rationale:$rationale}}'
+		return 0
+	fi
 
-        local tools_decl
-        if tools_decl=$(declare -p TOOLS 2>/dev/null) && grep -q 'declare -a' <<<"${tools_decl}"; then
-                planner_tools=("${TOOLS[@]}")
-        else
-                planner_tools=()
-                while IFS= read -r tool_name; do
-                        [[ -z "${tool_name}" ]] && continue
-                        planner_tools+=("${tool_name}")
-                done < <(tool_names)
-        fi
+	local tools_decl
+	if tools_decl=$(declare -p TOOLS 2>/dev/null) && grep -q 'declare -a' <<<"${tools_decl}"; then
+		planner_tools=("${TOOLS[@]}")
+	else
+		planner_tools=()
+		while IFS= read -r tool_name; do
+			[[ -z "${tool_name}" ]] && continue
+			planner_tools+=("${tool_name}")
+		done < <(tool_names)
+	fi
 
-        if ! printf '%s\0' "${planner_tools[@]}" | grep -Fxzq "web_search"; then
-                planner_tools+=("web_search")
-                log "INFO" "Web search enabled for planning" "planner_tools_appended=web_search" >&2
-        else
-                log "DEBUG" "Web search already available to planner" "planner_tools_present=web_search" >&2
-        fi
+	if ! printf '%s\0' "${planner_tools[@]}" | grep -Fxzq "web_search"; then
+		planner_tools+=("web_search")
+		log "INFO" "Web search enabled for planning" "planner_tools_appended=web_search" >&2
+	else
+		log "DEBUG" "Web search already available to planner" "planner_tools_present=web_search" >&2
+	fi
 
-        local planner_tool_catalog
-        planner_tool_catalog="$(printf '%s\n' "${planner_tools[@]}" | paste -sd ',' -)"
-        log "DEBUG" "Planner tool catalog" "${planner_tool_catalog}" >&2
+	local planner_tool_catalog
+	planner_tool_catalog="$(printf '%s\n' "${planner_tools[@]}" | paste -sd ',' -)"
+	log "DEBUG" "Planner tool catalog" "${planner_tool_catalog}" >&2
 
-        local prompt raw_plan planner_schema_text planner_prompt_prefix planner_suffix tool_lines
-        planner_schema_text="$(load_schema_text planner_plan)"
+	local prompt raw_plan planner_schema_text planner_prompt_prefix planner_suffix tool_lines
+	planner_schema_text="$(load_schema_text planner_plan)"
 
-        tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_summary_line)"
-        planner_prompt_prefix="$(build_planner_prompt_static_prefix)"
-        planner_suffix="$(build_planner_prompt_dynamic_suffix "${user_query}" "${tool_lines}")"
-        prompt="${planner_prompt_prefix}${planner_suffix}"
-        log "DEBUG" "Generated planner prompt" "${prompt}" >&2
-        raw_plan="$(llama_infer "${prompt}" '' 512 "${planner_schema_text}" "${PLANNER_MODEL_REPO:-}" "${PLANNER_MODEL_FILE:-}" "${PLANNER_CACHE_FILE:-}" "${planner_prompt_prefix}")" || raw_plan="[]"
-        if ! normalize_planner_response <<<"${raw_plan}"; then
-                log "ERROR" "Planner output failed validation; request regeneration" "${raw_plan}" >&2
-                return 1
-        fi
+	tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_summary_line)"
+	planner_prompt_prefix="$(build_planner_prompt_static_prefix)"
+	planner_suffix="$(build_planner_prompt_dynamic_suffix "${user_query}" "${tool_lines}")"
+	prompt="${planner_prompt_prefix}${planner_suffix}"
+	log "DEBUG" "Generated planner prompt" "${prompt}" >&2
+	raw_plan="$(llama_infer "${prompt}" '' 512 "${planner_schema_text}" "${PLANNER_MODEL_REPO:-}" "${PLANNER_MODEL_FILE:-}" "${PLANNER_CACHE_FILE:-}" "${planner_prompt_prefix}")" || raw_plan="[]"
+	if ! normalize_planner_response <<<"${raw_plan}"; then
+		log "ERROR" "Planner output failed validation; request regeneration" "${raw_plan}" >&2
+		return 1
+	fi
 }
 
 generate_plan_outline() {
-        # Arguments:
-        #   $1 - user query (string)
-        local response_json
-        if ! response_json="$(generate_planner_response "$1")"; then
-                return 1
-        fi
-        plan_json_to_outline "${response_json}"
+	# Arguments:
+	#   $1 - user query (string)
+	local response_json
+	if ! response_json="$(generate_planner_response "$1")"; then
+		return 1
+	fi
+	plan_json_to_outline "${response_json}"
 }
 
 # Backwards compatibility wrapper; prefer generate_planner_response for new callers.
 generate_plan_json() {
-        local response_json
-        if ! response_json="$(generate_planner_response "$1")"; then
-                return 1
-        fi
+	local response_json
+	if ! response_json="$(generate_planner_response "$1")"; then
+		return 1
+	fi
 
-        if jq -e '.mode == "plan"' <<<"${response_json}" >/dev/null 2>&1; then
-                jq -c '.plan' <<<"${response_json}"
-        else
-                jq -c '.' <<<"${response_json}"
-        fi
+	if jq -e '.mode == "plan"' <<<"${response_json}" >/dev/null 2>&1; then
+		jq -c '.plan' <<<"${response_json}"
+	else
+		jq -c '.' <<<"${response_json}"
+	fi
 }
 
 tool_query_deriver() {
@@ -235,80 +235,80 @@ emit_plan_json() {
 }
 
 derive_allowed_tools_from_plan() {
-        # Arguments:
-        #   $1 - planner response JSON (object or legacy plan array)
-        local plan_json tool seen web_search_cap web_search_count
-        plan_json="${1:-[]}"
-        web_search_cap=2
+	# Arguments:
+	#   $1 - planner response JSON (object or legacy plan array)
+	local plan_json tool seen web_search_cap web_search_count
+	plan_json="${1:-[]}"
+	web_search_cap=2
 
-        PLANNER_WEB_SEARCH_BUDGET=0
-        export PLANNER_WEB_SEARCH_BUDGET
-        printf '%s' "${PLANNER_WEB_SEARCH_BUDGET}" >"${PLANNER_WEB_SEARCH_BUDGET_FILE}" 2>/dev/null || true
+	PLANNER_WEB_SEARCH_BUDGET=0
+	export PLANNER_WEB_SEARCH_BUDGET
+	printf '%s' "${PLANNER_WEB_SEARCH_BUDGET}" >"${PLANNER_WEB_SEARCH_BUDGET_FILE}" 2>/dev/null || true
 
-        if jq -e '.mode == "quickdraw"' <<<"${plan_json}" >/dev/null 2>&1; then
-                return 0
-        fi
+	if jq -e '.mode == "quickdraw"' <<<"${plan_json}" >/dev/null 2>&1; then
+		return 0
+	fi
 
-        if jq -e '.mode == "plan" and (.plan | type == "array")' <<<"${plan_json}" >/dev/null 2>&1; then
-                plan_json="$(jq -c '.plan' <<<"${plan_json}")"
-        fi
+	if jq -e '.mode == "plan" and (.plan | type == "array")' <<<"${plan_json}" >/dev/null 2>&1; then
+		plan_json="$(jq -c '.plan' <<<"${plan_json}")"
+	fi
 
-        web_search_count=$(jq -r '[.[] | select(.tool == "web_search")] | length' <<<"${plan_json}" 2>/dev/null || printf '0')
-        PLANNER_WEB_SEARCH_BUDGET="${web_search_count}"
-        export PLANNER_WEB_SEARCH_BUDGET
-        printf '%s' "${PLANNER_WEB_SEARCH_BUDGET}" >"${PLANNER_WEB_SEARCH_BUDGET_FILE}" 2>/dev/null || true
-        if ((web_search_count > web_search_cap)); then
-                log "ERROR" "Planner web_search budget exceeded" "$(printf 'requested=%s cap=%s' "${web_search_count}" "${web_search_cap}")" >&2 || true
-                return 1
-        fi
-        if ((web_search_count > 0)); then
-                log "INFO" "Planner web_search budget accepted" "$(printf 'requested=%s cap=%s' "${web_search_count}" "${web_search_cap}")" >&2 || true
-        fi
+	web_search_count=$(jq -r '[.[] | select(.tool == "web_search")] | length' <<<"${plan_json}" 2>/dev/null || printf '0')
+	PLANNER_WEB_SEARCH_BUDGET="${web_search_count}"
+	export PLANNER_WEB_SEARCH_BUDGET
+	printf '%s' "${PLANNER_WEB_SEARCH_BUDGET}" >"${PLANNER_WEB_SEARCH_BUDGET_FILE}" 2>/dev/null || true
+	if ((web_search_count > web_search_cap)); then
+		log "ERROR" "Planner web_search budget exceeded" "$(printf 'requested=%s cap=%s' "${web_search_count}" "${web_search_cap}")" >&2 || true
+		return 1
+	fi
+	if ((web_search_count > 0)); then
+		log "INFO" "Planner web_search budget accepted" "$(printf 'requested=%s cap=%s' "${web_search_count}" "${web_search_cap}")" >&2 || true
+	fi
 
-        seen=""
-        local -a required=()
-        local plan_contains_fallback=false
-        if jq -e '.[] | select(.tool == "react_fallback")' <<<"${plan_json}" >/dev/null 2>&1; then
-                plan_contains_fallback=true
-        fi
+	seen=""
+	local -a required=()
+	local plan_contains_fallback=false
+	if jq -e '.[] | select(.tool == "react_fallback")' <<<"${plan_json}" >/dev/null 2>&1; then
+		plan_contains_fallback=true
+	fi
 
-        if [[ "${plan_contains_fallback}" == true ]]; then
-                while IFS= read -r tool; do
-                        [[ -z "${tool}" ]] && continue
-                        if grep -Fxq "${tool}" <<<"${seen}"; then
-                                continue
-                        fi
-                        required+=("${tool}")
-                        seen+="${tool}"$'\n'
-                done < <(tool_names)
-        else
-                while IFS= read -r tool; do
-                        [[ -z "${tool}" ]] && continue
-                        if grep -Fxq "${tool}" <<<"${seen}"; then
-                                continue
-                        fi
-                        required+=("${tool}")
-                        seen+="${tool}"$'\n'
-                done < <(jq -r '.[] | .tool // empty' <<<"${plan_json}" 2>/dev/null || true)
-        fi
+	if [[ "${plan_contains_fallback}" == true ]]; then
+		while IFS= read -r tool; do
+			[[ -z "${tool}" ]] && continue
+			if grep -Fxq "${tool}" <<<"${seen}"; then
+				continue
+			fi
+			required+=("${tool}")
+			seen+="${tool}"$'\n'
+		done < <(tool_names)
+	else
+		while IFS= read -r tool; do
+			[[ -z "${tool}" ]] && continue
+			if grep -Fxq "${tool}" <<<"${seen}"; then
+				continue
+			fi
+			required+=("${tool}")
+			seen+="${tool}"$'\n'
+		done < <(jq -r '.[] | .tool // empty' <<<"${plan_json}" 2>/dev/null || true)
+	fi
 
-        if ! grep -Fxq "final_answer" <<<"${seen}"; then
-                required+=("final_answer")
-        fi
+	if ! grep -Fxq "final_answer" <<<"${seen}"; then
+		required+=("final_answer")
+	fi
 
-        printf '%s\n' "${required[@]}"
+	printf '%s\n' "${required[@]}"
 }
 
 plan_json_to_entries() {
-        local plan_json
-        plan_json="$1"
-        if jq -e '.mode == "quickdraw"' <<<"${plan_json}" >/dev/null 2>&1; then
-                return 0
-        fi
-        if jq -e '.mode == "plan" and (.plan | type == "array")' <<<"${plan_json}" >/dev/null 2>&1; then
-                plan_json="$(jq -c '.plan' <<<"${plan_json}")"
-        fi
-        printf '%s' "${plan_json}" | jq -cr '.[]'
+	local plan_json
+	plan_json="$1"
+	if jq -e '.mode == "quickdraw"' <<<"${plan_json}" >/dev/null 2>&1; then
+		return 0
+	fi
+	if jq -e '.mode == "plan" and (.plan | type == "array")' <<<"${plan_json}" >/dev/null 2>&1; then
+		plan_json="$(jq -c '.plan' <<<"${plan_json}")"
+	fi
+	printf '%s' "${plan_json}" | jq -cr '.[]'
 }
 
 REACT_ENTRYPOINT=${REACT_ENTRYPOINT:-"${PLANNING_LIB_DIR}/../react/react.sh"}

@@ -8,18 +8,18 @@ setup() {
 }
 
 @test "generate_plan_json falls back when llama is unavailable" {
-        run env -i HOME="$HOME" PATH="$PATH" bash <<'SCRIPT'
+	run env -i HOME="$HOME" PATH="$PATH" bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/planner.sh
 LLAMA_AVAILABLE=false
 generate_plan_json "tell me a joke"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        mode=$(printf '%s' "${output}" | jq -r '.mode')
-        answer=$(printf '%s' "${output}" | jq -r '.quickdraw.final_answer')
-        [ "${mode}" = "quickdraw" ]
-        [ -n "${answer}" ]
+	[ "$status" -eq 0 ]
+	mode=$(printf '%s' "${output}" | jq -r '.mode')
+	answer=$(printf '%s' "${output}" | jq -r '.quickdraw.final_answer')
+	[ "${mode}" = "quickdraw" ]
+	[ -n "${answer}" ]
 }
 
 @test "generate_plan_json appends final step to llama output" {

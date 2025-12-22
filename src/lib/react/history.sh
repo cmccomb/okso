@@ -30,29 +30,29 @@ source "${REACT_LIB_DIR}/../formatting.sh"
 source "${REACT_LIB_DIR}/../dependency_guards/dependency_guards.sh"
 
 initialize_react_state() {
-        # Initializes the ReAct state document with user query, tools, and plan.
-        # Arguments:
-        #   $1 - state prefix to populate (string)
-        #   $2 - user query (string)
-        #   $3 - allowed tools (string, newline delimited)
-        #   $4 - ranked plan entries (string)
-        #   $5 - plan outline text (string)
-        local state_prefix web_search_budget
-        state_prefix="$1"
+	# Initializes the ReAct state document with user query, tools, and plan.
+	# Arguments:
+	#   $1 - state prefix to populate (string)
+	#   $2 - user query (string)
+	#   $3 - allowed tools (string, newline delimited)
+	#   $4 - ranked plan entries (string)
+	#   $5 - plan outline text (string)
+	local state_prefix web_search_budget
+	state_prefix="$1"
 
-        web_search_budget="${PLANNER_WEB_SEARCH_BUDGET:-0}"
-        if ! [[ "${web_search_budget}" =~ ^[0-9]+$ ]]; then
-                web_search_budget=0
-        fi
+	web_search_budget="${PLANNER_WEB_SEARCH_BUDGET:-0}"
+	if ! [[ "${web_search_budget}" =~ ^[0-9]+$ ]]; then
+		web_search_budget=0
+	fi
 
-        state_set_json_document "${state_prefix}" "$(jq -c -n \
-                --arg user_query "$2" \
-                --arg allowed_tools "$3" \
-                --arg plan_entries "$4" \
-                --arg plan_outline "$5" \
-                --argjson max_steps "${MAX_STEPS:-6}" \
-                --argjson web_search_budget "${web_search_budget}" \
-                '{
+	state_set_json_document "${state_prefix}" "$(jq -c -n \
+		--arg user_query "$2" \
+		--arg allowed_tools "$3" \
+		--arg plan_entries "$4" \
+		--arg plan_outline "$5" \
+		--argjson max_steps "${MAX_STEPS:-6}" \
+		--argjson web_search_budget "${web_search_budget}" \
+		'{
                         user_query: $user_query,
                         allowed_tools: $allowed_tools,
                         plan_entries: $plan_entries,

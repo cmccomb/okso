@@ -26,16 +26,17 @@ source "${PLANNING_NORMALIZATION_DIR}/../dependency_guards/dependency_guards.sh"
 # Normalize noisy planner output into a clean PlannerPlan JSON array of objects.
 # Reads from stdin, writes clean JSON array to stdout.
 normalize_planner_plan() {
-        local raw plan_candidate normalized
+	local raw plan_candidate normalized
 
-        raw="$(cat)"
+	raw="$(cat)"
 
-        if ! require_python3_available "planner output normalization"; then
-                log "ERROR" "normalize_planner_plan: python3 unavailable" "${raw}" >&2
-                return 1
-        fi
+	if ! require_python3_available "planner output normalization"; then
+		log "ERROR" "normalize_planner_plan: python3 unavailable" "${raw}" >&2
+		return 1
+	fi
 
-        plan_candidate=$(RAW_INPUT="${raw}" python3 - <<'PYTHON'
+	plan_candidate=$(
+		RAW_INPUT="${raw}" python3 - <<'PYTHON'
 import json
 import os
 import re
@@ -65,10 +66,10 @@ json.dump(candidate, sys.stdout)
 
 PYTHON
 
-        ) || plan_candidate=""
+	) || plan_candidate=""
 
-        if [[ -n "${plan_candidate:-}" ]]; then
-                normalized=$(jq -ec '
+	if [[ -n "${plan_candidate:-}" ]]; then
+		normalized=$(jq -ec '
                         def valid_step:
                                 (.tool | type == "string")
                                 and (.tool | length) > 0
@@ -83,26 +84,27 @@ PYTHON
                                 map({tool: .tool, args: (.args // {}), thought: (.thought // "")})
                         end
                         ' <<<"${plan_candidate}" 2>/dev/null || true)
-                if [[ -n "${normalized}" && "${normalized}" != "[]" ]]; then
-                        printf '%s' "${normalized}"
-                        return 0
-                fi
-        fi
+		if [[ -n "${normalized}" && "${normalized}" != "[]" ]]; then
+			printf '%s' "${normalized}"
+			return 0
+		fi
+	fi
 
-        log "ERROR" "normalize_planner_plan: unable to parse planner output" "${raw}" >&2
-        return 1
+	log "ERROR" "normalize_planner_plan: unable to parse planner output" "${raw}" >&2
+	return 1
 }
 
 normalize_planner_response() {
-        local raw candidate normalized
-        raw="$(cat)"
+	local raw candidate normalized
+	raw="$(cat)"
 
-        if ! require_python3_available "planner output normalization"; then
-                log "ERROR" "normalize_planner_response: python3 unavailable" "${raw}" >&2
-                return 1
-        fi
+	if ! require_python3_available "planner output normalization"; then
+		log "ERROR" "normalize_planner_response: python3 unavailable" "${raw}" >&2
+		return 1
+	fi
 
-        candidate=$(RAW_INPUT="${raw}" python3 - <<'PYTHON'
+	candidate=$(
+		RAW_INPUT="${raw}" python3 - <<'PYTHON'
 import json
 import os
 import re
@@ -131,14 +133,14 @@ json.dump(candidate, sys.stdout)
 
 PYTHON
 
-        ) || candidate=""
+	) || candidate=""
 
-        if [[ -z "${candidate:-}" ]]; then
-                log "ERROR" "normalize_planner_response: unable to parse planner output" "${raw}" >&2
-                return 1
-        fi
+	if [[ -z "${candidate:-}" ]]; then
+		log "ERROR" "normalize_planner_response: unable to parse planner output" "${raw}" >&2
+		return 1
+	fi
 
-        normalized=$(jq -ec '
+	normalized=$(jq -ec '
                 def clamp_confidence:
                         if . == null then null
                         elif . < 0 then 0
@@ -164,12 +166,12 @@ PYTHON
                 end
                 ' <<<"${candidate}" 2>/dev/null || true)
 
-        if [[ -z "${normalized}" ]]; then
-                log "ERROR" "normalize_planner_response: unable to parse planner output" "${raw}" >&2
-                return 1
-        fi
+	if [[ -z "${normalized}" ]]; then
+		log "ERROR" "normalize_planner_response: unable to parse planner output" "${raw}" >&2
+		return 1
+	fi
 
-        printf '%s' "${normalized}"
+	printf '%s' "${normalized}"
 }
 
 append_final_answer_step() {

@@ -10,7 +10,7 @@
 #   - bash 3.2+
 
 @test "enforce_web_search_budget blocks over-cap searches" {
-        run bash -s <<'SCRIPT'
+	run bash -s <<'SCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 export VERBOSITY=0
@@ -29,8 +29,8 @@ history=$(state_get "${state_prefix}" "history")
 printf 'history=%s\n' "${history}"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [[ "${output}" == *"first_allowed"* ]]
-        [[ "${output}" == *"second_blocked"* ]]
-        [[ "${output}" == *"web_search budget exceeded"* ]]
+	[ "$status" -eq 0 ]
+	[[ "${output}" == *"first_allowed"* ]]
+	[[ "${output}" == *"second_blocked"* ]]
+	[[ "${output}" == *"web_search budget exceeded"* ]]
 }
