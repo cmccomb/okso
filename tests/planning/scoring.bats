@@ -9,7 +9,8 @@ setup() {
 @test "score_planner_candidate rewards registered tools with satisfiable args" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-source ./src/lib/planning/planner.sh
+export VERBOSITY=0
+source ./src/lib/planning/scoring.sh
 tool_names() { printf "%s\n" terminal final_answer; }
 tool_args_schema() {
         if [[ "$1" == "terminal" ]]; then
@@ -34,7 +35,8 @@ SCRIPT
 @test "score_planner_candidate penalizes unavailable tools and bad args" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-source ./src/lib/planning/planner.sh
+export VERBOSITY=0
+source ./src/lib/planning/scoring.sh
 tool_names() { printf "%s\n" terminal final_answer; }
 tool_args_schema() {
         if [[ "$1" == "terminal" ]]; then
@@ -61,7 +63,8 @@ SCRIPT
 	run bash <<'SCRIPT'
 set -euo pipefail
 export PLANNER_MAX_PLAN_STEPS=4
-source ./src/lib/planning/planner.sh
+export VERBOSITY=0
+source ./src/lib/planning/scoring.sh
 tool_names() { printf "%s\n" web_search notes_create final_answer; }
 tool_args_schema() { printf '{}'; }
 unsafe_first='{"mode":"plan","plan":[{"tool":"notes_create","args":{},"thought":"start"},{"tool":"web_search","args":{},"thought":"research"},{"tool":"final_answer","args":{},"thought":"summarize"}],"quickdraw":null}'
@@ -76,4 +79,19 @@ SCRIPT
 	unsafe=$(printf '%s' "${lines[0]}" | cut -d= -f2)
 	safer=$(printf '%s' "${lines[1]}" | cut -d= -f2)
 	[[ "${safer}" -gt "${unsafe}" ]]
+}
+
+@test "score_planner_candidate emits informative INFO logs" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+export VERBOSITY=1
+source ./src/lib/planning/scoring.sh
+tool_names() { printf "%s\n" terminal final_answer; }
+tool_args_schema() { printf '{}'; }
+plan='{"mode":"plan","plan":[{"tool":"terminal","args":{},"thought":""},{"tool":"final_answer","args":{},"thought":""}],"quickdraw":null}'
+score_planner_candidate "${plan}" >/dev/null
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	[[ "${output}" == *"Planner scoring summary"* ]]
 }

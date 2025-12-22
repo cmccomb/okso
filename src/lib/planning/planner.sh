@@ -99,25 +99,6 @@ lowercase() {
 	printf '%s' "$1" | tr '[:upper:]' '[:lower:]'
 }
 
-score_planner_candidate() {
-	# Arguments:
-	#   $1 - normalized planner response JSON (string)
-	local normalized_json score
-	normalized_json="$1"
-
-	score=$(jq -er '
-                if .mode == "quickdraw" then
-                        0
-                else
-                        ((.plan | length) - 1) as $step_count
-                        | (if $step_count < 0 then 0 else $step_count end) as $safe_steps
-                        | ($safe_steps * 10) + (.plan | map(.tool) | unique | length)
-                end
-                ' <<<"${normalized_json}" 2>/dev/null) || score=0
-
-	printf '%s' "${score}"
-}
-
 generate_planner_response() {
 	# Arguments:
 	#   $1 - user query (string)
@@ -170,6 +151,10 @@ generate_planner_response() {
 	local sample_count temperature debug_log_dir debug_log_file
 	sample_count="${PLANNER_SAMPLE_COUNT:-3}"
 	temperature="${PLANNER_TEMPERATURE:-0.2}"
+	# Capture the sampling configuration early so operators can verify the
+	# breadth of exploration before generation begins. This also doubles as
+	# a trace when investigating unexpected candidate rankings.
+	log "INFO" "Planner sampling configuration" "$(jq -nc --arg sample_count "${sample_count}" --arg temperature "${temperature}" '{sample_count:$sample_count,temperature:$temperature}')" >&2
 	# Sample count controls how many candidates are generated and scored.
 	# Validation clamps values below 1 to a single candidate so downstream
 	# selection always has material to review.
@@ -193,6 +178,11 @@ generate_planner_response() {
 	while ((candidate_index < sample_count)); do
 		candidate_index=$((candidate_index + 1))
 
+		# Each loop iteration generates a single candidate, normalizes it
+		# into the canonical schema, and scores it for downstream
+		# selection. Any failure to normalize or score results in the
+		# candidate being skipped, which keeps downstream selection
+		# deterministic and safe.
 		raw_plan="$(LLAMA_TEMPERATURE="${temperature}" llama_infer "${prompt}" '' 512 "${planner_schema_text}" "${PLANNER_MODEL_REPO:-}" "${PLANNER_MODEL_FILE:-}" "${PLANNER_CACHE_FILE:-}" "${planner_prompt_prefix}")" || raw_plan="[]"
 
 		if ! normalized_plan="$(normalize_planner_response <<<"${raw_plan}")"; then
@@ -213,6 +203,16 @@ generate_planner_response() {
 		candidate_score="$(jq -er '.score' <<<"${candidate_scorecard}" 2>/dev/null || printf '0')"
 		candidate_tie_breaker="$(jq -er '.tie_breaker // 0' <<<"${candidate_scorecard}" 2>/dev/null || printf '0')"
 		candidate_rationale="$(jq -c '.rationale // []' <<<"${candidate_scorecard}" 2>/dev/null || printf '[]')"
+
+		# Emit a detailed INFO log for each candidate so operators can
+		# trace how the scorer evaluated the plan. The rationale array
+		# is preserved intact for downstream debugging.
+		log "INFO" "Planner candidate scored" "$(jq -nc \
+			--argjson index "${candidate_index}" \
+			--argjson score "${candidate_score}" \
+			--argjson tie_breaker "${candidate_tie_breaker}" \
+			--argjson rationale "${candidate_rationale}" \
+			'{index:$index,score:$score,tie_breaker:$tie_breaker,rationale:$rationale}')" >&2
 
 		jq -nc \
 			--argjson index "${candidate_index}" \
