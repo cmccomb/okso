@@ -98,10 +98,10 @@ SCRIPT
 }
 
 @test "llama_infer forwards prompt cache path" {
-        cd "$(git rev-parse --show-toplevel)" || exit 1
-        args_dir=$(mktemp -d)
-        args_file="${args_dir}/args.txt"
-        cache_file="${args_dir}/react.prompt-cache"
+	cd "$(git rev-parse --show-toplevel)" || exit 1
+	args_dir=$(mktemp -d)
+	args_file="${args_dir}/args.txt"
+	cache_file="${args_dir}/react.prompt-cache"
 	mock_binary="${args_dir}/mock_llama.sh"
 	cat >"${mock_binary}" <<SCRIPT
 #!/usr/bin/env bash
@@ -124,12 +124,12 @@ SCRIPT
 	while IFS= read -r line; do
 		args+=("$line")
 	done <"${args_dir}/args.txt"
-        [[ " ${args[*]} " == *" --prompt-cache ${args_dir}/react.prompt-cache "* ]]
-        [[ ! -e "${cache_file}.meta.json" ]]
+	[[ " ${args[*]} " == *" --prompt-cache ${args_dir}/react.prompt-cache "* ]]
+	[[ ! -e "${cache_file}.meta.json" ]]
 }
 
 @test "llama_infer logs prompt prefix and cache usage" {
-        run env BASH_ENV= ENV= bash --noprofile --norc -c '
+	run env BASH_ENV= ENV= bash --noprofile --norc -c '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 args_dir="$(mktemp -d)"
                 cache_file="${args_dir}/react.prompt-cache"
@@ -148,14 +148,14 @@ SCRIPT
                 llama_infer "prompt text" "" 8 "" "${REACT_MODEL_REPO}" "${REACT_MODEL_FILE}" "${cache_file}" "STATIC_PREFIX"
         '
 
-        [ "$status" -eq 0 ]
-        detail=$(printf '%s\n' "${output}" | jq -r 'select(.message=="llama prompt inputs") | .detail')
-        [[ "${detail}" == *"STATIC_PREFIX"* ]]
-        [[ "${detail}" == *"${cache_file}"* ]]
+	[ "$status" -eq 0 ]
+	detail=$(printf '%s\n' "${output}" | jq -r 'select(.message=="llama prompt inputs") | .detail')
+	[[ "${detail}" == *"STATIC_PREFIX"* ]]
+	[[ "${detail}" == *"${cache_file}"* ]]
 }
 
 @test "llama_infer returns llama exit code and logs stderr" {
-        run env BASH_ENV= ENV= bash --noprofile --norc -c '
+	run env BASH_ENV= ENV= bash --noprofile --norc -c '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 args_dir="$(mktemp -d)"
                 mock_binary="${args_dir}/mock_llama.sh"
@@ -202,11 +202,11 @@ SCRIPT
                 llama_infer "prompt" "" 4
         '
 	[ "$status" -eq 124 ]
-        message=$(printf '%s\n' "${output}" | jq -r 'select(.message=="llama inference timed out") | .message')
-        [[ "${message}" == "llama inference timed out" ]]
-        detail=$(printf '%s\n' "${output}" | jq -r 'select(.message=="llama inference timed out") | .detail')
-        [[ "${detail}" == *"timeout_seconds=1"* ]]
-        [[ "${detail}" == *"elapsed_ms="* ]]
+	message=$(printf '%s\n' "${output}" | jq -r 'select(.message=="llama inference timed out") | .message')
+	[[ "${message}" == "llama inference timed out" ]]
+	detail=$(printf '%s\n' "${output}" | jq -r 'select(.message=="llama inference timed out") | .detail')
+	[[ "${detail}" == *"timeout_seconds=1"* ]]
+	[[ "${detail}" == *"elapsed_ms="* ]]
 }
 
 @test "llama_infer keeps default context when estimate fits" {
@@ -308,9 +308,9 @@ SCRIPT
                 [[ "${context_value}" == "90" ]]
         '
 	[ "$status" -eq 0 ]
-        message=$(printf '%s\n' "${output}" | jq -r 'select(.message=="llama context capped") | .message')
-        detail=$(printf '%s\n' "${output}" | jq -r 'select(.message=="llama context capped") | .detail')
-        [[ "${message}" == "llama context capped" ]]
-        [[ "${detail}" == *"required_context=161"* ]]
-        [[ "${detail}" == *"capped_context=90"* ]]
+	message=$(printf '%s\n' "${output}" | jq -r 'select(.message=="llama context capped") | .message')
+	detail=$(printf '%s\n' "${output}" | jq -r 'select(.message=="llama context capped") | .detail')
+	[[ "${message}" == "llama context capped" ]]
+	[[ "${detail}" == *"required_context=161"* ]]
+	[[ "${detail}" == *"capped_context=90"* ]]
 }
