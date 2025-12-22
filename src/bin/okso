@@ -122,11 +122,9 @@ main() {
 	log "INFO" "Starting plan generation" "$(settings_get "${settings_prefix}" "user_query")"
 	plan_response="$(generate_planner_response "$(settings_get "${settings_prefix}" "user_query")")"
 	plan_outline="$(plan_json_to_outline "${plan_response}")"
-	required_tools="$(derive_allowed_tools_from_plan "${plan_response}")"
-	PLANNER_WEB_SEARCH_BUDGET="$(planner_web_search_budget_value)"
-	export PLANNER_WEB_SEARCH_BUDGET
-	log "INFO" "Planner identified tools" "${required_tools}"
-	plan_entries="$(plan_json_to_entries "${plan_response}")"
+        required_tools="$(derive_allowed_tools_from_plan "${plan_response}")"
+        log "INFO" "Planner identified tools" "${required_tools}"
+        plan_entries="$(plan_json_to_entries "${plan_response}")"
 
 	render_plan_outputs plan_action "${settings_prefix}" "${required_tools}" "${plan_entries}" "${plan_outline}" "${plan_response}"
 	if [[ "${plan_action}" == "exit" ]]; then

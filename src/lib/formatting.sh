@@ -398,10 +398,6 @@ format_tool_line() {
 	printf -- '- %s' "${tool}"
 }
 
-format_tool_summary_line() {
-	format_tool_line "$1"
-}
-
 format_tool_example_line() {
-	format_tool_line "$1"
+        format_tool_line "$1"
 }

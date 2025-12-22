@@ -69,18 +69,6 @@ source "${PLANNING_LIB_DIR}/prompting.sh"
 # shellcheck source=../exec/dispatch.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/../exec/dispatch.sh"
 
-PLANNER_WEB_SEARCH_BUDGET_FILE=${PLANNER_WEB_SEARCH_BUDGET_FILE:-"${TMPDIR:-/tmp}/okso_planner_web_search_budget"}
-export PLANNER_WEB_SEARCH_BUDGET_FILE
-
-planner_web_search_budget_value() {
-	if [[ -f "${PLANNER_WEB_SEARCH_BUDGET_FILE}" ]]; then
-		cat "${PLANNER_WEB_SEARCH_BUDGET_FILE}" 2>/dev/null || printf '0'
-	else
-		printf '0'
-	fi
-}
-export -f planner_web_search_budget_value
-
 initialize_planner_models() {
 	if [[ -z "${PLANNER_MODEL_REPO:-}" || -z "${PLANNER_MODEL_FILE:-}" || -z "${REACT_MODEL_REPO:-}" || -z "${REACT_MODEL_FILE:-}" ]]; then
 		hydrate_model_specs
@@ -137,7 +125,7 @@ generate_planner_response() {
 	local planner_schema_text planner_prompt_prefix planner_suffix tool_lines prompt
 	planner_schema_text="$(load_schema_text planner_plan)"
 
-	tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_summary_line)"
+        tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_line)"
 	planner_prompt_prefix="$(build_planner_prompt_static_prefix)"
 	planner_suffix="$(build_planner_prompt_dynamic_suffix "${user_query}" "${tool_lines}")"
 	prompt="${planner_prompt_prefix}${planner_suffix}"
@@ -331,25 +319,16 @@ emit_plan_json() {
 derive_allowed_tools_from_plan() {
         # Arguments:
         #   $1 - planner response JSON (object or legacy plan array)
-        local plan_json tool seen web_search_count
+        local plan_json tool seen
         plan_json="${1:-[]}"
 
-	PLANNER_WEB_SEARCH_BUDGET=0
-	export PLANNER_WEB_SEARCH_BUDGET
-	printf '%s' "${PLANNER_WEB_SEARCH_BUDGET}" >"${PLANNER_WEB_SEARCH_BUDGET_FILE}" 2>/dev/null || true
-
-	if jq -e '.mode == "quickdraw"' <<<"${plan_json}" >/dev/null 2>&1; then
-		return 0
-	fi
+        if jq -e '.mode == "quickdraw"' <<<"${plan_json}" >/dev/null 2>&1; then
+                return 0
+        fi
 
 	if jq -e '.mode == "plan" and (.plan | type == "array")' <<<"${plan_json}" >/dev/null 2>&1; then
 		plan_json="$(jq -c '.plan' <<<"${plan_json}")"
 	fi
-
-        web_search_count=$(jq -r '[.[] | select(.tool == "web_search")] | length' <<<"${plan_json}" 2>/dev/null || printf '0')
-        PLANNER_WEB_SEARCH_BUDGET="${web_search_count}"
-        export PLANNER_WEB_SEARCH_BUDGET
-        printf '%s' "${PLANNER_WEB_SEARCH_BUDGET}" >"${PLANNER_WEB_SEARCH_BUDGET_FILE}" 2>/dev/null || true
 
         seen=""
         local -a required=()
