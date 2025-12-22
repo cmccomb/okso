@@ -16,8 +16,6 @@
 # Exit codes:
 #   Functions return non-zero on validation failures.
 
-PLANNING_SCORING_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-
 planner_is_tool_available() {
 	# Checks whether the provided tool is registered.
 	# Arguments:
