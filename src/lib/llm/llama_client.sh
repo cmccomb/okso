@@ -79,9 +79,10 @@ llama_infer() {
 	#   $5 - model repository override (string, optional)
 	#   $6 - model file override (string, optional)
 	#   $7 - prompt cache path (string, optional)
+	#   $8 - prompt prefix used to assemble the final prompt (string, optional)
 	# Returns:
 	#   The generated text (string).
-	local prompt stop_string number_of_tokens schema_json repo_override file_override cache_file
+	local prompt stop_string number_of_tokens schema_json repo_override file_override cache_file prompt_prefix
 	prompt="$1"
 	stop_string="${2:-}"
 	number_of_tokens="${3:-256}"
@@ -89,6 +90,7 @@ llama_infer() {
 	repo_override="${5:-${REACT_MODEL_REPO:-}}"
 	file_override="${6:-${REACT_MODEL_FILE:-}}"
 	cache_file="${7:-}"
+	prompt_prefix="${8:-}"
 
 	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
 		log "WARN" "llama unavailable; skipping inference" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}"
@@ -97,7 +99,7 @@ llama_infer() {
 
 	local llama_args llama_arg_string stderr_file exit_code llama_stderr start_time_ns end_time_ns elapsed_ms llama_output
 	local default_context_size context_cap margin_percent prompt_tokens total_tokens computed_context target_context
-	local rope_freq_base rope_freq_scale template_descriptor
+	local rope_freq_base rope_freq_scale template_descriptor prompt_context_detail
 	llama_args=(
 		"${LLAMA_BIN}"
 		--hf-repo "${repo_override}"
@@ -161,6 +163,16 @@ llama_infer() {
 		llama_args+=(--prompt-cache "${cache_file}")
 	fi
 
+	prompt_context_detail=$(jq -nc \
+		--arg cache_file "${cache_file}" \
+		--arg prompt_prefix "${prompt_prefix}" \
+		--arg stop_string "${stop_string}" \
+		--argjson schema_provided "$(if [[ -n "${schema_json}" ]]; then printf 'true'; else printf 'false'; fi)" \
+		--argjson prompt_tokens "${prompt_tokens}" \
+		--argjson target_context "${target_context}" \
+		'{cache_file:$cache_file, prompt_prefix:$prompt_prefix, stop_string:$stop_string, schema_provided:$schema_provided, prompt_tokens:$prompt_tokens, target_context:$target_context}')
+	log "INFO" "llama prompt inputs" "${prompt_context_detail}"
+
 	llama_args+=(-p "${prompt}")
 
 	llama_arg_string=$(printf '%s ' "${llama_args[@]:1}")
@@ -184,14 +196,14 @@ llama_infer() {
 
 	if [[ ${exit_code} -eq 124 || ${exit_code} -eq 137 || ${exit_code} -eq 143 ]]; then
 		llama_stderr="$(<"${stderr_file}")"
-		log "ERROR" "llama inference timed out" "bin=${LLAMA_BIN} args=${llama_arg_string} timeout_seconds=${LLAMA_TIMEOUT_SECONDS:-0} elapsed_ms=${elapsed_ms} stderr=${llama_stderr}"
+		log "ERROR" "llama inference timed out" "bin=${LLAMA_BIN} args=${llama_arg_string} timeout_seconds=${LLAMA_TIMEOUT_SECONDS:-0} elapsed_ms=${elapsed_ms} stderr=${llama_stderr} prompt_context=${prompt_context_detail}"
 		rm -f "${stderr_file}"
 		return "${exit_code}"
 	fi
 
 	if [[ ${exit_code} -ne 0 ]]; then
 		llama_stderr="$(<"${stderr_file}")"
-		log "ERROR" "llama inference failed" "bin=${LLAMA_BIN} args=${llama_arg_string} elapsed_ms=${elapsed_ms} stderr=${llama_stderr}"
+		log "ERROR" "llama inference failed" "bin=${LLAMA_BIN} args=${llama_arg_string} elapsed_ms=${elapsed_ms} stderr=${llama_stderr} prompt_context=${prompt_context_detail}"
 		rm -f "${stderr_file}"
 		return "${exit_code}"
 	fi
