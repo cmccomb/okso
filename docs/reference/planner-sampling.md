@@ -7,6 +7,8 @@ Planner runs sample multiple outline candidates before execution. Use these cont
 - `PLANNER_SAMPLE_COUNT` sets how many candidates to generate and score. Values below `1` are clamped to `1` so selection always has a plan to review.
 - `PLANNER_TEMPERATURE` forwards directly to llama.cpp for planner generations. Lower values keep plans conservative; higher values explore more tool permutations. Values should stay between `0` and `1` for predictable entropy.
 
+The first normalized candidate short-circuits sampling when it declares `mode: "quickdraw"`. Quickdraw responses return immediately to keep trivial answers responsive instead of spending extra llama.cpp calls on unused alternatives.
+
 ## Scoring rules
 
 Planner scoring rewards concise, compliant plans and penalizes risky or invalid suggestions:

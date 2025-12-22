@@ -190,20 +190,25 @@ generate_planner_response() {
 
 	local best_plan="" best_score=-1 best_tie_breaker=-9999 candidate_index=0 raw_plan normalized_plan
 	local candidate_score candidate_tie_breaker candidate_scorecard candidate_rationale
-	while ((candidate_index < sample_count)); do
-		candidate_index=$((candidate_index + 1))
+        while ((candidate_index < sample_count)); do
+                candidate_index=$((candidate_index + 1))
 
-		raw_plan="$(LLAMA_TEMPERATURE="${temperature}" llama_infer "${prompt}" '' 512 "${planner_schema_text}" "${PLANNER_MODEL_REPO:-}" "${PLANNER_MODEL_FILE:-}" "${PLANNER_CACHE_FILE:-}" "${planner_prompt_prefix}")" || raw_plan="[]"
+                raw_plan="$(LLAMA_TEMPERATURE="${temperature}" llama_infer "${prompt}" '' 512 "${planner_schema_text}" "${PLANNER_MODEL_REPO:-}" "${PLANNER_MODEL_FILE:-}" "${PLANNER_CACHE_FILE:-}" "${planner_prompt_prefix}")" || raw_plan="[]"
 
-		if ! normalized_plan="$(normalize_planner_response <<<"${raw_plan}")"; then
-			log "ERROR" "Planner output failed validation; request regeneration" "${raw_plan}" >&2
-			continue
-		fi
+                if ! normalized_plan="$(normalize_planner_response <<<"${raw_plan}")"; then
+                        log "ERROR" "Planner output failed validation; request regeneration" "${raw_plan}" >&2
+                        continue
+                fi
 
-		if ! candidate_scorecard="$(score_planner_candidate "${normalized_plan}")"; then
-			log "ERROR" "Planner output failed scoring" "${normalized_plan}" >&2
-			continue
-		fi
+                local is_quickdraw=false
+                if jq -e '.mode == "quickdraw"' <<<"${normalized_plan}" >/dev/null 2>&1; then
+                        is_quickdraw=true
+                fi
+
+                if ! candidate_scorecard="$(score_planner_candidate "${normalized_plan}")"; then
+                        log "ERROR" "Planner output failed scoring" "${normalized_plan}" >&2
+                        continue
+                fi
 
 		candidate_score="$(jq -er '.score' <<<"${candidate_scorecard}" 2>/dev/null || printf '0')"
 		candidate_tie_breaker="$(jq -er '.tie_breaker // 0' <<<"${candidate_scorecard}" 2>/dev/null || printf '0')"
@@ -211,18 +216,24 @@ generate_planner_response() {
 
 		jq -nc \
 			--argjson index "${candidate_index}" \
-			--argjson score "${candidate_score}" \
-			--argjson tie_breaker "${candidate_tie_breaker}" \
-			--argjson rationale "${candidate_rationale}" \
-			--argjson response "${normalized_plan}" \
-			'{index:$index, score:$score, tie_breaker:$tie_breaker, rationale:$rationale, response:$response}' >>"${debug_log_file}" 2>/dev/null || true
+                        --argjson score "${candidate_score}" \
+                        --argjson tie_breaker "${candidate_tie_breaker}" \
+                        --argjson rationale "${candidate_rationale}" \
+                        --argjson response "${normalized_plan}" \
+                        '{index:$index, score:$score, tie_breaker:$tie_breaker, rationale:$rationale, response:$response}' >>"${debug_log_file}" 2>/dev/null || true
 
-		if ((candidate_score > best_score)) || { ((candidate_score == best_score)) && ((candidate_tie_breaker > best_tie_breaker)); }; then
-			best_score=${candidate_score}
-			best_tie_breaker=${candidate_tie_breaker}
-			best_plan="${normalized_plan}"
-		fi
-	done
+                if ((candidate_score > best_score)) || { ((candidate_score == best_score)) && ((candidate_tie_breaker > best_tie_breaker)); }; then
+                        best_score=${candidate_score}
+                        best_tie_breaker=${candidate_tie_breaker}
+                        best_plan="${normalized_plan}"
+                fi
+
+                if [[ "${is_quickdraw}" == true && ${candidate_index} -eq 1 ]]; then
+                        log "DEBUG" "Quickdraw response returned immediately" "candidate_index=${candidate_index}" >&2
+                        printf '%s' "${best_plan}"
+                        return 0
+                fi
+        done
 
 	if [[ -z "${best_plan}" ]]; then
 		log "ERROR" "Planner output failed validation; request regeneration" "no_valid_candidates" >&2
