@@ -9,20 +9,18 @@
 #   - bats
 #   - bash 3.2+
 
-@test "generate_plan_outline works when mapfile builtin is unavailable" {
-	run bash -lc '
+@test "generate_plan_outline fails when llama is unavailable" {
+        run bash -lc '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 enable -n mapfile 2>/dev/null || true
 
                 source ./src/lib/planning/planner.sh
 
-                log() { :; }
-
                 LLAMA_AVAILABLE=false
-                output="$(generate_plan_outline "Summarize request")"
-                [[ "${output}" == "1. Respond directly to the user request." ]]
+                generate_plan_outline "Summarize request"
         '
-	[ "$status" -eq 0 ]
+        [ "$status" -ne 0 ]
+        [[ "${output}" == *"llama.cpp is required for planner generation"* ]]
 }
 
 @test "generate_plan_outline falls back to tool_names when TOOLS is unset" {
@@ -37,6 +35,7 @@ tool_names() { printf "%s\n" "fallback_tool" "secondary_tool"; }
 format_tool_descriptions() { printf "%s" "$1"; }
 build_planner_prompt() { printf "TOOLS<<%s>>" "$2"; }
 schema_path() { printf "/tmp/schema"; }
+load_schema_text() { printf '{}'; }
 llama_infer() { printf "%s" "$1" > /tmp/planner_prompt; printf '[{"tool":"alpha","args":{},"thought":"step"}]'; }
 
 LLAMA_AVAILABLE=true
@@ -68,6 +67,7 @@ tool_names() { printf "%s\n" "fallback_tool"; }
 format_tool_descriptions() { printf "%s" "$1"; }
 build_planner_prompt() { printf "TOOLS<<%s>>" "$2"; }
 schema_path() { printf "/tmp/schema"; }
+load_schema_text() { printf '{}'; }
 llama_infer() { printf "%s" "$1" > /tmp/planner_prompt; printf '[{"tool":"alpha","args":{},"thought":"step"}]'; }
 
 LLAMA_AVAILABLE=true
@@ -98,6 +98,7 @@ tool_names() { printf "%s\n" "fallback_tool"; }
 format_tool_descriptions() { printf "%s" "$1"; }
 build_planner_prompt() { printf "TOOLS<<%s>>" "$2"; }
 schema_path() { printf "/tmp/schema"; }
+load_schema_text() { printf '{}'; }
 llama_infer() { printf "%s" "$1" > /tmp/planner_prompt; printf '[{"tool":"alpha","args":{},"thought":"step"}]'; }
 
 LLAMA_AVAILABLE=true

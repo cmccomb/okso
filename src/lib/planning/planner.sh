@@ -51,6 +51,8 @@ source "${PLANNING_LIB_DIR}/../prompt/build_planner.sh"
 source "${PLANNING_LIB_DIR}/../schema/schema.sh"
 # shellcheck source=../core/state.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/../core/state.sh"
+# shellcheck source=../guards/guards.sh disable=SC1091
+source "${PLANNING_LIB_DIR}/../guards/guards.sh"
 # shellcheck source=../llm/llama_client.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/../llm/llama_client.sh"
 # shellcheck source=../config.sh disable=SC1091
@@ -76,31 +78,30 @@ lowercase() {
 }
 
 generate_plan_json() {
-	# Arguments:
-	#   $1 - user query (string)
-	local user_query
-	local -a planner_tools=()
-	user_query="$1"
+        # Arguments:
+        #   $1 - user query (string)
+        local user_query
+        local -a planner_tools=()
+        user_query="$1"
 
-	local tools_decl
-	if tools_decl=$(declare -p TOOLS 2>/dev/null) && grep -q 'declare -a' <<<"${tools_decl}"; then
-		planner_tools=("${TOOLS[@]}")
-	else
-		planner_tools=()
-		while IFS= read -r tool_name; do
-			[[ -z "${tool_name}" ]] && continue
-			planner_tools+=("${tool_name}")
-		done < <(tool_names)
-	fi
+        if ! require_llama_available "planner generation"; then
+                log "ERROR" "Planner cannot generate steps without llama.cpp" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}" >&2
+                return 1
+        fi
 
-	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
-		log "WARN" "Using static plan because llama is unavailable" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}" >&2
-		printf '%s' '[{"tool":"final_answer","args":{},"thought":"Respond directly to the user request."}]'
-		return 0
-	fi
+        local tools_decl
+        if tools_decl=$(declare -p TOOLS 2>/dev/null) && grep -q 'declare -a' <<<"${tools_decl}"; then
+                planner_tools=("${TOOLS[@]}")
+        else
+                planner_tools=()
+                while IFS= read -r tool_name; do
+                        [[ -z "${tool_name}" ]] && continue
+                        planner_tools+=("${tool_name}")
+                done < <(tool_names)
+        fi
 
-	local prompt raw_plan planner_schema_text plan_json planner_prompt_prefix planner_suffix tool_lines
-	planner_schema_text="$(load_schema_text planner_plan)"
+        local prompt raw_plan planner_schema_text plan_json planner_prompt_prefix planner_suffix tool_lines
+        planner_schema_text="$(load_schema_text planner_plan)"
 
 	tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_summary_line)"
 	planner_prompt_prefix="$(build_planner_prompt_static_prefix)"
@@ -116,11 +117,13 @@ generate_plan_json() {
 }
 
 generate_plan_outline() {
-	# Arguments:
-	#   $1 - user query (string)
-	local plan_json
-	plan_json="$(generate_plan_json "$1")"
-	plan_json_to_outline "${plan_json}"
+        # Arguments:
+        #   $1 - user query (string)
+        local plan_json
+        if ! plan_json="$(generate_plan_json "$1")"; then
+                return 1
+        fi
+        plan_json_to_outline "${plan_json}"
 }
 
 tool_query_deriver() {
