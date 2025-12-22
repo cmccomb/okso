@@ -35,25 +35,30 @@ SCRIPT
 set -euo pipefail
 real_date="$(command -v date)"
 mock_bin_dir="$(mktemp -d)"
-cat >"${mock_bin_dir}/date" <<'DATE'
-#!/usr/bin/env bash
-if [[ "$1" == "-u" && "$2" == "+%Y-%m-%d" ]]; then
-        if [[ "${MOCK_SLOT:-}" == "first" ]]; then
-                printf '2024-01-01\n'
-        else
-                printf '2024-02-02\n'
-        fi
-elif [[ "$1" == "-u" && "$2" == "+%H:%M:%S" ]]; then
-        if [[ "${MOCK_SLOT:-}" == "first" ]]; then
-                printf '00:00:01\n'
-        else
-                printf '00:00:02\n'
-        fi
-elif [[ "$1" == "-u" && "$2" == "+%A" ]]; then
-        printf 'Monday\n'
-else
-        exec "${real_date}" "$@"
-fi
+  cat >"${mock_bin_dir}/date" <<'DATE'
+  #!/usr/bin/env bash
+  fmt="${1-}"
+  if [[ "${fmt}" == "-u" ]]; then
+          fmt="${2-}"
+  fi
+
+  if [[ "${fmt}" == "+%Y-%m-%d" ]]; then
+          if [[ "${MOCK_SLOT:-}" == "first" ]]; then
+                  printf '2024-01-01\n'
+          else
+                  printf '2024-02-02\n'
+          fi
+  elif [[ "${fmt}" == "+%H:%M:%S" ]]; then
+          if [[ "${MOCK_SLOT:-}" == "first" ]]; then
+                  printf '00:00:01\n'
+          else
+                  printf '00:00:02\n'
+          fi
+  elif [[ "${fmt}" == "+%A" ]]; then
+          printf 'Monday\n'
+  else
+          exec "${real_date}" "$@"
+  fi
 DATE
 chmod +x "${mock_bin_dir}/date"
 export PATH="${mock_bin_dir}:${PATH}"
@@ -61,10 +66,10 @@ source ./src/lib/prompt/build_planner.sh
 prefix="$(build_planner_prompt_static_prefix)"
 MOCK_SLOT=first
 export MOCK_SLOT
-first_prompt="$(build_planner_prompt "demo" "tool: summary")"
+first_prompt="$(build_planner_prompt "demo" "tool: summary" "seeded search context")"
 MOCK_SLOT=second
 export MOCK_SLOT
-second_prompt="$(build_planner_prompt "demo" "tool: summary")"
+second_prompt="$(build_planner_prompt "demo" "tool: summary" "seeded search context")"
 if [[ "${first_prompt}" != "${prefix}"* ]]; then
         exit 1
 fi
@@ -86,17 +91,22 @@ SCRIPT
 set -euo pipefail
 real_date="$(command -v date)"
 mock_bin_dir="$(mktemp -d)"
-cat >"${mock_bin_dir}/date" <<'DATE'
-#!/usr/bin/env bash
-if [[ "$1" == "-u" && "$2" == "+%Y-%m-%d" ]]; then
-        printf '2024-01-01\n'
-elif [[ "$1" == "-u" && "$2" == "+%H:%M:%S" ]]; then
-        printf '00:00:01\n'
-elif [[ "$1" == "-u" && "$2" == "+%A" ]]; then
-        printf 'Monday\n'
-else
-        exec "${real_date}" "$@"
-fi
+  cat >"${mock_bin_dir}/date" <<'DATE'
+  #!/usr/bin/env bash
+  fmt="${1-}"
+  if [[ "${fmt}" == "-u" ]]; then
+          fmt="${2-}"
+  fi
+
+  if [[ "${fmt}" == "+%Y-%m-%d" ]]; then
+          printf '2024-01-01\n'
+  elif [[ "${fmt}" == "+%H:%M:%S" ]]; then
+          printf '00:00:01\n'
+  elif [[ "${fmt}" == "+%A" ]]; then
+          printf 'Monday\n'
+  else
+          exec "${real_date}" "$@"
+  fi
 DATE
 chmod +x "${mock_bin_dir}/date"
 export PATH="${mock_bin_dir}:${PATH}"

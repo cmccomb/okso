@@ -25,6 +25,10 @@ Current time: ${current_time} (local)
 Current weekday: ${current_weekday}
 Use this temporal context when scheduling or sequencing tasks.
 
+# Search context
+Web search already ran for this request. Use the findings below for grounding instead of scheduling new web_search steps. If the context is empty, proceed conservatively and prefer other tools over additional browsing.
+${search_context}
+
 # General Rules
 Format the output as a JSON object that either:
 - Uses `{"mode": "plan", "plan": [...]}` for tool-based work (each step shaped as {tool, args, thought}), or

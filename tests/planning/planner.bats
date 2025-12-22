@@ -11,6 +11,9 @@ setup() {
 	run env -i HOME="$HOME" PATH="$PATH" bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/planner.sh
+PLANNER_SKIP_TOOL_LOAD=true
+export PLANNER_SKIP_TOOL_LOAD
+planner_fetch_search_context() { printf 'Search context unavailable.'; }
 LLAMA_AVAILABLE=false
 generate_plan_json "tell me a joke"
 SCRIPT
@@ -26,9 +29,12 @@ SCRIPT
 	run env -i HOME="$HOME" PATH="$PATH" bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/planner.sh
+PLANNER_SKIP_TOOL_LOAD=true
+export PLANNER_SKIP_TOOL_LOAD
 LLAMA_AVAILABLE=true
 PLANNER_MODEL_REPO=fake
 PLANNER_MODEL_FILE=fake
+planner_fetch_search_context() { printf 'Search context unavailable.'; }
 llama_infer() { printf '[{"tool":"terminal","args":{},"thought":"do"}]'; }
 generate_plan_json "list" | jq -r '.[].tool'
 SCRIPT

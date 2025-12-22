@@ -20,6 +20,8 @@ cd "$(git rev-parse --show-toplevel)" || exit 1
 
 TOOL_REGISTRY_JSON='{"names":[],"registry":{}}'
 export TOOL_REGISTRY_JSON
+PLANNER_SKIP_TOOL_LOAD=true
+export PLANNER_SKIP_TOOL_LOAD
 
 source ./src/lib/planning/planner.sh
 
@@ -27,6 +29,7 @@ current_date_local() { printf '2024-01-01'; }
 current_time_local() { printf '12:00'; }
 current_weekday_local() { printf 'Monday'; }
 load_schema_text() { printf '{}'; }
+planner_fetch_search_context() { printf 'Search context unavailable.'; }
 
 llama_infer() {
         printf '%s' "$1" > /tmp/planner_prompt_budget_constraints
@@ -56,6 +59,8 @@ cd "$(git rev-parse --show-toplevel)" || exit 1
 
 TOOL_REGISTRY_JSON='{"names":[],"registry":{}}'
 export TOOL_REGISTRY_JSON
+PLANNER_SKIP_TOOL_LOAD=true
+export PLANNER_SKIP_TOOL_LOAD
 
 source ./src/lib/planning/planner.sh
 
@@ -63,6 +68,7 @@ current_date_local() { printf '2024-01-01'; }
 current_time_local() { printf '12:00'; }
 current_weekday_local() { printf 'Monday'; }
 load_schema_text() { printf '{}'; }
+planner_fetch_search_context() { printf 'Search context unavailable.'; }
 
 llama_infer() {
         printf '%s' "$1" > /tmp/planner_prompt_budget_tools
