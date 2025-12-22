@@ -37,14 +37,14 @@ assert_osascript_available() {
 	osascript_bin="${3:-osascript}"
 	detail="$4"
 
-        if [[ -z "${platform_warning}" || -z "${missing_warning}" ]]; then
-                log "ERROR" "assert_osascript_available requires warning messages" "${detail}" || true
-                return 2
-        fi
+	if [[ -z "${platform_warning}" || -z "${missing_warning}" ]]; then
+		log "ERROR" "assert_osascript_available requires warning messages" "${detail}" || true
+		return 2
+	fi
 
-        if ! require_macos_capable_terminal "${platform_warning}" "WARN"; then
-                return 1
-        fi
+	if ! require_macos_capable_terminal "${platform_warning}" "WARN"; then
+		return 1
+	fi
 
 	if ! command -v "${osascript_bin}" >/dev/null 2>&1; then
 		log "WARN" "${missing_warning}" "${detail}" || true

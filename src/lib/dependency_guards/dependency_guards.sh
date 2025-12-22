@@ -23,57 +23,57 @@ DEPENDENCY_GUARDS_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${DEPENDENCY_GUARDS_LIB_DIR}/../core/logging.sh"
 
 require_llama_available() {
-        # Ensures llama-backed features only run when llama.cpp is available.
-        # Arguments:
-        #   $1 - feature name for logging context (string; optional)
-        local feature
-        feature=${1:-"llama-backed functionality"}
+	# Ensures llama-backed features only run when llama.cpp is available.
+	# Arguments:
+	#   $1 - feature name for logging context (string; optional)
+	local feature
+	feature=${1:-"llama-backed functionality"}
 
-        if [[ "${LLAMA_AVAILABLE:-}" == true ]]; then
-                return 0
-        fi
+	if [[ "${LLAMA_AVAILABLE:-}" == true ]]; then
+		return 0
+	fi
 
-        log "ERROR" "llama.cpp is required for ${feature}" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE:-}" || true
-        return 1
+	log "ERROR" "llama.cpp is required for ${feature}" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE:-}" || true
+	return 1
 }
 
 require_macos_capable_terminal() {
-        # Enforces macOS availability for macOS-specific terminal or automation tools.
-        # Arguments:
-        #   $1 - warning message when unsupported (string; optional)
-        #   $2 - log severity when unsupported (string; optional; default WARN)
-        local warning severity
-        warning=${1:-"macOS-only functionality is unavailable on this platform"}
-        severity=${2:-"WARN"}
+	# Enforces macOS availability for macOS-specific terminal or automation tools.
+	# Arguments:
+	#   $1 - warning message when unsupported (string; optional)
+	#   $2 - log severity when unsupported (string; optional; default WARN)
+	local warning severity
+	warning=${1:-"macOS-only functionality is unavailable on this platform"}
+	severity=${2:-"WARN"}
 
-        if [[ "${IS_MACOS:-}" == true ]]; then
-                return 0
-        fi
+	if [[ "${IS_MACOS:-}" == true ]]; then
+		return 0
+	fi
 
-        log "${severity}" "${warning}" "IS_MACOS=${IS_MACOS:-}" || true
-        return 1
+	log "${severity}" "${warning}" "IS_MACOS=${IS_MACOS:-}" || true
+	return 1
 }
 
 require_python3_available() {
-        # Ensures python3 is available before invoking Python-dependent helpers.
-        # Arguments:
-        #   $1 - feature name for logging context (string; optional)
-        local feature python_status
-        feature=${1:-"python3-dependent functionality"}
-        python_status=127
+	# Ensures python3 is available before invoking Python-dependent helpers.
+	# Arguments:
+	#   $1 - feature name for logging context (string; optional)
+	local feature python_status
+	feature=${1:-"python3-dependent functionality"}
+	python_status=127
 
-        hash -r 2>/dev/null || true
+	hash -r 2>/dev/null || true
 
-        if command -v python3 >/dev/null 2>&1; then
-                python3 --version >/dev/null 2>&1
-                python_status=$?
-                if [[ ${python_status} -eq 0 ]]; then
-                        return 0
-                fi
-        fi
+	if command -v python3 >/dev/null 2>&1; then
+		python3 --version >/dev/null 2>&1
+		python_status=$?
+		if [[ ${python_status} -eq 0 ]]; then
+			return 0
+		fi
+	fi
 
-        log "ERROR" "python3 is required for ${feature}" "python3 unavailable or failed (exit_status=${python_status})" || true
-        return 1
+	log "ERROR" "python3 is required for ${feature}" "python3 unavailable or failed (exit_status=${python_status})" || true
+	return 1
 }
 
 export -f require_llama_available

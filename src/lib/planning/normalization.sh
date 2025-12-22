@@ -26,17 +26,17 @@ source "${PLANNING_NORMALIZATION_DIR}/../dependency_guards/dependency_guards.sh"
 # Normalize noisy planner output into a clean PlannerPlan JSON array of objects.
 # Reads from stdin, writes clean JSON array to stdout.
 normalize_planner_plan() {
-        local raw plan_candidate normalized
+	local raw plan_candidate normalized
 
-        raw="$(cat)"
+	raw="$(cat)"
 
-        if ! require_python3_available "planner output normalization"; then
-                log "ERROR" "normalize_planner_plan: python3 unavailable" "${raw}" >&2
-                return 1
-        fi
+	if ! require_python3_available "planner output normalization"; then
+		log "ERROR" "normalize_planner_plan: python3 unavailable" "${raw}" >&2
+		return 1
+	fi
 
-        plan_candidate=$(
-                RAW_INPUT="${raw}" python3 - <<'PYTHON'
+	plan_candidate=$(
+		RAW_INPUT="${raw}" python3 - <<'PYTHON'
 import json
 import os
 import re

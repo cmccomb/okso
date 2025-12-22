@@ -106,18 +106,18 @@ record_tool_execution() {
 	args_json="$4"
 	observation="$5"
 	step_index="$6"
-        if [[ -z "${args_json}" ]]; then
-                args_json="{}"
-        fi
-        args_json="$(jq -cS '.' <<<"${args_json}" 2>/dev/null || printf '{}')"
+	if [[ -z "${args_json}" ]]; then
+		args_json="{}"
+	fi
+	args_json="$(jq -cS '.' <<<"${args_json}" 2>/dev/null || printf '{}')"
 
-        if ! require_python3_available "ReAct history serialization"; then
-                log "ERROR" "Failed to record tool execution; python3 missing" "${tool}" >&2
-                return 1
-        fi
+	if ! require_python3_available "ReAct history serialization"; then
+		log "ERROR" "Failed to record tool execution; python3 missing" "${tool}" >&2
+		return 1
+	fi
 
-        entry=$(
-                python3 - "$step_index" "$thought" "$tool" "$args_json" "$observation" <<'PY'
+	entry=$(
+		python3 - "$step_index" "$thought" "$tool" "$args_json" "$observation" <<'PY'
 import json
 import sys
 

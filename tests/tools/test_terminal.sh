@@ -12,12 +12,12 @@
 #   Inherits Bats semantics; individual tests assert script exit codes.
 
 @test "status default exposes allowed commands" {
-        run bash -lc 'source ./src/tools/terminal/index.sh; VERBOSITY=0; TOOL_ARGS="{}"; tool_terminal'
-        [ "$status" -eq 0 ]
-        [[ "${lines[0]}" == Session:* ]]
-        [[ "${lines[1]}" == Working\ directory:* ]]
-        [[ "${lines[2]}" == Allowed\ commands:* ]]
-        [[ "${lines[2]}" != *"open"* ]]
+	run bash -lc 'source ./src/tools/terminal/index.sh; VERBOSITY=0; TOOL_ARGS="{}"; tool_terminal'
+	[ "$status" -eq 0 ]
+	[[ "${lines[0]}" == Session:* ]]
+	[[ "${lines[1]}" == Working\ directory:* ]]
+	[[ "${lines[2]}" == Allowed\ commands:* ]]
+	[[ "${lines[2]}" != *"open"* ]]
 }
 
 @test "cd updates persistent working directory" {
@@ -186,7 +186,7 @@
 }
 
 @test "open is rejected on non-macOS hosts" {
-        run bash -lc 'source ./src/tools/terminal/index.sh; VERBOSITY=0; IS_MACOS=false; TOOL_ARGS="{\"command\":\"open\",\"args\":[\"README.md\"]}"; tool_terminal'
-        [ "$status" -eq 1 ]
-        [[ "${output}" == *"terminal command not permitted"* ]]
+	run bash -lc 'source ./src/tools/terminal/index.sh; VERBOSITY=0; IS_MACOS=false; TOOL_ARGS="{\"command\":\"open\",\"args\":[\"README.md\"]}"; tool_terminal'
+	[ "$status" -eq 1 ]
+	[[ "${output}" == *"terminal command not permitted"* ]]
 }

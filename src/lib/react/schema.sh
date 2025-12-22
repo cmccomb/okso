@@ -34,17 +34,17 @@ build_react_action_schema() {
 	local allowed_tools registry_json
 	allowed_tools="$1"
 
-        if [[ -z "$(tool_names)" ]] && declare -F initialize_tools >/dev/null 2>&1; then
-                initialize_tools >/dev/null 2>&1 || true
-        fi
-        registry_json="$(tool_registry_json)"
+	if [[ -z "$(tool_names)" ]] && declare -F initialize_tools >/dev/null 2>&1; then
+		initialize_tools >/dev/null 2>&1 || true
+	fi
+	registry_json="$(tool_registry_json)"
 
-        if ! require_python3_available "ReAct schema generation"; then
-                log "ERROR" "Unable to build ReAct action schema; python3 missing" "${allowed_tools}" >&2
-                return 1
-        fi
+	if ! require_python3_available "ReAct schema generation"; then
+		log "ERROR" "Unable to build ReAct action schema; python3 missing" "${allowed_tools}" >&2
+		return 1
+	fi
 
-        python3 - "${allowed_tools}" "${registry_json}" "${CANONICAL_TEXT_ARG_KEY:-input}" <<'PY'
+	python3 - "${allowed_tools}" "${registry_json}" "${CANONICAL_TEXT_ARG_KEY:-input}" <<'PY'
 import json
 import sys
 import tempfile

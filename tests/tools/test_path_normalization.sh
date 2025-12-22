@@ -6,7 +6,7 @@
 #   bats tests/tools/test_path_normalization.sh
 
 @test "tools_normalize_path falls back when realpath lacks -m support" {
-        run bash --noprofile --norc -c '
+	run bash --noprofile --norc -c '
                 set -euo pipefail
 
                 unset -f chpwd _mise_hook __zsh_like_cd cd 2>/dev/null || true
@@ -38,11 +38,11 @@ PY
                 diff -u <(printf "%s\n" "${expected}") "${tmpdir}/actual"
         '
 
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "tools_normalize_path errors when python3 unavailable for fallback" {
-        run bash --noprofile --norc -c '
+	run bash --noprofile --norc -c '
                 set -euo pipefail
 
                 unset -f chpwd _mise_hook __zsh_like_cd cd 2>/dev/null || true
@@ -72,6 +72,6 @@ SCRIPT
                 "
         '
 
-        [ "$status" -ne 0 ]
-        [[ "${output}" == *"python3 is required for path normalization fallback"* ]]
+	[ "$status" -ne 0 ]
+	[[ "${output}" == *"python3 is required for path normalization fallback"* ]]
 }

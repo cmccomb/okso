@@ -55,19 +55,19 @@ source "${TOOLS_DIR}/feedback/index.sh"
 source "${TOOLS_DIR}/web/index.sh"
 
 tools_normalize_path() {
-        # Returns a normalized absolute path for allowlist checks.
-        # Arguments:
-        #   $1 - path to normalize (string)
-        if command -v realpath >/dev/null 2>&1 && realpath -m / >/dev/null 2>&1; then
-                realpath -m "$1"
-                return
-        fi
+	# Returns a normalized absolute path for allowlist checks.
+	# Arguments:
+	#   $1 - path to normalize (string)
+	if command -v realpath >/dev/null 2>&1 && realpath -m / >/dev/null 2>&1; then
+		realpath -m "$1"
+		return
+	fi
 
-        if ! require_python3_available "path normalization fallback"; then
-                return 1
-        fi
+	if ! require_python3_available "path normalization fallback"; then
+		return 1
+	fi
 
-        python3 - "$1" <<'PY'
+	python3 - "$1" <<'PY'
 import os, sys
 print(os.path.realpath(sys.argv[1]))
 PY
