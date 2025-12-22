@@ -95,12 +95,12 @@ lowercase() {
 }
 
 score_planner_candidate() {
-        # Arguments:
-        #   $1 - normalized planner response JSON (string)
-        local normalized_json score
-        normalized_json="$1"
+	# Arguments:
+	#   $1 - normalized planner response JSON (string)
+	local normalized_json score
+	normalized_json="$1"
 
-        score=$(jq -er '
+	score=$(jq -er '
                 if .mode == "quickdraw" then
                         0
                 else
@@ -110,100 +110,100 @@ score_planner_candidate() {
                 end
                 ' <<<"${normalized_json}" 2>/dev/null) || score=0
 
-        printf '%s' "${score}"
+	printf '%s' "${score}"
 }
 
 generate_planner_response() {
-        # Arguments:
-        #   $1 - user query (string)
-        local user_query
-        local -a planner_tools=()
-        user_query="$1"
+	# Arguments:
+	#   $1 - user query (string)
+	local user_query
+	local -a planner_tools=()
+	user_query="$1"
 
-        if ! require_llama_available "planner generation"; then
-                log "ERROR" "Planner cannot generate steps without llama.cpp" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}" >&2
-                local fallback
-                fallback="LLM unavailable. Request received: ${user_query}"
-                jq -nc \
-                        --arg answer "${fallback}" \
-                        --arg rationale "Respond directly; tools skipped because llama.cpp is unavailable." \
-                        '{mode:"quickdraw", plan: [], quickdraw:{final_answer:$answer, confidence:0, rationale:$rationale}}'
-                return 0
-        fi
+	if ! require_llama_available "planner generation"; then
+		log "ERROR" "Planner cannot generate steps without llama.cpp" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}" >&2
+		local fallback
+		fallback="LLM unavailable. Request received: ${user_query}"
+		jq -nc \
+			--arg answer "${fallback}" \
+			--arg rationale "Respond directly; tools skipped because llama.cpp is unavailable." \
+			'{mode:"quickdraw", plan: [], quickdraw:{final_answer:$answer, confidence:0, rationale:$rationale}}'
+		return 0
+	fi
 
-        local tools_decl
-        if tools_decl=$(declare -p TOOLS 2>/dev/null) && grep -q 'declare -a' <<<"${tools_decl}"; then
-                planner_tools=("${TOOLS[@]}")
-        else
-                planner_tools=()
-                while IFS= read -r tool_name; do
-                        [[ -z "${tool_name}" ]] && continue
-                        planner_tools+=("${tool_name}")
-                done < <(tool_names)
-        fi
+	local tools_decl
+	if tools_decl=$(declare -p TOOLS 2>/dev/null) && grep -q 'declare -a' <<<"${tools_decl}"; then
+		planner_tools=("${TOOLS[@]}")
+	else
+		planner_tools=()
+		while IFS= read -r tool_name; do
+			[[ -z "${tool_name}" ]] && continue
+			planner_tools+=("${tool_name}")
+		done < <(tool_names)
+	fi
 
-        if ! printf '%s\0' "${planner_tools[@]}" | grep -Fxzq "web_search"; then
-                planner_tools+=("web_search")
-                log "INFO" "Web search enabled for planning" "planner_tools_appended=web_search" >&2
-        else
-                log "DEBUG" "Web search already available to planner" "planner_tools_present=web_search" >&2
-        fi
+	if ! printf '%s\0' "${planner_tools[@]}" | grep -Fxzq "web_search"; then
+		planner_tools+=("web_search")
+		log "INFO" "Web search enabled for planning" "planner_tools_appended=web_search" >&2
+	else
+		log "DEBUG" "Web search already available to planner" "planner_tools_present=web_search" >&2
+	fi
 
-        local planner_tool_catalog
-        planner_tool_catalog="$(printf '%s\n' "${planner_tools[@]}" | paste -sd ',' -)"
-        log "DEBUG" "Planner tool catalog" "${planner_tool_catalog}" >&2
+	local planner_tool_catalog
+	planner_tool_catalog="$(printf '%s\n' "${planner_tools[@]}" | paste -sd ',' -)"
+	log "DEBUG" "Planner tool catalog" "${planner_tool_catalog}" >&2
 
-        local planner_schema_text planner_prompt_prefix planner_suffix tool_lines prompt
-        planner_schema_text="$(load_schema_text planner_plan)"
+	local planner_schema_text planner_prompt_prefix planner_suffix tool_lines prompt
+	planner_schema_text="$(load_schema_text planner_plan)"
 
-        tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_summary_line)"
-        planner_prompt_prefix="$(build_planner_prompt_static_prefix)"
-        planner_suffix="$(build_planner_prompt_dynamic_suffix "${user_query}" "${tool_lines}")"
-        prompt="${planner_prompt_prefix}${planner_suffix}"
-        log "DEBUG" "Generated planner prompt" "${prompt}" >&2
+	tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_summary_line)"
+	planner_prompt_prefix="$(build_planner_prompt_static_prefix)"
+	planner_suffix="$(build_planner_prompt_dynamic_suffix "${user_query}" "${tool_lines}")"
+	prompt="${planner_prompt_prefix}${planner_suffix}"
+	log "DEBUG" "Generated planner prompt" "${prompt}" >&2
 
-        local sample_count temperature debug_log_dir debug_log_file
-        sample_count="${PLANNER_SAMPLE_COUNT:-3}"
-        temperature="${PLANNER_TEMPERATURE:-0.2}"
-        if ! [[ "${sample_count}" =~ ^[0-9]+$ ]] || ((sample_count < 1)); then
-                sample_count=1
-        fi
+	local sample_count temperature debug_log_dir debug_log_file
+	sample_count="${PLANNER_SAMPLE_COUNT:-3}"
+	temperature="${PLANNER_TEMPERATURE:-0.2}"
+	if ! [[ "${sample_count}" =~ ^[0-9]+$ ]] || ((sample_count < 1)); then
+		sample_count=1
+	fi
 
-        debug_log_dir="${TMPDIR:-/tmp}"
-        debug_log_file="${PLANNER_DEBUG_LOG:-${debug_log_dir%/}/okso_planner_candidates.log}"
-        mkdir -p "$(dirname "${debug_log_file}")" 2>/dev/null || true
-        : >"${debug_log_file}" 2>/dev/null || true
+	debug_log_dir="${TMPDIR:-/tmp}"
+	debug_log_file="${PLANNER_DEBUG_LOG:-${debug_log_dir%/}/okso_planner_candidates.log}"
+	mkdir -p "$(dirname "${debug_log_file}")" 2>/dev/null || true
+	: >"${debug_log_file}" 2>/dev/null || true
 
-        local best_plan="" best_score=-1 candidate_index=0 raw_plan normalized_plan candidate_score
-        while ((candidate_index < sample_count)); do
-                candidate_index=$((candidate_index + 1))
+	local best_plan="" best_score=-1 candidate_index=0 raw_plan normalized_plan candidate_score
+	while ((candidate_index < sample_count)); do
+		candidate_index=$((candidate_index + 1))
 
-                raw_plan="$(LLAMA_TEMPERATURE="${temperature}" llama_infer "${prompt}" '' 512 "${planner_schema_text}" "${PLANNER_MODEL_REPO:-}" "${PLANNER_MODEL_FILE:-}" "${PLANNER_CACHE_FILE:-}" "${planner_prompt_prefix}")" || raw_plan="[]"
+		raw_plan="$(LLAMA_TEMPERATURE="${temperature}" llama_infer "${prompt}" '' 512 "${planner_schema_text}" "${PLANNER_MODEL_REPO:-}" "${PLANNER_MODEL_FILE:-}" "${PLANNER_CACHE_FILE:-}" "${planner_prompt_prefix}")" || raw_plan="[]"
 
-                if ! normalized_plan="$(normalize_planner_response <<<"${raw_plan}")"; then
-                        log "ERROR" "Planner output failed validation; request regeneration" "${raw_plan}" >&2
-                        continue
-                fi
+		if ! normalized_plan="$(normalize_planner_response <<<"${raw_plan}")"; then
+			log "ERROR" "Planner output failed validation; request regeneration" "${raw_plan}" >&2
+			continue
+		fi
 
-                candidate_score="$(score_planner_candidate "${normalized_plan}")"
-                jq -nc \
-                        --argjson index "${candidate_index}" \
-                        --argjson score "${candidate_score}" \
-                        --argjson response "${normalized_plan}" \
-                        '{index:$index, score:$score, response:$response}' >>"${debug_log_file}" 2>/dev/null || true
+		candidate_score="$(score_planner_candidate "${normalized_plan}")"
+		jq -nc \
+			--argjson index "${candidate_index}" \
+			--argjson score "${candidate_score}" \
+			--argjson response "${normalized_plan}" \
+			'{index:$index, score:$score, response:$response}' >>"${debug_log_file}" 2>/dev/null || true
 
-                if ((candidate_score > best_score)); then
-                        best_score=${candidate_score}
-                        best_plan="${normalized_plan}"
-                fi
-        done
+		if ((candidate_score > best_score)); then
+			best_score=${candidate_score}
+			best_plan="${normalized_plan}"
+		fi
+	done
 
-        if [[ -z "${best_plan}" ]]; then
-                log "ERROR" "Planner output failed validation; request regeneration" "no_valid_candidates" >&2
-                return 1
-        fi
+	if [[ -z "${best_plan}" ]]; then
+		log "ERROR" "Planner output failed validation; request regeneration" "no_valid_candidates" >&2
+		return 1
+	fi
 
-        printf '%s' "${best_plan}"
+	printf '%s' "${best_plan}"
 }
 
 generate_plan_outline() {

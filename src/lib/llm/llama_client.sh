@@ -100,13 +100,13 @@ llama_infer() {
 	local llama_args llama_arg_string stderr_file exit_code llama_stderr start_time_ns end_time_ns elapsed_ms llama_output
 	local default_context_size context_cap margin_percent prompt_tokens total_tokens computed_context target_context
 	local rope_freq_base rope_freq_scale template_descriptor prompt_context_detail
-        llama_args=(
-                "${LLAMA_BIN}"
-                --hf-repo "${repo_override}"
-                --hf-file "${file_override}"
-                -no-cnv --no-display-prompt --simple-io --verbose
-                -n "${number_of_tokens}"
-        )
+	llama_args=(
+		"${LLAMA_BIN}"
+		--hf-repo "${repo_override}"
+		--hf-file "${file_override}"
+		-no-cnv --no-display-prompt --simple-io --verbose
+		-n "${number_of_tokens}"
+	)
 
 	default_context_size=${LLAMA_DEFAULT_CONTEXT_SIZE:-4096}
 	context_cap=${LLAMA_CONTEXT_CAP:-8192}
@@ -131,13 +131,13 @@ llama_infer() {
 		llama_args+=(-c "${target_context}")
 	fi
 
-        if [[ -n "${stop_string}" ]]; then
-                llama_args+=(-r "${stop_string}")
-        fi
+	if [[ -n "${stop_string}" ]]; then
+		llama_args+=(-r "${stop_string}")
+	fi
 
-        if [[ -n "${LLAMA_TEMPERATURE:-}" ]]; then
-                llama_args+=(-temp "${LLAMA_TEMPERATURE}")
-        fi
+	if [[ -n "${LLAMA_TEMPERATURE:-}" ]]; then
+		llama_args+=(-temp "${LLAMA_TEMPERATURE}")
+	fi
 
 	rope_freq_base="${LLAMA_ROPE_FREQ_BASE:-}"
 	rope_freq_scale="${LLAMA_ROPE_FREQ_SCALE:-}"

@@ -13,8 +13,8 @@
 #   Inherits Bats semantics; assertions fail the test case.
 
 @test "generate_planner_response samples candidates and picks the best plan" {
-        run bash -lc "$(
-                cat <<'INNERSCRIPT'
+	run bash -lc "$(
+		cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
@@ -74,6 +74,6 @@ jq -e '.plan | length == 2' <<<"${response_json}" >/dev/null
 [[ "$(cat /tmp/planner_temperature_1)" == "0.15" ]]
 [[ "$(cat /tmp/planner_temperature_2)" == "0.15" ]]
 INNERSCRIPT
-        )"
-        [ "$status" -eq 0 ]
+	)"
+	[ "$status" -eq 0 ]
 }
