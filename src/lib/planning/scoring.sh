@@ -39,6 +39,13 @@ planner_is_side_effecting_tool() {
 	*) ;;
 	esac
 
+	# General-purpose tools: tools that produce side effects, but are also strongly informational.
+	case "$1" in
+	terminal | python_repl)
+		return 1
+		;;
+	esac
+
 	if [[ "$1" =~ ^mail_ ]]; then
 		return 0
 	fi
@@ -48,7 +55,7 @@ planner_is_side_effecting_tool() {
 	fi
 
 	case "$1" in
-	terminal | python_repl | notes_create | notes_append | reminders_create | calendar_create | mail_send | mail_draft)
+	notes_create | notes_append | reminders_create | calendar_create | mail_send | mail_draft)
 		return 0
 		;;
 	esac
@@ -121,9 +128,11 @@ score_planner_candidate() {
 	plan_json=$(jq -c '.plan' <<<"${normalized_json}" 2>/dev/null) || return 1
 	plan_length=$(jq -r 'length' <<<"${plan_json}" 2>/dev/null)
 
+	# Start with a score of 0, and add a tie_breaker based on how well the plan fits within the step budget.
 	score=0
 	tie_breaker=$((max_steps - plan_length))
 
+	# Add a score based on plan length
 	if ((plan_length <= max_steps)); then
 		score=$((score + 20 + tie_breaker))
 		rationale+=("Plan fits within ${max_steps}-step budget.")
@@ -134,6 +143,7 @@ score_planner_candidate() {
 		rationale+=("Plan exceeds ${max_steps}-step budget by ${over_budget} step(s).")
 	fi
 
+	# Add a score based on the final answer tool
 	final_tool=$(jq -r '.[-1].tool // ""' <<<"${plan_json}")
 	if [[ "${final_tool}" == "final_answer" ]]; then
 		score=$((score + 15))
