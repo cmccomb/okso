@@ -325,9 +325,8 @@ select_response_strategy() {
 	apply_settings_to_globals "${settings_prefix}"
 
 	if jq -e '.mode == "quickdraw"' <<<"${plan_response}" >/dev/null 2>&1; then
-		local quickdraw_answer quickdraw_rationale quickdraw_confidence
+		local quickdraw_answer quickdraw_confidence
 		quickdraw_answer="$(jq -r '.quickdraw.final_answer // ""' <<<"${plan_response}" 2>/dev/null || printf '')"
-		quickdraw_rationale="$(jq -r '.quickdraw.rationale // ""' <<<"${plan_response}" 2>/dev/null || printf '')"
 		quickdraw_confidence="$(jq -r '.quickdraw.confidence // "n/a"' <<<"${plan_response}" 2>/dev/null || printf '')"
 
 		log "INFO" "Planner quickdraw selected" "$(printf 'confidence=%s' "${quickdraw_confidence}")"
