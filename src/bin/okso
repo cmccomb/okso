@@ -99,7 +99,7 @@ source "${LIB_DIR}/runtime.sh"
 
 main() {
 	local settings_prefix
-        local plan_outline required_tools plan_entries plan_action plan_response
+	local plan_outline required_tools plan_entries plan_action plan_response
 
 	settings_prefix="settings"
 
@@ -120,18 +120,18 @@ main() {
 	# 1. Generate an outline, 2. identify tools, 3. build concrete plan entries
 	# for execution, then 4. render plan outputs before proceeding.
 	log "INFO" "Starting plan generation" "$(settings_get "${settings_prefix}" "user_query")"
-        plan_response="$(generate_planner_response "$(settings_get "${settings_prefix}" "user_query")")"
-        plan_outline="$(plan_json_to_outline "${plan_response}")"
-        required_tools="$(derive_allowed_tools_from_plan "${plan_response}")"
-        log "INFO" "Planner identified tools" "${required_tools}"
-        plan_entries="$(plan_json_to_entries "${plan_response}")"
+	plan_response="$(generate_planner_response "$(settings_get "${settings_prefix}" "user_query")")"
+	plan_outline="$(plan_json_to_outline "${plan_response}")"
+	required_tools="$(derive_allowed_tools_from_plan "${plan_response}")"
+	log "INFO" "Planner identified tools" "${required_tools}"
+	plan_entries="$(plan_json_to_entries "${plan_response}")"
 
-        render_plan_outputs plan_action "${settings_prefix}" "${required_tools}" "${plan_entries}" "${plan_outline}" "${plan_response}"
-        if [[ "${plan_action}" == "exit" ]]; then
-                return 0
-        fi
+	render_plan_outputs plan_action "${settings_prefix}" "${required_tools}" "${plan_entries}" "${plan_outline}" "${plan_response}"
+	if [[ "${plan_action}" == "exit" ]]; then
+		return 0
+	fi
 
-        select_response_strategy "${settings_prefix}" "${required_tools}" "${plan_entries}" "${plan_outline}" "${plan_response}"
+	select_response_strategy "${settings_prefix}" "${required_tools}" "${plan_entries}" "${plan_outline}" "${plan_response}"
 }
 
 main "$@"

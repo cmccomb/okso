@@ -242,31 +242,31 @@ prepare_environment_with_settings() {
 }
 # shellcheck disable=SC2034
 render_plan_outputs() {
-        # Arguments:
-        #   $1 - name of variable to receive action ("continue" or "exit")
-        #   $2 - settings namespace prefix
-        #   $3 - required tools list (newline delimited)
-        #   $4 - plan entries string
-        #   $5 - plan outline text
-        #   $6 - planner response JSON
-        local action_var settings_prefix
-        action_var="$1"
-        settings_prefix="$2"
-        local required_tools plan_entries plan_outline plan_response
-        required_tools="$3"
-        plan_entries="$4"
-        plan_outline="$5"
-        plan_response="$6"
+	# Arguments:
+	#   $1 - name of variable to receive action ("continue" or "exit")
+	#   $2 - settings namespace prefix
+	#   $3 - required tools list (newline delimited)
+	#   $4 - plan entries string
+	#   $5 - plan outline text
+	#   $6 - planner response JSON
+	local action_var settings_prefix
+	action_var="$1"
+	settings_prefix="$2"
+	local required_tools plan_entries plan_outline plan_response
+	required_tools="$3"
+	plan_entries="$4"
+	plan_outline="$5"
+	plan_response="$6"
 
 	set_by_name "${action_var}" "continue"
 
-        local plan_json tool_list_json
-        if [[ -n "${plan_response}" ]]; then
-                plan_json="${plan_response}"
-        else
-                plan_json="$(emit_plan_json "${plan_entries}")"
-        fi
-        tool_list_json="$(printf '%s' "${required_tools}" | jq -Rsc 'split("\n") | map(select(length>0))')"
+	local plan_json tool_list_json
+	if [[ -n "${plan_response}" ]]; then
+		plan_json="${plan_response}"
+	else
+		plan_json="$(emit_plan_json "${plan_entries}")"
+	fi
+	tool_list_json="$(printf '%s' "${required_tools}" | jq -Rsc 'split("\n") | map(select(length>0))')"
 
 	if [[ -z "${required_tools}" ]]; then
 		log "INFO" "Suggested tools" "none"
@@ -274,21 +274,21 @@ render_plan_outputs() {
 		log_pretty "INFO" "Suggested tools" "${tool_list_json}"
 	fi
 
-        if [[ -n "${plan_outline}" ]]; then
-                log_pretty "INFO" "Plan outline" "${plan_outline}"
-        fi
+	if [[ -n "${plan_outline}" ]]; then
+		log_pretty "INFO" "Plan outline" "${plan_outline}"
+	fi
 
-        if jq -e '.mode == "quickdraw"' <<<"${plan_json}" >/dev/null 2>&1; then
-                log_pretty "INFO" "Quickdraw summary" "${plan_json}"
-        fi
+	if jq -e '.mode == "quickdraw"' <<<"${plan_json}" >/dev/null 2>&1; then
+		log_pretty "INFO" "Quickdraw summary" "${plan_json}"
+	fi
 
 	if [[ "$(settings_get "${settings_prefix}" "plan_only")" == true ]]; then
 		# plan-only short-circuits execution and dry-run emission; callers handle
 		# the resulting action_ref to exit early.
-                log_pretty "INFO" "Plan JSON" "${plan_json}"
-                set_by_name "${action_var}" "exit"
-                return 0
-        fi
+		log_pretty "INFO" "Plan JSON" "${plan_json}"
+		set_by_name "${action_var}" "exit"
+		return 0
+	fi
 
 	if [[ "$(settings_get "${settings_prefix}" "dry_run")" == true ]]; then
 		# Dry run prints the intended commands for operator inspection while still
@@ -307,48 +307,48 @@ render_plan_outputs() {
 }
 
 select_response_strategy() {
-        # Arguments:
-        #   $1 - settings namespace prefix
-        #   $2 - required tools string
-        #   $3 - plan entries string
-        #   $4 - plan outline text
-        #   $5 - planner response JSON
-        local settings_prefix
-        settings_prefix="$1"
-        shift
-        local required_tools plan_entries plan_outline plan_response direct_response
-        required_tools="$1"
-        plan_entries="$2"
-        plan_outline="$3"
-        plan_response="$4"
+	# Arguments:
+	#   $1 - settings namespace prefix
+	#   $2 - required tools string
+	#   $3 - plan entries string
+	#   $4 - plan outline text
+	#   $5 - planner response JSON
+	local settings_prefix
+	settings_prefix="$1"
+	shift
+	local required_tools plan_entries plan_outline plan_response direct_response
+	required_tools="$1"
+	plan_entries="$2"
+	plan_outline="$3"
+	plan_response="$4"
 
 	apply_settings_to_globals "${settings_prefix}"
 
-        if jq -e '.mode == "quickdraw"' <<<"${plan_response}" >/dev/null 2>&1; then
-                local quickdraw_answer quickdraw_rationale quickdraw_confidence
-                quickdraw_answer="$(jq -r '.quickdraw.final_answer // ""' <<<"${plan_response}" 2>/dev/null || printf '')"
-                quickdraw_rationale="$(jq -r '.quickdraw.rationale // ""' <<<"${plan_response}" 2>/dev/null || printf '')"
-                quickdraw_confidence="$(jq -r '.quickdraw.confidence // "n/a"' <<<"${plan_response}" 2>/dev/null || printf '')"
+	if jq -e '.mode == "quickdraw"' <<<"${plan_response}" >/dev/null 2>&1; then
+		local quickdraw_answer quickdraw_rationale quickdraw_confidence
+		quickdraw_answer="$(jq -r '.quickdraw.final_answer // ""' <<<"${plan_response}" 2>/dev/null || printf '')"
+		quickdraw_rationale="$(jq -r '.quickdraw.rationale // ""' <<<"${plan_response}" 2>/dev/null || printf '')"
+		quickdraw_confidence="$(jq -r '.quickdraw.confidence // "n/a"' <<<"${plan_response}" 2>/dev/null || printf '')"
 
-                log "INFO" "Planner quickdraw selected" "$(printf 'confidence=%s' "${quickdraw_confidence}")"
-                if [[ -n "${quickdraw_answer}" ]]; then
-                        user_output_line "${quickdraw_answer}"
-                fi
-                emit_boxed_summary "${USER_QUERY}" "${plan_outline}" "" "${quickdraw_answer}"
-                return 0
-        fi
+		log "INFO" "Planner quickdraw selected" "$(printf 'confidence=%s' "${quickdraw_confidence}")"
+		if [[ -n "${quickdraw_answer}" ]]; then
+			user_output_line "${quickdraw_answer}"
+		fi
+		emit_boxed_summary "${USER_QUERY}" "${plan_outline}" "" "${quickdraw_answer}"
+		return 0
+	fi
 
-        if [[ -z "${required_tools}" ]]; then
-                # The planner may occasionally decline tools; fall back to direct text
-                # responses so the user still receives output.
-                log "ERROR" "No tools selected; responding directly" "${USER_QUERY}"
-                log "INFO" "Planner emitted no tools; using direct response" "${USER_QUERY}"
-                direct_response="$(respond_text "${USER_QUERY}" 256)"
-                log_pretty "INFO" "Final answer" "${direct_response}"
-                log "INFO" "Execution summary" "No tool runs"
-                emit_boxed_summary "${USER_QUERY}" "${plan_outline}" "" "${direct_response}"
-                return 0
-        fi
+	if [[ -z "${required_tools}" ]]; then
+		# The planner may occasionally decline tools; fall back to direct text
+		# responses so the user still receives output.
+		log "ERROR" "No tools selected; responding directly" "${USER_QUERY}"
+		log "INFO" "Planner emitted no tools; using direct response" "${USER_QUERY}"
+		direct_response="$(respond_text "${USER_QUERY}" 256)"
+		log_pretty "INFO" "Final answer" "${direct_response}"
+		log "INFO" "Execution summary" "No tool runs"
+		emit_boxed_summary "${USER_QUERY}" "${plan_outline}" "" "${direct_response}"
+		return 0
+	fi
 
-        react_loop "${USER_QUERY}" "${required_tools}" "${plan_entries}" "${plan_outline}"
+	react_loop "${USER_QUERY}" "${required_tools}" "${plan_entries}" "${plan_outline}"
 }
