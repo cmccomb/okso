@@ -178,21 +178,6 @@ generate_planner_response() {
 		done < <(tool_names)
 	fi
 
-	local -a filtered_tools=()
-	local removed_web_search=false
-	for tool_name in "${planner_tools[@]}"; do
-		if [[ "${tool_name}" == "web_search" ]]; then
-			removed_web_search=true
-			continue
-		fi
-		filtered_tools+=("${tool_name}")
-	done
-	planner_tools=("${filtered_tools[@]}")
-	if [[ "${removed_web_search}" == true ]]; then
-		log "INFO" "Planner will use pre-plan search context instead of scheduling web_search" \
-			"planner_tools_removed=web_search" >&2
-	fi
-
 	local planner_tool_catalog
 	planner_tool_catalog="$(printf '%s\n' "${planner_tools[@]}" | paste -sd ',' -)"
 	log "DEBUG" "Planner tool catalog" "${planner_tool_catalog}" >&2
