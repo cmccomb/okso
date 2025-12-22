@@ -44,6 +44,21 @@
   "definitions": {
     "plan_steps": {
       "type": "array",
+      "allOf": [
+        {
+          "maxContains": 2,
+          "contains": {
+            "type": "object",
+            "required": ["tool"],
+            "properties": {
+              "tool": {
+                "const": "web_search"
+              }
+            }
+          },
+          "description": "Cap web_search steps to two to keep planning deterministic and cost-bounded."
+        }
+      ],
       "items": {
         "type": "object",
         "required": ["tool", "args"],

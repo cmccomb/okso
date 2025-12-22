@@ -141,6 +141,40 @@ SCRIPT
 	[ "${lines[3]}" = "final_answer" ]
 }
 
+@test "derive_allowed_tools_from_plan exports web_search budget" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+export PLANNER_WEB_SEARCH_BUDGET_FILE="$(mktemp)"
+export VERBOSITY=0
+source ./src/lib/planning/planner.sh
+tool_names() { printf "%s\n" terminal web_search final_answer; }
+plan_json='[{"tool":"web_search","args":{}},{"tool":"web_search","args":{}},{"tool":"final_answer","args":{}}]'
+tools=()
+while IFS= read -r line; do
+        tools+=("$line")
+done < <(derive_allowed_tools_from_plan "${plan_json}")
+budget="$(planner_web_search_budget_value)"
+printf "budget=%s\n" "${budget}"
+printf "tools=%s\n" "${tools[*]}"
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "budget=2" ]
+	[ "${lines[1]}" = "tools=web_search final_answer" ]
+}
+
+@test "derive_allowed_tools_from_plan rejects plans exceeding web_search budget" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+source ./src/lib/planning/planner.sh
+tool_names() { printf "%s\n" terminal web_search final_answer; }
+plan_json='[{"tool":"web_search"},{"tool":"web_search"},{"tool":"web_search"},{"tool":"final_answer"}]'
+derive_allowed_tools_from_plan "${plan_json}" >/dev/null
+SCRIPT
+
+	[ "$status" -ne 0 ]
+}
+
 @test "select_next_action uses deterministic plan when llama disabled" {
 	run bash <<'SCRIPT'
 set -euo pipefail

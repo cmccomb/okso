@@ -37,8 +37,13 @@ initialize_react_state() {
 	#   $3 - allowed tools (string, newline delimited)
 	#   $4 - ranked plan entries (string)
 	#   $5 - plan outline text (string)
-	local state_prefix
+	local state_prefix web_search_budget
 	state_prefix="$1"
+
+	web_search_budget="${PLANNER_WEB_SEARCH_BUDGET:-0}"
+	if ! [[ "${web_search_budget}" =~ ^[0-9]+$ ]]; then
+		web_search_budget=0
+	fi
 
 	state_set_json_document "${state_prefix}" "$(jq -c -n \
 		--arg user_query "$2" \
@@ -46,6 +51,7 @@ initialize_react_state() {
 		--arg plan_entries "$4" \
 		--arg plan_outline "$5" \
 		--argjson max_steps "${MAX_STEPS:-6}" \
+		--argjson web_search_budget "${web_search_budget}" \
 		'{
                         user_query: $user_query,
                         allowed_tools: $allowed_tools,
@@ -55,6 +61,8 @@ initialize_react_state() {
                         step: 0,
                         plan_index: 0,
                         max_steps: $max_steps,
+                        web_search_budget: $web_search_budget,
+                        web_search_consumed: 0,
                         final_answer: "",
                         final_answer_action: "",
                         last_action: null

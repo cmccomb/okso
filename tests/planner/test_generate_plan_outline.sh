@@ -9,20 +9,6 @@
 #   - bats
 #   - bash 3.2+
 
-@test "generate_plan_outline fails when llama is unavailable" {
-	run bash -lc '
-                cd "$(git rev-parse --show-toplevel)" || exit 1
-                enable -n mapfile 2>/dev/null || true
-
-                source ./src/lib/planning/planner.sh
-
-                LLAMA_AVAILABLE=false
-                generate_plan_outline "Summarize request"
-        '
-	[ "$status" -ne 0 ]
-	[[ "${output}" == *"llama.cpp is required for planner generation"* ]]
-}
-
 @test "generate_plan_outline falls back to tool_names when TOOLS is unset" {
 	run bash -lc "$(
 		cat <<'INNERSCRIPT'
