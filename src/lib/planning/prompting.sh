@@ -44,7 +44,7 @@ build_planner_prompt_with_tools() {
 		tool_lines=""
 	fi
 
-        build_planner_prompt "${user_query}" "${tool_lines}" ""
+	build_planner_prompt "${user_query}" "${tool_lines}" ""
 }
 
 plan_json_to_outline() {

@@ -47,9 +47,9 @@ source "${PLANNING_LIB_DIR}/../core/errors.sh"
 source "${PLANNING_LIB_DIR}/../core/logging.sh"
 # shellcheck source=../tools.sh disable=SC1091
 if [[ "${PLANNER_SKIP_TOOL_LOAD:-false}" != true ]]; then
-        source "${PLANNING_LIB_DIR}/../tools.sh"
+	source "${PLANNING_LIB_DIR}/../tools.sh"
 else
-        log "DEBUG" "Skipping tool suite load" "planner_skip_tool_load=true" >&2
+	log "DEBUG" "Skipping tool suite load" "planner_skip_tool_load=true" >&2
 fi
 # shellcheck source=../assistant/respond.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/../assistant/respond.sh"
@@ -72,8 +72,8 @@ source "${PLANNING_LIB_DIR}/scoring.sh"
 # shellcheck source=./prompting.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/prompting.sh"
 if [[ "${PLANNER_SKIP_TOOL_LOAD:-false}" != true ]]; then
-        # shellcheck source=../exec/dispatch.sh disable=SC1091
-        source "${PLANNING_LIB_DIR}/../exec/dispatch.sh"
+	# shellcheck source=../exec/dispatch.sh disable=SC1091
+	source "${PLANNING_LIB_DIR}/../exec/dispatch.sh"
 fi
 
 initialize_planner_models() {
@@ -84,18 +84,18 @@ initialize_planner_models() {
 export -f initialize_planner_models
 
 planner_format_search_context() {
-        # Formats web search JSON into readable prompt text.
-        # Arguments:
-        #   $1 - raw search payload (JSON string)
-        local raw_context formatted
-        raw_context="$1"
+	# Formats web search JSON into readable prompt text.
+	# Arguments:
+	#   $1 - raw search payload (JSON string)
+	local raw_context formatted
+	raw_context="$1"
 
-        if [[ -z "${raw_context}" ]]; then
-                printf '%s' "Search context unavailable."
-                return 0
-        fi
+	if [[ -z "${raw_context}" ]]; then
+		printf '%s' "Search context unavailable."
+		return 0
+	fi
 
-        if ! formatted=$(jq -r '
+	if ! formatted=$(jq -r '
                 def fmt(idx; item): "\(idx). \(item.title // "Untitled"): \(item.snippet // "") [\(item.url // "")";
                 if (.items | length == 0) then
                         "No search results were captured for this query."
@@ -104,43 +104,43 @@ planner_format_search_context() {
                         ((.items // []) | to_entries | map(fmt(.key + 1; .value)) | join("\n"))
                 end
         ' <<<"${raw_context}" 2>/dev/null); then
-                log "ERROR" "Failed to format search context" "planner_search_context_parse_error" >&2
-                printf '%s' "Search context unavailable."
-                return 0
-        fi
+		log "ERROR" "Failed to format search context" "planner_search_context_parse_error" >&2
+		printf '%s' "Search context unavailable."
+		return 0
+	fi
 
-        printf '%s' "${formatted}"
+	printf '%s' "${formatted}"
 }
 
 planner_fetch_search_context() {
-        # Executes a deterministic web search before planning.
-        # Arguments:
-        #   $1 - user query (string)
-        # Returns:
-        #   Formatted search context (string). Fallbacks are empty but non-fatal.
-        local user_query tool_args raw_context
-        user_query="$1"
+	# Executes a deterministic web search before planning.
+	# Arguments:
+	#   $1 - user query (string)
+	# Returns:
+	#   Formatted search context (string). Fallbacks are empty but non-fatal.
+	local user_query tool_args raw_context
+	user_query="$1"
 
-        if ! declare -F tool_web_search >/dev/null 2>&1; then
-                log "WARN" "web_search tool unavailable; skipping pre-plan search" "planner_tools_missing_web_search" >&2
-                printf '%s' "Search context unavailable."
-                return 0
-        fi
+	if ! declare -F tool_web_search >/dev/null 2>&1; then
+		log "WARN" "web_search tool unavailable; skipping pre-plan search" "planner_tools_missing_web_search" >&2
+		printf '%s' "Search context unavailable."
+		return 0
+	fi
 
-        tool_args=$(jq -nc --arg query "${user_query}" '{query:$query, num:5}' 2>/dev/null)
-        if [[ -z "${tool_args}" ]]; then
-                log "WARN" "Failed to encode search args" "planner_search_args_encoding_failed" >&2
-                printf '%s' "Search context unavailable."
-                return 0
-        fi
+	tool_args=$(jq -nc --arg query "${user_query}" '{query:$query, num:5}' 2>/dev/null)
+	if [[ -z "${tool_args}" ]]; then
+		log "WARN" "Failed to encode search args" "planner_search_args_encoding_failed" >&2
+		printf '%s' "Search context unavailable."
+		return 0
+	fi
 
-        if ! raw_context=$(TOOL_ARGS="${tool_args}" tool_web_search 2>/dev/null); then
-                log "WARN" "Pre-plan search failed" "planner_preplan_search_failed" >&2
-                printf '%s' "Search context unavailable."
-                return 0
-        fi
+	if ! raw_context=$(TOOL_ARGS="${tool_args}" tool_web_search 2>/dev/null); then
+		log "WARN" "Pre-plan search failed" "planner_preplan_search_failed" >&2
+		printf '%s' "Search context unavailable."
+		return 0
+	fi
 
-        planner_format_search_context "${raw_context}"
+	planner_format_search_context "${raw_context}"
 }
 
 lowercase() {
@@ -178,34 +178,34 @@ generate_planner_response() {
 		done < <(tool_names)
 	fi
 
-        local -a filtered_tools=()
-        local removed_web_search=false
-        for tool_name in "${planner_tools[@]}"; do
-                if [[ "${tool_name}" == "web_search" ]]; then
-                        removed_web_search=true
-                        continue
-                fi
-                filtered_tools+=("${tool_name}")
-        done
-        planner_tools=("${filtered_tools[@]}")
-        if [[ "${removed_web_search}" == true ]]; then
-                log "INFO" "Planner will use pre-plan search context instead of scheduling web_search" \
-                        "planner_tools_removed=web_search" >&2
-        fi
+	local -a filtered_tools=()
+	local removed_web_search=false
+	for tool_name in "${planner_tools[@]}"; do
+		if [[ "${tool_name}" == "web_search" ]]; then
+			removed_web_search=true
+			continue
+		fi
+		filtered_tools+=("${tool_name}")
+	done
+	planner_tools=("${filtered_tools[@]}")
+	if [[ "${removed_web_search}" == true ]]; then
+		log "INFO" "Planner will use pre-plan search context instead of scheduling web_search" \
+			"planner_tools_removed=web_search" >&2
+	fi
 
 	local planner_tool_catalog
 	planner_tool_catalog="$(printf '%s\n' "${planner_tools[@]}" | paste -sd ',' -)"
 	log "DEBUG" "Planner tool catalog" "${planner_tool_catalog}" >&2
 
-        local planner_schema_text planner_prompt_prefix planner_suffix tool_lines prompt search_context
-        planner_schema_text="$(load_schema_text planner_plan)"
+	local planner_schema_text planner_prompt_prefix planner_suffix tool_lines prompt search_context
+	planner_schema_text="$(load_schema_text planner_plan)"
 
-        tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_line)"
-        search_context="$(planner_fetch_search_context "${user_query}")"
-        planner_prompt_prefix="$(build_planner_prompt_static_prefix)"
-        planner_suffix="$(build_planner_prompt_dynamic_suffix "${user_query}" "${tool_lines}" "${search_context}")"
-        prompt="${planner_prompt_prefix}${planner_suffix}"
-        log "DEBUG" "Generated planner prompt" "${prompt}" >&2
+	tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_line)"
+	search_context="$(planner_fetch_search_context "${user_query}")"
+	planner_prompt_prefix="$(build_planner_prompt_static_prefix)"
+	planner_suffix="$(build_planner_prompt_dynamic_suffix "${user_query}" "${tool_lines}" "${search_context}")"
+	prompt="${planner_prompt_prefix}${planner_suffix}"
+	log "DEBUG" "Generated planner prompt" "${prompt}" >&2
 
 	local sample_count temperature debug_log_dir debug_log_file
 	sample_count="${PLANNER_SAMPLE_COUNT:-3}"

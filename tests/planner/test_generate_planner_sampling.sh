@@ -80,8 +80,8 @@ INNERSCRIPT
 }
 
 @test "generate_planner_response samples all candidates when the first plan uses tools" {
-        run bash -lc "$(
-                cat <<'INNERSCRIPT'
+	run bash -lc "$(
+		cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
@@ -143,13 +143,13 @@ jq -e '.plan | length == 3' <<<"${response_json}" >/dev/null
 [[ "$(cat /tmp/planner_temperature_1)" == "0.15" ]]
 [[ "$(cat /tmp/planner_temperature_2)" == "0.15" ]]
 INNERSCRIPT
-        )"
-        [ "$status" -eq 0 ]
+	)"
+	[ "$status" -eq 0 ]
 }
 
 @test "generate_planner_response performs pre-plan search once per session" {
-        run bash -lc "$(
-                cat <<'INNERSCRIPT'
+	run bash -lc "$(
+		cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
@@ -203,6 +203,6 @@ generate_planner_response "Find updates"
 [[ "$(cat /tmp/preplan_context)" == "Harvested search notes" ]]
 [[ "$(cat /tmp/preplan_llama_calls)" -eq 2 ]]
 INNERSCRIPT
-        )"
-        [ "$status" -eq 0 ]
+	)"
+	[ "$status" -eq 0 ]
 }
