@@ -7,6 +7,9 @@ okso separates high-level planning from step-by-step execution so that tool call
 1. The planner drafts a numbered outline that mentions the tools to use for each step.
 2. The outline is emitted as structured JSON for logging and optional downstream automation.
 3. Approval prompts give you a chance to refine or abort the plan before any commands run.
+4. A side-effect-free scorer evaluates each sampled outline before selection. Plans that stay within the `PLANNER_MAX_PLAN_STEPS`
+   budget, end with `final_answer`, use registered tools with schema-compliant arguments, and delay side-effecting actions receive
+   higher scores and win ties when multiple candidates share the same numeric total.
 
 ## ReAct loop
 

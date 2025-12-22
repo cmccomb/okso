@@ -1,0 +1,213 @@
+#!/usr/bin/env bash
+# shellcheck shell=bash
+#
+# Planner candidate scoring utilities.
+#
+# Usage:
+#   source "${BASH_SOURCE[0]%/scoring.sh}/scoring.sh"
+#
+# Environment variables:
+#   PLANNER_MAX_PLAN_STEPS (int): upper bound for plan length; defaults to 6.
+#
+# Dependencies:
+#   - bash 3.2+
+#   - jq
+#
+# Exit codes:
+#   Functions return non-zero on validation failures.
+
+PLANNING_SCORING_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+planner_is_tool_available() {
+        # Checks whether the provided tool is registered.
+        # Arguments:
+        #   $1 - tool name (string)
+        #   $2 - newline-delimited tool names (string)
+        local tool available_tools
+        tool="$1"
+        available_tools="$2"
+
+        grep -Fxq "${tool}" <<<"${available_tools}" 2>/dev/null
+}
+
+planner_is_side_effecting_tool() {
+        # Heuristic to detect tools that can mutate user data or environment.
+        # Arguments:
+        #   $1 - tool name (string)
+        case "$1" in
+        final_answer | web_search | notes_list | notes_read | notes_search | reminders_list | calendar_list | calendar_search | feedback)
+                return 1 ;;
+        *)
+                ;;
+        esac
+
+        if [[ "$1" =~ ^mail_ ]]; then
+                return 0
+        fi
+
+        if [[ "$1" =~ (create|append|delete|update|send|write|draft) ]]; then
+                return 0
+        fi
+
+        case "$1" in
+        terminal | python_repl | notes_create | notes_append | reminders_create | calendar_create | mail_send | mail_draft)
+                return 0 ;;
+        esac
+
+        return 1
+}
+
+planner_args_satisfiable() {
+        # Validates that planner-suggested args satisfy the registered schema.
+        # Arguments:
+        #   $1 - tool args schema JSON (string)
+        #   $2 - planner args JSON (string)
+        local schema_json args_json
+        schema_json=${1:-"{}"}
+        args_json=${2:-"{}"}
+
+        jq -e --argjson schema "${schema_json}" --argjson args "${args_json}" '
+                def matches_type($value; $schema):
+                        ($schema.type // "") as $t
+                        | if $t == "" then true
+                          elif $t == "string" then ($value | type == "string") and (if ($schema.minLength // null) then ((($value | length) >= ($schema.minLength))) else true end) and (if ($schema.enum // null) then (($schema.enum | index($value)) != null) else true end)
+                          elif $t == "integer" then ($value | type == "number" and ($value == ($value | floor)))
+                          elif $t == "number" then ($value | type == "number")
+                          elif $t == "boolean" then ($value | type == "boolean")
+                          elif $t == "array" then ($value | type == "array") and ((($schema.items // null) == null) or all($value[]; matches_type(.; ($schema.items // {}))))
+                          elif $t == "object" then ($value | type == "object")
+                          else true end;
+
+                def required_present($args; $required):
+                        all($required[]; $args | has(.));
+
+                def properties_valid($args; $props):
+                        all($props | to_entries[]; ($args[.key] // null) as $v | ($v == null) or matches_type($v; .value));
+
+                if ($schema | type) != "object" then
+                        false
+                elif ($schema | length) == 0 then
+                        true
+                else
+                        ($args | type == "object")
+                        and required_present($args; ($schema.required // []))
+                        and properties_valid($args; ($schema.properties // {}))
+                        and (if ($schema.additionalProperties // true) == false then all($args | keys[]; ($schema.properties // {} | has(.))) else true end)
+                end
+        ' >/dev/null 2>&1
+}
+
+score_planner_candidate() {
+        # Scores a normalized planner response for downstream selection.
+        # Arguments:
+        #   $1 - normalized planner response JSON (string)
+        local normalized_json mode plan_json plan_length max_steps available_tools availability_known
+        local score tie_breaker over_budget rationale_json final_tool
+        local -a rationale=()
+
+        normalized_json="$1"
+        max_steps=${PLANNER_MAX_PLAN_STEPS:-6}
+        if ! [[ "${max_steps}" =~ ^[0-9]+$ ]] || ((max_steps < 1)); then
+                max_steps=6
+        fi
+
+        mode=$(jq -r '.mode // ""' <<<"${normalized_json}" 2>/dev/null)
+        if [[ "${mode}" == "quickdraw" ]]; then
+                rationale+=("Quickdraw response with direct final_answer.")
+                rationale_json=$(printf '%s\0' "${rationale[@]}" | jq -Rs 'split("\u0000") | map(select(length>0))')
+                jq -nc --argjson score 10 --argjson rationale "${rationale_json}" '{score:$score,tie_breaker:0,plan_length:0,max_steps:0,rationale:$rationale}'
+                return 0
+        fi
+
+        plan_json=$(jq -c '.plan' <<<"${normalized_json}" 2>/dev/null) || return 1
+        plan_length=$(jq -r 'length' <<<"${plan_json}" 2>/dev/null)
+
+        score=0
+        tie_breaker=$((max_steps - plan_length))
+
+        if ((plan_length <= max_steps)); then
+                score=$((score + 20 + tie_breaker))
+                rationale+=("Plan fits within ${max_steps}-step budget.")
+        else
+                over_budget=$((plan_length - max_steps))
+                score=$((score - (over_budget * 10)))
+                tie_breaker=$((-over_budget))
+                rationale+=("Plan exceeds ${max_steps}-step budget by ${over_budget} step(s).")
+        fi
+
+        final_tool=$(jq -r '.[-1].tool // ""' <<<"${plan_json}")
+        if [[ "${final_tool}" == "final_answer" ]]; then
+                score=$((score + 15))
+                rationale+=("Plan terminates with final_answer.")
+        else
+                score=$((score - 25))
+                rationale+=("Plan must terminate with final_answer as the final step.")
+        fi
+
+        available_tools="$(tool_names)"
+        availability_known=true
+        if [[ -z "${available_tools}" ]]; then
+                availability_known=false
+                rationale+=("Tool registry is empty; skipping availability checks.")
+        fi
+
+        local idx=0 valid_tools=0 missing_tools=0 invalid_args=0 side_effect_index=-1
+        while IFS= read -r step; do
+                local tool args schema
+                tool=$(jq -r '.tool // ""' <<<"${step}")
+                args=$(jq -c '.args // {}' <<<"${step}")
+                schema="$(tool_args_schema "${tool}")"
+
+                if [[ "${availability_known}" == true ]]; then
+                        if planner_is_tool_available "${tool}" "${available_tools}"; then
+                                valid_tools=$((valid_tools + 1))
+                        else
+                                missing_tools=$((missing_tools + 1))
+                        fi
+                fi
+
+                if [[ -n "${schema}" ]] && ! planner_args_satisfiable "${schema}" "${args}"; then
+                        invalid_args=$((invalid_args + 1))
+                fi
+
+                if ((side_effect_index < 0)) && planner_is_side_effecting_tool "${tool}"; then
+                        side_effect_index=${idx}
+                fi
+
+                idx=$((idx + 1))
+        done < <(jq -cr '.[]' <<<"${plan_json}")
+
+        score=$((score + (valid_tools * 3)))
+        if ((missing_tools > 0)); then
+                score=$((score - (missing_tools * 25)))
+                rationale+=("Plan references ${missing_tools} unavailable tool(s).")
+        elif [[ "${availability_known}" == true ]]; then
+                rationale+=("All tools are registered in the planner catalog.")
+        fi
+
+        if ((invalid_args > 0)); then
+                score=$((score - (invalid_args * 10)))
+                rationale+=("Args fail schema checks for ${invalid_args} step(s).")
+        else
+                rationale+=("Planner args satisfy registered tool schemas.")
+        fi
+
+        if ((side_effect_index == 0 && plan_length > 1)); then
+                score=$((score - 10))
+                rationale+=("First step is side-effecting before gathering information.")
+        elif ((side_effect_index > 0)); then
+                score=$((score + 5))
+                rationale+=("Side-effecting actions are deferred until step $((side_effect_index + 1)).")
+        else
+                score=$((score + 5))
+                rationale+=("No side-effecting tools detected in the plan.")
+        fi
+
+        rationale_json=$(printf '%s\0' "${rationale[@]}" | jq -Rs 'split("\u0000") | map(select(length>0))')
+        jq -nc --argjson score "${score}" --argjson tie_breaker "${tie_breaker}" --argjson plan_length "${plan_length}" --argjson max_steps "${max_steps}" --argjson rationale "${rationale_json}" '{score:$score,tie_breaker:$tie_breaker,plan_length:$plan_length,max_steps:$max_steps,rationale:$rationale}'
+}
+
+export -f planner_args_satisfiable
+export -f planner_is_side_effecting_tool
+export -f planner_is_tool_available
+export -f score_planner_candidate

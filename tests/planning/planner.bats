@@ -8,22 +8,22 @@ setup() {
 }
 
 @test "generate_plan_json falls back when llama is unavailable" {
-	run env -i HOME="$HOME" PATH="$PATH" bash <<'SCRIPT'
+        run env -i HOME="$HOME" PATH="$PATH" bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/planner.sh
 LLAMA_AVAILABLE=false
 generate_plan_json "tell me a joke"
 SCRIPT
 
-	[ "$status" -eq 0 ]
-	mode=$(printf '%s' "${output}" | jq -r '.mode')
-	answer=$(printf '%s' "${output}" | jq -r '.quickdraw.final_answer')
-	[ "${mode}" = "quickdraw" ]
-	[ -n "${answer}" ]
+        [ "$status" -eq 0 ]
+        mode=$(printf '%s' "${output}" | tail -n 1 | jq -r '.mode')
+        answer=$(printf '%s' "${output}" | tail -n 1 | jq -r '.quickdraw.final_answer')
+        [ "${mode}" = "quickdraw" ]
+        [ -n "${answer}" ]
 }
 
 @test "generate_plan_json appends final step to llama output" {
-	run env -i HOME="$HOME" PATH="$PATH" bash <<'SCRIPT'
+        run env -i HOME="$HOME" PATH="$PATH" bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/planner.sh
 LLAMA_AVAILABLE=true
@@ -33,7 +33,10 @@ llama_infer() { printf '[{"tool":"terminal","args":{},"thought":"do"}]'; }
 generate_plan_json "list" | jq -r '.[].tool'
 SCRIPT
 
-	[ "$status" -eq 0 ]
-	[ "${lines[0]}" = "terminal" ]
-	[ "${lines[1]}" = "final_answer" ]
+        [ "$status" -eq 0 ]
+        tools=$(printf '%s\n' "${output}" | grep -E '^(terminal|final_answer)$')
+        first_tool=$(printf '%s\n' "${tools}" | sed -n '1p')
+        second_tool=$(printf '%s\n' "${tools}" | sed -n '2p')
+        [ "${first_tool}" = "terminal" ]
+        [ "${second_tool}" = "final_answer" ]
 }

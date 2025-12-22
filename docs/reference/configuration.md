@@ -47,6 +47,7 @@ PLANNER_DEBUG_LOG=${TMPDIR:-/tmp}/okso_planner_candidates.log
 - `LLAMA_CONTEXT_MARGIN_PERCENT`: Safety margin percentage applied to prompt + generation estimates when sizing context (default: `15`).
 - `PLANNER_SAMPLE_COUNT`: Number of planner generations to sample before selecting a plan (default: `3`).
 - `PLANNER_TEMPERATURE`: Temperature passed to planner llama.cpp generations (default: `0.2`).
+- `PLANNER_MAX_PLAN_STEPS`: Maximum allowed planner steps (including `final_answer`) before scoring penalties apply (default: `6`).
 - `PLANNER_DEBUG_LOG`: Path to a JSONL file containing planner candidate plans and scores for troubleshooting (default: `${TMPDIR:-/tmp}/okso_planner_candidates.log`).
 - `LLAMA_TEMPERATURE`: Temperature forwarded to llama.cpp inference; overrides tool-specific defaults when set.
 - `TESTING_PASSTHROUGH`: `true` to bypass llama.cpp for offline or deterministic runs.
