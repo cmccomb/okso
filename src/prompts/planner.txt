@@ -39,8 +39,9 @@ Each action must clearly indicate which tool will be used.
 If a query involves any kind of calculation, recommend a calculation tool.
 When describing tool usage, reference the structured argument fields each tool expects (for example terminal => {command, args}, notes_create => {title, body}, reminders_create => {title, time, notes}).
 # Web search discipline (rationale: keeps planning deterministic and cost-bounded while still allowing lightweight fact checks)
-Use `web_search` only when the user request cannot be planned without fresh context or public facts.
-Cap `web_search` to one or two short, targeted queries.
+Use web_search only when the user request cannot be planned without fresh context or public facts.
+Cap web_search to at most two short, targeted queries.
+You may not include more than two web_search steps in the plan; opt for fewer when possible.
 Plans requesting more than two searches will be rejected; keep searches concise or note why none are needed.
 Summarize results deterministically and solely to shape the plan; do not execute tasks or actions based on the search output.
 

@@ -66,6 +66,11 @@ source "${PLANNING_LIB_DIR}/../exec/dispatch.sh"
 
 PLANNER_WEB_SEARCH_BUDGET_FILE=${PLANNER_WEB_SEARCH_BUDGET_FILE:-"${TMPDIR:-/tmp}/okso_planner_web_search_budget"}
 export PLANNER_WEB_SEARCH_BUDGET_FILE
+PLANNER_WEB_SEARCH_BUDGET_CAP=${PLANNER_WEB_SEARCH_BUDGET_CAP:-2}
+if [[ -z "${PLANNER_WEB_SEARCH_BUDGET_CAP}" || ! "${PLANNER_WEB_SEARCH_BUDGET_CAP}" =~ ^[0-9]+$ ]]; then
+	PLANNER_WEB_SEARCH_BUDGET_CAP=2
+fi
+export PLANNER_WEB_SEARCH_BUDGET_CAP
 
 planner_web_search_budget_value() {
 	if [[ -f "${PLANNER_WEB_SEARCH_BUDGET_FILE}" ]]; then
@@ -239,7 +244,11 @@ derive_allowed_tools_from_plan() {
 	#   $1 - planner response JSON (object or legacy plan array)
 	local plan_json tool seen web_search_cap web_search_count
 	plan_json="${1:-[]}"
-	web_search_cap=2
+	web_search_cap="${PLANNER_WEB_SEARCH_BUDGET_CAP}"
+
+	if [[ -z "${web_search_cap}" || ! "${web_search_cap}" =~ ^[0-9]+$ ]]; then
+		web_search_cap=2
+	fi
 
 	PLANNER_WEB_SEARCH_BUDGET=0
 	export PLANNER_WEB_SEARCH_BUDGET
