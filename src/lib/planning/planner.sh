@@ -94,35 +94,16 @@ initialize_planner_models() {
 export -f initialize_planner_models
 
 lowercase() {
-	# Arguments:
-	#   $1 - input string
-	printf '%s' "$1" | tr '[:upper:]' '[:lower:]'
-}
-
-score_planner_candidate() {
-	# Arguments:
-	#   $1 - normalized planner response JSON (string)
-	local normalized_json score
-	normalized_json="$1"
-
-	score=$(jq -er '
-                if .mode == "quickdraw" then
-                        0
-                else
-                        ((.plan | length) - 1) as $step_count
-                        | (if $step_count < 0 then 0 else $step_count end) as $safe_steps
-                        | ($safe_steps * 10) + (.plan | map(.tool) | unique | length)
-                end
-                ' <<<"${normalized_json}" 2>/dev/null) || score=0
-
-	printf '%s' "${score}"
+        # Arguments:
+        #   $1 - input string
+        printf '%s' "$1" | tr '[:upper:]' '[:lower:]'
 }
 
 generate_planner_response() {
-	# Arguments:
-	#   $1 - user query (string)
-	local user_query
-	local -a planner_tools=()
+        # Arguments:
+        #   $1 - user query (string)
+        local user_query
+        local -a planner_tools=()
 	user_query="$1"
 
 	if ! require_llama_available "planner generation"; then
@@ -136,11 +117,11 @@ generate_planner_response() {
 		return 0
 	fi
 
-	local tools_decl
-	if tools_decl=$(declare -p TOOLS 2>/dev/null) && grep -q 'declare -a' <<<"${tools_decl}"; then
-		planner_tools=("${TOOLS[@]}")
-	else
-		planner_tools=()
+        local tools_decl
+        if tools_decl=$(declare -p TOOLS 2>/dev/null) && grep -q 'declare -a' <<<"${tools_decl}"; then
+                planner_tools=("${TOOLS[@]}")
+        else
+                planner_tools=()
 		while IFS= read -r tool_name; do
 			[[ -z "${tool_name}" ]] && continue
 			planner_tools+=("${tool_name}")
@@ -156,25 +137,29 @@ generate_planner_response() {
 
 	local planner_tool_catalog
 	planner_tool_catalog="$(printf '%s\n' "${planner_tools[@]}" | paste -sd ',' -)"
-	log "DEBUG" "Planner tool catalog" "${planner_tool_catalog}" >&2
+        log "DEBUG" "Planner tool catalog" "${planner_tool_catalog}" >&2
 
-	local planner_schema_text planner_prompt_prefix planner_suffix tool_lines prompt
-	planner_schema_text="$(load_schema_text planner_plan)"
+        local planner_schema_text planner_prompt_prefix planner_suffix tool_lines prompt
+        planner_schema_text="$(load_schema_text planner_plan)"
 
 	tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_summary_line)"
 	planner_prompt_prefix="$(build_planner_prompt_static_prefix)"
 	planner_suffix="$(build_planner_prompt_dynamic_suffix "${user_query}" "${tool_lines}")"
-	prompt="${planner_prompt_prefix}${planner_suffix}"
-	log "DEBUG" "Generated planner prompt" "${prompt}" >&2
+        prompt="${planner_prompt_prefix}${planner_suffix}"
+        log "DEBUG" "Generated planner prompt" "${prompt}" >&2
 
-	local sample_count temperature debug_log_dir debug_log_file
-	sample_count="${PLANNER_SAMPLE_COUNT:-3}"
-	temperature="${PLANNER_TEMPERATURE:-0.2}"
-	# Sample count controls how many candidates are generated and scored.
-	# Validation clamps values below 1 to a single candidate so downstream
-	# selection always has material to review.
-	if ! [[ "${sample_count}" =~ ^[0-9]+$ ]] || ((sample_count < 1)); then
-		sample_count=1
+        local sample_count temperature debug_log_dir debug_log_file
+        sample_count="${PLANNER_SAMPLE_COUNT:-3}"
+        temperature="${PLANNER_TEMPERATURE:-0.2}"
+        # Capture the sampling configuration early so operators can verify the
+        # breadth of exploration before generation begins. This also doubles as
+        # a trace when investigating unexpected candidate rankings.
+        log "INFO" "Planner sampling configuration" "$(jq -nc --arg sample_count "${sample_count}" --arg temperature "${temperature}" '{sample_count:$sample_count,temperature:$temperature}')" >&2
+        # Sample count controls how many candidates are generated and scored.
+        # Validation clamps values below 1 to a single candidate so downstream
+        # selection always has material to review.
+        if ! [[ "${sample_count}" =~ ^[0-9]+$ ]] || ((sample_count < 1)); then
+                sample_count=1
 	fi
 
 	# Temperature is forwarded verbatim to llama.cpp; callers should keep
@@ -184,20 +169,25 @@ generate_planner_response() {
 	# Each candidate is appended to PLANNER_DEBUG_LOG as a JSON object with
 	# score, tie-breaker, rationale, and the normalized response. The file
 	# is truncated per invocation to keep the latest run isolated.
-	debug_log_file="${PLANNER_DEBUG_LOG:-${debug_log_dir%/}/okso_planner_candidates.log}"
-	mkdir -p "$(dirname "${debug_log_file}")" 2>/dev/null || true
-	: >"${debug_log_file}" 2>/dev/null || true
+        debug_log_file="${PLANNER_DEBUG_LOG:-${debug_log_dir%/}/okso_planner_candidates.log}"
+        mkdir -p "$(dirname "${debug_log_file}")" 2>/dev/null || true
+        : >"${debug_log_file}" 2>/dev/null || true
 
-	local best_plan="" best_score=-1 best_tie_breaker=-9999 candidate_index=0 raw_plan normalized_plan
-	local candidate_score candidate_tie_breaker candidate_scorecard candidate_rationale
-	while ((candidate_index < sample_count)); do
-		candidate_index=$((candidate_index + 1))
+        local best_plan="" best_score=-1 best_tie_breaker=-9999 candidate_index=0 raw_plan normalized_plan
+        local candidate_score candidate_tie_breaker candidate_scorecard candidate_rationale
+        while ((candidate_index < sample_count)); do
+                candidate_index=$((candidate_index + 1))
 
-		raw_plan="$(LLAMA_TEMPERATURE="${temperature}" llama_infer "${prompt}" '' 512 "${planner_schema_text}" "${PLANNER_MODEL_REPO:-}" "${PLANNER_MODEL_FILE:-}" "${PLANNER_CACHE_FILE:-}" "${planner_prompt_prefix}")" || raw_plan="[]"
+                # Each loop iteration generates a single candidate, normalizes it
+                # into the canonical schema, and scores it for downstream
+                # selection. Any failure to normalize or score results in the
+                # candidate being skipped, which keeps downstream selection
+                # deterministic and safe.
+                raw_plan="$(LLAMA_TEMPERATURE="${temperature}" llama_infer "${prompt}" '' 512 "${planner_schema_text}" "${PLANNER_MODEL_REPO:-}" "${PLANNER_MODEL_FILE:-}" "${PLANNER_CACHE_FILE:-}" "${planner_prompt_prefix}")" || raw_plan="[]"
 
-		if ! normalized_plan="$(normalize_planner_response <<<"${raw_plan}")"; then
-			log "ERROR" "Planner output failed validation; request regeneration" "${raw_plan}" >&2
-			continue
+                if ! normalized_plan="$(normalize_planner_response <<<"${raw_plan}")"; then
+                        log "ERROR" "Planner output failed validation; request regeneration" "${raw_plan}" >&2
+                        continue
 		fi
 
 		local is_quickdraw=false
@@ -208,28 +198,38 @@ generate_planner_response() {
 		if ! candidate_scorecard="$(score_planner_candidate "${normalized_plan}")"; then
 			log "ERROR" "Planner output failed scoring" "${normalized_plan}" >&2
 			continue
-		fi
+                fi
 
-		candidate_score="$(jq -er '.score' <<<"${candidate_scorecard}" 2>/dev/null || printf '0')"
-		candidate_tie_breaker="$(jq -er '.tie_breaker // 0' <<<"${candidate_scorecard}" 2>/dev/null || printf '0')"
-		candidate_rationale="$(jq -c '.rationale // []' <<<"${candidate_scorecard}" 2>/dev/null || printf '[]')"
+                candidate_score="$(jq -er '.score' <<<"${candidate_scorecard}" 2>/dev/null || printf '0')"
+                candidate_tie_breaker="$(jq -er '.tie_breaker // 0' <<<"${candidate_scorecard}" 2>/dev/null || printf '0')"
+                candidate_rationale="$(jq -c '.rationale // []' <<<"${candidate_scorecard}" 2>/dev/null || printf '[]')"
 
-		jq -nc \
-			--argjson index "${candidate_index}" \
-			--argjson score "${candidate_score}" \
-			--argjson tie_breaker "${candidate_tie_breaker}" \
+                # Emit a detailed INFO log for each candidate so operators can
+                # trace how the scorer evaluated the plan. The rationale array
+                # is preserved intact for downstream debugging.
+                log "INFO" "Planner candidate scored" "$(jq -nc \
+                        --argjson index "${candidate_index}" \
+                        --argjson score "${candidate_score}" \
+                        --argjson tie_breaker "${candidate_tie_breaker}" \
+                        --argjson rationale "${candidate_rationale}" \
+                        '{index:$index,score:$score,tie_breaker:$tie_breaker,rationale:$rationale}')" >&2
+
+                jq -nc \
+                        --argjson index "${candidate_index}" \
+                        --argjson score "${candidate_score}" \
+                        --argjson tie_breaker "${candidate_tie_breaker}" \
 			--argjson rationale "${candidate_rationale}" \
 			--argjson response "${normalized_plan}" \
 			'{index:$index, score:$score, tie_breaker:$tie_breaker, rationale:$rationale, response:$response}' >>"${debug_log_file}" 2>/dev/null || true
 
 		if ((candidate_score > best_score)) || { ((candidate_score == best_score)) && ((candidate_tie_breaker > best_tie_breaker)); }; then
 			best_score=${candidate_score}
-			best_tie_breaker=${candidate_tie_breaker}
-			best_plan="${normalized_plan}"
-		fi
+                        best_tie_breaker=${candidate_tie_breaker}
+                        best_plan="${normalized_plan}"
+                fi
 
-		if [[ "${is_quickdraw}" == true && ${candidate_index} -eq 1 ]]; then
-			log "DEBUG" "Quickdraw response returned immediately" "candidate_index=${candidate_index}" >&2
+                if [[ "${is_quickdraw}" == true && ${candidate_index} -eq 1 ]]; then
+                        log "DEBUG" "Quickdraw response returned immediately" "candidate_index=${candidate_index}" >&2
 			printf '%s' "${best_plan}"
 			return 0
 		fi
@@ -238,9 +238,9 @@ generate_planner_response() {
 	if [[ -z "${best_plan}" ]]; then
 		log "ERROR" "Planner output failed validation; request regeneration" "no_valid_candidates" >&2
 		return 1
-	fi
+        fi
 
-	printf '%s' "${best_plan}"
+        printf '%s' "${best_plan}"
 }
 
 generate_plan_outline() {

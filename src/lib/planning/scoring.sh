@@ -16,6 +16,11 @@
 # Exit codes:
 #   Functions return non-zero on validation failures.
 
+PLANNING_SCORING_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# shellcheck source=../core/logging.sh disable=SC1091
+source "${PLANNING_SCORING_DIR}/../core/logging.sh"
+
 planner_is_tool_available() {
 	# Checks whether the provided tool is registered.
 	# Arguments:
@@ -104,33 +109,36 @@ planner_args_satisfiable() {
 }
 
 score_planner_candidate() {
-	# Scores a normalized planner response for downstream selection.
-	# Arguments:
-	#   $1 - normalized planner response JSON (string)
-	local normalized_json mode plan_json plan_length max_steps available_tools availability_known
-	local score tie_breaker over_budget rationale_json final_tool
-	local -a rationale=()
+        # Scores a normalized planner response for downstream selection.
+        # Arguments:
+        #   $1 - normalized planner response JSON (string)
+        local normalized_json mode plan_json plan_length max_steps available_tools availability_known
+        local score tie_breaker over_budget rationale_json final_tool
+        local -a rationale=()
 
-	normalized_json="$1"
-	max_steps=${PLANNER_MAX_PLAN_STEPS:-6}
+        normalized_json="$1"
+        max_steps=${PLANNER_MAX_PLAN_STEPS:-6}
 	if ! [[ "${max_steps}" =~ ^[0-9]+$ ]] || ((max_steps < 1)); then
 		max_steps=6
 	fi
 
-	mode=$(jq -r '.mode // ""' <<<"${normalized_json}" 2>/dev/null)
-	if [[ "${mode}" == "quickdraw" ]]; then
-		rationale+=("Quickdraw response with direct final_answer.")
-		rationale_json=$(printf '%s\0' "${rationale[@]}" | jq -Rs 'split("\u0000") | map(select(length>0))')
-		jq -nc --argjson score 10 --argjson rationale "${rationale_json}" '{score:$score,tie_breaker:0,plan_length:0,max_steps:0,rationale:$rationale}'
-		return 0
-	fi
+        mode=$(jq -r '.mode // ""' <<<"${normalized_json}" 2>/dev/null)
+        if [[ "${mode}" == "quickdraw" ]]; then
+                rationale+=("Quickdraw response with direct final_answer.")
+                rationale_json=$(printf '%s\0' "${rationale[@]}" | jq -Rs 'split("\u0000") | map(select(length>0))')
+                log "INFO" "Scoring quickdraw planner response" "$(jq -nc --arg mode "${mode}" --argjson rationale "${rationale_json}" '{mode:$mode,rationale:$rationale}')" >&2
+                jq -nc --argjson score 10 --argjson rationale "${rationale_json}" '{score:$score,tie_breaker:0,plan_length:0,max_steps:0,rationale:$rationale}'
+                return 0
+        fi
 
-	plan_json=$(jq -c '.plan' <<<"${normalized_json}" 2>/dev/null) || return 1
-	plan_length=$(jq -r 'length' <<<"${plan_json}" 2>/dev/null)
+        plan_json=$(jq -c '.plan' <<<"${normalized_json}" 2>/dev/null) || return 1
+        plan_length=$(jq -r 'length' <<<"${plan_json}" 2>/dev/null)
 
-	# Start with a score of 0, and add a tie_breaker based on how well the plan fits within the step budget.
-	score=0
-	tie_breaker=$((max_steps - plan_length))
+        log "INFO" "Evaluating planner plan structure" "$(jq -nc --arg mode "${mode}" --argjson length "${plan_length}" --argjson max_steps "${max_steps}" '{mode:$mode,plan_length:$length,max_steps:$max_steps}')" >&2
+
+        # Start with a score of 0, and add a tie_breaker based on how well the plan fits within the step budget.
+        score=0
+        tie_breaker=$((max_steps - plan_length))
 
 	# Add a score based on plan length
 	if ((plan_length <= max_steps)); then
@@ -148,10 +156,10 @@ score_planner_candidate() {
 	if [[ "${final_tool}" == "final_answer" ]]; then
 		score=$((score + 15))
 		rationale+=("Plan terminates with final_answer.")
-	else
-		score=$((score - 25))
-		rationale+=("Plan must terminate with final_answer as the final step.")
-	fi
+        else
+                score=$((score - 25))
+                rationale+=("Plan must terminate with final_answer as the final step.")
+        fi
 
 	available_tools="$(tool_names)"
 	availability_known=true
@@ -187,19 +195,21 @@ score_planner_candidate() {
 	done < <(jq -cr '.[]' <<<"${plan_json}")
 
 	score=$((score + (valid_tools * 3)))
-	if ((missing_tools > 0)); then
-		score=$((score - (missing_tools * 25)))
-		rationale+=("Plan references ${missing_tools} unavailable tool(s).")
-	elif [[ "${availability_known}" == true ]]; then
-		rationale+=("All tools are registered in the planner catalog.")
-	fi
+        if ((missing_tools > 0)); then
+                score=$((score - (missing_tools * 25)))
+                rationale+=("Plan references ${missing_tools} unavailable tool(s).")
+                log "INFO" "Planner scoring: unavailable tools detected" "$(jq -nc --argjson missing "${missing_tools}" --argjson valid "${valid_tools}" '{missing:$missing,valid:$valid}')" >&2
+        elif [[ "${availability_known}" == true ]]; then
+                rationale+=("All tools are registered in the planner catalog.")
+        fi
 
-	if ((invalid_args > 0)); then
-		score=$((score - (invalid_args * 10)))
-		rationale+=("Args fail schema checks for ${invalid_args} step(s).")
-	else
-		rationale+=("Planner args satisfy registered tool schemas.")
-	fi
+        if ((invalid_args > 0)); then
+                score=$((score - (invalid_args * 10)))
+                rationale+=("Args fail schema checks for ${invalid_args} step(s).")
+                log "INFO" "Planner scoring: argument validation failed" "$(jq -nc --argjson invalid "${invalid_args}" --argjson checked "${idx}" '{invalid:$invalid,checked:$checked}')" >&2
+        else
+                rationale+=("Planner args satisfy registered tool schemas.")
+        fi
 
 	if ((side_effect_index == 0 && plan_length > 1)); then
 		score=$((score - 10))
@@ -207,13 +217,14 @@ score_planner_candidate() {
 	elif ((side_effect_index > 0)); then
 		score=$((score + 5))
 		rationale+=("Side-effecting actions are deferred until step $((side_effect_index + 1)).")
-	else
-		score=$((score + 5))
-		rationale+=("No side-effecting tools detected in the plan.")
-	fi
+        else
+                score=$((score + 5))
+                rationale+=("No side-effecting tools detected in the plan.")
+        fi
 
-	rationale_json=$(printf '%s\0' "${rationale[@]}" | jq -Rs 'split("\u0000") | map(select(length>0))')
-	jq -nc --argjson score "${score}" --argjson tie_breaker "${tie_breaker}" --argjson plan_length "${plan_length}" --argjson max_steps "${max_steps}" --argjson rationale "${rationale_json}" '{score:$score,tie_breaker:$tie_breaker,plan_length:$plan_length,max_steps:$max_steps,rationale:$rationale}'
+        rationale_json=$(printf '%s\0' "${rationale[@]}" | jq -Rs 'split("\u0000") | map(select(length>0))')
+        log "INFO" "Planner scoring summary" "$(jq -nc --argjson score "${score}" --argjson tie_breaker "${tie_breaker}" --argjson plan_length "${plan_length}" --argjson missing_tools "${missing_tools}" --argjson invalid_args "${invalid_args}" --argjson side_effect_index "${side_effect_index}" '{score:$score,tie_breaker:$tie_breaker,plan_length:$plan_length,missing_tools:$missing_tools,invalid_args:$invalid_args,side_effect_index:$side_effect_index}')" >&2
+        jq -nc --argjson score "${score}" --argjson tie_breaker "${tie_breaker}" --argjson plan_length "${plan_length}" --argjson max_steps "${max_steps}" --argjson rationale "${rationale_json}" '{score:$score,tie_breaker:$tie_breaker,plan_length:$plan_length,max_steps:$max_steps,rationale:$rationale}'
 }
 
 export -f planner_args_satisfiable
