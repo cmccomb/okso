@@ -375,42 +375,6 @@ validate_tool_permission() {
 	return 1
 }
 
-enforce_web_search_budget() {
-	# Prevents web_search actions from exceeding the planned budget.
-	# Arguments:
-	#   $1 - state prefix
-	#   $2 - tool name
-	#   $3 - current step index
-	local state_name tool current_step budget consumed
-	state_name="$1"
-	tool="$2"
-	current_step="$3"
-
-	if [[ "${tool}" != "web_search" ]]; then
-		return 0
-	fi
-
-	budget="$(state_get "${state_name}" "web_search_budget")"
-	consumed="$(state_get "${state_name}" "web_search_consumed")"
-
-	if ! [[ "${budget}" =~ ^[0-9]+$ ]]; then
-		budget=0
-	fi
-	if ! [[ "${consumed}" =~ ^[0-9]+$ ]]; then
-		consumed=0
-	fi
-
-	if ((budget <= 0 || consumed >= budget)); then
-		log "WARN" "Web search budget exceeded" "$(printf 'budget=%s consumed=%s' "${budget}" "${consumed}")"
-		record_history "${state_name}" "$(printf 'Step %s skipped: web_search budget exceeded (budget=%s, consumed=%s).' "${current_step}" "${budget}" "${consumed}")"
-		return 1
-	fi
-
-	state_increment "${state_name}" "web_search_consumed" 1
-	log "INFO" "Consuming web_search budget" "$(printf 'step=%s budget=%s consumed=%s' "${current_step}" "${budget}" "${consumed}")"
-	return 0
-}
-
 execute_tool_action() {
 	# Executes the selected tool.
 	# Arguments:
@@ -500,11 +464,6 @@ react_loop() {
 			log "WARN" "Duplicate action detected" "${tool}"
 			observation="Duplicate action detected. Please try a different approach or call final_answer if you are stuck."
 			record_tool_execution "${state_prefix}" "${tool}" "${thought} (REPEATED)" "${normalized_args_json}" "${observation}" "${current_step}"
-			state_set "${state_prefix}" "step" "${current_step}"
-			continue
-		fi
-
-		if ! enforce_web_search_budget "${state_prefix}" "${tool}" "${current_step}"; then
 			state_set "${state_prefix}" "step" "${current_step}"
 			continue
 		fi
