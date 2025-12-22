@@ -167,26 +167,26 @@ generate_planner_response() {
 	prompt="${planner_prompt_prefix}${planner_suffix}"
 	log "DEBUG" "Generated planner prompt" "${prompt}" >&2
 
-        local sample_count temperature debug_log_dir debug_log_file
-        sample_count="${PLANNER_SAMPLE_COUNT:-3}"
-        temperature="${PLANNER_TEMPERATURE:-0.2}"
-        # Sample count controls how many candidates are generated and scored.
-        # Validation clamps values below 1 to a single candidate so downstream
-        # selection always has material to review.
-        if ! [[ "${sample_count}" =~ ^[0-9]+$ ]] || ((sample_count < 1)); then
-                sample_count=1
-        fi
+	local sample_count temperature debug_log_dir debug_log_file
+	sample_count="${PLANNER_SAMPLE_COUNT:-3}"
+	temperature="${PLANNER_TEMPERATURE:-0.2}"
+	# Sample count controls how many candidates are generated and scored.
+	# Validation clamps values below 1 to a single candidate so downstream
+	# selection always has material to review.
+	if ! [[ "${sample_count}" =~ ^[0-9]+$ ]] || ((sample_count < 1)); then
+		sample_count=1
+	fi
 
-        # Temperature is forwarded verbatim to llama.cpp; callers should keep
-        # values in a 0-1 range to avoid erratic generation.
+	# Temperature is forwarded verbatim to llama.cpp; callers should keep
+	# values in a 0-1 range to avoid erratic generation.
 
-        debug_log_dir="${TMPDIR:-/tmp}"
-        # Each candidate is appended to PLANNER_DEBUG_LOG as a JSON object with
-        # score, tie-breaker, rationale, and the normalized response. The file
-        # is truncated per invocation to keep the latest run isolated.
-        debug_log_file="${PLANNER_DEBUG_LOG:-${debug_log_dir%/}/okso_planner_candidates.log}"
-        mkdir -p "$(dirname "${debug_log_file}")" 2>/dev/null || true
-        : >"${debug_log_file}" 2>/dev/null || true
+	debug_log_dir="${TMPDIR:-/tmp}"
+	# Each candidate is appended to PLANNER_DEBUG_LOG as a JSON object with
+	# score, tie-breaker, rationale, and the normalized response. The file
+	# is truncated per invocation to keep the latest run isolated.
+	debug_log_file="${PLANNER_DEBUG_LOG:-${debug_log_dir%/}/okso_planner_candidates.log}"
+	mkdir -p "$(dirname "${debug_log_file}")" 2>/dev/null || true
+	: >"${debug_log_file}" 2>/dev/null || true
 
 	local best_plan="" best_score=-1 best_tie_breaker=-9999 candidate_index=0 raw_plan normalized_plan
 	local candidate_score candidate_tie_breaker candidate_scorecard candidate_rationale
