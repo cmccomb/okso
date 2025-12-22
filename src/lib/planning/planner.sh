@@ -59,6 +59,8 @@ source "${PLANNING_LIB_DIR}/../llm/llama_client.sh"
 source "${PLANNING_LIB_DIR}/../config.sh"
 # shellcheck source=./normalization.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/normalization.sh"
+# shellcheck source=./scoring.sh disable=SC1091
+source "${PLANNING_LIB_DIR}/scoring.sh"
 # shellcheck source=./prompting.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/prompting.sh"
 # shellcheck source=../exec/dispatch.sh disable=SC1091
@@ -174,7 +176,8 @@ generate_planner_response() {
 	mkdir -p "$(dirname "${debug_log_file}")" 2>/dev/null || true
 	: >"${debug_log_file}" 2>/dev/null || true
 
-	local best_plan="" best_score=-1 candidate_index=0 raw_plan normalized_plan candidate_score
+	local best_plan="" best_score=-1 best_tie_breaker=-9999 candidate_index=0 raw_plan normalized_plan
+	local candidate_score candidate_tie_breaker candidate_scorecard candidate_rationale
 	while ((candidate_index < sample_count)); do
 		candidate_index=$((candidate_index + 1))
 
@@ -185,15 +188,26 @@ generate_planner_response() {
 			continue
 		fi
 
-		candidate_score="$(score_planner_candidate "${normalized_plan}")"
+		if ! candidate_scorecard="$(score_planner_candidate "${normalized_plan}")"; then
+			log "ERROR" "Planner output failed scoring" "${normalized_plan}" >&2
+			continue
+		fi
+
+		candidate_score="$(jq -er '.score' <<<"${candidate_scorecard}" 2>/dev/null || printf '0')"
+		candidate_tie_breaker="$(jq -er '.tie_breaker // 0' <<<"${candidate_scorecard}" 2>/dev/null || printf '0')"
+		candidate_rationale="$(jq -c '.rationale // []' <<<"${candidate_scorecard}" 2>/dev/null || printf '[]')"
+
 		jq -nc \
 			--argjson index "${candidate_index}" \
 			--argjson score "${candidate_score}" \
+			--argjson tie_breaker "${candidate_tie_breaker}" \
+			--argjson rationale "${candidate_rationale}" \
 			--argjson response "${normalized_plan}" \
-			'{index:$index, score:$score, response:$response}' >>"${debug_log_file}" 2>/dev/null || true
+			'{index:$index, score:$score, tie_breaker:$tie_breaker, rationale:$rationale, response:$response}' >>"${debug_log_file}" 2>/dev/null || true
 
-		if ((candidate_score > best_score)); then
+		if ((candidate_score > best_score)) || { ((candidate_score == best_score)) && ((candidate_tie_breaker > best_tie_breaker)); }; then
 			best_score=${candidate_score}
+			best_tie_breaker=${candidate_tie_breaker}
 			best_plan="${normalized_plan}"
 		fi
 	done

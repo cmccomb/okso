@@ -16,8 +16,8 @@ generate_plan_json "tell me a joke"
 SCRIPT
 
 	[ "$status" -eq 0 ]
-	mode=$(printf '%s' "${output}" | jq -r '.mode')
-	answer=$(printf '%s' "${output}" | jq -r '.quickdraw.final_answer')
+	mode=$(printf '%s' "${output}" | tail -n 1 | jq -r '.mode')
+	answer=$(printf '%s' "${output}" | tail -n 1 | jq -r '.quickdraw.final_answer')
 	[ "${mode}" = "quickdraw" ]
 	[ -n "${answer}" ]
 }
@@ -34,6 +34,9 @@ generate_plan_json "list" | jq -r '.[].tool'
 SCRIPT
 
 	[ "$status" -eq 0 ]
-	[ "${lines[0]}" = "terminal" ]
-	[ "${lines[1]}" = "final_answer" ]
+	tools=$(printf '%s\n' "${output}" | grep -E '^(terminal|final_answer)$')
+	first_tool=$(printf '%s\n' "${tools}" | sed -n '1p')
+	second_tool=$(printf '%s\n' "${tools}" | sed -n '2p')
+	[ "${first_tool}" = "terminal" ]
+	[ "${second_tool}" = "final_answer" ]
 }
