@@ -21,7 +21,7 @@ Nudge progress while keeping instructions crisp and supportive.
 
 # Context
 Current date: ${current_date}
-Current time: ${current_time} (UTC)
+Current time: ${current_time} (local)
 Current weekday: ${current_weekday}
 Carry this temporal awareness when choosing tools or drafting reminders.
 

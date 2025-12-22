@@ -30,7 +30,7 @@ ${final_fallback_schema}
 
 # Context
 Current date: ${current_date}
-Current time: ${current_time} (UTC)
+Current time: ${current_time} (local)
 Current weekday: ${current_weekday}
 
 Relevant context and agent trace:

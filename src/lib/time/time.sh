@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 #
-# Local and UTC time helpers for prompt rendering.
+# Local time helpers for prompt rendering.
 #
 # Usage:
 #   source "${BASH_SOURCE[0]%/time.sh}/time.sh"
