@@ -37,29 +37,40 @@ build_planner_prompt_static_prefix() {
 }
 
 build_planner_prompt_dynamic_suffix() {
-	# Builds the runtime portion of the planner prompt.
-	# Arguments:
-	#   $1 - user query (string)
-	#   $2 - formatted tool descriptions (string)
-	# Returns:
-	#   The dynamic suffix for the planner prompt (string).
-	local user_query tool_lines planner_schema current_date current_time current_weekday rendered prefix
-	user_query="$1"
-	tool_lines="$2"
-	planner_schema="$(load_schema_text planner_plan)"
-	current_date="$(current_date_local)"
-	current_time="$(current_time_local)"
-	current_weekday="$(current_weekday_local)"
+        # Builds the runtime portion of the planner prompt.
+        # Arguments:
+        #   $1 - user query (string)
+        #   $2 - formatted tool descriptions (string)
+        # Returns:
+        #   The dynamic suffix for the planner prompt (string).
+        local user_query tool_lines planner_schema current_date current_time current_weekday rendered prefix web_search_constraints
+        user_query="$1"
+        tool_lines="$2"
+        planner_schema="$(load_schema_text planner_plan)"
+        current_date="$(current_date_local)"
+        current_time="$(current_time_local)"
+        current_weekday="$(current_weekday_local)"
 
-	rendered="$(render_prompt_template "planner" \
-		user_query "${user_query}" \
-		tool_lines "${tool_lines}" \
-		planner_schema "${planner_schema}" \
-		current_date "${current_date}" \
-		current_time "${current_time}" \
-		current_weekday "${current_weekday}")"
-	prefix="$(build_planner_prompt_static_prefix)" || return 1
-	printf '%s' "${rendered#"${prefix}"}"
+        rendered="$(render_prompt_template "planner" \
+                user_query "${user_query}" \
+                tool_lines "${tool_lines}" \
+                planner_schema "${planner_schema}" \
+                current_date "${current_date}" \
+                current_time "${current_time}" \
+                current_weekday "${current_weekday}")"
+        # Ensure the rendered prompt always includes the deterministic, budgeted web_search guidance
+        # (acceptance criteria demand that planners limit searches and only use them to shape the plan).
+        read -r -d '' web_search_constraints <<'EOF' || true
+# Web search discipline (rationale: keeps planning deterministic and cost-bounded while still allowing lightweight fact checks)
+Use `web_search` only when the user request cannot be planned without fresh context or public facts.
+Cap `web_search` to one or two short, targeted queries.
+Summarize results deterministically and solely to shape the plan; do not execute tasks or actions based on the search output.
+EOF
+        if [[ "${rendered}" != *"${web_search_constraints}"* ]]; then
+                rendered="${rendered}"$'\n'"${web_search_constraints}"
+        fi
+        prefix="$(build_planner_prompt_static_prefix)" || return 1
+        printf '%s' "${rendered#"${prefix}"}"
 }
 
 build_planner_prompt() {
