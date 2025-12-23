@@ -29,9 +29,7 @@ Use this temporal context when scheduling or sequencing tasks.
 Format the output as a JSON object that either:
 - Uses `{"mode": "plan", "plan": [...]}` for tool-based work (each step shaped as {tool, args, thought}), or
 - Uses `{"mode": "quickdraw", "quickdraw": {final_answer, confidence, rationale}}` only when tools are unnecessary.
-Block quickdraw and use tools whenever the request implies any kind of calculation or mathematical operation, file/system mutations, searches/browsing/citations, or explicit verbs like create, edit, save, or run.
-If you are unsure, request a new plan rather than deferring to the ReAct agent.
-Do NOT include fully executable shell commands; keep the guidance conceptual.
+AVOID quickdraw and use tools whenever the request implies any kind of calculation or mathematical operation, file/system mutations, searches/browsing/citations, or explicit verbs like create, edit, save, or run.
 
 # Tool Selection Rules
 Select only from the provided list of available tools.
@@ -54,14 +52,16 @@ ${planner_schema}
 ${tool_lines}
 
 # Planner examples
-The following examples illustrate the expected planning style and structure. Adapt them to the user's request without copying verbatim.
+The following examples illustrate the expected planning strategy.
+Adapt them to the user's request but be sure to follow the required format.
 ${planner_examples}
 
 # User request:
 ${user_query}
 
 # Search context
-A quick web search was attempted using the query text. Use the findings below as hints to ground your plan.
+A quick web search was attempted using the query text.
+Use the findings below as hints to ground your plan.
 ${search_context}
 
 # Plan:
