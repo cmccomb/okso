@@ -99,6 +99,8 @@ planner_generate_search_queries() {
 
 	raw="$(LLAMA_TEMPERATURE=0 llama_infer "${prompt}" '' "${max_generation_tokens}" "${schema_json}" "${SEARCH_REPHRASER_MODEL_REPO:-}" "${SEARCH_REPHRASER_MODEL_FILE:-}" "${SEARCH_REPHRASER_CACHE_FILE:-}" "${prompt}")" || raw=""
 
+	log_pretty "INFO" "searches" "${raw}"
+
 	if [[ -z "${raw}" ]]; then
 		log "WARN" "Rephrase model returned empty output" "planner_rephrase_empty" >&2
 		jq -nc --arg query "${user_query}" '[ $query ]'
