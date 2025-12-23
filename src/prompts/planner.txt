@@ -26,26 +26,40 @@ Current weekday: ${current_weekday}
 Use this temporal context when scheduling or sequencing tasks.
 
 # General Rules
-Format the output as a JSON array of objects with the following shape: {tool, args, thought}.
-Every step must choose a concrete tool from the allowed set and include structured args for that tool.
-If you are unsure, request a new plan rather than deferring to the ReAct agent.
-Do NOT include fully executable shell commands; keep the guidance conceptual.
+Format the output as a JSON object shaped as `{"mode": "plan", "plan": [...]}` (each step shaped as {tool, args, thought}).
+Always return at least one plan step; the final step must use the `final_answer` tool.
 
 # Tool Selection Rules
 Select only from the provided list of available tools.
 Each action must clearly indicate which tool will be used.
-If a query involves any kind of calculation, recommend a calculation tool.
+If a query involves any kind of calculation or mathematical operation, recommend the python_repl tool.
 When describing tool usage, reference the structured argument fields each tool expects (for example terminal => {command, args}, notes_create => {title, body}, reminders_create => {title, time, notes}).
+All free-form natural language or code payloads must be provided as strings under `args.input` (never `args.code` or other aliases).
+
+# Tool Argument Discipline
+- Keep every string argument to a single line under 200 characters; summarize or trim instead of pasting multiline content.
+- Do NOT include Markdown code fences or embedded code blocks in any argument fields.
+- Use concise labels and summaries for inputs; skip stack traces, logs, and other bulky payloads.
 
 # Output Format
-Respond ONLY with a JSON array of objects.
+Respond ONLY with a JSON object.
 Specifically, constrain your response using this JSON schema:
 ${planner_schema}
 
 # Available tools:
 ${tool_lines}
 
+# Planner examples
+The following examples illustrate the expected planning strategy.
+Adapt them to the user's request but be sure to follow the required format.
+${planner_examples}
+
 # User request:
 ${user_query}
+
+# Search context
+A quick web search was attempted using the query text.
+Use the findings below as hints to ground your plan.
+${search_context}
 
 # Plan:

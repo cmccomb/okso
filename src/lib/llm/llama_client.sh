@@ -135,6 +135,10 @@ llama_infer() {
 		llama_args+=(-r "${stop_string}")
 	fi
 
+	if [[ -n "${LLAMA_TEMPERATURE:-}" ]]; then
+		llama_args+=(--temp "${LLAMA_TEMPERATURE}")
+	fi
+
 	rope_freq_base="${LLAMA_ROPE_FREQ_BASE:-}"
 	rope_freq_scale="${LLAMA_ROPE_FREQ_SCALE:-}"
 	template_descriptor="${LLAMA_TEMPLATE:-}"
