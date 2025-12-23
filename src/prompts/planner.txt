@@ -39,6 +39,11 @@ Each action must clearly indicate which tool will be used.
 If a query involves any kind of calculation or mathematical operation, recommend the python_repl tool.
 When describing tool usage, reference the structured argument fields each tool expects (for example terminal => {command, args}, notes_create => {title, body}, reminders_create => {title, time, notes}).
 
+# Tool Argument Discipline
+- Keep every string argument to a single line under 200 characters; summarize or trim instead of pasting multiline content.
+- Do NOT include Markdown code fences or embedded code blocks in any argument fields.
+- Use concise labels and summaries for inputs; skip stack traces, logs, and other bulky payloads.
+
 # Output Format
 Respond ONLY with a JSON object.
 Specifically, constrain your response using this JSON schema:
@@ -55,7 +60,7 @@ ${planner_examples}
 ${user_query}
 
 # Search context
-A quick web search was executed using the query text. Use the findings below for grounding instead of scheduling new web_search steps.
+A quick web search was attempted using the query text. Use the findings below as hints to ground your plan.
 ${search_context}
 
 # Plan:
