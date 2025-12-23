@@ -13,8 +13,8 @@
 #   Inherits Bats semantics; assertions fail the test case.
 
 @test "generate_planner_response skips invalid non-plan candidates and continues sampling" {
-        run bash -lc "$(
-                cat <<'INNERSCRIPT'
+	run bash -lc "$(
+		cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
@@ -73,8 +73,8 @@ jq -e '.mode == "plan"' <<<"${response_json}" >/dev/null
 [[ "$(cat /tmp/planner_temperature_1)" == "0.15" ]]
 [[ "$(cat /tmp/planner_temperature_2)" == "0.15" ]]
 INNERSCRIPT
-        )"
-        [ "$status" -eq 0 ]
+	)"
+	[ "$status" -eq 0 ]
 }
 
 @test "generate_planner_response performs pre-plan search once per session" {

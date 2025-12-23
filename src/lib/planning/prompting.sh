@@ -54,15 +54,15 @@ plan_json_to_outline() {
 	local plan_json plan_clean status
 	plan_json="${1:-[]}"
 
-        if plan_clean="$(extract_plan_array "${plan_json}")"; then
-                status=0
-        else
-                status=$?
-        fi
+	if plan_clean="$(extract_plan_array "${plan_json}")"; then
+		status=0
+	else
+		status=$?
+	fi
 
-        if [[ ${status} -ne 0 ]]; then
-                return 1
-        fi
+	if [[ ${status} -ne 0 ]]; then
+		return 1
+	fi
 
 	if [[ -z "${plan_clean}" ]]; then
 		return 1

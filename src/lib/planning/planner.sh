@@ -176,12 +176,12 @@ generate_planner_response() {
 
 	if ! require_llama_available "planner generation"; then
 		log "ERROR" "Planner cannot generate steps without llama.cpp" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}" >&2
-                local fallback
-                fallback="LLM unavailable. Request received: ${user_query}"
-                jq -nc \
-                        --arg answer "${fallback}" \
-                        '{mode:"plan", plan:[{tool:"final_answer", args:{input:$answer}, thought:"Provide the direct response."}]}'
-                return 0
+		local fallback
+		fallback="LLM unavailable. Request received: ${user_query}"
+		jq -nc \
+			--arg answer "${fallback}" \
+			'{mode:"plan", plan:[{tool:"final_answer", args:{input:$answer}, thought:"Provide the direct response."}]}'
+		return 0
 	fi
 
 	local tools_decl
@@ -243,9 +243,9 @@ generate_planner_response() {
 	# penalized candidates remain eligible for selection. This avoids
 	# returning empty results when every candidate incurs availability or
 	# safety deductions during scoring.
-        local best_plan="" best_score=-999999 best_tie_breaker=-9999 candidate_index=0 raw_plan normalized_plan
-        local candidate_score candidate_tie_breaker candidate_scorecard candidate_rationale
-        while ((candidate_index < sample_count)); do
+	local best_plan="" best_score=-999999 best_tie_breaker=-9999 candidate_index=0 raw_plan normalized_plan
+	local candidate_score candidate_tie_breaker candidate_scorecard candidate_rationale
+	while ((candidate_index < sample_count)); do
 		candidate_index=$((candidate_index + 1))
 
 		# Each loop iteration generates a single candidate, normalizes it
@@ -260,9 +260,9 @@ generate_planner_response() {
 			continue
 		fi
 
-                if ! candidate_scorecard="$(score_planner_candidate "${normalized_plan}")"; then
-                        log "ERROR" "Planner output failed scoring" "${normalized_plan}" >&2
-                        continue
+		if ! candidate_scorecard="$(score_planner_candidate "${normalized_plan}")"; then
+			log "ERROR" "Planner output failed scoring" "${normalized_plan}" >&2
+			continue
 		fi
 
 		candidate_score="$(jq -er '.score' <<<"${candidate_scorecard}" 2>/dev/null || printf '0')"
@@ -293,7 +293,7 @@ generate_planner_response() {
 			best_plan="${normalized_plan}"
 		fi
 
-        done
+	done
 
 	if [[ -z "${best_plan}" ]]; then
 		log "ERROR" "Planner output failed validation; request regeneration" "no_valid_candidates" >&2
@@ -399,14 +399,14 @@ derive_allowed_tools_from_plan() {
 	local plan_json tool seen status
 	plan_json="${1:-[]}"
 
-        if plan_json="$(extract_plan_array "${plan_json}")"; then
-                status=0
-        else
-                status=$?
-        fi
-        if [[ ${status} -ne 0 ]]; then
-                return 1
-        fi
+	if plan_json="$(extract_plan_array "${plan_json}")"; then
+		status=0
+	else
+		status=$?
+	fi
+	if [[ ${status} -ne 0 ]]; then
+		return 1
+	fi
 
 	seen=""
 	local -a required=()
@@ -446,14 +446,14 @@ plan_json_to_entries() {
 	local plan_json status
 	plan_json="$1"
 
-        if plan_json="$(extract_plan_array "${plan_json}")"; then
-                status=0
-        else
-                status=$?
-        fi
-        if [[ ${status} -ne 0 ]]; then
-                return 1
-        fi
+	if plan_json="$(extract_plan_array "${plan_json}")"; then
+		status=0
+	else
+		status=$?
+	fi
+	if [[ ${status} -ne 0 ]]; then
+		return 1
+	fi
 
 	printf '%s' "${plan_json}" | jq -cr '.[]'
 }

@@ -227,9 +227,9 @@ score_planner_candidate() {
 		max_steps=6
 	fi
 
-        mode=$(jq -r '.mode // ""' <<<"${normalized_json}" 2>/dev/null)
-        plan_json=$(jq -c '.plan' <<<"${normalized_json}" 2>/dev/null) || return 1
-        plan_length=$(jq -r 'length' <<<"${plan_json}" 2>/dev/null)
+	mode=$(jq -r '.mode // ""' <<<"${normalized_json}" 2>/dev/null)
+	plan_json=$(jq -c '.plan' <<<"${normalized_json}" 2>/dev/null) || return 1
+	plan_length=$(jq -r 'length' <<<"${plan_json}" 2>/dev/null)
 
 	log "INFO" "Evaluating planner plan structure" "$(jq -nc --arg mode "${mode}" --argjson length "${plan_length}" --argjson max_steps "${max_steps}" '{mode:$mode,plan_length:$length,max_steps:$max_steps}')" >&2
 

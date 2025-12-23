@@ -31,14 +31,14 @@ SCRIPT
 }
 
 @test "plan_json_to_outline rejects non-plan payloads" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/prompting.sh
 quickdraw='{"mode":"quickdraw","quickdraw":{"rationale":"direct","final_answer":"done","confidence":0.42}}'
 plan_json_to_outline "${quickdraw}"
 SCRIPT
 
-        [ "$status" -ne 0 ]
+	[ "$status" -ne 0 ]
 }
 
 @test "build_planner_prompt_with_tools injects tool descriptions when provided" {

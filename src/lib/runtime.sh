@@ -278,9 +278,9 @@ render_plan_outputs() {
 		log_pretty "INFO" "Plan outline" "${plan_outline}"
 	fi
 
-        if [[ "$(settings_get "${settings_prefix}" "plan_only")" == true ]]; then
-                # plan-only short-circuits execution and dry-run emission; callers handle
-                # the resulting action_ref to exit early.
+	if [[ "$(settings_get "${settings_prefix}" "plan_only")" == true ]]; then
+		# plan-only short-circuits execution and dry-run emission; callers handle
+		# the resulting action_ref to exit early.
 		log_pretty "INFO" "Plan JSON" "${plan_json}"
 		set_by_name "${action_var}" "exit"
 		return 0
@@ -311,8 +311,8 @@ select_response_strategy() {
 	#   $5 - planner response JSON
 	local settings_prefix
 	settings_prefix="$1"
-        shift
-        local required_tools plan_entries plan_outline plan_response
+	shift
+	local required_tools plan_entries plan_outline plan_response
 	required_tools="$1"
 	plan_entries="$2"
 	plan_outline="$3"
@@ -320,10 +320,10 @@ select_response_strategy() {
 
 	apply_settings_to_globals "${settings_prefix}"
 
-        if [[ -z "${required_tools}" ]]; then
-                log "ERROR" "Planner emitted an empty tool list" "${USER_QUERY}"
-                return 1
-        fi
+	if [[ -z "${required_tools}" ]]; then
+		log "ERROR" "Planner emitted an empty tool list" "${USER_QUERY}"
+		return 1
+	fi
 
 	react_loop "${USER_QUERY}" "${required_tools}" "${plan_entries}" "${plan_outline}"
 }
