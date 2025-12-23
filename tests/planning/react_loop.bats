@@ -491,6 +491,83 @@ SCRIPT
         [ "$output" = "plan_index=1 step=1 attempts=2 retry_count=1 pending=" ]
 }
 
+@test "react_loop derives attempt budget from plan length" {
+	run env -i HOME="$HOME" PATH="$PATH" REACT_RETRY_BUFFER=1 bash --noprofile --norc <<'SCRIPT'
+set -euo pipefail
+LLAMA_AVAILABLE=false
+source ./src/lib/react/react.sh
+log() { :; }
+log_pretty() { :; }
+emit_boxed_summary() { :; }
+format_tool_history() { printf '%s' "$1"; }
+respond_text() { printf 'fallback'; }
+validate_tool_permission() { return 0; }
+selection=0
+select_next_action() {
+        if [[ ${selection:-0} -eq 0 ]]; then
+                selection=1
+                return 1
+        fi
+        printf -v "$2" '{"thought":"finish","tool":"final_answer","args":{"input":"done"}}'
+}
+execute_tool_action() { printf '{"output":"ok","exit_code":0}'; }
+plan_entry=$(jq -nc '{tool:"alpha"}')
+react_loop "question" "final_answer" "${plan_entry}" ""
+printf 'max_steps=%s attempts=%s step=%s retry_count=%s final=%s' \
+        "$(state_get react_state max_steps)" \
+        "$(state_get react_state attempts)" \
+        "$(state_get react_state step)" \
+        "$(state_get react_state retry_count)" \
+        "$(state_get react_state final_answer)"
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	[ "$output" = "max_steps=2 attempts=2 step=1 retry_count=1 final=done" ]
+}
+
+@test "react_loop retries planned step without consuming step counter" {
+	run env -i HOME="$HOME" PATH="$PATH" REACT_RETRY_BUFFER=2 bash --noprofile --norc <<'SCRIPT'
+set -euo pipefail
+LLAMA_AVAILABLE=false
+source ./src/lib/react/react.sh
+log() { :; }
+log_pretty() { :; }
+emit_boxed_summary() { :; }
+format_tool_history() { printf '%s' "$1"; }
+respond_text() { printf 'done'; }
+validate_tool_permission() { return 0; }
+selection=0
+execution_count=0
+select_next_action() {
+        selection=$((selection + 1))
+        if [[ ${selection} -eq 1 ]]; then
+                printf -v "$2" '{"thought":"try","tool":"alpha","args":{}}'
+        else
+                printf -v "$2" '{"thought":"retry","tool":"alpha","args":{}}'
+        fi
+}
+execute_tool_action() {
+        execution_count=$((execution_count + 1))
+        if [[ ${execution_count} -eq 1 ]]; then
+                printf '{"output":"fail","exit_code":1}'
+                return 1
+        fi
+        printf '{"output":"ok","exit_code":0}'
+}
+plan_entry=$(jq -nc '{tool:"alpha"}')
+react_loop "question" "alpha" "${plan_entry}" ""
+printf 'plan_index=%s step=%s attempts=%s retry_count=%s pending=%s' \
+        "$(state_get react_state plan_index)" \
+        "$(state_get react_state step)" \
+        "$(state_get react_state attempts)" \
+        "$(state_get react_state retry_count)" \
+        "$(state_get react_state pending_plan_step)"
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	[ "$output" = "plan_index=1 step=1 attempts=2 retry_count=1 pending=" ]
+}
+
 @test "react_loop stores final_answer payload when execution bypassed" {
 	run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
