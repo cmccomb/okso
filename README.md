@@ -4,7 +4,17 @@
 
 # `okso`, let's go to work
 
-A lightweight planner that runs against a local `llama.cpp` binary and executes registered tools with explicit approvals.
+**A local-first, agentic CLI for macOS — a polite ghost in your machine.**  
+okso helps small language models *operate* inside a desktop environment by routing intent → plans → tool calls, with an emphasis on repeatability, tight I/O, and “no surprises.”
+
+## What it does
+
+okso is a command-line interface that:
+- turns a user request into a **structured plan**
+- selects from a **tool registry** (terminal, files, notes, etc.)
+- executes tool calls with **bounded side effects**
+- emits a **final answer** (and can record it as an artifact)
+
 
 ## Installation
 
