@@ -75,6 +75,60 @@ planner_terminal_command_has_side_effects() {
         return 0
 }
 
+python_repl_has_side_effects() {
+	# Detects if a python_repl snippet is likely to mutate state or perform I/O.
+	# Arguments:
+	#   $1 - python_repl args JSON (string)
+	# Returns 0 when side effects are likely; 1 otherwise.
+	local args_json snippet
+	args_json=${1:-"{}"}
+	snippet=$(jq -r '.code // .snippet // .text // ""' <<<"${args_json}" 2>/dev/null)
+
+	# Empty or unreadable snippets default to side-effecting for safety.
+	if [[ -z "${snippet}" ]]; then
+		return 0
+	fi
+
+	local -a patterns=()
+	mapfile -t patterns <<'EOF'
+open\([^)]*["'](w|a|x)[^"']*["']
+open\([^)]*["'][^"']*\+[^"']*["']
+Path\([^)]*\)\.write_text\(
+Path\([^)]*\)\.write_bytes\(
+Path\([^)]*\)\.unlink\(
+Path\([^)]*\)\.rename\(
+Path\([^)]*\)\.replace\(
+Path\([^)]*\)\.mkdir\(
+Path\([^)]*\)\.rmdir\(
+Path\([^)]*\)\.touch\(
+os\.remove\(
+os\.unlink\(
+os\.rename\(
+os\.replace\(
+os\.rmdir\(
+os\.mkdir\(
+os\.makedirs\(
+shutil\.(copy|copy2|copytree|move|rmtree)\(
+subprocess\.(run|call|Popen|check_call|check_output)\(
+os\.system\(
+(import|from)[[:space:]]+requests
+urllib\.request
+http\.client
+socket
+requests\.(get|post|put|delete|head|patch|options)\(
+os\.environ\[
+EOF
+
+	local pattern
+	for pattern in "${patterns[@]}"; do
+		if grep -Eqi -- "${pattern}" <<<"${snippet}"; then
+			return 0
+		fi
+	done
+
+	return 1
+}
+
 planner_step_has_side_effects() {
         # Heuristic to detect steps that can mutate user data or environment.
         # Arguments:
@@ -88,7 +142,8 @@ planner_step_has_side_effects() {
         esac
 
         if [[ "$1" == "python_repl" ]]; then
-                return 0
+                python_repl_has_side_effects "$2"
+                return
         fi
 
         if [[ "$1" == "terminal" ]]; then
@@ -276,4 +331,5 @@ export -f planner_args_satisfiable
 export -f planner_is_tool_available
 export -f planner_step_has_side_effects
 export -f planner_terminal_command_has_side_effects
+export -f python_repl_has_side_effects
 export -f score_planner_candidate
