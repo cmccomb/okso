@@ -18,7 +18,7 @@ SCRIPT
 }
 
 @test "react_loop finalizes after invalid action selection" {
-        run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
+	run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
 LLAMA_AVAILABLE=false
 source ./src/lib/react/react.sh
@@ -38,8 +38,8 @@ printf 'final=%s step=%s attempts=%s' \
         "$(state_get react_state attempts)"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ "$output" = "final=fallback_response step=0 attempts=2" ]
+	[ "$status" -eq 0 ]
+	[ "$output" = "final=fallback_response step=0 attempts=2" ]
 }
 
 @test "react_loop advances plan index after successful planned step" {
@@ -370,7 +370,7 @@ SCRIPT
 }
 
 @test "react_loop stops after final_answer" {
-        run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
+	run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
 MAX_STEPS=3
 LLAMA_AVAILABLE=false
@@ -388,12 +388,12 @@ react_loop "question" "final_answer" "" ""
 printf 'final=%s step=%s' "$(state_get react_state final_answer)" "$(state_get react_state step)"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ "$output" = "final=complete step=1" ]
+	[ "$status" -eq 0 ]
+	[ "$output" = "final=complete step=1" ]
 }
 
 @test "react_loop derives attempt budget from plan length" {
-        run env -i HOME="$HOME" PATH="$PATH" REACT_RETRY_BUFFER=1 bash --noprofile --norc <<'SCRIPT'
+	run env -i HOME="$HOME" PATH="$PATH" REACT_RETRY_BUFFER=1 bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
 LLAMA_AVAILABLE=false
 source ./src/lib/react/react.sh
@@ -422,12 +422,12 @@ printf 'max_steps=%s attempts=%s step=%s retry_count=%s final=%s' \
         "$(state_get react_state final_answer)"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ "$output" = "max_steps=2 attempts=2 step=1 retry_count=1 final=done" ]
+	[ "$status" -eq 0 ]
+	[ "$output" = "max_steps=2 attempts=2 step=1 retry_count=1 final=done" ]
 }
 
 @test "react_loop retries planned step without consuming step counter" {
-        run env -i HOME="$HOME" PATH="$PATH" REACT_RETRY_BUFFER=2 bash --noprofile --norc <<'SCRIPT'
+	run env -i HOME="$HOME" PATH="$PATH" REACT_RETRY_BUFFER=2 bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
 LLAMA_AVAILABLE=false
 source ./src/lib/react/react.sh
@@ -465,8 +465,8 @@ printf 'plan_index=%s step=%s attempts=%s retry_count=%s pending=%s' \
         "$(state_get react_state pending_plan_step)"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ "$output" = "plan_index=1 step=1 attempts=2 retry_count=1 pending=" ]
+	[ "$status" -eq 0 ]
+	[ "$output" = "plan_index=1 step=1 attempts=2 retry_count=1 pending=" ]
 }
 
 @test "react_loop stores final_answer payload when execution bypassed" {
