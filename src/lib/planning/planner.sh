@@ -99,13 +99,13 @@ if [[ "${PLANNER_SKIP_TOOL_LOAD:-false}" != true ]]; then
 fi
 
 initialize_planner_models() {
-        # Hydrates planner and ReAct model specs when callers did not pass
-        # explicit repositories or filenames via the environment. This keeps
-        # downstream llama.cpp calls predictable regardless of how the planner
-        # was sourced (CLI invocation vs. tests).
-        if [[ -z "${PLANNER_MODEL_REPO:-}" || -z "${PLANNER_MODEL_FILE:-}" || -z "${REACT_MODEL_REPO:-}" || -z "${REACT_MODEL_FILE:-}" ]]; then
-                hydrate_model_specs
-        fi
+	# Hydrates planner and ReAct model specs when callers did not pass
+	# explicit repositories or filenames via the environment. This keeps
+	# downstream llama.cpp calls predictable regardless of how the planner
+	# was sourced (CLI invocation vs. tests).
+	if [[ -z "${PLANNER_MODEL_REPO:-}" || -z "${PLANNER_MODEL_FILE:-}" || -z "${REACT_MODEL_REPO:-}" || -z "${REACT_MODEL_FILE:-}" ]]; then
+		hydrate_model_specs
+	fi
 }
 export -f initialize_planner_models
 
@@ -139,14 +139,14 @@ planner_format_search_context() {
 }
 
 planner_fetch_search_context() {
-        # Executes deterministic web searches for rephrased queries before planning.
-        # Arguments:
-        #   $1 - user query (string)
-        # Returns:
-        #   Formatted search context (string). Fallbacks are empty but non-fatal.
-        local user_query tool_args raw_context queries_json formatted_context
-        local -a formatted_sections=()
-        user_query="$1"
+	# Executes deterministic web searches for rephrased queries before planning.
+	# Arguments:
+	#   $1 - user query (string)
+	# Returns:
+	#   Formatted search context (string). Fallbacks are empty but non-fatal.
+	local user_query tool_args raw_context queries_json formatted_context
+	local -a formatted_sections=()
+	user_query="$1"
 
 	if ! declare -F tool_web_search >/dev/null 2>&1; then
 		log "WARN" "web_search tool unavailable; skipping pre-plan search" "planner_tools_missing_web_search" >&2
@@ -187,56 +187,56 @@ planner_fetch_search_context() {
 }
 
 lowercase() {
-        # Arguments:
-        #   $1 - input string
-        printf '%s' "$1" | tr '[:upper:]' '[:lower:]'
+	# Arguments:
+	#   $1 - input string
+	printf '%s' "$1" | tr '[:upper:]' '[:lower:]'
 }
 
 validate_positive_int() {
-        # Coerces planner numeric inputs into positive integers to keep llama.cpp
-        # invocations predictable.
-        # Arguments:
-        #   $1 - raw value (string)
-        #   $2 - fallback value used when validation fails (string)
-        #   $3 - metric name for logging (string)
-        local raw fallback metric sanitized
-        raw="$1"
-        fallback="$2"
-        metric="$3"
+	# Coerces planner numeric inputs into positive integers to keep llama.cpp
+	# invocations predictable.
+	# Arguments:
+	#   $1 - raw value (string)
+	#   $2 - fallback value used when validation fails (string)
+	#   $3 - metric name for logging (string)
+	local raw fallback metric sanitized
+	raw="$1"
+	fallback="$2"
+	metric="$3"
 
-        if [[ "${raw}" =~ ^[0-9]+$ ]] && ((raw >= 1)); then
-                sanitized="${raw}"
-        else
-                log "WARN" "Invalid ${metric}; using fallback" "${metric}=${raw:-unset}" >&2
-                sanitized="${fallback}"
-        fi
+	if [[ "${raw}" =~ ^[0-9]+$ ]] && ((raw >= 1)); then
+		sanitized="${raw}"
+	else
+		log "WARN" "Invalid ${metric}; using fallback" "${metric}=${raw:-unset}" >&2
+		sanitized="${fallback}"
+	fi
 
-        printf '%s' "${sanitized}"
+	printf '%s' "${sanitized}"
 }
 
 validate_temperature() {
-        # Normalizes planner temperature into a bounded numeric value.
-        # Arguments:
-        #   $1 - raw temperature (string)
-        #   $2 - fallback temperature when validation fails (string)
-        local raw fallback sanitized
-        raw="$1"
-        fallback="$2"
+	# Normalizes planner temperature into a bounded numeric value.
+	# Arguments:
+	#   $1 - raw temperature (string)
+	#   $2 - fallback temperature when validation fails (string)
+	local raw fallback sanitized
+	raw="$1"
+	fallback="$2"
 
-        if [[ "${raw}" =~ ^[0-9]*\.?[0-9]+$ ]] && awk -v t="${raw}" 'BEGIN { exit !(t >= 0 && t <= 1) }'; then
-                sanitized="${raw}"
-        else
-                log "WARN" "Invalid planner temperature; using fallback" "temperature=${raw:-unset}" >&2
-                sanitized="${fallback}"
-        fi
+	if [[ "${raw}" =~ ^[0-9]*\.?[0-9]+$ ]] && awk -v t="${raw}" 'BEGIN { exit !(t >= 0 && t <= 1) }'; then
+		sanitized="${raw}"
+	else
+		log "WARN" "Invalid planner temperature; using fallback" "temperature=${raw:-unset}" >&2
+		sanitized="${fallback}"
+	fi
 
-        printf '%s' "${sanitized}"
+	printf '%s' "${sanitized}"
 }
 
 generate_planner_response() {
-        # Arguments:
-        #   $1 - user query (string)
-        local user_query
+	# Arguments:
+	#   $1 - user query (string)
+	local user_query
 	local -a planner_tools=()
 	user_query="$1"
 
