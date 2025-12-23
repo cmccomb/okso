@@ -64,37 +64,38 @@ build_preview() {
 }
 
 convert_html() {
-        # Arguments:
-        #   $1 - body path
-        local body_path output
-        body_path=$1
+	# Arguments:
+	#   $1 - body path
+	local body_path output
+	body_path=$1
 
-        if ! command -v pandoc >/dev/null 2>&1; then
-                printf '%s\n' "pandoc not available" >&2
-                return 1
-        fi
+	if ! command -v pandoc >/dev/null 2>&1; then
+		printf '%s\n' "pandoc not available" >&2
+		return 1
+	fi
 
-        if ! output=$(pandoc --from=html --to=gfm --wrap=none "${body_path}"); then
-                printf '%s\n' "pandoc failed to convert HTML" >&2
-                return 1
-        fi
+	if ! output=$(pandoc --from=html --to=gfm --wrap=none "${body_path}"); then
+		printf '%s\n' "pandoc failed to convert HTML" >&2
+		return 1
+	fi
 
-        output=$(printf '%s\n' "${output}" | sed 's/[[:space:]]\+$//' | sed '/^[[:space:]]*$/d')
+	output=$(printf '%s\n' "${output}" | sed 's/[[:space:]]\+$//' | sed '/^[[:space:]]*$/d')
 
-        if [[ -z ${output} ]]; then
-                printf '%s\n' "empty output from HTML conversion" >&2
-                return 1
-        fi
+	if [[ -z ${output} ]]; then
+		printf '%s\n' "empty output from HTML conversion" >&2
+		return 1
+	fi
 
-        printf '%s' "${output}"
+	printf '%s' "${output}"
 }
 
 convert_json() {
-        # Arguments:
-        #   $1 - body path
-        local body_path formatted
-        body_path=$1
-        if ! formatted=$(python3 - "${body_path}" <<'PY'
+	# Arguments:
+	#   $1 - body path
+	local body_path formatted
+	body_path=$1
+	if ! formatted=$(
+		python3 - "${body_path}" <<'PY'
 import json
 import sys
 
@@ -103,11 +104,11 @@ with open(path, "r", encoding="utf-8") as handle:
     data = json.load(handle)
 print(json.dumps(data, indent=2, ensure_ascii=False))
 PY
-        ); then
-                printf '%s\n' "invalid JSON" >&2
-                return 1
-        fi
-        printf '%s\n%s\n%s\n' '```json' "${formatted}" '```'
+	); then
+		printf '%s\n' "invalid JSON" >&2
+		return 1
+	fi
+	printf '%s\n%s\n%s\n' '```json' "${formatted}" '```'
 }
 
 convert_xml() {
@@ -119,10 +120,10 @@ convert_xml() {
 		printf '%s\n' "xmllint not available" >&2
 		return 1
 	fi
-        if ! formatted=$(xmllint --format "${body_path}"); then
-                printf '%s\n' "invalid XML" >&2
-                return 1
-        fi
+	if ! formatted=$(xmllint --format "${body_path}"); then
+		printf '%s\n' "invalid XML" >&2
+		return 1
+	fi
 	printf '%s\n%s\n%s\n' '```xml' "${formatted}" '```'
 }
 
@@ -230,7 +231,7 @@ main() {
 		return 2
 	fi
 
-        python3 - "${markdown}" "${preview}" <<'PY'
+	python3 - "${markdown}" "${preview}" <<'PY'
 import json
 import sys
 

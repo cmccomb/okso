@@ -14,7 +14,7 @@ teardown() {
 }
 
 @test "markdownify converts html using pandoc" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 body_file="$(mktemp)"
 cp tests/fixtures/web_fetch_sample.html "${body_file}"
@@ -29,11 +29,11 @@ assert "Example Title" in payload["preview"], payload["preview"]
 PY
 SCRIPT
 
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "markdownify formats json bodies" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 body_file="$(mktemp)"
 cp tests/fixtures/web_fetch_sample.json "${body_file}"
@@ -48,11 +48,11 @@ assert "Sample" in payload["preview"], payload["preview"]
 PY
 SCRIPT
 
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "markdownify prettifies xml with xmllint" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 body_file="$(mktemp)"
 cp tests/fixtures/web_fetch_sample.xml "${body_file}"
@@ -68,11 +68,11 @@ assert "note" in payload["preview"], payload["preview"]
 PY
 SCRIPT
 
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "markdownify builds truncated previews" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 body_file="$(mktemp)"
 printf '%s' 'abcdefg' >"${body_file}"
@@ -87,11 +87,11 @@ PY)
 [[ "${preview}" == "ab…" ]]
 SCRIPT
 
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "markdownify surfaces missing pandoc errors" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 body_file="$(mktemp)"
 cp tests/fixtures/web_fetch_sample.html "${body_file}"
@@ -106,6 +106,6 @@ PATH="${tmp_path}:${PATH_ORIG}"
 ./src/tools/web/markdownify.sh --path "${body_file}" --content-type "text/html" --limit 10
 SCRIPT
 
-        [ "$status" -ne 0 ]
-        [[ "$output" == *"pandoc failed to convert HTML"* ]]
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"pandoc failed to convert HTML"* ]]
 }
