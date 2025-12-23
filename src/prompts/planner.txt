@@ -34,7 +34,7 @@ Select only from the provided list of available tools.
 Each action must clearly indicate which tool will be used.
 If a query involves any kind of calculation or mathematical operation, recommend the python_repl tool.
 When describing tool usage, reference the structured argument fields each tool expects (for example terminal => {command, args}, notes_create => {title, body}, reminders_create => {title, time, notes}).
-All free-form natural language or code payloads must be provided as strings under `args.input` (never `args.code` or other aliases).
+Use each tool's declared argument keys instead of defaulting to `args.input`; map requests to the right fields (for example terminal => {command}, web_search => {query}, web_fetch => {url}) and only populate `input` when the schema explicitly requires it.
 
 # Tool Argument Discipline
 - Keep every string argument to a single line under 200 characters; summarize or trim instead of pasting multiline content.
