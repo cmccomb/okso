@@ -4,7 +4,7 @@
 
 # `okso`, let's go to work
 
-**A local-first, agentic CLI for macOS — a polite ghost in your machine.**  
+**A local-first, agentic CLI tool for macOS; a polite ghost in your machine.**  
 okso helps small language models *operate* inside a desktop environment by routing intent → plans → tool calls, with an emphasis on repeatability, tight I/O, and “no surprises.”
 
 ## What it does
