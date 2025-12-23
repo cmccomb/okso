@@ -183,7 +183,7 @@ planner_args_satisfiable() {
 		return 0
 	fi
 
-        python3 - "${schema_json}" "${args_json}" <<'PY' 2>/dev/null
+	python3 - "${schema_json}" "${args_json}" <<'PY' 2>/dev/null
 import json, sys
 from jsonschema import Draft202012Validator
 

@@ -39,36 +39,36 @@ SCRIPT
 
 	[ "$status" -eq 0 ]
 	plan_tool=$(printf '%s' "${output}" | jq -r '.[0].tool')
-    plan_thought=$(printf '%s' "${output}" | jq -r '.[0].thought // ""')
+	plan_thought=$(printf '%s' "${output}" | jq -r '.[0].thought // ""')
 	args_type=$(printf '%s' "${output}" | jq -r '.[0].args | type')
 
 	[ "${plan_tool}" = "notes_create" ]
-    [ "${plan_thought}" = "capture notes" ]
+	[ "${plan_thought}" = "capture notes" ]
 	[ "${args_type}" = "object" ]
 }
 
 @test "normalize_planner_plan rejects steps with non-object args" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/planner.sh
 raw_plan='[{"tool":"notes_create","args":"title"}]'
 normalize_planner_plan <<<"${raw_plan}"
 SCRIPT
 
-        [ "$status" -ne 0 ]
-        [[ "${output}" == *"unable to parse planner output"* ]]
+	[ "$status" -ne 0 ]
+	[[ "${output}" == *"unable to parse planner output"* ]]
 }
 
 @test "normalize_planner_plan rejects steps missing rationale" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/planner.sh
 raw_plan='[{"tool":"notes_create","args":{}}]'
 normalize_planner_plan <<<"${raw_plan}"
 SCRIPT
 
-        [ "$status" -ne 0 ]
-        [[ "${output}" == *"unable to parse planner output"* ]]
+	[ "$status" -ne 0 ]
+	[[ "${output}" == *"unable to parse planner output"* ]]
 }
 
 @test "normalize_planner_plan extracts JSON arrays from mixed text output" {
@@ -208,9 +208,9 @@ response='{"mode":"plan","plan":[{"tool":"terminal","args":{},"thought":"list"},
 plan_json_to_entries "${response}"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ "${lines[0]}" = '{"tool":"terminal","args":{},"thought":"list"}' ]
-        [ "${lines[1]}" = '{"tool":"final_answer","args":{},"thought":"summarize"}' ]
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = '{"tool":"terminal","args":{},"thought":"list"}' ]
+	[ "${lines[1]}" = '{"tool":"final_answer","args":{},"thought":"summarize"}' ]
 }
 
 @test "plan_json_to_entries errors on non-plan payloads" {
@@ -257,10 +257,10 @@ SCRIPT
 	tool=$(printf '%s' "${action_json}" | jq -r '.tool')
 	command=$(printf '%s' "${action_json}" | jq -r '.args.command')
 	arg0=$(printf '%s' "${action_json}" | jq -r '.args.args[0]')
-thought=$(printf '%s' "${action_json}" | jq -r '.thought')
+	thought=$(printf '%s' "${action_json}" | jq -r '.thought')
 
-[ "${tool}" = "terminal" ]
-[ "${command}" = "echo" ]
-[ "${arg0}" = "hi" ]
-[ "${thought}" = "echo and report" ]
+	[ "${tool}" = "terminal" ]
+	[ "${command}" = "echo" ]
+	[ "${arg0}" = "hi" ]
+	[ "${thought}" = "echo and report" ]
 }
