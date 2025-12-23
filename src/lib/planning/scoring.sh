@@ -33,10 +33,107 @@ planner_is_tool_available() {
 	grep -Fxq "${tool}" <<<"${available_tools}" 2>/dev/null
 }
 
-planner_is_side_effecting_tool() {
-	# Heuristic to detect tools that can mutate user data or environment.
+planner_terminal_command_has_side_effects() {
+	# Determines if a terminal command is likely to produce side effects.
+	# Arguments:
+	#   $1 - terminal args JSON (string)
+	# Returns 0 when side effects are likely; 1 otherwise.
+	local args_json command first_word
+	args_json=${1:-"{}"}
+	command=$(jq -r '.command // ""' <<<"${args_json}" 2>/dev/null)
+
+	# Missing command defaults to side-effecting for safety.
+	if [[ -z "${command}" ]]; then
+		return 0
+	fi
+
+	# Trim leading whitespace to find the first token.
+	command=${command#"${command%%[![:space:]]*}"}
+	first_word=${command%%[[:space:]]*}
+
+	# Redirections imply filesystem mutations.
+	if [[ "${command}" == *">"* ]] || [[ "${command}" == *">>"* ]] || [[ "${command}" == *"<<"* ]] || [[ "${command}" == *"2>"* ]] || [[ "${command}" == *"&>"* ]]; then
+		return 0
+	fi
+
+	case "${first_word}" in
+	ls | cat | pwd | head | tail | grep | find)
+		return 1
+		;;
+	rm | mv | cp | touch | tee | chmod | chown | mkdir | rmdir | ln | mktemp)
+		return 0
+		;;
+	sed)
+		if [[ " ${command} " == *" -i"* ]]; then
+			return 0
+		fi
+		return 1
+		;;
+	esac
+
+	# Unknown commands default to side-effecting to avoid unsafe optimism.
+	return 0
+}
+
+python_repl_has_side_effects() {
+	# Detects if a python_repl snippet is likely to mutate state or perform I/O.
+	# Arguments:
+	#   $1 - python_repl args JSON (string)
+	# Returns 0 when side effects are likely; 1 otherwise.
+	local args_json snippet
+	args_json=${1:-"{}"}
+	snippet=$(jq -r '.code // .snippet // .text // ""' <<<"${args_json}" 2>/dev/null)
+
+	# Empty or unreadable snippets default to side-effecting for safety.
+	if [[ -z "${snippet}" ]]; then
+		return 0
+	fi
+
+	local -a patterns=()
+	mapfile -t patterns <<'EOF'
+open\([^)]*["'](w|a|x)[^"']*["']
+open\([^)]*["'][^"']*\+[^"']*["']
+Path\([^)]*\)\.write_text\(
+Path\([^)]*\)\.write_bytes\(
+Path\([^)]*\)\.unlink\(
+Path\([^)]*\)\.rename\(
+Path\([^)]*\)\.replace\(
+Path\([^)]*\)\.mkdir\(
+Path\([^)]*\)\.rmdir\(
+Path\([^)]*\)\.touch\(
+os\.remove\(
+os\.unlink\(
+os\.rename\(
+os\.replace\(
+os\.rmdir\(
+os\.mkdir\(
+os\.makedirs\(
+shutil\.(copy|copy2|copytree|move|rmtree)\(
+subprocess\.(run|call|Popen|check_call|check_output)\(
+os\.system\(
+(import|from)[[:space:]]+requests
+urllib\.request
+http\.client
+socket
+requests\.(get|post|put|delete|head|patch|options)\(
+os\.environ\[
+EOF
+
+	local pattern
+	for pattern in "${patterns[@]}"; do
+		if grep -Eqi -- "${pattern}" <<<"${snippet}"; then
+			return 0
+		fi
+	done
+
+	return 1
+}
+
+planner_step_has_side_effects() {
+	# Heuristic to detect steps that can mutate user data or environment.
 	# Arguments:
 	#   $1 - tool name (string)
+	#   $2 - tool args JSON (string)
 	case "$1" in
 	final_answer | web_search | notes_list | notes_read | notes_search | reminders_list | calendar_list | calendar_search | feedback)
 		return 1
@@ -44,12 +141,15 @@ planner_is_side_effecting_tool() {
 	*) ;;
 	esac
 
-	# General-purpose tools: tools that produce side effects, but are also strongly informational.
-	case "$1" in
-	terminal | python_repl)
-		return 1
-		;;
-	esac
+	if [[ "$1" == "python_repl" ]]; then
+		python_repl_has_side_effects "$2"
+		return
+	fi
+
+	if [[ "$1" == "terminal" ]]; then
+		planner_terminal_command_has_side_effects "$2"
+		return
+	fi
 
 	if [[ "$1" =~ ^mail_ ]]; then
 		return 0
@@ -77,7 +177,7 @@ planner_args_satisfiable() {
 	schema_json=${1:-"{}"}
 	args_json=${2:-"{}"}
 
-	jq -e --argjson schema "${schema_json}" --argjson args "${args_json}" '
+	jq -ne --argjson schema "${schema_json}" --argjson args "${args_json}" '
                 def matches_type($value; $schema):
                         ($schema.type // "") as $t
                         | if $t == "" then true
@@ -187,7 +287,7 @@ score_planner_candidate() {
 			invalid_args=$((invalid_args + 1))
 		fi
 
-		if ((side_effect_index < 0)) && planner_is_side_effecting_tool "${tool}"; then
+		if ((side_effect_index < 0)) && planner_step_has_side_effects "${tool}" "${args}"; then
 			side_effect_index=${idx}
 		fi
 
@@ -228,6 +328,8 @@ score_planner_candidate() {
 }
 
 export -f planner_args_satisfiable
-export -f planner_is_side_effecting_tool
 export -f planner_is_tool_available
+export -f planner_step_has_side_effects
+export -f planner_terminal_command_has_side_effects
+export -f python_repl_has_side_effects
 export -f score_planner_candidate

@@ -81,6 +81,116 @@ SCRIPT
 	[[ "${safer}" -gt "${unsafe}" ]]
 }
 
+@test "score_planner_candidate treats read-only terminal steps as informational" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+export VERBOSITY=0
+source ./src/lib/planning/scoring.sh
+tool_names() { printf "%s\n" terminal notes_create final_answer; }
+tool_args_schema() {
+        if [[ "$1" == "terminal" ]]; then
+                jq -nc '{"type":"object","required":["command"],"properties":{"command":{"type":"string"}},"additionalProperties":false}'
+        else
+                printf '{}'
+        fi
+}
+plan='{"mode":"plan","plan":[{"tool":"terminal","args":{"command":"ls"}},{"tool":"notes_create","args":{},"thought":""},{"tool":"final_answer","args":{},"thought":""}],"quickdraw":null}'
+scorecard=$(score_planner_candidate "${plan}" | tail -n 1)
+printf '%s\n' "${scorecard}"
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	rationale=$(printf '%s' "${output}" | tail -n 1 | jq -r '.rationale | join(" ")')
+	[[ "${rationale}" == *"Side-effecting actions are deferred until step 2."* ]]
+}
+
+@test "score_planner_candidate penalizes mutating terminal steps immediately" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+export VERBOSITY=0
+source ./src/lib/planning/scoring.sh
+tool_names() { printf "%s\n" terminal final_answer; }
+tool_args_schema() {
+        if [[ "$1" == "terminal" ]]; then
+                jq -nc '{"type":"object","required":["command"],"properties":{"command":{"type":"string"}},"additionalProperties":false}'
+        else
+                printf '{}'
+        fi
+}
+plan='{"mode":"plan","plan":[{"tool":"terminal","args":{"command":"rm -rf /tmp/demo"},"thought":""},{"tool":"final_answer","args":{},"thought":""}],"quickdraw":null}'
+scorecard=$(score_planner_candidate "${plan}" | tail -n 1)
+printf '%s\n' "${scorecard}"
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	rationale=$(printf '%s' "${output}" | tail -n 1 | jq -r '.rationale | join(" ")')
+	[[ "${rationale}" == *"First step is side-effecting before gathering information."* ]]
+}
+
+@test "python_repl_has_side_effects treats informational snippets as non-mutating" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+source ./src/lib/planning/scoring.sh
+set +e
+python_repl_has_side_effects '{"code":"print(2+2)"}'
+print_status=$?
+python_repl_has_side_effects '{"code":"import math\nmath.sqrt(4)"}'
+math_status=$?
+set -e
+printf '%s\n' "${print_status}" "${math_status}"
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	print_status=${lines[0]}
+	math_status=${lines[1]}
+	[[ "${print_status}" -eq 1 ]]
+	[[ "${math_status}" -eq 1 ]]
+}
+
+@test "score_planner_candidate treats informational python_repl as informational" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+export VERBOSITY=0
+source ./src/lib/planning/scoring.sh
+tool_names() { printf "%s\n" python_repl final_answer; }
+tool_args_schema() { printf '{}'; }
+plan=$(jq -nc '{"mode":"plan","plan":[{"tool":"python_repl","args":{"code":"print(2+2)"},"thought":""},{"tool":"final_answer","args":{},"thought":""}],"quickdraw":null}')
+scorecard=$(score_planner_candidate "${plan}" | tail -n 1)
+printf '%s\n' "${scorecard}"
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	rationale=$(printf '%s' "${output}" | tail -n 1 | jq -r '.rationale | join(" ")')
+	[[ "${rationale}" == *"No side-effecting tools detected in the plan."* ]]
+}
+
+@test "score_planner_candidate penalizes mutating python_repl steps" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+export VERBOSITY=0
+source ./src/lib/planning/scoring.sh
+tool_names() { printf "%s\n" python_repl final_answer; }
+tool_args_schema() { printf '{}'; }
+mutating_snippets=(
+        '{"code":"open(\"x.txt\",\"w\").write(\"hi\")"}'
+        '{"code":"from pathlib import Path\nPath(\"a\").write_text(\"x\")"}'
+        '{"code":"import subprocess\nsubprocess.run([\"echo\",\"hi\"])"}'
+        '{"code":"import requests\nrequests.get(\"https://example.com\")"}'
+)
+
+for snippet in "${mutating_snippets[@]}"; do
+        plan=$(jq -nc --argjson args "${snippet}" '{"mode":"plan","plan":[{"tool":"python_repl","args":$args,"thought":""},{"tool":"final_answer","args":{},"thought":""}],"quickdraw":null}')
+        rationale=$(score_planner_candidate "${plan}" | tail -n 1 | jq -r '.rationale | join(" ")')
+        printf '%s\n' "${rationale}"
+done
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	for line in "${lines[@]}"; do
+		[[ "${line}" == *"First step is side-effecting before gathering information."* ]]
+	done
+}
+
 @test "score_planner_candidate emits informative INFO logs" {
 	run bash <<'SCRIPT'
 set -euo pipefail
