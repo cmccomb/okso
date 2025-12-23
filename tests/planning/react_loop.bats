@@ -64,6 +64,32 @@ SCRIPT
 	[ "$output" = "plan_index=1 pending=" ]
 }
 
+@test "react_loop keeps plan index when llama returns invalid JSON" {
+	run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
+set -euo pipefail
+MAX_STEPS=1
+LLAMA_AVAILABLE=true
+USE_REACT_LLAMA=true
+source ./src/lib/react/react.sh
+log() { :; }
+log_pretty() { :; }
+emit_boxed_summary() { :; }
+format_tool_history() { printf '%s' "$1"; }
+respond_text() { printf 'fallback'; }
+validate_tool_permission() { return 0; }
+execute_tool_action() { printf '{"output":"ok","exit_code":0}'; }
+llama_infer() { printf 'not-json'; }
+plan_entry=$(jq -nc '{tool:"alpha",thought:"planned",args:{}}')
+react_loop "question" $'alpha\nbeta' "${plan_entry}" ""
+printf 'plan_index=%s skip_reason=%s' \
+        "$(state_get react_state plan_index)" \
+        "$(state_get react_state plan_skip_reason)"
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	[ "$output" = "plan_index=0 skip_reason=action_selection_failed" ]
+}
+
 @test "react_loop records plan skip reason without advancing index when execution is bypassed" {
 	run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
@@ -87,6 +113,32 @@ SCRIPT
 
 	[ "$status" -eq 0 ]
 	[ "$output" = "plan_index=0 pending=0 skip_reason=tool_not_permitted" ]
+}
+
+@test "react_loop keeps plan index when a planned tool fails" {
+	run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
+set -euo pipefail
+MAX_STEPS=1
+LLAMA_AVAILABLE=false
+USE_REACT_LLAMA=false
+source ./src/lib/react/react.sh
+log() { :; }
+log_pretty() { :; }
+emit_boxed_summary() { :; }
+format_tool_history() { printf '%s' "$1"; }
+respond_text() { printf 'fallback_response'; }
+validate_tool_permission() { return 0; }
+execute_tool_action() { printf '{"output":"fail","exit_code":9}'; return 9; }
+plan_entry=$(jq -nc '{tool:"alpha",thought:"planned",args:{}}')
+react_loop "question" "alpha" "${plan_entry}" ""
+printf 'plan_index=%s pending=%s skip_reason=%s' \
+        "$(state_get react_state plan_index)" \
+        "$(state_get react_state pending_plan_step)" \
+        "$(state_get react_state plan_skip_reason)"
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	[ "$output" = "plan_index=0 pending=0 skip_reason=" ]
 }
 
 @test "react_loop logs skip reasons without plan progress" {
@@ -151,6 +203,32 @@ SCRIPT
 
 	[ "$status" -eq 0 ]
 	[ "$output" = "first_thought=first second_thought=second (REPEATED)" ]
+}
+
+@test "react_loop does not advance plan index when llama selects a different tool" {
+	run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
+set -euo pipefail
+MAX_STEPS=1
+LLAMA_AVAILABLE=true
+USE_REACT_LLAMA=true
+source ./src/lib/react/react.sh
+log() { :; }
+log_pretty() { :; }
+emit_boxed_summary() { :; }
+format_tool_history() { printf '%s' "$1"; }
+respond_text() { printf 'done'; }
+validate_tool_permission() { return 0; }
+execute_tool_action() { printf '{"output":"ok","exit_code":0}'; }
+llama_infer() { printf '{"thought":"llm","tool":"beta","args":{"input":"alt"}}'; }
+plan_entry=$(jq -nc '{tool:"alpha",thought:"planned",args:{input:"orig"}}')
+react_loop "question" $'alpha\nbeta' "${plan_entry}" ""
+printf 'plan_index=%s skip_reason=%s' \
+        "$(state_get react_state plan_index)" \
+        "$(state_get react_state plan_skip_reason)"
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	[ "$output" = "plan_index=0 skip_reason=plan_tool_mismatch" ]
 }
 
 @test "react_loop identifies duplicates with reordered args" {

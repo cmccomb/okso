@@ -505,7 +505,7 @@ is_duplicate_action() {
 
 react_loop() {
 	local user_query allowed_tools plan_entries plan_outline action_json tool query observation current_step thought args_json action_context
-	local normalized_args_json final_answer_payload
+	local normalized_args_json final_answer_payload pending_plan_step
 	local state_prefix last_action
 	user_query="$1"
 	allowed_tools="$2"
@@ -552,6 +552,25 @@ react_loop() {
 			record_plan_skip_without_progress "${state_prefix}" "duplicate_action"
 			state_set "${state_prefix}" "step" "${current_step}"
 			continue
+		fi
+
+		# Track whether the selected action fulfills the pending planned step.
+		# The plan index only advances after executing the expected tool (or when
+		# an explicit skip reason is recorded) to keep plan progress in sync with
+		# actual execution.
+		local planned_entry planned_tool plan_step_matches_action
+		plan_step_matches_action=true
+		planned_entry=""
+		planned_tool=""
+
+		pending_plan_step="$(state_get "${state_prefix}" "pending_plan_step")"
+		if [[ -n "${pending_plan_step}" ]]; then
+			planned_entry=$(printf '%s\n' "$(state_get "${state_prefix}" "plan_entries")" | sed -n "$((pending_plan_step + 1))p")
+			planned_tool="$(printf '%s' "${planned_entry}" | jq -r '.tool // empty' 2>/dev/null || printf '')"
+			if [[ -n "${planned_tool}" && "${planned_tool}" != "${tool}" ]]; then
+				plan_step_matches_action=false
+				record_plan_skip_without_progress "${state_prefix}" "plan_tool_mismatch"
+			fi
 		fi
 
 		if [[ -z "${final_answer_payload}" ]]; then
@@ -618,7 +637,7 @@ react_loop() {
 			state_set_json_document "${state_prefix}" "$(state_get_json_document "${state_prefix}" | jq -c '.last_tool_error = null')"
 		fi
 
-		if ((exit_code == 0)); then
+		if ((exit_code == 0)) && [[ "${plan_step_matches_action}" == true ]]; then
 			complete_pending_plan_step "${state_prefix}"
 		fi
 
