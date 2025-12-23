@@ -22,6 +22,26 @@ source "${PROMPT_BUILD_PLANNER_DIR}/../schema/schema.sh"
 # shellcheck source=../time/time.sh disable=SC1091
 source "${PROMPT_BUILD_PLANNER_DIR}/../time/time.sh"
 
+load_planner_examples() {
+	# Loads example planner traces for inclusion in the planner prompt.
+	# Returns:
+	#   The examples content (string), or an empty string when unavailable.
+	local examples_path
+	examples_path="${PROMPTS_DIR}/planner_examples.txt"
+
+	if [[ -s "${examples_path}" ]]; then
+		cat "${examples_path}"
+		return 0
+	fi
+
+	if [[ -e "${examples_path}" ]]; then
+		return 0
+	fi
+
+	log "WARN" "Planner examples missing; continuing without examples" "${examples_path}" || true
+	return 0
+}
+
 build_planner_prompt_static_prefix() {
 	# Returns the deterministic planner prompt prefix that excludes runtime fields.
 	local template anchor
@@ -44,10 +64,11 @@ build_planner_prompt_dynamic_suffix() {
 	#   $3 - pre-computed search context (string)
 	# Returns:
 	#   The dynamic suffix for the planner prompt (string).
-	local user_query tool_lines search_context planner_schema current_date current_time current_weekday rendered prefix
+	local user_query tool_lines search_context planner_examples planner_schema current_date current_time current_weekday rendered prefix
 	user_query="$1"
 	tool_lines="$2"
 	search_context="$3"
+	planner_examples="$(load_planner_examples)"
 	planner_schema="$(load_schema_text planner_plan)"
 	current_date="$(current_date_local)"
 	current_time="$(current_time_local)"
@@ -57,6 +78,7 @@ build_planner_prompt_dynamic_suffix() {
 		user_query "${user_query}" \
 		tool_lines "${tool_lines}" \
 		search_context "${search_context}" \
+		planner_examples "${planner_examples}" \
 		planner_schema "${planner_schema}" \
 		current_date "${current_date}" \
 		current_time "${current_time}" \

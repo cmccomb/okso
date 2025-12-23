@@ -47,6 +47,10 @@ ${planner_schema}
 # Available tools:
 ${tool_lines}
 
+# Planner examples
+The following examples illustrate the expected planning style and structure. Adapt them to the user's request without copying verbatim.
+${planner_examples}
+
 # User request:
 ${user_query}
 
