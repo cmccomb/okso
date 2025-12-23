@@ -174,6 +174,11 @@ normalize_planner_response() {
 		return 1
 	}
 
+	plan_clean="$(append_final_answer_step "${plan_clean}")" || {
+		log "ERROR" "normalize_planner_response: unable to ensure final_answer step" "${raw}" >&2
+		return 1
+	}
+
 	normalized="$(jq --argjson plan "${plan_clean}" '.plan = $plan' <<<"${normalized}" 2>/dev/null || true)"
 
 	printf '%s' "${normalized}"
