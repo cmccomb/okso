@@ -174,43 +174,28 @@ planner_step_has_side_effects() {
 }
 
 planner_args_satisfiable() {
-	# Validates that planner-suggested args satisfy the registered schema.
-	# Arguments:
-	#   $1 - tool args schema JSON (string)
-	#   $2 - planner args JSON (string)
-	local schema_json args_json
-	schema_json=${1:-"{}"}
-	args_json=${2:-"{}"}
+  local schema_json args_json
+  schema_json=${1:-"{}"}
+  args_json=${2:-"{}"}
 
-	jq -ne --argjson schema "${schema_json}" --argjson args "${args_json}" '
-                def matches_type($value; $schema):
-                        ($schema.type // "") as $t
-                        | if $t == "" then true
-                          elif $t == "string" then ($value | type == "string") and (if ($schema.minLength // null) then ((($value | length) >= ($schema.minLength))) else true end) and (if ($schema.enum // null) then (($schema.enum | index($value)) != null) else true end)
-                          elif $t == "integer" then ($value | type == "number" and ($value == ($value | floor)))
-                          elif $t == "number" then ($value | type == "number")
-                          elif $t == "boolean" then ($value | type == "boolean")
-                          elif $t == "array" then ($value | type == "array") and ((($schema.items // null) == null) or all($value[]; matches_type(.; ($schema.items // {}))))
-                          elif $t == "object" then ($value | type == "object")
-                          else true end;
+  # Empty schema => accept.
+  if jq -e 'type=="object" and length==0' >/dev/null 2>&1 <<<"${schema_json}"; then
+    return 0
+  fi
 
-                def required_present($args; $required):
-                        all($required[]; $args | has(.));
+  python3 - <<'PY' "${schema_json}" "${args_json}"
+import json, sys
+from jsonschema import Draft202012Validator
 
-                def properties_valid($args; $props):
-                        all($props | to_entries[]; ($args[.key] // null) as $v | ($v == null) or matches_type($v; .value));
+schema = json.loads(sys.argv[1])
+args = json.loads(sys.argv[2])
 
-                if ($schema | type) != "object" then
-                        false
-                elif ($schema | length) == 0 then
-                        true
-                else
-                        ($args | type == "object")
-                        and required_present($args; ($schema.required // []))
-                        and properties_valid($args; ($schema.properties // {}))
-                        and (if ($schema.additionalProperties // true) == false then all($args | keys[]; ($schema.properties // {} | has(.))) else true end)
-                end
-        ' >/dev/null 2>&1
+try:
+    Draft202012Validator(schema).validate(args)
+except Exception:
+    sys.exit(1)
+sys.exit(0)
+PY
 }
 
 score_planner_candidate() {
@@ -227,11 +212,10 @@ score_planner_candidate() {
 		max_steps=6
 	fi
 
-	mode=$(jq -r '.mode // ""' <<<"${normalized_json}" 2>/dev/null)
 	plan_json=$(jq -c '.plan' <<<"${normalized_json}" 2>/dev/null) || return 1
 	plan_length=$(jq -r 'length' <<<"${plan_json}" 2>/dev/null)
 
-	log "INFO" "Evaluating planner plan structure" "$(jq -nc --arg mode "${mode}" --argjson length "${plan_length}" --argjson max_steps "${max_steps}" '{mode:$mode,plan_length:$length,max_steps:$max_steps}')" >&2
+	log_pretty "INFO" "Evaluating planner plan structure" "${plan_json}" >&2
 
 	# Start with a score of 0, and add a tie_breaker based on how well the plan fits within the step budget.
 	score=0
