@@ -1,79 +1,79 @@
 # Example 1 (quickdraw, 1 step)
 User request: "What does 'idempotent' mean in the context of a CLI tool?"
 Plan:
-- Quickdraw: provide a definition for idempotent in the context of a CLI tool
+- Quickdraw: mode=quickdraw with rationale and final_answer describing how an idempotent CLI command behaves when repeated.
 
 # Example 2 (3 steps, notes → reminders workflow)
 User request: "Turn my note titled 'LC-Guard action items' into reminders, and leave the note intact."
 Plan:
-- Tool: notes_read - read "LC-Guard action items" to extract candidate tasks.
-- Tool: reminders_create - create one reminder per task (title = task, notes = source note title + any context).
-- Tool: final_answer - list the reminders created and confirm the source note title updated.
+- {"tool":"notes_read","args":{"title":"LC-Guard action items"},"thought":"Extract the tasks to convert into reminders."}
+- {"tool":"reminders_create","args":{"title":"<task title>","time":"<due date if specified>","notes":"Source: LC-Guard action items"},"thought":"Schedule one reminder per task."}
+- {"tool":"final_answer","args":{"input":"List the reminders created and confirm the source note stayed unchanged."},"thought":"Report back to the user."}
 
 # Example 3 (4 steps, inbox summarization)
 User request: "Summarize my inbox from the last 24 hours into 5 bullets."
 Plan:
-- Tool: mail_list_inbox - list recent messages (metadata only).
-- Tool: mail_search - narrow to messages likely within the last 24 hours (subject/sender filters as needed) and pull the most relevant set.
-- Tool: python_repl - cluster by sender/thread keywords and draft 5 high-level bullets (themes + any obvious action items).
-- Tool: final_answer - provide the 5-bullet summary and the top 5 messages (sender + subject) that drove it.
+- {"tool":"mail_list_inbox","args":{"input":"List recent messages (metadata only)."},"thought":"Collect the most recent mail."}
+- {"tool":"mail_search","args":{"input":"Narrow to messages likely within the last 24 hours (subject/sender filters)."},"thought":"Focus the set to the requested window."}
+- {"tool":"python_repl","args":{"input":"Cluster messages by sender/thread keywords and draft five bullet themes."},"thought":"Turn the message set into themes."}
+- {"tool":"final_answer","args":{"input":"Provide five summary bullets plus the top five driving messages (sender + subject)."},"thought":"Share the summary."}
 
 # Example 4 (6 steps, web_search → verify equation → values → calculation)
 User request: "What’s the Reynolds number for air over a 0.1 m plate at 15 m/s, using today’s standard sea-level properties?"
 Plan:
-- Tool: web_search - query "Reynolds number equation rho V L mu" to verify the correct formula and variable definitions.
-- Tool: web_search - query "sea level air density viscosity 15 C" to obtain rho and mu (or nu) from a reputable source.
-- Tool: web_fetch - fetch the property source page used to capture the numeric values and units.
-- Tool: python_repl - compute Re = rho * V * L / mu (show units and intermediate values).
-- Tool: notes_create - save a note "Reynolds number calculation" with formula, inputs, source link, and result.
-- Tool: final_answer - present Re with assumptions, the verified equation, and the property values used.
+- {"tool":"web_search","args":{"input":"reynolds number equation rho V L mu"},"thought":"Verify the correct formula and variable definitions."}
+- {"tool":"web_search","args":{"input":"sea level air density viscosity 15 C"},"thought":"Collect rho and mu (or nu) from a reputable source."}
+- {"tool":"web_fetch","args":{"input":"Fetch the property source page used to capture numeric values and units."},"thought":"Ground the properties."}
+- {"tool":"python_repl","args":{"input":"Compute Re = rho * V * L / mu with units and intermediate values."},"thought":"Calculate the Reynolds number."}
+- {"tool":"notes_create","args":{"title":"Reynolds number calculation","body":"Formula, inputs, source link, and result."},"thought":"Capture the work."}
+- {"tool":"final_answer","args":{"input":"Present Re with assumptions, verified equation, and property values used."},"thought":"Return the result."}
 
 # Example 5 (7 steps, broad → broad → broad, then narrow → narrower)
 User request: "Find authoritative guidance on how to cite software in academic papers (APA vs. IEEE), and give me a short, practical rule-of-thumb."
 Plan:
-- Tool: web_search - query "how to cite software academic paper guidance" (broad) to identify major authorities (APA, IEEE, publishers, library guides).
-- Tool: web_search - query "APA software citation guidance" (broad, standard-specific) to find the canonical APA page or manual guidance.
-- Tool: web_search - query "IEEE reference format software citation" (broad, standard-specific) to find IEEE-style guidance from a credible source.
-- Tool: web_search - query "site:apastyle.apa.org software citation examples" (narrow) to land on concrete APA examples.
-- Tool: web_search - query "site:ieee.org reference software citation example" (narrower) to land on IEEE-endorsed examples (or closest authoritative IEEE source if ieee.org lacks it).
-- Tool: notes_create - create "Software citation rules of thumb" with one APA example + one IEEE example + a short checklist.
-- Tool: final_answer - provide the rule-of-thumb + mention the note title for later reuse.
+- {"tool":"web_search","args":{"input":"how to cite software academic paper guidance"},"thought":"Identify major authorities (APA, IEEE, publishers, library guides)."}
+- {"tool":"web_search","args":{"input":"APA software citation guidance"},"thought":"Locate the canonical APA page or manual guidance."}
+- {"tool":"web_search","args":{"input":"IEEE reference format software citation"},"thought":"Locate IEEE-style guidance from a credible source."}
+- {"tool":"web_search","args":{"input":"site:apastyle.apa.org software citation examples"},"thought":"Land on concrete APA examples."}
+- {"tool":"web_search","args":{"input":"site:ieee.org reference software citation example"},"thought":"Find IEEE-endorsed examples (or closest credible source)."}
+- {"tool":"notes_create","args":{"title":"Software citation rules of thumb","body":"APA example + IEEE example + checklist."},"thought":"Capture the rule-of-thumb."}
+- {"tool":"final_answer","args":{"input":"Provide the rule-of-thumb and mention the note title for reuse."},"thought":"Deliver the guidance."}
 
 # Example 6 (5 steps, combine terminal + notes)
 User request: "Search this repo for todos and make me a note listing each file and count of todos per file."
 Plan:
-- Tool: terminal - find occurrences of "TODO" across the repo and capture file paths + counts (conceptually: grep/find style).
-- Tool: terminal - normalize results into a simple 'file: count' list.
-- Tool: python_repl - sort the list descending by count; compute total TODOs.
-- Tool: notes_create - create "TODO inventory" note with sorted list + totals.
-- Tool: final_answer - share the top offenders and the note title.
+- {"tool":"terminal","args":{"command":"find-and-count-todos","args":[]},"thought":"Scan the repo for TODO occurrences."}
+- {"tool":"terminal","args":{"command":"format-todo-counts","args":[]},"thought":"Normalize into a 'file: count' list."}
+- {"tool":"python_repl","args":{"input":"Sort the list descending by count and compute total TODOs."},"thought":"Order the results."}
+- {"tool":"notes_create","args":{"title":"TODO inventory","body":"Sorted list + totals."},"thought":"Persist the summary."}
+- {"tool":"final_answer","args":{"input":"Share the top offenders and the note title."},"thought":"Report back."}
 
 # Example 7 (quickdraw, 1 step)
 User request: "Write a two-sentence status update I can paste into Slack about finishing a draft and waiting on feedback."
 Plan:
-- Quickdraw: write two sentences for the user (no tools needed).
+- Quickdraw: mode=quickdraw with a two-sentence final_answer and supporting rationale (no tools required).
 
 # Example 8 (4 steps, web_search then local capture)
 User request: "What’s the latest stable Node.js version, and store it in a note for my setup checklist."
 Plan:
-- Tool: web_search - query "latest stable Node.js version" and pick the official Node.js source.
-- Tool: web_fetch - fetch the official page used to capture the version number.
-- Tool: notes_create - create "Dev environment versions" note including "Node.js: vX.Y.Z" + source link + date.
-- Tool: final_answer - report the version and confirm the note title.
+- {"tool":"web_search","args":{"input":"latest stable Node.js version"},"thought":"Find the current release from the official source."}
+- {"tool":"web_fetch","args":{"input":"Fetch the official page used to capture the version number."},"thought":"Ground the version in the source."}
+- {"tool":"notes_create","args":{"title":"Dev environment versions","body":"Node.js: vX.Y.Z + source link + date."},"thought":"Store the version for reuse."}
+- {"tool":"final_answer","args":{"input":"Report the version and confirm the note title."},"thought":"Share the answer."}
 
 # Example 9 (2 steps)
 User request: "List my upcoming calendar events that mention 'proposal' in the title."
 Plan:
-- Tool: calendar_search - query "proposal" (title/location/description match).
-- Tool: final_answer - list matches with date/time and location if present.
+- {"tool":"calendar_search","args":{"input":"proposal"},"thought":"Match by title/location/description."}
+- {"tool":"final_answer","args":{"input":"List matches with date/time and location when present."},"thought":"Return the matches."}
 
 # Example 10 (7 steps, web_search → values → python_repl → artifact)
 User request: "Estimate the monthly cost to run a 600W server 24/7 in Pittsburgh using the current PA residential kWh rate."
 Plan:
-- Tool: web_search - query "Pennsylvania residential electricity rate cents per kWh current" and select a reputable source (note the date).
-- Tool: web_fetch - fetch the chosen page to capture the numeric rate and units.
-- Tool: python_repl - compute kWh/month from 0.6 kW * 24 * 30 (show math).
-- Tool: python_repl - compute cost = kWh/month * $/kWh; add a ±10% sensitivity band.
-- Tool: notes_create - save "Server electricity estimate" with assumptions, source link, and outputs.
-- Tool: reminders_create - set a reminder in 30 days to refresh the rate (title + notes with link).
-- Tool: final_answer - report the estimate + assumptions + sensitivity band.
+- {"tool":"web_search","args":{"input":"Pennsylvania residential electricity rate cents per kWh current"},"thought":"Find a reputable source and note the date."}
+- {"tool":"web_fetch","args":{"input":"Fetch the chosen page to capture the numeric rate and units."},"thought":"Ground the rate."}
+- {"tool":"python_repl","args":{"input":"Compute kWh/month from 0.6 kW * 24 * 30 (show math)."},"thought":"Translate power draw into energy."}
+- {"tool":"python_repl","args":{"input":"Compute cost = kWh/month * $/kWh and a ±10% sensitivity band."},"thought":"Estimate the spend."}
+- {"tool":"notes_create","args":{"title":"Server electricity estimate","body":"Assumptions, source link, outputs."},"thought":"Save the calculation."}
+- {"tool":"reminders_create","args":{"title":"Refresh electricity rate","time":"30 days from now","notes":"Revisit the rate with the same source."},"thought":"Schedule a refresh."}
+- {"tool":"final_answer","args":{"input":"Report the estimate, assumptions, and sensitivity band."},"thought":"Return the summary."}

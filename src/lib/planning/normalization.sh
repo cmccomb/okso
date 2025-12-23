@@ -88,8 +88,19 @@ normalize_planner_plan() {
 		parse_planner_payload "${raw}" "\\[[\\s\\S]*?\\]" "array"
 	)" || plan_candidate=""
 
-	if [[ -n "${plan_candidate:-}" ]]; then
-		normalized=$(jq -ec '
+        if [[ -n "${plan_candidate:-}" ]]; then
+                normalized=$(jq -ec '
+                        def with_canonical_args($args):
+                                if ($args // {}) | type != "object" then
+                                        {}
+                                elif ($args | has("input")) then
+                                        $args
+                                elif ($args | has("code")) then
+                                        ($args + {input: $args.code} | del(.code))
+                                else
+                                        $args
+                                end;
+
                         def valid_step:
                                 (.tool | type == "string")
                                 and (.tool | length) > 0
@@ -101,26 +112,26 @@ normalize_planner_plan() {
                         elif any(.[]; (type != "object") or (valid_step | not)) then
                                 error("plan contains invalid steps")
                         else
-                                map({tool: .tool, args: (.args // {}), thought: (.thought // "")})
+                                map({tool: .tool, args: with_canonical_args(.args), thought: (.thought // "")})
                         end
                         ' <<<"${plan_candidate}" 2>/dev/null || true)
-		if [[ -n "${normalized}" && "${normalized}" != "[]" ]]; then
-			printf '%s' "${normalized}"
-			return 0
-		fi
-	fi
+                if [[ -n "${normalized}" && "${normalized}" != "[]" ]]; then
+                        printf '%s' "${normalized}"
+                        return 0
+                fi
+        fi
 
 	log "ERROR" "normalize_planner_plan: unable to parse planner output" "${raw}" >&2
 	return 1
 }
 
 normalize_planner_response() {
-	# Normalizes any planner output into a canonical object that the
-	# scoring and execution layers understand. The helper tolerates both
-	# legacy plan arrays and modern objects that may represent either a
-	# structured plan or a "quickdraw" direct answer, ensuring downstream
-	# tooling always receives the final_answer stub.
-	local raw candidate normalized
+        # Normalizes any planner output into a canonical object that the
+        # scoring and execution layers understand. The helper tolerates both
+        # legacy plan arrays and modern objects that may represent either a
+        # structured plan or a "quickdraw" direct answer, ensuring downstream
+        # tooling always receives the final_answer stub.
+        local raw candidate normalized plan_clean
 	raw="$(cat)"
 
 	if ! require_python3_available "planner output normalization"; then
@@ -163,12 +174,21 @@ normalize_planner_response() {
                 end
                 ' <<<"${candidate}" 2>/dev/null || true)
 
-	if [[ -z "${normalized}" ]]; then
-		log "ERROR" "normalize_planner_response: unable to parse planner output" "${raw}" >&2
-		return 1
-	fi
+        if [[ -z "${normalized}" ]]; then
+                log "ERROR" "normalize_planner_response: unable to parse planner output" "${raw}" >&2
+                return 1
+        fi
 
-	printf '%s' "${normalized}"
+        if jq -e '.mode == "plan"' <<<"${normalized}" >/dev/null 2>&1; then
+                plan_clean="$(jq -ce '.plan' <<<"${normalized}" | normalize_planner_plan)" || {
+                        log "ERROR" "normalize_planner_response: unable to parse planner output" "${raw}" >&2
+                        return 1
+                }
+
+                normalized="$(jq --argjson plan "${plan_clean}" '.plan = $plan' <<<"${normalized}" 2>/dev/null || true)"
+        fi
+
+        printf '%s' "${normalized}"
 }
 
 extract_plan_array() {
