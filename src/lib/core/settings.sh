@@ -105,7 +105,8 @@ create_default_settings() {
 	#   $1 - settings namespace prefix (string)
 	#   $2 - overrides JSON to merge with defaults (string, optional)
 	local settings_prefix overrides default_model_file default_planner_model_file config_dir config_file
-	local planner_model_spec react_model_spec default_json override_json cache_dir run_id planner_cache_file react_cache_file
+	local planner_model_spec react_model_spec rephraser_model_spec default_json override_json cache_dir run_id planner_cache_file react_cache_file
+	local rephraser_cache_file
 	settings_prefix="$1"
 	overrides="${2:-}"
 
@@ -117,8 +118,10 @@ create_default_settings() {
 	config_file="${config_dir}/config.env"
 	planner_model_spec="${DEFAULT_PLANNER_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-8B-GGUF:${default_planner_model_file}}"
 	react_model_spec="${DEFAULT_REACT_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-4B-GGUF:${default_model_file}}"
+	rephraser_model_spec="${DEFAULT_REPHRASER_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-1.7B-GGUF:${DEFAULT_REPHRASER_MODEL_FILE_BASE:-Qwen_Qwen3-1.7B-Q4_K_M.gguf}}"
 	planner_cache_file="${OKSO_PLANNER_CACHE_FILE:-${cache_dir}/planner.prompt-cache}"
 	react_cache_file="${OKSO_REACT_CACHE_FILE:-${cache_dir}/runs/${run_id}/react.prompt-cache}"
+	rephraser_cache_file="${OKSO_REPHRASER_CACHE_FILE:-${cache_dir}/rephraser.prompt-cache}"
 
 	default_json=$(jq -c -n \
 		--arg version "0.1.0" \
@@ -130,11 +133,14 @@ create_default_settings() {
 		--arg cache_dir "${cache_dir}" \
 		--arg planner_cache_file "${planner_cache_file}" \
 		--arg react_cache_file "${react_cache_file}" \
+		--arg rephraser_cache_file "${rephraser_cache_file}" \
 		--arg run_id "${run_id}" \
 		--arg planner_model_spec "${planner_model_spec}" \
 		--arg react_model_spec "${react_model_spec}" \
+		--arg rephraser_model_spec "${rephraser_model_spec}" \
 		--arg planner_model_branch "${DEFAULT_PLANNER_MODEL_BRANCH_BASE:-main}" \
 		--arg react_model_branch "${DEFAULT_REACT_MODEL_BRANCH_BASE:-main}" \
+		--arg rephraser_model_branch "${DEFAULT_REPHRASER_MODEL_BRANCH_BASE:-main}" \
 		--arg notes_dir "${HOME}/.okso" \
 		--arg use_react_llama "${USE_REACT_LLAMA:-true}" \
 		'{
@@ -147,15 +153,20 @@ create_default_settings() {
                         cache_dir: $cache_dir,
                         planner_cache_file: $planner_cache_file,
                         react_cache_file: $react_cache_file,
+                        rephraser_cache_file: $rephraser_cache_file,
                         run_id: $run_id,
                         planner_model_spec: $planner_model_spec,
                         planner_model_branch: $planner_model_branch,
                         react_model_spec: $react_model_spec,
                         react_model_branch: $react_model_branch,
+                        rephraser_model_spec: $rephraser_model_spec,
+                        rephraser_model_branch: $rephraser_model_branch,
                         planner_model_repo: "",
                         planner_model_file: "",
                         react_model_repo: "",
                         react_model_file: "",
+                        rephraser_model_repo: "",
+                        rephraser_model_file: "",
                         approve_all: "false",
                         force_confirm: "false",
                         dry_run: "false",

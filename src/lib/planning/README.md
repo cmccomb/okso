@@ -17,15 +17,20 @@ execute tool calls and emit final answers.
 
 1. **Tool + schema discovery:** `planner.sh` loads tool registrations and the planner
    JSON schema so the model knows what actions exist and how to call them.
-2. **Context collection:** `planner_fetch_search_context` optionally performs a web
-   search before prompting, providing citations the model can reuse when drafting an
-   outline.
-3. **Prompt assembly:** `prompt/build_planner.sh` renders a static prefix plus a dynamic
+2. **Search query rephrasing:** `rephrasing.sh` asks a lightweight Qwen3 1.7B model to
+   generate 1–3 focused web search queries derived from the user's request. llama.cpp
+   constrains decoding with a JSON schema, and the output is validated (non-empty JSON
+   list, max three strings) with automatic fallback to the original query when
+   validation fails.
+3. **Context collection:** `planner_fetch_search_context` executes a web search for each
+   rephrased query and aggregates the results into a prompt-ready summary that the
+   planner can cite when drafting an outline.
+4. **Prompt assembly:** `prompt/build_planner.sh` renders a static prefix plus a dynamic
    suffix containing tools, schemas, examples, and timestamps. The combined prompt is
    fed to `llama_client.sh`.
-4. **Normalization + scoring:** Raw model output is cleaned by
+5. **Normalization + scoring:** Raw model output is cleaned by
    `normalization.sh#normalize_planner_response`, then ranked via
    `scoring.sh#score_planner_candidate`. The best candidate's response and allowed tools
    are forwarded to the ReAct loop.
-5. **Execution:** `react/react.sh` executes the plan with approvals and emits the final
+6. **Execution:** `react/react.sh` executes the plan with approvals and emits the final
    user-visible answer.
