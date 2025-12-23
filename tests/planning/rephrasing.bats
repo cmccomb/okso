@@ -8,7 +8,7 @@ setup() {
 }
 
 @test "planner_generate_search_queries returns multiple sanitized queries" {
-        run env -i HOME="$HOME" PATH="$PATH" bash <<'SCRIPT'
+	run env -i HOME="$HOME" PATH="$PATH" bash <<'SCRIPT'
 set -euo pipefail
 PLANNER_SKIP_TOOL_LOAD=true
 export PLANNER_SKIP_TOOL_LOAD
@@ -21,11 +21,11 @@ result=$(planner_generate_search_queries "original" 2>/dev/null)
 jq -e 'length == 2 and .[0] == "first query" and .[1] == "second query"' <<<"${result}" >/dev/null
 SCRIPT
 
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "planner_generate_search_queries forwards JSON schema to llama" {
-        run env -i HOME="$HOME" PATH="$PATH" bash <<'SCRIPT'
+	run env -i HOME="$HOME" PATH="$PATH" bash <<'SCRIPT'
 set -euo pipefail
 PLANNER_SKIP_TOOL_LOAD=true
 export PLANNER_SKIP_TOOL_LOAD
@@ -44,11 +44,11 @@ llama_infer() {
 planner_generate_search_queries "whatever" >/dev/null
 SCRIPT
 
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "planner_generate_search_queries falls back when too many outputs are returned" {
-        run env -i HOME="$HOME" PATH="$PATH" bash <<'SCRIPT'
+	run env -i HOME="$HOME" PATH="$PATH" bash <<'SCRIPT'
 set -euo pipefail
 PLANNER_SKIP_TOOL_LOAD=true
 export PLANNER_SKIP_TOOL_LOAD

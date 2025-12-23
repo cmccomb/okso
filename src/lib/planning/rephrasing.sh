@@ -70,20 +70,20 @@ validate_rephrase_output() {
 }
 
 planner_generate_search_queries() {
-        # Generates up to three search queries for the planner search stage.
-        # Arguments:
-        #   $1 - user query (string)
-        # Returns:
-        #   JSON array of 1-3 search queries (strings).
-        local user_query prompt raw sanitized max_generation_tokens schema_json
-        user_query="$1"
-        max_generation_tokens=${REPHRASER_MAX_OUTPUT_TOKENS:-256}
+	# Generates up to three search queries for the planner search stage.
+	# Arguments:
+	#   $1 - user query (string)
+	# Returns:
+	#   JSON array of 1-3 search queries (strings).
+	local user_query prompt raw sanitized max_generation_tokens schema_json
+	user_query="$1"
+	max_generation_tokens=${REPHRASER_MAX_OUTPUT_TOKENS:-256}
 
-        schema_json="$(load_schema_text planner_search_queries 2>/dev/null || true)"
+	schema_json="$(load_schema_text planner_search_queries 2>/dev/null || true)"
 
-        if ! [[ "${max_generation_tokens}" =~ ^[0-9]+$ ]] || ((max_generation_tokens < 1)); then
-                max_generation_tokens=256
-        fi
+	if ! [[ "${max_generation_tokens}" =~ ^[0-9]+$ ]] || ((max_generation_tokens < 1)); then
+		max_generation_tokens=256
+	fi
 
 	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
 		log "WARN" "llama unavailable; using raw query for search" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}" >&2
@@ -97,7 +97,7 @@ planner_generate_search_queries() {
 		return 0
 	}
 
-        raw="$(LLAMA_TEMPERATURE=0 llama_infer "${prompt}" '' "${max_generation_tokens}" "${schema_json}" "${SEARCH_REPHRASER_MODEL_REPO:-}" "${SEARCH_REPHRASER_MODEL_FILE:-}" "${SEARCH_REPHRASER_CACHE_FILE:-}" "${prompt}")" || raw=""
+	raw="$(LLAMA_TEMPERATURE=0 llama_infer "${prompt}" '' "${max_generation_tokens}" "${schema_json}" "${SEARCH_REPHRASER_MODEL_REPO:-}" "${SEARCH_REPHRASER_MODEL_FILE:-}" "${SEARCH_REPHRASER_CACHE_FILE:-}" "${prompt}")" || raw=""
 
 	if [[ -z "${raw}" ]]; then
 		log "WARN" "Rephrase model returned empty output" "planner_rephrase_empty" >&2

@@ -34,21 +34,21 @@ schema_path() {
 	local schema_name schema_file
 	schema_name="$1"
 
-        case "${schema_name}" in
-        react_action)
-                schema_file="react_action.schema.json"
-                ;;
-        planner_plan)
-                schema_file="planner_plan.schema.json"
-                ;;
-        planner_search_queries)
-                schema_file="planner_search_queries.schema.json"
-                ;;
-        concise_response)
-                schema_file="concise_response.schema.json"
-                ;;
-        *)
-                log "ERROR" "Unknown schema requested" "${schema_name}" || true
+	case "${schema_name}" in
+	react_action)
+		schema_file="react_action.schema.json"
+		;;
+	planner_plan)
+		schema_file="planner_plan.schema.json"
+		;;
+	planner_search_queries)
+		schema_file="planner_search_queries.schema.json"
+		;;
+	concise_response)
+		schema_file="concise_response.schema.json"
+		;;
+	*)
+		log "ERROR" "Unknown schema requested" "${schema_name}" || true
 		return 1
 		;;
 	esac
