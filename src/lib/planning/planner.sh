@@ -217,11 +217,11 @@ generate_planner_response() {
 	mkdir -p "$(dirname "${debug_log_file}")" 2>/dev/null || true
 	: >"${debug_log_file}" 2>/dev/null || true
 
-        # Seed the best score with a very negative value so that even heavily
-        # penalized candidates remain eligible for selection. This avoids
-        # returning empty results when every candidate incurs availability or
-        # safety deductions during scoring.
-        local best_plan="" best_score=-999999 best_tie_breaker=-9999 candidate_index=0 raw_plan normalized_plan
+	# Seed the best score with a very negative value so that even heavily
+	# penalized candidates remain eligible for selection. This avoids
+	# returning empty results when every candidate incurs availability or
+	# safety deductions during scoring.
+	local best_plan="" best_score=-999999 best_tie_breaker=-9999 candidate_index=0 raw_plan normalized_plan
 	local candidate_score candidate_tie_breaker candidate_scorecard candidate_rationale
 	while ((candidate_index < sample_count)); do
 		candidate_index=$((candidate_index + 1))
