@@ -368,40 +368,40 @@ derive_tool_query() {
 }
 
 emit_plan_json() {
-        local plan_entries
-        plan_entries="$1"
+	local plan_entries
+	plan_entries="$1"
 
 	if [[ -z "${plan_entries}" ]]; then
 		printf '[]'
 		return 0
 	fi
 
-        printf '%s\n' "${plan_entries}" |
-                sed '/^[[:space:]]*$/d' |
-                jq -sc 'map(select(type=="object"))'
+	printf '%s\n' "${plan_entries}" |
+		sed '/^[[:space:]]*$/d' |
+		jq -sc 'map(select(type=="object"))'
 }
 
 derive_allowed_tools_from_plan() {
-        # Arguments:
-        #   $1 - planner response JSON (object or legacy plan array)
-        local plan_json tool seen status
-        plan_json="${1:-[]}" 
+	# Arguments:
+	#   $1 - planner response JSON (object or legacy plan array)
+	local plan_json tool seen status
+	plan_json="${1:-[]}"
 
-        if plan_json="$(extract_plan_array "${plan_json}")"; then
-                status=0
-        else
-                status=$?
-        fi
-        if [[ ${status} -ne 0 ]]; then
-                if [[ ${status} -eq 10 ]]; then
-                        return 0
-                fi
-                return 1
-        fi
+	if plan_json="$(extract_plan_array "${plan_json}")"; then
+		status=0
+	else
+		status=$?
+	fi
+	if [[ ${status} -ne 0 ]]; then
+		if [[ ${status} -eq 10 ]]; then
+			return 0
+		fi
+		return 1
+	fi
 
-        seen=""
-        local -a required=()
-        local plan_contains_fallback=false
+	seen=""
+	local -a required=()
+	local plan_contains_fallback=false
 	if jq -e '.[] | select(.tool == "react_fallback")' <<<"${plan_json}" >/dev/null 2>&1; then
 		plan_contains_fallback=true
 	fi
@@ -434,22 +434,22 @@ derive_allowed_tools_from_plan() {
 }
 
 plan_json_to_entries() {
-        local plan_json status
-        plan_json="$1"
+	local plan_json status
+	plan_json="$1"
 
-        if plan_json="$(extract_plan_array "${plan_json}")"; then
-                status=0
-        else
-                status=$?
-        fi
-        if [[ ${status} -ne 0 ]]; then
-                if [[ ${status} -eq 10 ]]; then
-                        return 0
-                fi
-                return 1
-        fi
+	if plan_json="$(extract_plan_array "${plan_json}")"; then
+		status=0
+	else
+		status=$?
+	fi
+	if [[ ${status} -ne 0 ]]; then
+		if [[ ${status} -eq 10 ]]; then
+			return 0
+		fi
+		return 1
+	fi
 
-        printf '%s' "${plan_json}" | jq -cr '.[]'
+	printf '%s' "${plan_json}" | jq -cr '.[]'
 }
 
 REACT_ENTRYPOINT=${REACT_ENTRYPOINT:-"${PLANNING_LIB_DIR}/../react/react.sh"}

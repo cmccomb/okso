@@ -5,41 +5,41 @@ setup() {
 }
 
 @test "plan_json_to_outline numbers steps from raw planner text" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/prompting.sh
 raw_plan='[{"tool":"terminal","args":{"command":"ls"},"thought":"list"},{"tool":"final_answer","args":{},"thought":"wrap up"}]'
 plan_json_to_outline "${raw_plan}"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ "${lines[0]}" = "1. list" ]
-        [ "${lines[1]}" = "2. wrap up" ]
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "1. list" ]
+	[ "${lines[1]}" = "2. wrap up" ]
 }
 
 @test "plan_json_to_outline unwraps planner response objects" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/prompting.sh
 response='{"mode":"plan","plan":[{"tool":"terminal","args":{},"thought":"step one"},{"tool":"final_answer","args":{},"thought":"finish"}]}'
 plan_json_to_outline "${response}"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ "${lines[0]}" = "1. step one" ]
-        [ "${lines[1]}" = "2. finish" ]
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "1. step one" ]
+	[ "${lines[1]}" = "2. finish" ]
 }
 
 @test "plan_json_to_outline formats quickdraw responses" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/prompting.sh
 quickdraw='{"mode":"quickdraw","quickdraw":{"rationale":"direct","final_answer":"done","confidence":0.42}}'
 plan_json_to_outline "${quickdraw}"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ "${output}" = "Quickdraw (confidence: 0.42) - direct" ]
+	[ "$status" -eq 0 ]
+	[ "${output}" = "Quickdraw (confidence: 0.42) - direct" ]
 }
 
 @test "build_planner_prompt_with_tools injects tool descriptions when provided" {

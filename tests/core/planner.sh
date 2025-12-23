@@ -103,7 +103,7 @@ SCRIPT
 }
 
 @test "derive_allowed_tools_from_plan gathers unique tools and ensures summary" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/planner.sh
 tool_names() { printf "%s\n" terminal notes_create final_answer; }
@@ -115,14 +115,14 @@ done < <(derive_allowed_tools_from_plan "${plan_json}")
 printf "%s\n" "${tools[@]}"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ "${lines[0]}" = "terminal" ]
-        [ "${lines[1]}" = "notes_create" ]
-        [ "${lines[2]}" = "final_answer" ]
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "terminal" ]
+	[ "${lines[1]}" = "notes_create" ]
+	[ "${lines[2]}" = "final_answer" ]
 }
 
 @test "derive_allowed_tools_from_plan unwraps planner response objects" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/planner.sh
 tool_names() { printf "%s\n" terminal notes_create final_answer; }
@@ -134,21 +134,21 @@ done < <(derive_allowed_tools_from_plan "${response}")
 printf "%s\n" "${tools[@]}"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ "${lines[0]}" = "terminal" ]
-        [ "${lines[1]}" = "final_answer" ]
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "terminal" ]
+	[ "${lines[1]}" = "final_answer" ]
 }
 
 @test "derive_allowed_tools_from_plan short-circuits quickdraw responses" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/planner.sh
 quickdraw='{"mode":"quickdraw","quickdraw":{"final_answer":"done","rationale":"direct"}}'
 derive_allowed_tools_from_plan "${quickdraw}" | wc -l
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ "${lines[0]}" -eq 0 ]
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" -eq 0 ]
 }
 
 @test "derive_allowed_tools_from_plan expands react_fallback to available tools" {
@@ -172,7 +172,7 @@ SCRIPT
 }
 
 @test "derive_allowed_tools_from_plan de-duplicates web_search entries" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 export VERBOSITY=0
 source ./src/lib/planning/planner.sh
@@ -185,33 +185,33 @@ done < <(derive_allowed_tools_from_plan "${plan_json}")
 printf "tools=%s\n" "${tools[*]}"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ "${lines[0]}" = "tools=web_search final_answer" ]
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "tools=web_search final_answer" ]
 }
 
 @test "plan_json_to_entries unwraps planner response objects" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/planner.sh
 response='{"mode":"plan","plan":[{"tool":"terminal","args":{}},{"tool":"final_answer","args":{}}]}'
 plan_json_to_entries "${response}"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ "${lines[0]}" = '{"tool":"terminal","args":{}}' ]
-        [ "${lines[1]}" = '{"tool":"final_answer","args":{}}' ]
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = '{"tool":"terminal","args":{}}' ]
+	[ "${lines[1]}" = '{"tool":"final_answer","args":{}}' ]
 }
 
 @test "plan_json_to_entries short-circuits quickdraw responses" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/planner.sh
 quickdraw='{"mode":"quickdraw","quickdraw":{"final_answer":"done","rationale":"direct"}}'
 plan_json_to_entries "${quickdraw}" | wc -l
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ "${lines[0]}" -eq 0 ]
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" -eq 0 ]
 }
 
 @test "select_next_action uses deterministic plan when llama disabled" {

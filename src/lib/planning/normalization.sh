@@ -24,12 +24,12 @@ source "${PLANNING_NORMALIZATION_DIR}/../core/logging.sh"
 source "${PLANNING_NORMALIZATION_DIR}/../dependency_guards/dependency_guards.sh"
 
 parse_planner_payload() {
-        local raw pattern allowed_types
-        raw="${1:-}"
-        pattern="${2:-}"
-        allowed_types="${3:-}"
+	local raw pattern allowed_types
+	raw="${1:-}"
+	pattern="${2:-}"
+	allowed_types="${3:-}"
 
-        RAW_INPUT="${raw}" PAYLOAD_REGEX="${pattern}" ALLOWED_TYPES="${allowed_types}" python3 - <<'PYTHON'
+	RAW_INPUT="${raw}" PAYLOAD_REGEX="${pattern}" ALLOWED_TYPES="${allowed_types}" python3 - <<'PYTHON'
 import json
 import os
 import re
@@ -73,21 +73,21 @@ PYTHON
 # Normalize noisy planner output into a clean PlannerPlan JSON array of objects.
 # Reads from stdin, writes clean JSON array to stdout.
 normalize_planner_plan() {
-        local raw plan_candidate normalized
+	local raw plan_candidate normalized
 
-        raw="$(cat)"
+	raw="$(cat)"
 
-        if ! require_python3_available "planner output normalization"; then
-                log "ERROR" "normalize_planner_plan: python3 unavailable" "${raw}" >&2
-                return 1
-        fi
+	if ! require_python3_available "planner output normalization"; then
+		log "ERROR" "normalize_planner_plan: python3 unavailable" "${raw}" >&2
+		return 1
+	fi
 
-        plan_candidate="$(
-                parse_planner_payload "${raw}" "\\[[\\s\\S]*?\\]" "array"
-        )" || plan_candidate=""
+	plan_candidate="$(
+		parse_planner_payload "${raw}" "\\[[\\s\\S]*?\\]" "array"
+	)" || plan_candidate=""
 
-        if [[ -n "${plan_candidate:-}" ]]; then
-                normalized=$(jq -ec '
+	if [[ -n "${plan_candidate:-}" ]]; then
+		normalized=$(jq -ec '
                         def valid_step:
                                 (.tool | type == "string")
                                 and (.tool | length) > 0
@@ -102,35 +102,35 @@ normalize_planner_plan() {
                                 map({tool: .tool, args: (.args // {}), thought: (.thought // "")})
                         end
                         ' <<<"${plan_candidate}" 2>/dev/null || true)
-                if [[ -n "${normalized}" && "${normalized}" != "[]" ]]; then
-                        printf '%s' "${normalized}"
-                        return 0
-                fi
-        fi
+		if [[ -n "${normalized}" && "${normalized}" != "[]" ]]; then
+			printf '%s' "${normalized}"
+			return 0
+		fi
+	fi
 
-        log "ERROR" "normalize_planner_plan: unable to parse planner output" "${raw}" >&2
-        return 1
+	log "ERROR" "normalize_planner_plan: unable to parse planner output" "${raw}" >&2
+	return 1
 }
 
 normalize_planner_response() {
-        local raw candidate normalized
-        raw="$(cat)"
+	local raw candidate normalized
+	raw="$(cat)"
 
-        if ! require_python3_available "planner output normalization"; then
-                log "ERROR" "normalize_planner_response: python3 unavailable" "${raw}" >&2
-                return 1
-        fi
+	if ! require_python3_available "planner output normalization"; then
+		log "ERROR" "normalize_planner_response: python3 unavailable" "${raw}" >&2
+		return 1
+	fi
 
-        candidate="$(
-                parse_planner_payload "${raw}" "\\{[\\s\\S]*\\}|\\[[\\s\\S]*\\]" "object,array"
-        )" || candidate=""
+	candidate="$(
+		parse_planner_payload "${raw}" "\\{[\\s\\S]*\\}|\\[[\\s\\S]*\\]" "object,array"
+	)" || candidate=""
 
-        if [[ -z "${candidate:-}" ]]; then
-                log "ERROR" "normalize_planner_response: unable to parse planner output" "${raw}" >&2
-                return 1
-        fi
+	if [[ -z "${candidate:-}" ]]; then
+		log "ERROR" "normalize_planner_response: unable to parse planner output" "${raw}" >&2
+		return 1
+	fi
 
-        normalized=$(jq -ec '
+	normalized=$(jq -ec '
                 def clamp_confidence:
                         if . == null then null
                         elif . < 0 then 0
@@ -156,38 +156,38 @@ normalize_planner_response() {
                 end
                 ' <<<"${candidate}" 2>/dev/null || true)
 
-        if [[ -z "${normalized}" ]]; then
-                log "ERROR" "normalize_planner_response: unable to parse planner output" "${raw}" >&2
-                return 1
-        fi
+	if [[ -z "${normalized}" ]]; then
+		log "ERROR" "normalize_planner_response: unable to parse planner output" "${raw}" >&2
+		return 1
+	fi
 
-        printf '%s' "${normalized}"
+	printf '%s' "${normalized}"
 }
 
 extract_plan_array() {
-        # Extracts the plan array from a planner response or legacy array.
-        # Arguments:
-        #   $1 - planner response JSON (object or legacy plan array)
-        local payload plan_json
-        payload="${1:-[]}" 
+	# Extracts the plan array from a planner response or legacy array.
+	# Arguments:
+	#   $1 - planner response JSON (object or legacy plan array)
+	local payload plan_json
+	payload="${1:-[]}"
 
-        if jq -e '.mode == "quickdraw"' <<<"${payload}" >/dev/null 2>&1; then
-                return 10
-        fi
+	if jq -e '.mode == "quickdraw"' <<<"${payload}" >/dev/null 2>&1; then
+		return 10
+	fi
 
-        if jq -e '.mode == "plan" and (.plan | type == "array")' <<<"${payload}" >/dev/null 2>&1; then
-                plan_json="$(jq -c '.plan' <<<"${payload}")"
-        elif jq -e 'type == "array"' <<<"${payload}" >/dev/null 2>&1; then
-                plan_json="${payload}"
-        else
-                plan_json="$(printf '%s' "${payload}" | normalize_planner_plan)" || return 1
-        fi
+	if jq -e '.mode == "plan" and (.plan | type == "array")' <<<"${payload}" >/dev/null 2>&1; then
+		plan_json="$(jq -c '.plan' <<<"${payload}")"
+	elif jq -e 'type == "array"' <<<"${payload}" >/dev/null 2>&1; then
+		plan_json="${payload}"
+	else
+		plan_json="$(printf '%s' "${payload}" | normalize_planner_plan)" || return 1
+	fi
 
-        printf '%s' "${plan_json}"
+	printf '%s' "${plan_json}"
 }
 
 append_final_answer_step() {
-        # Ensures the plan includes a final step with the final_answer tool.
+	# Ensures the plan includes a final step with the final_answer tool.
 	# Arguments:
 	#   $1 - plan JSON array (string)
 	local plan_json plan_clean has_final updated_plan
