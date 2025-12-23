@@ -34,7 +34,9 @@ Current time: ${current_time} (local)
 Current weekday: ${current_weekday}
 
 Relevant context and agent trace:
+---------------- AGENT TRACE BEGINS ----------------
 ${context}
+---------------- AGENT TRACE ENDS ----------------
 
 # User Request
 ${user_query}
