@@ -3,6 +3,11 @@
 #
 # Planner candidate scoring utilities.
 #
+# The scorer runs after normalization to rank multiple planner candidates. It
+# penalizes long or unsafe plans, rewards adherence to the final_answer contract,
+# and encodes rationale strings so operators can trace why a candidate won. The
+# resulting scorecard drives selection in planner.sh before execution begins.
+#
 # Usage:
 #   source "${BASH_SOURCE[0]%/scoring.sh}/scoring.sh"
 #

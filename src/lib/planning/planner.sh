@@ -41,6 +41,23 @@ chpwd_functions=()
 
 PLANNING_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
+# Planner architecture overview
+# -----------------------------
+# The planner performs a short, deterministic pass before the ReAct loop
+# executes any tools. The high-level flow is:
+#   1. Tools and schemas are sourced so the planner understands which actions
+#      are available and how they should be called.
+#   2. A lightweight web search seeds context that the planner can cite when
+#      drafting the outline (optional when the search tool is absent).
+#   3. Prompt builders render a prefix + suffix prompt that injects schemas,
+#      tool descriptions, and examples into a llama.cpp completion request.
+#   4. Raw model responses are normalized into the canonical planner schema
+#      (plan array or quickdraw object) and scored for safety + viability.
+#   5. The best candidate's plan and allowed tools are forwarded to the ReAct
+#      loop, which handles execution, approvals, and final answers.
+#
+# This file owns steps (1)–(4); execution dispatch lives in ../react/react.sh.
+
 # shellcheck source=../core/errors.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/../core/errors.sh"
 # shellcheck source=../core/logging.sh disable=SC1091
@@ -182,15 +199,15 @@ generate_planner_response() {
 	planner_tool_catalog="$(printf '%s\n' "${planner_tools[@]}" | paste -sd ',' -)"
 	log "DEBUG" "Planner tool catalog" "${planner_tool_catalog}" >&2
 
-	local planner_schema_text planner_prompt_prefix planner_suffix tool_lines prompt search_context
-	planner_schema_text="$(load_schema_text planner_plan)"
+        local planner_schema_text planner_prompt_prefix planner_suffix tool_lines prompt search_context
+        planner_schema_text="$(load_schema_text planner_plan)"
 
-	tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_line)"
-	search_context="$(planner_fetch_search_context "${user_query}")"
-	planner_prompt_prefix="$(build_planner_prompt_static_prefix)"
-	planner_suffix="$(build_planner_prompt_dynamic_suffix "${user_query}" "${tool_lines}" "${search_context}")"
-	prompt="${planner_prompt_prefix}${planner_suffix}"
-	log "DEBUG" "Generated planner prompt" "${prompt}" >&2
+        tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_line)"
+        search_context="$(planner_fetch_search_context "${user_query}")"
+        planner_prompt_prefix="$(build_planner_prompt_static_prefix)"
+        planner_suffix="$(build_planner_prompt_dynamic_suffix "${user_query}" "${tool_lines}" "${search_context}")"
+        prompt="${planner_prompt_prefix}${planner_suffix}"
+        log "DEBUG" "Generated planner prompt" "${prompt}" >&2
 
 	local sample_count temperature debug_log_dir debug_log_file
 	sample_count="${PLANNER_SAMPLE_COUNT:-3}"
@@ -217,25 +234,25 @@ generate_planner_response() {
 	mkdir -p "$(dirname "${debug_log_file}")" 2>/dev/null || true
 	: >"${debug_log_file}" 2>/dev/null || true
 
-	# Seed the best score with a very negative value so that even heavily
-	# penalized candidates remain eligible for selection. This avoids
-	# returning empty results when every candidate incurs availability or
-	# safety deductions during scoring.
-	local best_plan="" best_score=-999999 best_tie_breaker=-9999 candidate_index=0 raw_plan normalized_plan
-	local candidate_score candidate_tie_breaker candidate_scorecard candidate_rationale
-	while ((candidate_index < sample_count)); do
-		candidate_index=$((candidate_index + 1))
+        # Seed the best score with a very negative value so that even heavily
+        # penalized candidates remain eligible for selection. This avoids
+        # returning empty results when every candidate incurs availability or
+        # safety deductions during scoring.
+        local best_plan="" best_score=-999999 best_tie_breaker=-9999 candidate_index=0 raw_plan normalized_plan
+        local candidate_score candidate_tie_breaker candidate_scorecard candidate_rationale
+        while ((candidate_index < sample_count)); do
+                candidate_index=$((candidate_index + 1))
 
-		# Each loop iteration generates a single candidate, normalizes it
-		# into the canonical schema, and scores it for downstream
-		# selection. Any failure to normalize or score results in the
-		# candidate being skipped, which keeps downstream selection
-		# deterministic and safe.
-		raw_plan="$(LLAMA_TEMPERATURE="${temperature}" llama_infer "${prompt}" '' 512 "${planner_schema_text}" "${PLANNER_MODEL_REPO:-}" "${PLANNER_MODEL_FILE:-}" "${PLANNER_CACHE_FILE:-}" "${planner_prompt_prefix}")" || raw_plan="[]"
+                # Each loop iteration generates a single candidate, normalizes it
+                # into the canonical schema, and scores it for downstream
+                # selection. Any failure to normalize or score results in the
+                # candidate being skipped, which keeps downstream selection
+                # deterministic and safe.
+                raw_plan="$(LLAMA_TEMPERATURE="${temperature}" llama_infer "${prompt}" '' 512 "${planner_schema_text}" "${PLANNER_MODEL_REPO:-}" "${PLANNER_MODEL_FILE:-}" "${PLANNER_CACHE_FILE:-}" "${planner_prompt_prefix}")" || raw_plan="[]"
 
-		if ! normalized_plan="$(normalize_planner_response <<<"${raw_plan}")"; then
-			log "ERROR" "Planner output failed validation; request regeneration" "${raw_plan}" >&2
-			continue
+                if ! normalized_plan="$(normalize_planner_response <<<"${raw_plan}")"; then
+                        log "ERROR" "Planner output failed validation; request regeneration" "${raw_plan}" >&2
+                        continue
 		fi
 
 		local is_quickdraw=false
