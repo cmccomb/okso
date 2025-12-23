@@ -23,6 +23,7 @@ After the plan is approved, the runtime iterates through each item:
 
 - **Default behaviour:** llama.cpp is queried before each step to pick the next tool and craft an appropriate call based on the running transcript.
 - **Fallback behaviour:** if llama.cpp is unavailable or `USE_REACT_LLAMA=false` is set, okso runs a deterministic sequence that feeds the original user query to each planned tool.
+- **Plan progression:** the plan index only advances after the expected tool for the pending plan step completes successfully or an explicit skip reason is recorded. Invalid model output, tool failures, or a tool choice that diverges from the plan keep the current step pending so the outline and execution stay aligned.
 
 The active plan item and observations are streamed to the terminal to make model decisions auditable. Use `--dry-run` when you want to inspect the generated plan and tool calls without executing anything.
 
