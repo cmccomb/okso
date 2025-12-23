@@ -210,24 +210,24 @@ generate_planner_response() {
 	prompt="${planner_prompt_prefix}${planner_suffix}"
 	log "DEBUG" "Generated planner prompt" "${prompt}" >&2
 
-        local sample_count temperature debug_log_dir debug_log_file max_generation_tokens
-        sample_count="${PLANNER_SAMPLE_COUNT:-3}"
-        temperature="${PLANNER_TEMPERATURE:-0.2}"
-        max_generation_tokens="${PLANNER_MAX_OUTPUT_TOKENS:-768}"
+	local sample_count temperature debug_log_dir debug_log_file max_generation_tokens
+	sample_count="${PLANNER_SAMPLE_COUNT:-3}"
+	temperature="${PLANNER_TEMPERATURE:-0.2}"
+	max_generation_tokens="${PLANNER_MAX_OUTPUT_TOKENS:-768}"
 	# Capture the sampling configuration early so operators can verify the
 	# breadth of exploration before generation begins. This also doubles as
 	# a trace when investigating unexpected candidate rankings.
 	log "INFO" "Planner sampling configuration" "$(jq -nc --arg sample_count "${sample_count}" --arg temperature "${temperature}" '{sample_count:$sample_count,temperature:$temperature}')" >&2
-        # Sample count controls how many candidates are generated and scored.
-        # Validation clamps values below 1 to a single candidate so downstream
-        # selection always has material to review.
-        if ! [[ "${sample_count}" =~ ^[0-9]+$ ]] || ((sample_count < 1)); then
-                sample_count=1
-        fi
+	# Sample count controls how many candidates are generated and scored.
+	# Validation clamps values below 1 to a single candidate so downstream
+	# selection always has material to review.
+	if ! [[ "${sample_count}" =~ ^[0-9]+$ ]] || ((sample_count < 1)); then
+		sample_count=1
+	fi
 
-        if ! [[ "${max_generation_tokens}" =~ ^[0-9]+$ ]] || ((max_generation_tokens < 1)); then
-                max_generation_tokens=768
-        fi
+	if ! [[ "${max_generation_tokens}" =~ ^[0-9]+$ ]] || ((max_generation_tokens < 1)); then
+		max_generation_tokens=768
+	fi
 
 	# Temperature is forwarded verbatim to llama.cpp; callers should keep
 	# values in a 0-1 range to avoid erratic generation.
@@ -254,7 +254,7 @@ generate_planner_response() {
 		# selection. Any failure to normalize or score results in the
 		# candidate being skipped, which keeps downstream selection
 		# deterministic and safe.
-                raw_plan="$(LLAMA_TEMPERATURE="${temperature}" llama_infer "${prompt}" '' "${max_generation_tokens}" "${planner_schema_text}" "${PLANNER_MODEL_REPO:-}" "${PLANNER_MODEL_FILE:-}" "${PLANNER_CACHE_FILE:-}" "${planner_prompt_prefix}")" || raw_plan="[]"
+		raw_plan="$(LLAMA_TEMPERATURE="${temperature}" llama_infer "${prompt}" '' "${max_generation_tokens}" "${planner_schema_text}" "${PLANNER_MODEL_REPO:-}" "${PLANNER_MODEL_FILE:-}" "${PLANNER_CACHE_FILE:-}" "${planner_prompt_prefix}")" || raw_plan="[]"
 
 		if ! normalized_plan="$(normalize_planner_response <<<"${raw_plan}")"; then
 			log "ERROR" "Planner output failed validation; request regeneration" "${raw_plan}" >&2

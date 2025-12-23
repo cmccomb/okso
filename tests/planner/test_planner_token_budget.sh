@@ -10,8 +10,8 @@
 #   - bash 3.2+
 
 @test "planner uses raised default token budget" {
-        run bash -lc "$(
-                cat <<'INNERSCRIPT'
+	run bash -lc "$(
+		cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
@@ -45,13 +45,13 @@ actual="$(cat /tmp/planner_token_budget)"
 
 [[ "${actual}" == "${expected}" ]]
 INNERSCRIPT
-        )"
-        [ "$status" -eq 0 ]
+	)"
+	[ "$status" -eq 0 ]
 }
 
 @test "planner token budget honors override" {
-        run bash -lc "$(
-                cat <<'INNERSCRIPT'
+	run bash -lc "$(
+		cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
@@ -87,6 +87,6 @@ actual="$(cat /tmp/planner_token_budget_override)"
 
 [[ "${actual}" == "${expected}" ]]
 INNERSCRIPT
-        )"
-        [ "$status" -eq 0 ]
+	)"
+	[ "$status" -eq 0 ]
 }
