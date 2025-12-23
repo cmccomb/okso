@@ -43,16 +43,36 @@ SCRIPT
 }
 
 @test "build_planner_prompt_with_tools injects tool descriptions when provided" {
-	run bash <<'SCRIPT'
+        run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/prompting.sh
+tool_description() { printf "desc-%s" "$1"; }
+tool_command() { printf "cmd-%s" "$1"; }
+tool_safety() { printf "safe-%s" "$1"; }
+tool_args_schema() { printf '{"type":"object","properties":{"input":{"type":"string"}}}'; }
 prompt=$(build_planner_prompt_with_tools "find files" terminal notes_create)
 printf '%s' "${prompt}"
 SCRIPT
 
-	[ "$status" -eq 0 ]
-	[[ "${output}" == *"terminal"* ]]
-	[[ "${output}" == *"notes_create"* ]]
+        [ "$status" -eq 0 ]
+        [[ "${output}" == *"terminal"* ]]
+        [[ "${output}" == *"notes_create"* ]]
+}
+
+@test "build_planner_prompt_with_tools renders args schema for tools" {
+        run bash <<'SCRIPT'
+set -euo pipefail
+source ./src/lib/planning/prompting.sh
+tool_description() { printf "desc-%s" "$1"; }
+tool_command() { printf "cmd-%s" "$1"; }
+tool_safety() { printf "safe-%s" "$1"; }
+tool_args_schema() { printf '{"type":"object","properties":{"input":{"type":"string"}}}'; }
+prompt=$(build_planner_prompt_with_tools "collect data" terminal)
+printf '%s' "${prompt}"
+SCRIPT
+
+        [ "$status" -eq 0 ]
+        [[ "${output}" == *'Args Schema: {"type":"object","properties":{"input"'* ]]
 }
 
 @test "planner prompt static prefix stays constant across invocations" {

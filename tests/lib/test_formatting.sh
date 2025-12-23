@@ -19,25 +19,27 @@ source ./src/lib/formatting.sh
 tool_description() { printf "desc-%s" "$1"; }
 tool_command() { printf "cmd-%s" "$1"; }
 tool_safety() { printf "safe-%s" "$1"; }
+tool_args_schema() { printf '{"type":"object","properties":{"input":{"type":"string"}}}'; }
 input=$'alpha\n\nbeta'
 output="$(format_tool_descriptions "${input}" format_tool_line)"
-expected=$'- alpha: desc-alpha | Example: cmd-alpha | Safety: safe-alpha\n- beta: desc-beta | Example: cmd-beta | Safety: safe-beta'
+expected=$'- alpha: desc-alpha | Args Schema: {"type":"object","properties":{"input":{"type":"string"}}} | Example: cmd-alpha | Safety: safe-alpha\n- beta: desc-beta | Args Schema: {"type":"object","properties":{"input":{"type":"string"}}} | Example: cmd-beta | Safety: safe-beta'
 [[ "${output}" == "${expected}" ]]
 EOF
-	[ "$status" -eq 0 ]
+        [ "$status" -eq 0 ]
 }
 
 @test "format_tool_example_line includes command examples" {
-	run bash -lc '
-                cd "$(git rev-parse --show-toplevel)" || exit 1
-                source ./src/lib/formatting.sh
-                tool_description() { printf "describe-%s" "$1"; }
-                tool_command() { printf "run-%s" "$1"; }
-                tool_safety() { printf "limit-%s" "$1"; }
-                line="$(format_tool_example_line "demo")"
-                [[ "${line}" == "- demo: describe-demo | Example: run-demo | Safety: limit-demo" ]]
-        '
-	[ "$status" -eq 0 ]
+        run bash -s <<'EOF'
+cd "$(git rev-parse --show-toplevel)" || exit 1
+source ./src/lib/formatting.sh
+tool_description() { printf "describe-%s" "$1"; }
+tool_command() { printf "run-%s" "$1"; }
+tool_safety() { printf "limit-%s" "$1"; }
+tool_args_schema() { printf '{"type":"object","properties":{"input":{"type":"string"}}}'; }
+line="$(format_tool_example_line "demo")"
+[[ "${line}" == "- demo: describe-demo | Args Schema: {\"type\":\"object\",\"properties\":{\"input\":{\"type\":\"string\"}}} | Example: run-demo | Safety: limit-demo" ]]
+EOF
+        [ "$status" -eq 0 ]
 }
 
 @test "format_tool_descriptions rejects unknown formatter" {

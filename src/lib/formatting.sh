@@ -20,6 +20,8 @@ FORMATTING_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck source=./core/logging.sh disable=SC1091
 source "${FORMATTING_LIB_DIR}/core/logging.sh"
+# shellcheck source=../tools/registry.sh disable=SC1091
+source "${FORMATTING_LIB_DIR}/../tools/registry.sh"
 
 format_tool_descriptions() {
 	# Arguments:
@@ -384,18 +386,20 @@ emit_boxed_summary() {
 }
 
 format_tool_line() {
-	# Arguments:
-	#   $1 - tool name (string)
-	local tool detail_text
-	tool="$1"
-	detail_text="$(format_tool_details "${tool}")"
+        # Arguments:
+        #   $1 - tool name (string)
+        #   $2 - include schema (bool, optional)
+        local tool include_schema detail_text
+        tool="$1"
+        include_schema="${2:-true}"
+        detail_text="$(format_tool_details "${tool}" "${include_schema}")"
 
-	if [[ -n "${detail_text}" ]]; then
-		printf -- '- %s: %s' "${tool}" "${detail_text}"
-		return 0
-	fi
+        if [[ -n "${detail_text}" ]]; then
+                printf -- '- %s: %s' "${tool}" "${detail_text}"
+                return 0
+        fi
 
-	printf -- '- %s' "${tool}"
+        printf -- '- %s' "${tool}"
 }
 
 format_tool_example_line() {
