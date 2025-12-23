@@ -14,6 +14,8 @@
                 set -euo pipefail
                 cd "$(git rev-parse --show-toplevel)" || exit 1
 
+                PLANNER_SKIP_TOOL_LOAD=true
+                export PLANNER_SKIP_TOOL_LOAD
                 source ./src/lib/planning/planner.sh
 
                 [[ -z "${PLANNER_MODEL_REPO:-}" ]]

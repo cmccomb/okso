@@ -13,26 +13,20 @@ teardown() {
 	export PATH="${PATH_ORIG}"
 }
 
-@test "markdownify converts html using text-mode browser" {
+@test "markdownify converts html using pandoc" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-mock_bin="$(mktemp -d)"
-cat >"${mock_bin}/lynx" <<'MOCK'
-#!/usr/bin/env bash
-# minimal lynx mock: echo stdin when called with -dump -stdin
-if [[ "$1" == "-dump" && "$2" == "-stdin" ]]; then
-        sed -E 's/<[^>]+>//g'
-        exit 0
-fi
-exit 1
-MOCK
-chmod +x "${mock_bin}/lynx"
-PATH="${mock_bin}:$PATH"
 body_file="$(mktemp)"
 cp tests/fixtures/web_fetch_sample.html "${body_file}"
 output=$(./src/tools/web/markdownify.sh --path "${body_file}" --content-type "text/html; charset=utf-8" --limit 64)
-jq -e '(.markdown | length) > 0' <<<"${output}" >/dev/null
-jq -e '(.preview | contains("Example Title"))' <<<"${output}" >/dev/null
+python3 - "${output}" <<'PY'
+import json
+import sys
+
+payload = json.loads(sys.argv[1])
+assert payload["markdown"].strip(), "markdown should not be empty"
+assert "Example Title" in payload["preview"], payload["preview"]
+PY
 SCRIPT
 
 	[ "$status" -eq 0 ]
@@ -44,8 +38,14 @@ set -euo pipefail
 body_file="$(mktemp)"
 cp tests/fixtures/web_fetch_sample.json "${body_file}"
 output=$(./src/tools/web/markdownify.sh --path "${body_file}" --content-type "application/json" --limit 80)
-jq -e '.markdown | startswith("```json")' <<<"${output}" >/dev/null
-jq -e '.preview | contains("Sample")' <<<"${output}" >/dev/null
+python3 - "${output}" <<'PY'
+import json
+import sys
+
+payload = json.loads(sys.argv[1])
+assert payload["markdown"].startswith("```json"), payload["markdown"]
+assert "Sample" in payload["preview"], payload["preview"]
+PY
 SCRIPT
 
 	[ "$status" -eq 0 ]
@@ -54,24 +54,18 @@ SCRIPT
 @test "markdownify prettifies xml with xmllint" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-mock_bin="$(mktemp -d)"
-cat >"${mock_bin}/xmllint" <<'MOCK'
-#!/usr/bin/env bash
-# simple xmllint mock: pretty-print with line breaks between tags
-if [[ "$1" == "--format" ]]; then
-        input="$2"
-        sed 's/></>\n</g' "${input}"
-        exit 0
-fi
-exit 1
-MOCK
-chmod +x "${mock_bin}/xmllint"
-PATH="${mock_bin}:$PATH"
 body_file="$(mktemp)"
 cp tests/fixtures/web_fetch_sample.xml "${body_file}"
 output=$(./src/tools/web/markdownify.sh --path "${body_file}" --content-type "application/xml" --limit 120)
-jq -e '.markdown | startswith("```xml")' <<<"${output}" >/dev/null
-jq -e '.preview | contains("note")' <<<"${output}" >/dev/null
+python3 - "${output}" <<'PY'
+import json
+import sys
+
+payload = json.loads(sys.argv[1])
+assert payload["markdown"].startswith("```xml"), payload["markdown"]
+assert "<note>" in payload["markdown"], payload["markdown"]
+assert "note" in payload["preview"], payload["preview"]
+PY
 SCRIPT
 
 	[ "$status" -eq 0 ]
@@ -83,10 +77,35 @@ set -euo pipefail
 body_file="$(mktemp)"
 printf '%s' 'abcdefg' >"${body_file}"
 output=$(./src/tools/web/markdownify.sh --path "${body_file}" --content-type "text/plain" --limit 3)
-preview=$(jq -r '.preview' <<<"${output}")
+preview=$(python3 - "${output}" <<'PY'
+import json
+import sys
+
+print(json.loads(sys.argv[1])["preview"])
+PY)
 [[ "${#preview}" -eq 3 ]]
 [[ "${preview}" == "ab…" ]]
 SCRIPT
 
 	[ "$status" -eq 0 ]
+}
+
+@test "markdownify surfaces missing pandoc errors" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+body_file="$(mktemp)"
+cp tests/fixtures/web_fetch_sample.html "${body_file}"
+tmp_path="$(mktemp -d)"
+cat >"${tmp_path}/pandoc" <<'MOCK'
+#!/usr/bin/env bash
+printf 'pandoc unavailable on PATH\n' >&2
+exit 127
+MOCK
+chmod +x "${tmp_path}/pandoc"
+PATH="${tmp_path}:${PATH_ORIG}"
+./src/tools/web/markdownify.sh --path "${body_file}" --content-type "text/html" --limit 10
+SCRIPT
+
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"pandoc failed to convert HTML"* ]]
 }

@@ -27,7 +27,7 @@ The hosted script re-executes under `bash` and mirrors the local installer behav
 ## What the installer configures
 
 1. Checks for Homebrew and installs it if missing (without running `brew upgrade`).
-2. Ensures pinned dependencies such as `llama.cpp`, `llama-tokenize`, `tesseract`, `pandoc`, `poppler` (`pdftotext`), `yq`, `bash`, `coreutils`, `jq`, `ripgrep`, and `fd`.
+2. Ensures pinned dependencies such as `llama.cpp`, `llama-tokenize`, `tesseract`, `pandoc`, `poppler` (`pdftotext`), `xmllint` (via `libxml2`), `yq`, `bash`, `coreutils`, `jq`, `ripgrep`, and `fd`.
 3. Copies the `src/` contents into the install prefix and symlinks `okso` into your `PATH` (default: `/usr/local/bin`).
 4. Uses llama.cpp's Hugging Face cache for models; download happens on demand through `--model`/`--model-branch` flags rather than manual cache setup.
 5. Refuses to run on non-macOS hosts so platform assumptions stay consistent.
@@ -36,7 +36,7 @@ The hosted script re-executes under `bash` and mirrors the local installer behav
 
 If you prefer to manage dependencies yourself:
 
-1. Ensure `bash`, `jq`, `rg`, `fd`, and a `llama.cpp` binary are on your `PATH` (macOS includes `mdfind` for Spotlight-backed searches).
+1. Ensure `bash`, `jq`, `pandoc`, `xmllint` (`libxml2`), `rg`, `fd`, and a `llama.cpp` binary are on your `PATH` (macOS includes `mdfind` for Spotlight-backed searches).
 2. Clone the repository and run the CLI directly:
    ```bash
    ./src/bin/okso --help

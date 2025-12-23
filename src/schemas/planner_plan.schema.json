@@ -1,62 +1,78 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "PlannerPlan",
-  "type": "array",
-  "items": {
-    "type": "object",
-    "required": ["tool", "args"],
-    "additionalProperties": false,
-    "properties": {
-      "thought": {
-        "type": "string",
-        "description": "Short reasoning blurb about why the following tool and arguments are chosen.",
-        "minLength": 1
-      },
-      "tool": {
-        "type": "string",
-        "minLength": 1,
-        "description": "Name of the tool to invoke for this step."
-      },
-      "args": {
-        "type": "object",
-        "description": "Structured arguments for the tool. Provide the exact fields that the tool expects; use an empty object only when the tool accepts no arguments.",
-        "default": {},
-        "additionalProperties": true
-      }
+  "type": "object",
+  "title": "Tool-based plan",
+  "required": ["mode", "plan"],
+  "properties": {
+    "mode": {
+      "const": "plan",
+      "description": "Planner expects downstream execution of tool steps."
+    },
+    "plan": {
+      "$ref": "#/definitions/plan_steps"
     }
   },
-  "minItems": 1,
-  "description": "Ordered list of high-level plan steps represented as objects with tool, args, and thought fields.",
-  "examples": [
-    [
-      {
-        "thought": "Record the requested notes.",
-        "tool": "notes_create",
-        "args": {
-          "title": "Research notes",
-          "body": "The next delivery step for the research are..."
+  "additionalProperties": false,
+  "definitions": {
+    "plan_steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["tool", "args"],
+        "additionalProperties": false,
+        "properties": {
+          "thought": {
+            "type": "string",
+            "description": "Short reasoning blurb about why the following tool and arguments are chosen.",
+            "minLength": 1
+          },
+          "tool": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Name of the tool to invoke for this step."
+          },
+          "args": {
+            "type": "object",
+            "description": "Structured arguments for the tool. Provide the exact fields that the tool expects; use an empty object only when the tool accepts no arguments.",
+            "default": {},
+            "additionalProperties": true
+          }
         }
       },
-      {
-        "thought": "Share the notes back to the user.",
-        "tool": "final_answer",
-        "args": {}
-      }
-    ],
-    [
-      {
-        "thought": "Inspect the current directory tree.",
-        "tool": "terminal",
-        "args": {
-          "command": "ls",
-          "args": ["-la"]
-        }
-      },
-      {
-        "thought": "Share the notes back to the user.",
-        "tool": "final_answer",
-        "args": {}
-      }
-    ]
-  ]
+      "description": "Ordered list of high-level plan steps represented as objects with tool, args, and thought fields.",
+      "examples": [
+        [
+          {
+            "thought": "Record the requested notes.",
+            "tool": "notes_create",
+            "args": {
+              "title": "Research notes",
+              "body": "The next delivery step for the research are..."
+            }
+          },
+          {
+            "thought": "Share the notes back to the user.",
+            "tool": "final_answer",
+            "args": {}
+          }
+        ],
+        [
+          {
+            "thought": "Inspect the current directory tree.",
+            "tool": "terminal",
+            "args": {
+              "command": "ls",
+              "args": ["-la"]
+            }
+          },
+          {
+            "thought": "Share the notes back to the user.",
+            "tool": "final_answer",
+            "args": {}
+          }
+        ]
+      ]
+    }
+  }
 }

@@ -39,25 +39,29 @@ build_planner_prompt_with_tools() {
 	tools=("$@")
 
 	if ((${#tools[@]} > 0)); then
-		tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${tools[@]}")" format_tool_summary_line)"
+		tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${tools[@]}")" format_tool_line)"
 	else
 		tool_lines=""
 	fi
 
-	build_planner_prompt "${user_query}" "${tool_lines}"
+	build_planner_prompt "${user_query}" "${tool_lines}" ""
 }
 
 plan_json_to_outline() {
-	# Converts a JSON array of plan steps into a numbered outline string.
+	# Converts a planner response into a human-readable outline string.
 	# Arguments:
-	#   $1 - plan JSON array (string)
-	local plan_json plan_clean
+	#   $1 - planner response JSON (object or legacy plan array)
+	local plan_json plan_clean status
 	plan_json="${1:-[]}"
 
-	if jq -e 'type == "array"' <<<"${plan_json}" >/dev/null 2>&1; then
-		plan_clean="${plan_json}"
+	if plan_clean="$(extract_plan_array "${plan_json}")"; then
+		status=0
 	else
-		plan_clean="$(printf '%s' "$plan_json" | normalize_planner_plan)" || return 1
+		status=$?
+	fi
+
+	if [[ ${status} -ne 0 ]]; then
+		return 1
 	fi
 
 	if [[ -z "${plan_clean}" ]]; then

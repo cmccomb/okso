@@ -41,6 +41,9 @@ schema_path() {
 	planner_plan)
 		schema_file="planner_plan.schema.json"
 		;;
+	planner_search_queries)
+		schema_file="planner_search_queries.schema.json"
+		;;
 	concise_response)
 		schema_file="concise_response.schema.json"
 		;;
