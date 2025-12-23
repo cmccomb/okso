@@ -11,6 +11,8 @@
 #   LLAMA_BIN (string): llama.cpp binary path.
 #   PLANNER_MODEL_REPO (string): Hugging Face repository name for planner inference.
 #   PLANNER_MODEL_FILE (string): model file within the repository for planner inference.
+#   SEARCH_REPHRASER_MODEL_REPO (string): Hugging Face repository name for search rephrasing inference.
+#   SEARCH_REPHRASER_MODEL_FILE (string): model file within the repository for search rephrasing inference.
 #   REACT_MODEL_REPO (string): Hugging Face repository name for ReAct inference.
 #   REACT_MODEL_FILE (string): model file within the repository for ReAct inference.
 #   REACT_ENTRYPOINT (string): optional path override for the ReAct entrypoint script.
@@ -89,9 +91,11 @@ source "${PLANNING_LIB_DIR}/normalization.sh"
 source "${PLANNING_LIB_DIR}/scoring.sh"
 # shellcheck source=./prompting.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/prompting.sh"
+# shellcheck source=./rephrasing.sh disable=SC1091
+source "${PLANNING_LIB_DIR}/rephrasing.sh"
 if [[ "${PLANNER_SKIP_TOOL_LOAD:-false}" != true ]]; then
-	# shellcheck source=../exec/dispatch.sh disable=SC1091
-	source "${PLANNING_LIB_DIR}/../exec/dispatch.sh"
+        # shellcheck source=../exec/dispatch.sh disable=SC1091
+        source "${PLANNING_LIB_DIR}/../exec/dispatch.sh"
 fi
 
 initialize_planner_models() {
@@ -131,34 +135,51 @@ planner_format_search_context() {
 }
 
 planner_fetch_search_context() {
-	# Executes a deterministic web search before planning.
-	# Arguments:
-	#   $1 - user query (string)
-	# Returns:
-	#   Formatted search context (string). Fallbacks are empty but non-fatal.
-	local user_query tool_args raw_context
-	user_query="$1"
+        # Executes deterministic web searches for rephrased queries before planning.
+        # Arguments:
+        #   $1 - user query (string)
+        # Returns:
+        #   Formatted search context (string). Fallbacks are empty but non-fatal.
+        local user_query tool_args raw_context queries_json formatted_context
+        local -a formatted_sections=()
+        user_query="$1"
 
-	if ! declare -F tool_web_search >/dev/null 2>&1; then
-		log "WARN" "web_search tool unavailable; skipping pre-plan search" "planner_tools_missing_web_search" >&2
-		printf '%s' "Search context unavailable."
-		return 0
-	fi
+        if ! declare -F tool_web_search >/dev/null 2>&1; then
+                log "WARN" "web_search tool unavailable; skipping pre-plan search" "planner_tools_missing_web_search" >&2
+                printf '%s' "Search context unavailable."
+                return 0
+        fi
 
-	tool_args=$(jq -nc --arg query "${user_query}" '{query:$query, num:5}' 2>/dev/null)
-	if [[ -z "${tool_args}" ]]; then
-		log "WARN" "Failed to encode search args" "planner_search_args_encoding_failed" >&2
-		printf '%s' "Search context unavailable."
-		return 0
-	fi
+        if ! queries_json="$(planner_generate_search_queries "${user_query}")"; then
+                log "WARN" "Failed to derive search queries; defaulting to raw query" "planner_rephrase_failed" >&2
+                queries_json="$(jq -nc --arg query "${user_query}" '[ $query ]' 2>/dev/null || printf '["%s"]' "${user_query}")"
+        fi
 
-	if ! raw_context=$(TOOL_ARGS="${tool_args}" tool_web_search 2>/dev/null); then
-		log "WARN" "Pre-plan search failed" "planner_preplan_search_failed" >&2
-		printf '%s' "Search context unavailable."
-		return 0
-	fi
+        if [[ -z "${queries_json}" ]]; then
+                queries_json="$(jq -nc --arg query "${user_query}" '[ $query ]' 2>/dev/null || printf '["%s"]' "${user_query}")"
+        fi
 
-	planner_format_search_context "${raw_context}"
+        local index=0
+        while IFS= read -r search_query; do
+                ((index++))
+                if [[ -z "${search_query}" ]]; then
+                        continue
+                fi
+
+                tool_args=$(jq -nc --arg query "${search_query}" '{query:$query, num:5}' 2>/dev/null)
+                if [[ -z "${tool_args}" ]]; then
+                        log "WARN" "Failed to encode search args" "planner_search_args_encoding_failed" >&2
+                        raw_context=$(jq -nc --arg query "${search_query}" '{query:$query,items:[]}' 2>/dev/null)
+                elif ! raw_context=$(TOOL_ARGS="${tool_args}" tool_web_search 2>/dev/null); then
+                        log "WARN" "Pre-plan search failed" "planner_preplan_search_failed" >&2
+                        raw_context=$(jq -nc --arg query "${search_query}" '{query:$query,items:[]}' 2>/dev/null)
+                fi
+
+                formatted_context=$(planner_format_search_context "${raw_context}")
+                formatted_sections+=("Search ${index}: ${formatted_context}")
+        done < <(jq -r '.[]' <<<"${queries_json}" 2>/dev/null)
+
+        printf '%s' "$(printf '%s\n' "${formatted_sections[@]}" | sed '/^[[:space:]]*$/d' | paste -sd $'\n\n' -)"
 }
 
 lowercase() {
@@ -460,10 +481,14 @@ plan_json_to_entries() {
 
 REACT_ENTRYPOINT=${REACT_ENTRYPOINT:-"${PLANNING_LIB_DIR}/../react/react.sh"}
 
-if [[ ! -f "${REACT_ENTRYPOINT}" ]]; then
-	log "ERROR" "ReAct entrypoint missing" "REACT_ENTRYPOINT=${REACT_ENTRYPOINT}" >&2
-	return 1 2>/dev/null
-fi
+if [[ "${PLANNER_SKIP_TOOL_LOAD:-false}" == true ]]; then
+        log "DEBUG" "Skipping ReAct entrypoint load" "planner_skip_tool_load=true" >&2
+else
+        if [[ ! -f "${REACT_ENTRYPOINT}" ]]; then
+                log "ERROR" "ReAct entrypoint missing" "REACT_ENTRYPOINT=${REACT_ENTRYPOINT}" >&2
+                return 1 2>/dev/null
+        fi
 
-# shellcheck source=../react/react.sh disable=SC1091
-source "${REACT_ENTRYPOINT}"
+        # shellcheck source=../react/react.sh disable=SC1091
+        source "${REACT_ENTRYPOINT}"
+fi

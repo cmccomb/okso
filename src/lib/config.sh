@@ -12,6 +12,8 @@
 #   PLANNER_MODEL_BRANCH (string): HF branch for planner model downloads.
 #   REACT_MODEL_SPEC (string): HF repo[:file] spec for ReAct llama calls.
 #   REACT_MODEL_BRANCH (string): HF branch for ReAct model downloads.
+#   SEARCH_REPHRASER_MODEL_SPEC (string): HF repo[:file] spec for search rephrasing llama calls.
+#   SEARCH_REPHRASER_MODEL_BRANCH (string): HF branch for search rephrasing model downloads.
 #   TESTING_PASSTHROUGH (bool): forces llama calls off during tests.
 #   APPROVE_ALL (bool): skip prompts when true.
 #   FORCE_CONFIRM (bool): always prompt when true.
@@ -21,6 +23,7 @@
 #   OKSO_GOOGLE_CSE_ID (string): Google Custom Search Engine ID; may be overridden by environment.
 #   OKSO_CACHE_DIR (string): base directory for prompt caches (default: ${XDG_CACHE_HOME:-${HOME}/.cache}/okso).
 #   OKSO_PLANNER_CACHE_FILE (string): prompt cache file used for planning llama.cpp calls.
+#   OKSO_REPHRASER_CACHE_FILE (string): prompt cache file used for search rephrasing llama.cpp calls.
 #   OKSO_REACT_CACHE_FILE (string): run-scoped prompt cache file for ReAct llama.cpp calls.
 #   OKSO_RUN_ID (string): unique identifier for the current run used to scope caches.
 #
@@ -44,6 +47,11 @@ source "${CONFIG_LIB_DIR}/core/logging.sh"
 : "${DEFAULT_REACT_MODEL_SPEC_BASE:=${DEFAULT_MODEL_SPEC_BASE}}"
 : "${DEFAULT_REACT_MODEL_BRANCH_BASE:=${DEFAULT_MODEL_BRANCH_BASE}}"
 
+: "${DEFAULT_REPHRASER_MODEL_REPO_BASE:=bartowski/Qwen_Qwen3-1.7B-GGUF}"
+: "${DEFAULT_REPHRASER_MODEL_FILE_BASE:=Qwen_Qwen3-1.7B-Q4_K_M.gguf}"
+: "${DEFAULT_REPHRASER_MODEL_SPEC_BASE:=${DEFAULT_REPHRASER_MODEL_REPO_BASE}:${DEFAULT_REPHRASER_MODEL_FILE_BASE}}"
+: "${DEFAULT_REPHRASER_MODEL_BRANCH_BASE:=main}"
+
 : "${DEFAULT_PLANNER_MODEL_REPO_BASE:=bartowski/Qwen_Qwen3-8B-GGUF}"
 : "${DEFAULT_PLANNER_MODEL_FILE_BASE:=Qwen_Qwen3-8B-Q4_K_M.gguf}"
 : "${DEFAULT_PLANNER_MODEL_SPEC_BASE:=${DEFAULT_PLANNER_MODEL_REPO_BASE}:${DEFAULT_PLANNER_MODEL_FILE_BASE}}"
@@ -53,6 +61,8 @@ readonly DEFAULT_MODEL_REPO_BASE DEFAULT_MODEL_FILE_BASE DEFAULT_MODEL_SPEC_BASE
 readonly DEFAULT_REACT_MODEL_SPEC_BASE DEFAULT_REACT_MODEL_BRANCH_BASE
 readonly DEFAULT_PLANNER_MODEL_REPO_BASE DEFAULT_PLANNER_MODEL_FILE_BASE
 readonly DEFAULT_PLANNER_MODEL_SPEC_BASE DEFAULT_PLANNER_MODEL_BRANCH_BASE
+readonly DEFAULT_REPHRASER_MODEL_REPO_BASE DEFAULT_REPHRASER_MODEL_FILE_BASE
+readonly DEFAULT_REPHRASER_MODEL_SPEC_BASE DEFAULT_REPHRASER_MODEL_BRANCH_BASE
 
 default_run_id() {
 	# Generates a stable run identifier for cache scoping.
@@ -89,33 +99,39 @@ load_config() {
 	local preexisting_okso_google_cse_id preexisting_okso_google_cse_id_set
 	local preexisting_okso_cache_dir preexisting_okso_cache_dir_set
 	local preexisting_okso_planner_cache_file preexisting_okso_planner_cache_file_set
-	local preexisting_okso_react_cache_file preexisting_okso_react_cache_file_set
-	local preexisting_okso_run_id preexisting_okso_run_id_set
-	local preexisting_planner_model_spec preexisting_planner_model_spec_set
-	local preexisting_planner_model_branch preexisting_planner_model_branch_set
-	local preexisting_react_model_spec preexisting_react_model_spec_set
-	local preexisting_react_model_branch preexisting_react_model_branch_set
-	local preexisting_default_model_file preexisting_default_model_file_set
-	local preexisting_default_planner_model_file preexisting_default_planner_model_file_set
-	local preexisting_verbosity preexisting_verbosity_set
-	local preexisting_approve_all preexisting_approve_all_set
-	local preexisting_force_confirm preexisting_force_confirm_set
+        local preexisting_okso_react_cache_file preexisting_okso_react_cache_file_set
+        local preexisting_okso_rephraser_cache_file preexisting_okso_rephraser_cache_file_set
+        local preexisting_okso_run_id preexisting_okso_run_id_set
+        local preexisting_planner_model_spec preexisting_planner_model_spec_set
+        local preexisting_planner_model_branch preexisting_planner_model_branch_set
+        local preexisting_react_model_spec preexisting_react_model_spec_set
+        local preexisting_react_model_branch preexisting_react_model_branch_set
+        local preexisting_rephraser_model_spec preexisting_rephraser_model_spec_set
+        local preexisting_rephraser_model_branch preexisting_rephraser_model_branch_set
+        local preexisting_default_model_file preexisting_default_model_file_set
+        local preexisting_default_planner_model_file preexisting_default_planner_model_file_set
+        local preexisting_verbosity preexisting_verbosity_set
+        local preexisting_approve_all preexisting_approve_all_set
+        local preexisting_force_confirm preexisting_force_confirm_set
 
 	preexisting_okso_google_cse_api_key_set=false
 	preexisting_okso_google_cse_id_set=false
 	preexisting_okso_cache_dir_set=false
 	preexisting_okso_planner_cache_file_set=false
-	preexisting_okso_react_cache_file_set=false
-	preexisting_okso_run_id_set=false
-	preexisting_planner_model_spec_set=false
-	preexisting_planner_model_branch_set=false
-	preexisting_react_model_spec_set=false
-	preexisting_react_model_branch_set=false
-	preexisting_default_model_file_set=false
-	preexisting_default_planner_model_file_set=false
-	preexisting_verbosity_set=false
-	preexisting_approve_all_set=false
-	preexisting_force_confirm_set=false
+        preexisting_okso_react_cache_file_set=false
+        preexisting_okso_rephraser_cache_file_set=false
+        preexisting_okso_run_id_set=false
+        preexisting_planner_model_spec_set=false
+        preexisting_planner_model_branch_set=false
+        preexisting_react_model_spec_set=false
+        preexisting_react_model_branch_set=false
+        preexisting_rephraser_model_spec_set=false
+        preexisting_rephraser_model_branch_set=false
+        preexisting_default_model_file_set=false
+        preexisting_default_planner_model_file_set=false
+        preexisting_verbosity_set=false
+        preexisting_approve_all_set=false
+        preexisting_force_confirm_set=false
 
 	if [[ -n "${OKSO_GOOGLE_CSE_API_KEY+x}" ]]; then
 		preexisting_okso_google_cse_api_key="${OKSO_GOOGLE_CSE_API_KEY}"
@@ -133,30 +149,42 @@ load_config() {
 		preexisting_okso_planner_cache_file="${OKSO_PLANNER_CACHE_FILE}"
 		preexisting_okso_planner_cache_file_set=true
 	fi
-	if [[ -n "${OKSO_REACT_CACHE_FILE+x}" ]]; then
-		preexisting_okso_react_cache_file="${OKSO_REACT_CACHE_FILE}"
-		preexisting_okso_react_cache_file_set=true
-	fi
-	if [[ -n "${OKSO_RUN_ID+x}" ]]; then
-		preexisting_okso_run_id="${OKSO_RUN_ID}"
-		preexisting_okso_run_id_set=true
-	fi
-	if [[ -n "${PLANNER_MODEL_SPEC+x}" ]]; then
-		preexisting_planner_model_spec="${PLANNER_MODEL_SPEC}"
-		preexisting_planner_model_spec_set=true
-	fi
-	if [[ -n "${PLANNER_MODEL_BRANCH+x}" ]]; then
-		preexisting_planner_model_branch="${PLANNER_MODEL_BRANCH}"
-		preexisting_planner_model_branch_set=true
-	fi
-	if [[ -n "${REACT_MODEL_SPEC+x}" ]]; then
-		preexisting_react_model_spec="${REACT_MODEL_SPEC}"
-		preexisting_react_model_spec_set=true
-	fi
-	if [[ -n "${REACT_MODEL_BRANCH+x}" ]]; then
-		preexisting_react_model_branch="${REACT_MODEL_BRANCH}"
-		preexisting_react_model_branch_set=true
-	fi
+        if [[ -n "${OKSO_REACT_CACHE_FILE+x}" ]]; then
+                preexisting_okso_react_cache_file="${OKSO_REACT_CACHE_FILE}"
+                preexisting_okso_react_cache_file_set=true
+        fi
+        if [[ -n "${OKSO_REPHRASER_CACHE_FILE+x}" ]]; then
+                preexisting_okso_rephraser_cache_file="${OKSO_REPHRASER_CACHE_FILE}"
+                preexisting_okso_rephraser_cache_file_set=true
+        fi
+        if [[ -n "${OKSO_RUN_ID+x}" ]]; then
+                preexisting_okso_run_id="${OKSO_RUN_ID}"
+                preexisting_okso_run_id_set=true
+        fi
+        if [[ -n "${PLANNER_MODEL_SPEC+x}" ]]; then
+                preexisting_planner_model_spec="${PLANNER_MODEL_SPEC}"
+                preexisting_planner_model_spec_set=true
+        fi
+        if [[ -n "${PLANNER_MODEL_BRANCH+x}" ]]; then
+                preexisting_planner_model_branch="${PLANNER_MODEL_BRANCH}"
+                preexisting_planner_model_branch_set=true
+        fi
+        if [[ -n "${REACT_MODEL_SPEC+x}" ]]; then
+                preexisting_react_model_spec="${REACT_MODEL_SPEC}"
+                preexisting_react_model_spec_set=true
+        fi
+        if [[ -n "${REACT_MODEL_BRANCH+x}" ]]; then
+                preexisting_react_model_branch="${REACT_MODEL_BRANCH}"
+                preexisting_react_model_branch_set=true
+        fi
+        if [[ -n "${SEARCH_REPHRASER_MODEL_SPEC+x}" ]]; then
+                preexisting_rephraser_model_spec="${SEARCH_REPHRASER_MODEL_SPEC}"
+                preexisting_rephraser_model_spec_set=true
+        fi
+        if [[ -n "${SEARCH_REPHRASER_MODEL_BRANCH+x}" ]]; then
+                preexisting_rephraser_model_branch="${SEARCH_REPHRASER_MODEL_BRANCH}"
+                preexisting_rephraser_model_branch_set=true
+        fi
 	if [[ -n "${DEFAULT_MODEL_FILE+x}" ]]; then
 		preexisting_default_model_file="${DEFAULT_MODEL_FILE}"
 		preexisting_default_model_file_set=true
@@ -214,16 +242,26 @@ load_config() {
 	else
 		REACT_MODEL_SPEC=${REACT_MODEL_SPEC:-"${DEFAULT_REACT_MODEL_SPEC_BASE}"}
 	fi
-	if [[ "${preexisting_react_model_branch_set}" == true ]]; then
-		REACT_MODEL_BRANCH="${preexisting_react_model_branch}"
-	else
-		REACT_MODEL_BRANCH=${REACT_MODEL_BRANCH:-${DEFAULT_REACT_MODEL_BRANCH_BASE}}
-	fi
-	if [[ "${preexisting_verbosity_set}" == true ]]; then
-		VERBOSITY="${preexisting_verbosity}"
-	else
-		VERBOSITY=${VERBOSITY:-1}
-	fi
+        if [[ "${preexisting_react_model_branch_set}" == true ]]; then
+                REACT_MODEL_BRANCH="${preexisting_react_model_branch}"
+        else
+                REACT_MODEL_BRANCH=${REACT_MODEL_BRANCH:-${DEFAULT_REACT_MODEL_BRANCH_BASE}}
+        fi
+        if [[ "${preexisting_rephraser_model_spec_set}" == true ]]; then
+                SEARCH_REPHRASER_MODEL_SPEC="${preexisting_rephraser_model_spec}"
+        else
+                SEARCH_REPHRASER_MODEL_SPEC=${SEARCH_REPHRASER_MODEL_SPEC:-"${DEFAULT_REPHRASER_MODEL_SPEC_BASE}"}
+        fi
+        if [[ "${preexisting_rephraser_model_branch_set}" == true ]]; then
+                SEARCH_REPHRASER_MODEL_BRANCH="${preexisting_rephraser_model_branch}"
+        else
+                SEARCH_REPHRASER_MODEL_BRANCH=${SEARCH_REPHRASER_MODEL_BRANCH:-${DEFAULT_REPHRASER_MODEL_BRANCH_BASE}}
+        fi
+        if [[ "${preexisting_verbosity_set}" == true ]]; then
+                VERBOSITY="${preexisting_verbosity}"
+        else
+                VERBOSITY=${VERBOSITY:-1}
+        fi
 	if [[ "${preexisting_approve_all_set}" == true ]]; then
 		APPROVE_ALL="${preexisting_approve_all}"
 	else
@@ -256,17 +294,24 @@ load_config() {
 
 	PLANNER_CACHE_FILE="${OKSO_PLANNER_CACHE_FILE}"
 
-	if [[ "${preexisting_okso_react_cache_file_set}" == true ]]; then
-		OKSO_REACT_CACHE_FILE="${preexisting_okso_react_cache_file}"
-	else
-		OKSO_REACT_CACHE_FILE=${OKSO_REACT_CACHE_FILE:-${CACHE_DIR}/runs/${OKSO_RUN_ID}/react.prompt-cache}
-	fi
+        if [[ "${preexisting_okso_react_cache_file_set}" == true ]]; then
+                OKSO_REACT_CACHE_FILE="${preexisting_okso_react_cache_file}"
+        else
+                OKSO_REACT_CACHE_FILE=${OKSO_REACT_CACHE_FILE:-${CACHE_DIR}/runs/${OKSO_RUN_ID}/react.prompt-cache}
+        fi
 
-	REACT_CACHE_FILE="${OKSO_REACT_CACHE_FILE}"
+        if [[ "${preexisting_okso_rephraser_cache_file_set}" == true ]]; then
+                OKSO_REPHRASER_CACHE_FILE="${preexisting_okso_rephraser_cache_file}"
+        else
+                OKSO_REPHRASER_CACHE_FILE=${OKSO_REPHRASER_CACHE_FILE:-${CACHE_DIR}/rephraser.prompt-cache}
+        fi
 
-	if [[ "${preexisting_okso_run_id_set}" == true ]]; then
-		OKSO_RUN_ID="${preexisting_okso_run_id}"
-	fi
+        REACT_CACHE_FILE="${OKSO_REACT_CACHE_FILE}"
+        SEARCH_REPHRASER_CACHE_FILE="${OKSO_REPHRASER_CACHE_FILE}"
+
+        if [[ "${preexisting_okso_run_id_set}" == true ]]; then
+                OKSO_RUN_ID="${preexisting_okso_run_id}"
+        fi
 
 	# shellcheck disable=SC2034
 	RUN_ID="${OKSO_RUN_ID}"
@@ -296,6 +341,8 @@ PLANNER_MODEL_SPEC=$(quote_config_value "${PLANNER_MODEL_SPEC}")
 PLANNER_MODEL_BRANCH=$(quote_config_value "${PLANNER_MODEL_BRANCH}")
 REACT_MODEL_SPEC=$(quote_config_value "${REACT_MODEL_SPEC}")
 REACT_MODEL_BRANCH=$(quote_config_value "${REACT_MODEL_BRANCH}")
+SEARCH_REPHRASER_MODEL_SPEC=$(quote_config_value "${SEARCH_REPHRASER_MODEL_SPEC}")
+SEARCH_REPHRASER_MODEL_BRANCH=$(quote_config_value "${SEARCH_REPHRASER_MODEL_BRANCH}")
 OKSO_CACHE_DIR=$(quote_config_value "${CACHE_DIR}")
 OKSO_PLANNER_CACHE_FILE=$(quote_config_value "${PLANNER_CACHE_FILE}")
 VERBOSITY=${VERBOSITY}
@@ -381,13 +428,16 @@ hydrate_model_specs() {
 	DEFAULT_PLANNER_MODEL_FILE=${DEFAULT_PLANNER_MODEL_FILE:-${DEFAULT_PLANNER_MODEL_FILE_BASE}}
 	DEFAULT_MODEL_FILE=${DEFAULT_MODEL_FILE:-${DEFAULT_MODEL_FILE_BASE}}
 
-	PLANNER_MODEL_SPEC=${PLANNER_MODEL_SPEC:-"${DEFAULT_PLANNER_MODEL_SPEC_BASE}"}
-	PLANNER_MODEL_BRANCH=${PLANNER_MODEL_BRANCH:-"${DEFAULT_PLANNER_MODEL_BRANCH_BASE}"}
-	REACT_MODEL_SPEC=${REACT_MODEL_SPEC:-"${DEFAULT_REACT_MODEL_SPEC_BASE}"}
-	REACT_MODEL_BRANCH=${REACT_MODEL_BRANCH:-"${DEFAULT_REACT_MODEL_BRANCH_BASE}"}
+        PLANNER_MODEL_SPEC=${PLANNER_MODEL_SPEC:-"${DEFAULT_PLANNER_MODEL_SPEC_BASE}"}
+        PLANNER_MODEL_BRANCH=${PLANNER_MODEL_BRANCH:-"${DEFAULT_PLANNER_MODEL_BRANCH_BASE}"}
+        REACT_MODEL_SPEC=${REACT_MODEL_SPEC:-"${DEFAULT_REACT_MODEL_SPEC_BASE}"}
+        REACT_MODEL_BRANCH=${REACT_MODEL_BRANCH:-"${DEFAULT_REACT_MODEL_BRANCH_BASE}"}
+        SEARCH_REPHRASER_MODEL_SPEC=${SEARCH_REPHRASER_MODEL_SPEC:-"${DEFAULT_REPHRASER_MODEL_SPEC_BASE}"}
+        SEARCH_REPHRASER_MODEL_BRANCH=${SEARCH_REPHRASER_MODEL_BRANCH:-"${DEFAULT_REPHRASER_MODEL_BRANCH_BASE}"}
 
-	hydrate_model_spec_to_vars "${PLANNER_MODEL_SPEC}" "${DEFAULT_PLANNER_MODEL_FILE}" PLANNER_MODEL_REPO PLANNER_MODEL_FILE
-	hydrate_model_spec_to_vars "${REACT_MODEL_SPEC}" "${DEFAULT_MODEL_FILE}" REACT_MODEL_REPO REACT_MODEL_FILE
+        hydrate_model_spec_to_vars "${PLANNER_MODEL_SPEC}" "${DEFAULT_PLANNER_MODEL_FILE}" PLANNER_MODEL_REPO PLANNER_MODEL_FILE
+        hydrate_model_spec_to_vars "${REACT_MODEL_SPEC}" "${DEFAULT_MODEL_FILE}" REACT_MODEL_REPO REACT_MODEL_FILE
+        hydrate_model_spec_to_vars "${SEARCH_REPHRASER_MODEL_SPEC}" "${DEFAULT_REPHRASER_MODEL_FILE_BASE}" SEARCH_REPHRASER_MODEL_REPO SEARCH_REPHRASER_MODEL_FILE
 
 }
 
@@ -414,6 +464,6 @@ init_environment() {
 		LLAMA_AVAILABLE=false
 	fi
 
-	mkdir -p "${CACHE_DIR}" "$(dirname "${PLANNER_CACHE_FILE}")" "$(dirname "${REACT_CACHE_FILE}")"
-	mkdir -p "${NOTES_DIR}"
+        mkdir -p "${CACHE_DIR}" "$(dirname "${PLANNER_CACHE_FILE}")" "$(dirname "${REACT_CACHE_FILE}")" "$(dirname "${SEARCH_REPHRASER_CACHE_FILE}")"
+        mkdir -p "${NOTES_DIR}"
 }
