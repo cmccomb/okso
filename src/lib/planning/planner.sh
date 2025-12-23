@@ -401,15 +401,19 @@ emit_plan_json() {
 derive_allowed_tools_from_plan() {
 	# Arguments:
 	#   $1 - planner response JSON (object or legacy plan array)
-	local plan_json tool seen
+	local plan_json tool seen status
 	plan_json="${1:-[]}"
 
-	if jq -e '.mode == "quickdraw"' <<<"${plan_json}" >/dev/null 2>&1; then
-		return 0
+	if plan_json="$(extract_plan_array "${plan_json}")"; then
+		status=0
+	else
+		status=$?
 	fi
-
-	if jq -e '.mode == "plan" and (.plan | type == "array")' <<<"${plan_json}" >/dev/null 2>&1; then
-		plan_json="$(jq -c '.plan' <<<"${plan_json}")"
+	if [[ ${status} -ne 0 ]]; then
+		if [[ ${status} -eq 10 ]]; then
+			return 0
+		fi
+		return 1
 	fi
 
 	seen=""
@@ -447,14 +451,21 @@ derive_allowed_tools_from_plan() {
 }
 
 plan_json_to_entries() {
-	local plan_json
+	local plan_json status
 	plan_json="$1"
-	if jq -e '.mode == "quickdraw"' <<<"${plan_json}" >/dev/null 2>&1; then
-		return 0
+
+	if plan_json="$(extract_plan_array "${plan_json}")"; then
+		status=0
+	else
+		status=$?
 	fi
-	if jq -e '.mode == "plan" and (.plan | type == "array")' <<<"${plan_json}" >/dev/null 2>&1; then
-		plan_json="$(jq -c '.plan' <<<"${plan_json}")"
+	if [[ ${status} -ne 0 ]]; then
+		if [[ ${status} -eq 10 ]]; then
+			return 0
+		fi
+		return 1
 	fi
+
 	printf '%s' "${plan_json}" | jq -cr '.[]'
 }
 

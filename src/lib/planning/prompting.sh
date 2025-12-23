@@ -51,20 +51,21 @@ plan_json_to_outline() {
 	# Converts a planner response into a human-readable outline string.
 	# Arguments:
 	#   $1 - planner response JSON (object or legacy plan array)
-	local plan_json plan_clean
+	local plan_json plan_clean status
 	plan_json="${1:-[]}"
 
-	if jq -e '.mode == "quickdraw"' <<<"${plan_json}" >/dev/null 2>&1; then
-		jq -r '"Quickdraw (confidence: " + ((.quickdraw.confidence // "n/a")|tostring) + ") - " + (.quickdraw.rationale // "")' <<<"${plan_json}" 2>/dev/null || return 1
-		return 0
+	if plan_clean="$(extract_plan_array "${plan_json}")"; then
+		status=0
+	else
+		status=$?
 	fi
 
-	if jq -e '.mode == "plan" and (.plan | type == "array")' <<<"${plan_json}" >/dev/null 2>&1; then
-		plan_clean="$(jq -c '.plan' <<<"${plan_json}")"
-	elif jq -e 'type == "array"' <<<"${plan_json}" >/dev/null 2>&1; then
-		plan_clean="${plan_json}"
-	else
-		plan_clean="$(printf '%s' "$plan_json" | normalize_planner_plan)" || return 1
+	if [[ ${status} -ne 0 ]]; then
+		if [[ ${status} -eq 10 ]]; then
+			jq -r '"Quickdraw (confidence: " + ((.quickdraw.confidence // "n/a")|tostring) + ") - " + (.quickdraw.rationale // "")' <<<"${plan_json}" 2>/dev/null || return 1
+			return 0
+		fi
+		return 1
 	fi
 
 	if [[ -z "${plan_clean}" ]]; then

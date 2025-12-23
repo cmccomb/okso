@@ -23,6 +23,53 @@ source "${PLANNING_NORMALIZATION_DIR}/../core/logging.sh"
 # shellcheck source=../dependency_guards/dependency_guards.sh disable=SC1091
 source "${PLANNING_NORMALIZATION_DIR}/../dependency_guards/dependency_guards.sh"
 
+parse_planner_payload() {
+	local raw pattern allowed_types
+	raw="${1:-}"
+	pattern="${2:-}"
+	allowed_types="${3:-}"
+
+	RAW_INPUT="${raw}" PAYLOAD_REGEX="${pattern}" ALLOWED_TYPES="${allowed_types}" python3 - <<'PYTHON'
+import json
+import os
+import re
+import sys
+from typing import Any
+
+raw_input = os.environ.get("RAW_INPUT", "")
+payload_regex = os.environ.get("PAYLOAD_REGEX", "")
+allowed_type_names = [name for name in os.environ.get("ALLOWED_TYPES", "").split(",") if name]
+
+TYPE_MAPPING = {"array": list, "object": dict}
+
+
+def is_allowed(value: Any) -> bool:
+    if not allowed_type_names:
+        return True
+    return any(isinstance(value, TYPE_MAPPING[name]) for name in allowed_type_names if name in TYPE_MAPPING)
+
+
+def try_parse(text: str) -> Any | None:
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        return None
+
+
+candidate = try_parse(raw_input)
+if candidate is None or not is_allowed(candidate):
+    if payload_regex:
+        match = re.search(payload_regex, raw_input, flags=re.S)
+        if match:
+            candidate = try_parse(match.group(0))
+
+if candidate is None or not is_allowed(candidate):
+    sys.exit(1)
+
+json.dump(candidate, sys.stdout)
+PYTHON
+}
+
 # Normalize noisy planner output into a clean PlannerPlan JSON array of objects.
 # Reads from stdin, writes clean JSON array to stdout. This sits between the raw
 # llama.cpp stream and the scoring/execution layers so downstream components can
@@ -37,38 +84,9 @@ normalize_planner_plan() {
 		return 1
 	fi
 
-	plan_candidate=$(
-		RAW_INPUT="${raw}" python3 - <<'PYTHON'
-import json
-import os
-import re
-import sys
-
-raw_input = os.environ.get("RAW_INPUT", "")
-
-
-def try_parse(text: str) -> list | None:
-    try:
-        value = json.loads(text)
-    except json.JSONDecodeError:
-        return None
-    return value if isinstance(value, list) else None
-
-
-candidate = try_parse(raw_input)
-if candidate is None:
-    match = re.search(r"\[[\s\S]*?\]", raw_input)
-    if match:
-        candidate = try_parse(match.group(0))
-
-if candidate is None:
-    sys.exit(1)
-
-json.dump(candidate, sys.stdout)
-
-PYTHON
-
-	) || plan_candidate=""
+	plan_candidate="$(
+		parse_planner_payload "${raw}" "\\[[\\s\\S]*?\\]" "array"
+	)" || plan_candidate=""
 
 	if [[ -n "${plan_candidate:-}" ]]; then
 		normalized=$(jq -ec '
@@ -110,37 +128,9 @@ normalize_planner_response() {
 		return 1
 	fi
 
-	candidate=$(
-		RAW_INPUT="${raw}" python3 - <<'PYTHON'
-import json
-import os
-import re
-import sys
-
-raw_input = os.environ.get("RAW_INPUT", "")
-
-
-def try_parse(text: str):
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        return None
-
-
-candidate = try_parse(raw_input)
-if candidate is None:
-    match = re.search(r"\{[\s\S]*?\}|\[[\s\S]*?\]", raw_input)
-    if match:
-        candidate = try_parse(match.group(0))
-
-if candidate is None:
-    sys.exit(1)
-
-json.dump(candidate, sys.stdout)
-
-PYTHON
-
-	) || candidate=""
+	candidate="$(
+		parse_planner_payload "${raw}" "\\{[\\s\\S]*\\}|\\[[\\s\\S]*\\]" "object,array"
+	)" || candidate=""
 
 	if [[ -z "${candidate:-}" ]]; then
 		log "ERROR" "normalize_planner_response: unable to parse planner output" "${raw}" >&2
@@ -181,6 +171,28 @@ PYTHON
 	printf '%s' "${normalized}"
 }
 
+extract_plan_array() {
+	# Extracts the plan array from a planner response or legacy array.
+	# Arguments:
+	#   $1 - planner response JSON (object or legacy plan array)
+	local payload plan_json
+	payload="${1:-[]}"
+
+	if jq -e '.mode == "quickdraw"' <<<"${payload}" >/dev/null 2>&1; then
+		return 10
+	fi
+
+	if jq -e '.mode == "plan" and (.plan | type == "array")' <<<"${payload}" >/dev/null 2>&1; then
+		plan_json="$(jq -c '.plan' <<<"${payload}")"
+	elif jq -e 'type == "array"' <<<"${payload}" >/dev/null 2>&1; then
+		plan_json="${payload}"
+	else
+		plan_json="$(printf '%s' "${payload}" | normalize_planner_plan)" || return 1
+	fi
+
+	printf '%s' "${plan_json}"
+}
+
 append_final_answer_step() {
 	# Ensures the plan includes a final step with the final_answer tool.
 	# Arguments:
@@ -202,4 +214,5 @@ append_final_answer_step() {
 
 export -f normalize_planner_plan
 export -f normalize_planner_response
+export -f extract_plan_array
 export -f append_final_answer_step
