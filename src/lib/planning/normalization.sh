@@ -90,6 +90,17 @@ normalize_planner_plan() {
 
 	if [[ -n "${plan_candidate:-}" ]]; then
 		normalized=$(jq -ec '
+                        def with_canonical_args($args):
+                                if ($args // {}) | type != "object" then
+                                        {}
+                                elif ($args | has("input")) then
+                                        $args
+                                elif ($args | has("code")) then
+                                        ($args + {input: $args.code} | del(.code))
+                                else
+                                        $args
+                                end;
+
                         def valid_step:
                                 (.tool | type == "string")
                                 and (.tool | length) > 0
@@ -101,7 +112,7 @@ normalize_planner_plan() {
                         elif any(.[]; (type != "object") or (valid_step | not)) then
                                 error("plan contains invalid steps")
                         else
-                                map({tool: .tool, args: (.args // {}), thought: (.thought // "")})
+                                map({tool: .tool, args: with_canonical_args(.args), thought: (.thought // "")})
                         end
                         ' <<<"${plan_candidate}" 2>/dev/null || true)
 		if [[ -n "${normalized}" && "${normalized}" != "[]" ]]; then
@@ -120,7 +131,7 @@ normalize_planner_response() {
 	# legacy plan arrays and modern objects that may represent either a
 	# structured plan or a "quickdraw" direct answer, ensuring downstream
 	# tooling always receives the final_answer stub.
-	local raw candidate normalized
+	local raw candidate normalized plan_clean
 	raw="$(cat)"
 
 	if ! require_python3_available "planner output normalization"; then
@@ -166,6 +177,15 @@ normalize_planner_response() {
 	if [[ -z "${normalized}" ]]; then
 		log "ERROR" "normalize_planner_response: unable to parse planner output" "${raw}" >&2
 		return 1
+	fi
+
+	if jq -e '.mode == "plan"' <<<"${normalized}" >/dev/null 2>&1; then
+		plan_clean="$(jq -ce '.plan' <<<"${normalized}" | normalize_planner_plan)" || {
+			log "ERROR" "normalize_planner_response: unable to parse planner output" "${raw}" >&2
+			return 1
+		}
+
+		normalized="$(jq --argjson plan "${plan_clean}" '.plan = $plan' <<<"${normalized}" 2>/dev/null || true)"
 	fi
 
 	printf '%s' "${normalized}"
