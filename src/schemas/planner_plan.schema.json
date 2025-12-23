@@ -19,7 +19,7 @@
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["tool", "args"],
+        "required": ["tool", "args", "thought"],
         "additionalProperties": false,
         "properties": {
           "thought": {

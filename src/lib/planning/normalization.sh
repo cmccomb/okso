@@ -105,7 +105,8 @@ normalize_planner_plan() {
                                 (.tool | type == "string")
                                 and (.tool | length) > 0
                                 and ((.args | type == "object") or (.args == null))
-                                and ((.thought | type == "string") or (.thought == null));
+                                and (.thought | type == "string")
+                                and (.thought | length) > 0;
 
                         if type != "array" then
                                 error("plan must be an array")
@@ -114,7 +115,7 @@ normalize_planner_plan() {
                         elif any(.[]; (type != "object") or (valid_step | not)) then
                                 error("plan contains invalid steps")
                         else
-                                map({tool: .tool, args: with_canonical_args(.args), thought: (.thought // "")})
+                                map({tool: .tool, args: with_canonical_args(.args), thought: .thought})
                         end
                         ' <<<"${plan_candidate}" 2>/dev/null || true)
 		if [[ -n "${normalized}" && "${normalized}" != "[]" ]]; then
