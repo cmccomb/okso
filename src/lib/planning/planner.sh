@@ -99,6 +99,10 @@ if [[ "${PLANNER_SKIP_TOOL_LOAD:-false}" != true ]]; then
 fi
 
 initialize_planner_models() {
+	# Hydrates planner and ReAct model specs when callers did not pass
+	# explicit repositories or filenames via the environment. This keeps
+	# downstream llama.cpp calls predictable regardless of how the planner
+	# was sourced (CLI invocation vs. tests).
 	if [[ -z "${PLANNER_MODEL_REPO:-}" || -z "${PLANNER_MODEL_FILE:-}" || -z "${REACT_MODEL_REPO:-}" || -z "${REACT_MODEL_FILE:-}" ]]; then
 		hydrate_model_specs
 	fi
@@ -188,6 +192,47 @@ lowercase() {
 	printf '%s' "$1" | tr '[:upper:]' '[:lower:]'
 }
 
+validate_positive_int() {
+	# Coerces planner numeric inputs into positive integers to keep llama.cpp
+	# invocations predictable.
+	# Arguments:
+	#   $1 - raw value (string)
+	#   $2 - fallback value used when validation fails (string)
+	#   $3 - metric name for logging (string)
+	local raw fallback metric sanitized
+	raw="$1"
+	fallback="$2"
+	metric="$3"
+
+	if [[ "${raw}" =~ ^[0-9]+$ ]] && ((raw >= 1)); then
+		sanitized="${raw}"
+	else
+		log "WARN" "Invalid ${metric}; using fallback" "${metric}=${raw:-unset}" >&2
+		sanitized="${fallback}"
+	fi
+
+	printf '%s' "${sanitized}"
+}
+
+validate_temperature() {
+	# Normalizes planner temperature into a bounded numeric value.
+	# Arguments:
+	#   $1 - raw temperature (string)
+	#   $2 - fallback temperature when validation fails (string)
+	local raw fallback sanitized
+	raw="$1"
+	fallback="$2"
+
+	if [[ "${raw}" =~ ^[0-9]*\.?[0-9]+$ ]] && awk -v t="${raw}" 'BEGIN { exit !(t >= 0 && t <= 1) }'; then
+		sanitized="${raw}"
+	else
+		log "WARN" "Invalid planner temperature; using fallback" "temperature=${raw:-unset}" >&2
+		sanitized="${fallback}"
+	fi
+
+	printf '%s' "${sanitized}"
+}
+
 generate_planner_response() {
 	# Arguments:
 	#   $1 - user query (string)
@@ -231,9 +276,9 @@ generate_planner_response() {
 	log "DEBUG" "Generated planner prompt" "${prompt}" >&2
 
 	local sample_count temperature debug_log_dir debug_log_file max_generation_tokens
-	sample_count="${PLANNER_SAMPLE_COUNT:-3}"
-	temperature="${PLANNER_TEMPERATURE:-0.2}"
-	max_generation_tokens="${PLANNER_MAX_OUTPUT_TOKENS:-1024}"
+	sample_count="$(validate_positive_int "${PLANNER_SAMPLE_COUNT:-3}" 3 "PLANNER_SAMPLE_COUNT")"
+	temperature="$(validate_temperature "${PLANNER_TEMPERATURE:-0.2}" 0.2)"
+	max_generation_tokens="$(validate_positive_int "${PLANNER_MAX_OUTPUT_TOKENS:-1024}" 1024 "PLANNER_MAX_OUTPUT_TOKENS")"
 	# Capture the sampling configuration early so operators can verify the
 	# breadth of exploration before generation begins. This also doubles as
 	# a trace when investigating unexpected candidate rankings.
