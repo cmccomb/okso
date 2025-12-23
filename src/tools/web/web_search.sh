@@ -114,7 +114,7 @@ register_web_search() {
                 required: ["query"],
                 additionalProperties: false,
                 properties: {
-                        query: {type: "string", minLength: 1},
+                        query: {type: "string", minLength: 1, maxLength: 200},
                         num: {type: "integer", minimum: 1, maximum: 10}
                 }
         }')

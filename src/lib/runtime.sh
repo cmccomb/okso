@@ -82,15 +82,20 @@ config_file CONFIG_FILE
 cache_dir CACHE_DIR
 planner_cache_file PLANNER_CACHE_FILE
 react_cache_file REACT_CACHE_FILE
+rephraser_cache_file SEARCH_REPHRASER_CACHE_FILE
 run_id RUN_ID
 planner_model_spec PLANNER_MODEL_SPEC
 planner_model_branch PLANNER_MODEL_BRANCH
 react_model_spec REACT_MODEL_SPEC
 react_model_branch REACT_MODEL_BRANCH
+rephraser_model_spec SEARCH_REPHRASER_MODEL_SPEC
+rephraser_model_branch SEARCH_REPHRASER_MODEL_BRANCH
 planner_model_repo PLANNER_MODEL_REPO
 planner_model_file PLANNER_MODEL_FILE
 react_model_repo REACT_MODEL_REPO
 react_model_file REACT_MODEL_FILE
+rephraser_model_repo SEARCH_REPHRASER_MODEL_REPO
+rephraser_model_file SEARCH_REPHRASER_MODEL_FILE
 approve_all APPROVE_ALL
 force_confirm FORCE_CONFIRM
 dry_run DRY_RUN
@@ -248,18 +253,24 @@ render_plan_outputs() {
 	#   $3 - required tools list (newline delimited)
 	#   $4 - plan entries string
 	#   $5 - plan outline text
+	#   $6 - planner response JSON
 	local action_var settings_prefix
 	action_var="$1"
 	settings_prefix="$2"
-	local required_tools plan_entries plan_outline
+	local required_tools plan_entries plan_outline plan_response
 	required_tools="$3"
 	plan_entries="$4"
 	plan_outline="$5"
+	plan_response="$6"
 
 	set_by_name "${action_var}" "continue"
 
 	local plan_json tool_list_json
-	plan_json="$(emit_plan_json "${plan_entries}")"
+	if [[ -n "${plan_response}" ]]; then
+		plan_json="${plan_response}"
+	else
+		plan_json="$(emit_plan_json "${plan_entries}")"
+	fi
 	tool_list_json="$(printf '%s' "${required_tools}" | jq -Rsc 'split("\n") | map(select(length>0))')"
 
 	if [[ -z "${required_tools}" ]]; then
@@ -302,26 +313,21 @@ select_response_strategy() {
 	#   $2 - required tools string
 	#   $3 - plan entries string
 	#   $4 - plan outline text
+	#   $5 - planner response JSON
 	local settings_prefix
 	settings_prefix="$1"
 	shift
-	local required_tools plan_entries plan_outline direct_response
+	local required_tools plan_entries plan_outline plan_response
 	required_tools="$1"
 	plan_entries="$2"
 	plan_outline="$3"
+	plan_response="$4"
 
 	apply_settings_to_globals "${settings_prefix}"
 
 	if [[ -z "${required_tools}" ]]; then
-		# The planner may occasionally decline tools; fall back to direct text
-		# responses so the user still receives output.
-		log "ERROR" "No tools selected; responding directly" "${USER_QUERY}"
-		log "INFO" "Planner emitted no tools; using direct response" "${USER_QUERY}"
-		direct_response="$(respond_text "${USER_QUERY}" 256)"
-		log_pretty "INFO" "Final answer" "${direct_response}"
-		log "INFO" "Execution summary" "No tool runs"
-		emit_boxed_summary "${USER_QUERY}" "${plan_outline}" "" "${direct_response}"
-		return 0
+		log "ERROR" "Planner emitted an empty tool list" "${USER_QUERY}"
+		return 1
 	fi
 
 	react_loop "${USER_QUERY}" "${required_tools}" "${plan_entries}" "${plan_outline}"
