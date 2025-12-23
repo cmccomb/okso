@@ -9,6 +9,7 @@ class Okso < Formula
   depends_on "llama.cpp"
   depends_on "tesseract"
   depends_on "pandoc"
+  depends_on "libxml2"
   depends_on "poppler"
   depends_on "yq"
   depends_on "bash"

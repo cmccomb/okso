@@ -10,9 +10,8 @@
 #
 # Dependencies:
 #   - bash 3.2+
-#   - jq (for JSON formatting and output)
+#   - pandoc (for HTML and text conversion)
 #   - xmllint (for XML pretty-printing)
-#   - One of: w3m, links, lynx (for HTML to text conversion)
 #
 # Exit codes:
 #   0 - conversion succeeded
@@ -67,32 +66,18 @@ build_preview() {
 convert_html() {
 	# Arguments:
 	#   $1 - body path
-	local body_path converter output
+	local body_path output
 	body_path=$1
 
-	for converter in w3m links lynx; do
-		if command -v "${converter}" >/dev/null 2>&1; then
-			break
-		fi
-		converter=""
-	done
-
-	if [[ -z ${converter} ]]; then
-		printf '%s\n' "no HTML text-mode browser available" >&2
+	if ! command -v pandoc >/dev/null 2>&1; then
+		printf '%s\n' "pandoc not available" >&2
 		return 1
 	fi
 
-	case "${converter}" in
-	w3m)
-		output=$(w3m -dump -T text/html "${body_path}" 2>/dev/null || w3m -dump "${body_path}" 2>/dev/null || true)
-		;;
-	links)
-		output=$(links -dump -force-html "${body_path}" 2>/dev/null || links -dump -stdin <"${body_path}" 2>/dev/null || true)
-		;;
-	lynx)
-		output=$(lynx -dump -stdin <"${body_path}" 2>/dev/null || lynx -dump "${body_path}" 2>/dev/null || true)
-		;;
-	esac
+	if ! output=$(pandoc --from=html --to=gfm --wrap=none "${body_path}"); then
+		printf '%s\n' "pandoc failed to convert HTML" >&2
+		return 1
+	fi
 
 	output=$(printf '%s\n' "${output}" | sed 's/[[:space:]]\+$//' | sed '/^[[:space:]]*$/d')
 
@@ -109,7 +94,17 @@ convert_json() {
 	#   $1 - body path
 	local body_path formatted
 	body_path=$1
-	if ! formatted=$(jq --indent 2 . <"${body_path}" 2>/dev/null); then
+	if ! formatted=$(
+		python3 - "${body_path}" <<'PY'
+import json
+import sys
+
+path = sys.argv[1]
+with open(path, "r", encoding="utf-8") as handle:
+    data = json.load(handle)
+print(json.dumps(data, indent=2, ensure_ascii=False))
+PY
+	); then
 		printf '%s\n' "invalid JSON" >&2
 		return 1
 	fi
@@ -125,7 +120,7 @@ convert_xml() {
 		printf '%s\n' "xmllint not available" >&2
 		return 1
 	fi
-	if ! formatted=$(xmllint --format "${body_path}" 2>/dev/null); then
+	if ! formatted=$(xmllint --format "${body_path}"); then
 		printf '%s\n' "invalid XML" >&2
 		return 1
 	fi
@@ -236,7 +231,15 @@ main() {
 		return 2
 	fi
 
-	jq -nc --arg markdown "${markdown}" --arg preview "${preview}" '{markdown:$markdown, preview:$preview}'
+	python3 - "${markdown}" "${preview}" <<'PY'
+import json
+import sys
+
+markdown = sys.argv[1]
+preview = sys.argv[2]
+
+print(json.dumps({"markdown": markdown, "preview": preview}, ensure_ascii=False))
+PY
 }
 
 main "$@"

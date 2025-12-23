@@ -15,7 +15,7 @@ jobs:
       - name: Install dependencies
         run: |
           brew update
-          brew install shellcheck shfmt jq bc bats-core
+          brew install shellcheck shfmt jq bc bats-core pandoc
 
       - name: Check formatting
         run: |
