@@ -150,19 +150,19 @@ normalize_planner_response() {
 		return 1
 	fi
 
-	normalized=$(jq -ec '
-                def normalize_plan($plan):
-                        ($plan | tostring | fromjson) as $raw_plan
-                        | ($raw_plan | tostring | fromjson) // $raw_plan;
+normalized=$(jq -ec '
+  def normalize_plan($plan):
+    ($plan | tostring | fromjson) as $raw_plan
+    | ($raw_plan | tostring | fromjson) // $raw_plan;
 
-                if type == "array" then
-                        {mode: "plan", plan: (normalize_plan(.) | . + [{tool:"final_answer",thought:"Summarize the result for the user.",args:{}}])}
-                elif (type == "object") and (.mode // "") == "plan" then
-                        {mode: "plan", plan: (normalize_plan(.plan) | . + [{tool:"final_answer",thought:"Summarize the result for the user.",args:{}}])}
-                else
-                        error("unrecognized planner response shape")
-                end
-                ' <<<"${candidate}" 2>/dev/null || true)
+  if type == "array" then
+    {mode: "plan", plan: (normalize_plan(.))}
+  elif (type == "object") and (.mode // "") == "plan" then
+    {mode: "plan", plan: (normalize_plan(.plan))}
+  else
+    error("unrecognized planner response shape")
+  end
+' <<<"${candidate}" 2>/dev/null || true)
 
 	if [[ -z "${normalized}" ]]; then
 		log "ERROR" "normalize_planner_response: unable to parse planner output" "${raw}" >&2
