@@ -52,7 +52,7 @@ EOF
 }
 
 @test "format_tool_history collects multi-line observations case-insensitively" {
-        run bash -lc '
+	run bash -lc '
                 set -e
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 source ./src/lib/formatting.sh
@@ -69,11 +69,11 @@ EOF
                 [[ "${output}" == *"action: finalize"* ]]
                 [[ "${output}" == *"observation: done"* ]]
         '
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "format_tool_history prefers summaries and preserves latest raw observation" {
-        run bash -lc '
+	run bash -lc '
                 set -euo pipefail
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 source ./src/lib/formatting.sh
@@ -99,5 +99,5 @@ JSON
                 [[ "${output}" == *"observation: raw-3"* ]]
                 [[ "${output}" != *"summary-3"* ]]
         '
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }

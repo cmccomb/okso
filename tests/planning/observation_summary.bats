@@ -25,7 +25,7 @@ SCRIPT
 }
 
 @test "summarize_web_fetch_results uses deterministic terminal summary" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/react/observation_summary.sh
 body=$(printf '%*s' 300 | tr ' ' 'x')
@@ -34,11 +34,11 @@ summary=$(summarize_observation "web_fetch" "${payload}" "/fallback")
 printf '%s' "${summary}" | jq -e '(.cwd == "/fallback") and (.output.head | length == 120) and (.output.tail | length == 120)'
 SCRIPT
 
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "summarize_file_ops reports touched paths and summaries deterministically" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/react/observation_summary.sh
 observation=$(jq -nc '{cwd:"/tmp/work",created:["a.txt"],updated:["b.txt"],deleted:["c.txt"],output:"preview"}')
@@ -46,7 +46,7 @@ summary=$(summarize_observation "write_files" "${observation}" "/fallback")
 printf '%s' "${summary}" | jq -e '(.cwd == "/tmp/work") and (.created == ["a.txt"]) and (.updated == ["b.txt"]) and (.deleted == ["c.txt"]) and (.output.head == "preview")'
 SCRIPT
 
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "select_observation_summary prefers embedded summary" {
