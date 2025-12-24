@@ -199,25 +199,114 @@ render_boxed_summary() {
 		formatted_content="$(printf '%s\n' "${formatted_content}" | gum format)"
 	fi
 
-	render_box "${formatted_content}"
+        render_box "${formatted_content}"
+}
+
+render_observation_text() {
+        # Formats an observation payload into a human-readable string.
+        # Arguments:
+        #   $1 - tool name (string)
+        #   $2 - observation payload (string or JSON)
+        local tool observation obs_result
+        tool="$1"
+        observation="$2"
+
+        if jq -e '.' <<<"${observation}" >/dev/null 2>&1; then
+                if jq -e 'type == "object"' <<<"${observation}" >/dev/null 2>&1; then
+                        local obs_obj
+                        obs_obj=$(jq -c '.' <<<"${observation}" 2>/dev/null || printf '%s' "${observation}")
+
+                        if jq -e '.output != null and .exit_code != null' <<<"${obs_obj}" >/dev/null 2>&1; then
+                                local exit_code output error
+                                exit_code=$(jq -r '.exit_code' <<<"${obs_obj}")
+                                output=$(jq -r '.output' <<<"${obs_obj}")
+                                error=$(jq -r '.error // empty' <<<"${obs_obj}")
+
+                                if ((exit_code != 0)); then
+                                        obs_result="FAILED (exit code ${exit_code})"
+                                        if [[ -n "${output}" ]]; then
+                                                obs_result+=$'\n'"Output: ${output}"
+                                        fi
+                                        if [[ -n "${error}" ]]; then
+                                                obs_result+=$'\n'"Error: ${error}"
+                                        fi
+                                else
+                                        if [[ "${tool}" == "web_search" ]]; then
+                                                if jq -e '.items | type == "array"' <<<"${output}" >/dev/null 2>&1; then
+                                                        obs_result=$(jq -r '.items | map("- " + .title + ": " + .snippet + " (URL: " + .url + ")") | join("\n")' <<<"${output}")
+                                                        [[ -z "${obs_result}" ]] && obs_result="(no results)"
+                                                else
+                                                        obs_result=$(jq -r '.observation // .' <<<"${output}" 2>/dev/null || printf '%s' "${output}")
+                                                fi
+                                        elif [[ "${tool}" == "web_fetch" ]]; then
+                                                if jq -e '.url != null and .body_snippet != null' <<<"${output}" >/dev/null 2>&1; then
+                                                        obs_result=$(jq -r '"URL: " + .url + "\nContent: " + .body_snippet' <<<"${output}")
+                                                else
+                                                        obs_result=$(jq -r '.observation // .' <<<"${output}" 2>/dev/null || printf '%s' "${output}")
+                                                fi
+                                        elif jq -e '.observation != null' <<<"${output}" >/dev/null 2>&1; then
+                                                obs_result=$(jq -r '.observation' <<<"${output}" 2>/dev/null || printf '%s' "${output}")
+                                        else
+                                                obs_result="${output}"
+                                        fi
+                                fi
+                        else
+                                if [[ "${tool}" == "web_search" ]]; then
+                                        if jq -e '.items | type == "array"' <<<"${obs_obj}" >/dev/null 2>&1; then
+                                                obs_result=$(jq -r '.items | map("- " + .title + ": " + .snippet + " (URL: " + .url + ")") | join("\n")' <<<"${obs_obj}")
+                                                [[ -z "${obs_result}" ]] && obs_result="(no results)"
+                                        else
+                                                obs_result=$(jq -r '.observation // .' <<<"${obs_obj}" 2>/dev/null || printf '%s' "${obs_obj}")
+                                        fi
+                                elif [[ "${tool}" == "web_fetch" ]]; then
+                                        if jq -e '.url != null and .body_snippet != null' <<<"${obs_obj}" >/dev/null 2>&1; then
+                                                obs_result=$(jq -r '"URL: " + .url + "\nContent: " + .body_snippet' <<<"${obs_obj}")
+                                        else
+                                                obs_result=$(jq -r '.observation // .' <<<"${obs_obj}" 2>/dev/null || printf '%s' "${obs_obj}")
+                                        fi
+                                elif jq -e '.observation != null' <<<"${obs_obj}" >/dev/null 2>&1; then
+                                        obs_result=$(jq -r '.observation' <<<"${obs_obj}" 2>/dev/null || printf '%s' "${obs_obj}")
+                                else
+                                        obs_result=$(jq -c '.' <<<"${obs_obj}" 2>/dev/null || printf '%s' "${obs_obj}")
+                                fi
+                        fi
+                elif jq -e 'type == "string"' <<<"${observation}" >/dev/null 2>&1; then
+                        obs_result=$(jq -r '.' <<<"${observation}" 2>/dev/null || printf '%s' "${observation}")
+                else
+                        obs_result=$(jq -c '.' <<<"${observation}" 2>/dev/null || printf '%s' "${observation}")
+                fi
+        else
+                obs_result="${observation}"
+        fi
+
+        printf '%s' "${obs_result}"
 }
 
 format_tool_history() {
-	# Arguments:
-	#   $1 - tool invocation history (newline-delimited string)
-	# Returns:
-	#   Grouped, human-friendly bullet list of tool runs (string)
-	local tool_history line current_step current_action current_observation collecting_observation
-	local -a output_lines=()
-	tool_history="$1"
-	current_step=""
-	current_action=""
-	current_observation=""
-	collecting_observation=false
+        # Arguments:
+        #   $1 - tool invocation history (newline-delimited string)
+        # Returns:
+        #   Grouped, human-friendly bullet list of tool runs (string)
+        local tool_history line current_step current_action current_observation collecting_observation
+        local -a output_lines=() history_lines=()
+        tool_history="$1"
+        current_step=""
+        current_action=""
+        current_observation=""
+        collecting_observation=false
 
-	append_current_entry() {
-		if [[ -z "${current_step}" ]]; then
-			return
+        if [[ -n "${tool_history}" ]]; then
+                mapfile -t history_lines <<<"${tool_history}"
+        fi
+
+        if ((${#history_lines[@]} == 0)); then
+                printf ''
+                return 0
+        fi
+
+        append_current_entry() {
+                if [[ -z "${current_step}" ]]; then
+                        return
 		fi
 
 		output_lines+=("- Step ${current_step}")
@@ -234,88 +323,41 @@ format_tool_history() {
 		collecting_observation=false
 	}
 
-	while IFS= read -r line || [[ -n "${line}" ]]; do
-		# Try to parse line as a JSON entry from record_tool_execution
-		if jq -e '.step != null and .action != null' <<<"${line}" >/dev/null 2>&1; then
-			append_current_entry
-			current_step=$(jq -r '.step' <<<"${line}")
-			local tool args thought obs
-			tool=$(jq -r '.action.tool' <<<"${line}")
-			args=$(jq -c '.action.args' <<<"${line}")
-			thought=$(jq -r '.thought' <<<"${line}")
+        local line_index is_last
+        for line_index in "${!history_lines[@]}"; do
+                line="${history_lines[line_index]}"
+                is_last=false
+                if ((line_index == ${#history_lines[@]} - 1)); then
+                        is_last=true
+                fi
+                # Try to parse line as a JSON entry from record_tool_execution
+                if jq -e '.step != null and .action != null' <<<"${line}" >/dev/null 2>&1; then
+                        append_current_entry
+                        current_step=$(jq -r '.step' <<<"${line}")
+                        local tool args thought obs observation_raw observation_summary observation_selected
+                        tool=$(jq -r '.action.tool' <<<"${line}")
+                        args=$(jq -c '.action.args' <<<"${line}")
+                        thought=$(jq -r '.thought' <<<"${line}")
 
-			# Pretty print observation if it's JSON object
-			if jq -e '.observation | type == "object"' <<<"${line}" >/dev/null 2>&1; then
-				local obs_obj
-				obs_obj=$(jq -c '.observation' <<<"${line}")
+                        observation_summary=$(jq -c '.observation_summary // empty' <<<"${line}" 2>/dev/null || printf '')
+                        observation_raw=$(jq -c '.observation_raw // empty' <<<"${line}" 2>/dev/null || printf '')
+                        observation_selected=""
+                        if [[ "${is_last}" == true ]]; then
+                                observation_selected="${observation_raw:-${observation_summary:-$(jq -c '.observation // empty' <<<"${line}" 2>/dev/null || printf '')}}"
+                        else
+                                observation_selected="${observation_summary:-$(jq -c '.observation // empty' <<<"${line}" 2>/dev/null || printf '')}"
+                        fi
 
-				# Check for enriched format first to handle failures generally
-				if jq -e '.output != null and .exit_code != null' <<<"${obs_obj}" >/dev/null 2>&1; then
-					local exit_code output error
-					exit_code=$(jq -r '.exit_code' <<<"${obs_obj}")
-					output=$(jq -r '.output' <<<"${obs_obj}")
-					error=$(jq -r '.error' <<<"${obs_obj}")
+                        if [[ -z "${observation_selected}" ]]; then
+                                obs=""
+                        else
+                                obs="$(render_observation_text "${tool}" "${observation_selected}")"
+                        fi
 
-					if ((exit_code != 0)); then
-						obs="FAILED (exit code ${exit_code})"
-						if [[ -n "${output}" ]]; then
-							obs+=$'\n'"Output: ${output}"
-						fi
-						if [[ -n "${error}" ]]; then
-							obs+=$'\n'"Error: ${error}"
-						fi
-					else
-						# Success, try tool-specific formatting on the output string
-						if [[ "${tool}" == "web_search" ]]; then
-							if jq -e '.items | type == "array"' <<<"${output}" >/dev/null 2>&1; then
-								obs=$(jq -r '.items | map("- " + .title + ": " + .snippet + " (URL: " + .url + ")") | join("\n")' <<<"${output}")
-								[[ -z "${obs}" ]] && obs="(no results)"
-							else
-								obs=$(jq -r '.observation // .' <<<"${output}")
-							fi
-						elif [[ "${tool}" == "web_fetch" ]]; then
-							if jq -e '.url != null and .body_snippet != null' <<<"${output}" >/dev/null 2>&1; then
-								obs=$(jq -r '"URL: " + .url + "\nContent: " + .body_snippet' <<<"${output}")
-							else
-								obs=$(jq -r '.observation // .' <<<"${output}")
-							fi
-						elif jq -e '.observation != null' <<<"${output}" >/dev/null 2>&1; then
-							obs=$(jq -r '.observation' <<<"${output}" 2>/dev/null || printf '%s' "${output}")
-						else
-							obs="${output}"
-						fi
-					fi
-				else
-					# Object but not enriched format (backward compatibility or direct state)
-					if [[ "${tool}" == "web_search" ]]; then
-						if jq -e '.items | type == "array"' <<<"${obs_obj}" >/dev/null 2>&1; then
-							obs=$(jq -r '.items | map("- " + .title + ": " + .snippet + " (URL: " + .url + ")") | join("\n")' <<<"${obs_obj}")
-							[[ -z "${obs}" ]] && obs="(no results)"
-						else
-							obs=$(jq -r '.observation // .' <<<"${obs_obj}")
-						fi
-					elif [[ "${tool}" == "web_fetch" ]]; then
-						if jq -e '.url != null and .body_snippet != null' <<<"${obs_obj}" >/dev/null 2>&1; then
-							obs=$(jq -r '"URL: " + .url + "\nContent: " + .body_snippet' <<<"${obs_obj}")
-						else
-							obs=$(jq -r '.observation // .' <<<"${obs_obj}")
-						fi
-					elif jq -e '.observation != null' <<<"${obs_obj}" >/dev/null 2>&1; then
-						obs=$(jq -r '.observation' <<<"${obs_obj}" 2>/dev/null || printf '%s' "${obs_obj}")
-					else
-						obs=$(jq -c '.' <<<"${obs_obj}")
-					fi
-				fi
-			elif jq -e '.observation | type == "string"' <<<"${line}" >/dev/null 2>&1; then
-				obs=$(jq -r '.observation' <<<"${line}")
-			else
-				obs=$(jq -c '.observation' <<<"${line}")
-			fi
-
-			current_action="${thought} (tool: ${tool}, args: ${args})"
-			current_observation="${obs}"
-			append_current_entry
-			continue
+                        current_action="${thought} (tool: ${tool}, args: ${args})"
+                        current_observation="${obs}"
+                        append_current_entry
+                        continue
 		fi
 
 		if [[ "${line}" =~ ^[[:space:]-]*Step[[:space:]]+([0-9]+)[[:space:]]*(.*)$ ]]; then
@@ -369,11 +411,11 @@ format_tool_history() {
 				current_action="${line}"
 			fi
 		fi
-	done <<<"${tool_history}"
+        done
 
-	append_current_entry
+        append_current_entry
 
-	printf '%s\n' "${output_lines[@]}"
+        printf '%s\n' "${output_lines[@]}"
 }
 
 emit_boxed_summary() {

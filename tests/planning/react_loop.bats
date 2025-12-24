@@ -203,7 +203,7 @@ SCRIPT
 }
 
 @test "react_loop records duplicate actions with warning observation" {
-	run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
+        run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
 MAX_STEPS=2
 LLAMA_AVAILABLE=false
@@ -233,12 +233,42 @@ printf 'first_thought=%s second_thought=%s' \
         "$(printf '%s' "${second_entry}" | jq -r '.thought')"
 SCRIPT
 
-	[ "$status" -eq 0 ]
-	[ "$output" = "first_thought=first second_thought=second (REPEATED)" ]
+        [ "$status" -eq 0 ]
+        [ "$output" = "first_thought=first second_thought=second (REPEATED)" ]
+}
+
+@test "state_get_history_lines prefers summaries except for the latest raw observation" {
+        run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
+set -euo pipefail
+source ./src/lib/react/react.sh
+log() { :; }
+log_pretty() { :; }
+emit_boxed_summary() { :; }
+respond_text() { printf 'done'; }
+validate_tool_permission() { return 0; }
+execute_tool_action() { :; }
+
+initialize_react_state react_state "question" "alpha" "" ""
+
+record_tool_execution "react_state" "alpha" "first" '{}' '{"output":"long output","exit_code":0}' "summary first" 1
+record_tool_execution "react_state" "alpha" "second" '{}' '{"output":"second raw","exit_code":0}' "summary second" 2
+
+history_lines="$(state_get_history_lines react_state)"
+first_line=$(printf '%s\n' "${history_lines}" | sed -n '1p')
+second_line=$(printf '%s\n' "${history_lines}" | sed -n '2p')
+
+first_obs=$(printf '%s' "${first_line}" | jq -r '.observation')
+second_obs_output=$(printf '%s' "${second_line}" | jq -r '.observation.output')
+
+printf 'first=%s second=%s' "${first_obs}" "${second_obs_output}"
+SCRIPT
+
+        [ "$status" -eq 0 ]
+        [ "$output" = "first=summary first second=second raw" ]
 }
 
 @test "react_loop does not advance plan index when llama selects a different tool" {
-	run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
+        run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
 MAX_STEPS=1
 LLAMA_AVAILABLE=true
