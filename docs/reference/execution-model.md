@@ -19,19 +19,29 @@ See [Planner sampling](./planner-sampling.md) for detailed scoring heuristics an
 
 ## ReAct loop
 
-After the plan is approved, the runtime iterates through each item:
+After the plan is approved, the runtime iterates through a predictable loop:
 
-- **Default behaviour:** llama.cpp is queried before each step to pick the next tool and craft an appropriate call based on the running transcript.
-- **Fallback behaviour:** if llama.cpp is unavailable or `USE_REACT_LLAMA=false` is set, okso runs a deterministic sequence that feeds the original user query to each planned tool.
-- **Plan progression:** the plan index only advances after the expected tool for the pending plan step completes successfully or an explicit skip reason is recorded. Invalid model output, tool failures, or a tool choice that diverges from the plan keep the current step pending so the outline and execution stay aligned.
-- **Observation capture:** every tool run records two parallel fields in the transcript: `observation_raw` (the exact, untrimmed payload) and `observation_summary` (a deterministic, tool-aware digest). Terminal and `web_fetch` results summarize stdout/stderr with bounded head/tail snippets and exit metadata; `web_search` summaries track the query, total results, and the first three items; file-oriented tools capture cwd plus created/updated/deleted paths alongside trimmed output previews. The latest step in the transcript keeps `observation_raw` visible during formatting so users can review unredacted output, while earlier steps default to the summary for readability.
+1. **Plan**: keep a numbered outline with allowed tools in memory. When a replan occurs, the outline and allowed tools are replaced and the plan index resets to `0` so the refreshed outline drives the remaining execution.
+2. **Execute Step**: llama.cpp proposes the next tool call based on the running transcript (or a deterministic sequence runs when `USE_REACT_LLAMA=false`). The current plan index only advances after the expected tool for the pending step completes successfully or an explicit skip reason is recorded.
+3. **Observe**: capture `observation_raw` (verbatim output) and `observation_summary` (tool-aware digest). Terminal and `web_fetch` summarize stdout/stderr with bounded head/tail snippets plus exit metadata; `web_search` summaries track queries and top results; file-oriented tools capture cwd and created/updated/deleted paths. The latest step shows raw output for auditing while earlier steps prefer summaries for readability.
+4. **Update Plan**: failure and divergence counters gate optional replanning. When triggered, okso calls the planner with the full execution transcript—including stdout, stderr, exit codes, and skip reasons—so the refreshed outline accounts for what just happened.
 
-The active plan item and observations are streamed to the terminal to make model decisions auditable. Use `--dry-run` when you want to inspect the generated plan and tool calls without executing anything.
+The active plan item and observations are streamed to the terminal so model decisions stay auditable. Use `--dry-run` to inspect the generated plan and tool calls without executing anything.
 
-## Configuration hooks
+## Replanning behaviour
+
+Replanning adds resilience without hiding problems. The ReAct loop tracks two signals:
+
+- **Failure streaks:** after `REACT_REPLAN_FAILURE_THRESHOLD` consecutive failed tool runs (default: `2`), the planner is asked for a replacement outline. Set the variable higher to reduce replans or to `1` to replan after every failure.
+- **Plan divergence:** when the chosen tool differs from the pending plan step, a single replanning attempt is scheduled to realign the outline with observed behaviour.
+
+Each attempt forwards the current transcript to the planner and then resets `plan_index` to `0` with fresh `plan_entries`, `plan_outline`, and `allowed_tools`. The loop records `last_replan_attempt` and logs an `INFO` entry when the replacement outline is applied so you can correlate the refresh with the triggering step.
+
+## Inspecting plans and traces
 
 - `USE_REACT_LLAMA`: toggles the ReAct pass (defaults to enabled).
+- `REACT_REPLAN_FAILURE_THRESHOLD`: consecutive failure budget before replanning (default: `2`).
 - `OKSO_PLAN_OUTPUT`: file path for writing the approved plan JSON.
-- `OKSO_TRACE_DIR`: directory for trace artifacts from each tool run.
+- `OKSO_TRACE_DIR`: directory for trace artifacts from each tool run. Trace entries include the evolving transcript, so replans and their replacement outlines are visible alongside tool stdout/stderr.
 
-See [usage](../user-guides/usage.md) for CLI flags that control approvals and dry runs.
+See [usage](../user-guides/usage.md) for CLI flags that control approvals, dry runs, and replanning demonstrations.

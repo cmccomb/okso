@@ -29,6 +29,35 @@ Use `./src/bin/okso --help` to see all flags. The CLI walks through planning and
 
 5. Increase logging with `--verbose` or silence informational logs with `--quiet` when running unattended scripts.
 
+### Recover with replanning
+
+The runtime follows a loop of **Plan → Execute Step → Observe → Update Plan** so you can recover from unexpected errors without
+starting over.
+
+- Replanning kicks in after `REACT_REPLAN_FAILURE_THRESHOLD` consecutive failed tool runs (default: `2`). Set the variable to
+  `1` to replan after every failure or increase it to delay replans when transient errors are expected.
+- Plan divergence (when the model chooses a tool that does not match the pending plan step) schedules a single replan to
+  realign the outline.
+- The planner receives the live transcript—including stdout, stderr, exit codes, and skip reasons—so refreshed plans factor in
+  what failed.
+
+Use `OKSO_PLAN_OUTPUT` to capture the approved plan JSON and `OKSO_TRACE_DIR` to retain a full transcript. Both files include
+the latest outline, so you can inspect how replanning changed the steps.
+
+Example: trigger replanning after a failure and watch the updated plan replace the broken command.
+
+```bash
+REACT_REPLAN_FAILURE_THRESHOLD=1 \
+OKSO_PLAN_OUTPUT=/tmp/okso.plan.json \
+OKSO_TRACE_DIR=/tmp/okso-trace \
+./src/bin/okso --yes -- "try to run a missing script, then find an alternative"
+```
+
+In this flow the first attempt to execute the missing script fails, the planner is re-invoked with the transcript, and the
+replacement outline proposes a safer alternative (such as inspecting `scripts/` for available commands). The terminal log will
+note `Replanned after execution issue`, and the trace directory will show both the failed call and the subsequent recovery
+steps.
+
 ### Initialize config for a custom model
 
 1. Generate a config file without executing any plan using the `init` subcommand. Supply your preferred models and optional branch. The defaults split responsibilities so the planner uses Qwen3-8B while the ReAct loop uses Qwen3-4B:
