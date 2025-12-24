@@ -295,9 +295,11 @@ format_tool_history() {
 	current_observation=""
 	collecting_observation=false
 
-	if [[ -n "${tool_history}" ]]; then
-		mapfile -t history_lines <<<"${tool_history}"
-	fi
+        if [[ -n "${tool_history}" ]]; then
+                while IFS= read -r line || [[ -n "${line}" ]]; do
+                        history_lines+=("${line}")
+                done <<<"${tool_history}"
+        fi
 
 	if ((${#history_lines[@]} == 0)); then
 		printf ''
