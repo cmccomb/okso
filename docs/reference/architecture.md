@@ -44,6 +44,7 @@ Use `--dry-run` to stop after plan generation and approvals if you want to inspe
 - Collects the model's suggested tool and arguments, executes that tool, and streams observations back into the transcript.
 - When `USE_REACT_LLAMA=false` or llama.cpp is unavailable, replays each planned tool deterministically using the original user query and the step context.
 - Stops after `final_answer` emits the user-facing result or when a tool returns a fatal error.
+- Stores both `observation_raw` and `observation_summary` for every step. Summaries are deterministic and tool-aware (web search metadata, terminal output head/tail, file path diffs), while the newest step preserves the raw payload in formatted history so users can audit unredacted output without overwhelming earlier entries.
 
 ### Step-by-step execution checklist
 

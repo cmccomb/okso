@@ -52,7 +52,7 @@ EOF
 }
 
 @test "format_tool_history collects multi-line observations case-insensitively" {
-	run bash -lc '
+        run bash -lc '
                 set -e
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 source ./src/lib/formatting.sh
@@ -69,5 +69,35 @@ EOF
                 [[ "${output}" == *"action: finalize"* ]]
                 [[ "${output}" == *"observation: done"* ]]
         '
-	[ "$status" -eq 0 ]
+        [ "$status" -eq 0 ]
+}
+
+@test "format_tool_history prefers summaries and preserves latest raw observation" {
+        run bash -lc '
+                set -euo pipefail
+                cd "$(git rev-parse --show-toplevel)" || exit 1
+                source ./src/lib/formatting.sh
+
+                tool_history=$(cat <<'JSON'
+{"step":1,"action":{"tool":"terminal","args":{}},"thought":"list","observation":"legacy","observation_summary":"summary-1","observation_raw":"raw-1"}
+{"step":2,"action":{"tool":"web_search","args":{"query":"okso"}},"thought":"search","observation_summary":"summary-2","observation_raw":"raw-2"}
+{"step":3,"action":{"tool":"web_fetch","args":{"url":"http://example"}},"thought":"fetch","observation_summary":"summary-3","observation_raw":"raw-3"}
+JSON
+)
+
+                output=$(format_tool_history "${tool_history}")
+
+                [[ "${output}" == *"- Step 1"* ]]
+                [[ "${output}" == *"observation: summary-1"* ]]
+                [[ "${output}" != *"raw-1"* ]]
+
+                [[ "${output}" == *"- Step 2"* ]]
+                [[ "${output}" == *"observation: summary-2"* ]]
+                [[ "${output}" != *"raw-2"* ]]
+
+                [[ "${output}" == *"- Step 3"* ]]
+                [[ "${output}" == *"observation: raw-3"* ]]
+                [[ "${output}" != *"summary-3"* ]]
+        '
+        [ "$status" -eq 0 ]
 }
