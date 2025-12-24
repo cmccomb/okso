@@ -99,18 +99,18 @@ record_history() {
 }
 
 state_get_history_lines() {
-        # Retrieves history as a newline-delimited string.
-        # Arguments:
-        #   $1 - state prefix (string)
-        # Returns:
-        #   Newline-delimited string of history entries where past steps include
-        #   observation summaries and the latest step favors raw output when available.
-        local state_prefix history_raw
-        state_prefix="$1"
-        history_raw="$(state_get "${state_prefix}" "history")"
+	# Retrieves history as a newline-delimited string.
+	# Arguments:
+	#   $1 - state prefix (string)
+	# Returns:
+	#   Newline-delimited string of history entries where past steps include
+	#   observation summaries and the latest step favors raw output when available.
+	local state_prefix history_raw
+	state_prefix="$1"
+	history_raw="$(state_get "${state_prefix}" "history")"
 
-        if jq -e 'type == "array"' <<<"${history_raw}" >/dev/null 2>&1; then
-                jq -cr '
+	if jq -e 'type == "array"' <<<"${history_raw}" >/dev/null 2>&1; then
+		jq -cr '
                         (. // []) as $entries
                         | ($entries | length) as $len
                         | $entries
@@ -134,47 +134,47 @@ state_get_history_lines() {
                         )
                         | .[]
                 ' <<<"${history_raw}"
-                return 0
-        fi
+		return 0
+	fi
 
-        printf '%s' "${history_raw}"
+	printf '%s' "${history_raw}"
 }
 
 record_tool_execution() {
-        # Records a tool execution into history.
-        # Arguments:
-        #   $1 - state prefix
-        #   $2 - tool name
-        #   $3 - thought text
-        #   $4 - args JSON
-        #   $5 - observation raw payload
-        #   $6 - observation summary
-        #   $7 - step index
-        local state_name
-        local tool thought args_json observation_raw observation_summary step_index entry
-        state_name="$1"
-        tool="$2"
-        thought="$3"
-        args_json="$4"
-        observation_raw="$5"
-        observation_summary="$6"
-        step_index="$7"
-        if [[ -z "${args_json}" ]]; then
-                args_json="{}"
-        fi
-        args_json="$(jq -cS '.' <<<"${args_json}" 2>/dev/null || printf '{}')"
+	# Records a tool execution into history.
+	# Arguments:
+	#   $1 - state prefix
+	#   $2 - tool name
+	#   $3 - thought text
+	#   $4 - args JSON
+	#   $5 - observation raw payload
+	#   $6 - observation summary
+	#   $7 - step index
+	local state_name
+	local tool thought args_json observation_raw observation_summary step_index entry
+	state_name="$1"
+	tool="$2"
+	thought="$3"
+	args_json="$4"
+	observation_raw="$5"
+	observation_summary="$6"
+	step_index="$7"
+	if [[ -z "${args_json}" ]]; then
+		args_json="{}"
+	fi
+	args_json="$(jq -cS '.' <<<"${args_json}" 2>/dev/null || printf '{}')"
 
-        if [[ -z "${observation_summary}" ]]; then
-                observation_summary="${observation_raw}"
-        fi
+	if [[ -z "${observation_summary}" ]]; then
+		observation_summary="${observation_raw}"
+	fi
 
-        if ! require_python3_available "ReAct history serialization"; then
-                log "ERROR" "Failed to record tool execution; python3 missing" "${tool}" >&2
-                return 1
-        fi
+	if ! require_python3_available "ReAct history serialization"; then
+		log "ERROR" "Failed to record tool execution; python3 missing" "${tool}" >&2
+		return 1
+	fi
 
-        entry=$(
-                python3 - "$step_index" "$thought" "$tool" "$args_json" "$observation_raw" "$observation_summary" <<'PY'
+	entry=$(
+		python3 - "$step_index" "$thought" "$tool" "$args_json" "$observation_raw" "$observation_summary" <<'PY'
 import json
 import sys
 
@@ -209,7 +209,7 @@ print(json.dumps({
     "observation": obs_summary_payload,
 }, separators=(",", ":")))
 PY
-        )
+	)
 	record_history "${state_name}" "${entry}"
 	log "INFO" "Recorded tool execution" "$(printf 'step=%s tool=%s' "${step_index}" "${tool}")"
 }

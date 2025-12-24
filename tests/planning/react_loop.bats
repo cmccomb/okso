@@ -203,7 +203,7 @@ SCRIPT
 }
 
 @test "react_loop records duplicate actions with warning observation" {
-        run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
+	run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
 MAX_STEPS=2
 LLAMA_AVAILABLE=false
@@ -233,12 +233,12 @@ printf 'first_thought=%s second_thought=%s' \
         "$(printf '%s' "${second_entry}" | jq -r '.thought')"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ "$output" = "first_thought=first second_thought=second (REPEATED)" ]
+	[ "$status" -eq 0 ]
+	[ "$output" = "first_thought=first second_thought=second (REPEATED)" ]
 }
 
 @test "state_get_history_lines prefers summaries except for the latest raw observation" {
-        run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
+	run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/react/react.sh
 log() { :; }
@@ -263,12 +263,12 @@ second_obs_output=$(printf '%s' "${second_line}" | jq -r '.observation.output')
 printf 'first=%s second=%s' "${first_obs}" "${second_obs_output}"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ "$output" = "first=summary first second=second raw" ]
+	[ "$status" -eq 0 ]
+	[ "$output" = "first=summary first second=second raw" ]
 }
 
 @test "react_loop does not advance plan index when llama selects a different tool" {
-        run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
+	run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
 MAX_STEPS=1
 LLAMA_AVAILABLE=true
