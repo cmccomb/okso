@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 
 @test "summarize_terminal_output yields bounded JSON summary" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/react/observation_summary.sh
 payload='{"output":"line1\nline2","error":"oops","exit_code":2,"cwd":"/tmp/work"}'
@@ -9,11 +9,11 @@ summary=$(summarize_terminal_output "${payload}" "/fallback")
 printf '%s' "${summary}" | jq -e '(.exit_code == 2) and (.cwd == "/tmp/work") and (.output.head | contains("line1"))'
 SCRIPT
 
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "summarize_text_block avoids pipefail noise when truncated by consumer" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/react/observation_summary.sh
 payload=$(printf '%*s' 400 | tr ' ' 'y')
@@ -21,12 +21,12 @@ summary=$(summarize_text_block "${payload}")
 printf '%s' "${summary}" | head -n1 >/dev/null
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ -z "$stderr" ]
+	[ "$status" -eq 0 ]
+	[ -z "$stderr" ]
 }
 
 @test "summarize_web_search_results captures top items deterministically" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/react/observation_summary.sh
 payload=$(jq -nc '{output: {query:"alpha", total_results: 25, items: [ {title:"First", url:"http://a", snippet:"one"}, {title:"Second", url:"http://b", snippet:"two"}, {title:"Third", url:"http://c", snippet:"three"}, {title:"Fourth", url:"http://d", snippet:"four"}]}}')

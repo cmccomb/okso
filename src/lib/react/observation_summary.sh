@@ -26,21 +26,21 @@ OBS_HEAD_TAIL_BYTES=120
 # Outputs:
 #   Passes through stdout/stderr of the command and returns its exit code.
 run_without_pipefail() {
-        local had_pipefail status
-        had_pipefail=0
-        if set -o | grep -q '^pipefail[[:space:]]*on'; then
-                had_pipefail=1
-                set +o pipefail
-        fi
+	local had_pipefail status
+	had_pipefail=0
+	if set -o | grep -q '^pipefail[[:space:]]*on'; then
+		had_pipefail=1
+		set +o pipefail
+	fi
 
-        "$@"
-        status=$?
+	"$@"
+	status=$?
 
-        if [[ ${had_pipefail} -eq 1 ]]; then
-                set -o pipefail
-        fi
+	if [[ ${had_pipefail} -eq 1 ]]; then
+		set -o pipefail
+	fi
 
-        return "${status}"
+	return "${status}"
 }
 
 # summarize_text_block produces a bounded summary for a text payload.
@@ -52,10 +52,10 @@ summarize_text_block() {
 	local text_payload head tail line_count byte_count
 	text_payload="$1"
 
-        head=$(run_without_pipefail bash -c 'printf "%s" "$1" | head -c "$2"' _ "${text_payload}" "${OBS_HEAD_TAIL_BYTES}")
-        tail=$(run_without_pipefail bash -c 'printf "%s" "$1" | tail -c "$2"' _ "${text_payload}" "${OBS_HEAD_TAIL_BYTES}")
-        line_count=$(run_without_pipefail bash -c 'printf "%s" "$1" | wc -l | tr -d " "' _ "${text_payload}")
-        byte_count=$(run_without_pipefail bash -c 'printf "%s" "$1" | wc -c | tr -d " "' _ "${text_payload}")
+	head=$(run_without_pipefail bash -c 'printf "%s" "$1" | head -c "$2"' _ "${text_payload}" "${OBS_HEAD_TAIL_BYTES}")
+	tail=$(run_without_pipefail bash -c 'printf "%s" "$1" | tail -c "$2"' _ "${text_payload}" "${OBS_HEAD_TAIL_BYTES}")
+	line_count=$(run_without_pipefail bash -c 'printf "%s" "$1" | wc -l | tr -d " "' _ "${text_payload}")
+	byte_count=$(run_without_pipefail bash -c 'printf "%s" "$1" | wc -c | tr -d " "' _ "${text_payload}")
 
 	jq -ncS --arg head "${head}" --arg tail "${tail}" --argjson lines "${line_count}" --argjson bytes "${byte_count}" \
 		'{lines:$lines,bytes:$bytes,head:$head,tail:$tail}'
