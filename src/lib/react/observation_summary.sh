@@ -18,6 +18,31 @@
 
 OBS_HEAD_TAIL_BYTES=120
 
+# run_without_pipefail executes the provided command after temporarily disabling
+# pipefail when it is currently enabled. This prevents benign broken-pipe noise
+# from expected early pipeline exits (for example, when piping into head).
+# Arguments:
+#   $@ - command and arguments to execute (array)
+# Outputs:
+#   Passes through stdout/stderr of the command and returns its exit code.
+run_without_pipefail() {
+	local had_pipefail status
+	had_pipefail=0
+	if set -o | grep -q '^pipefail[[:space:]]*on'; then
+		had_pipefail=1
+		set +o pipefail
+	fi
+
+	"$@"
+	status=$?
+
+	if [[ ${had_pipefail} -eq 1 ]]; then
+		set -o pipefail
+	fi
+
+	return "${status}"
+}
+
 # summarize_text_block produces a bounded summary for a text payload.
 # Arguments:
 #   $1 - text payload (string)
@@ -27,10 +52,10 @@ summarize_text_block() {
 	local text_payload head tail line_count byte_count
 	text_payload="$1"
 
-	head=$(printf '%s' "${text_payload}" | head -c "${OBS_HEAD_TAIL_BYTES}")
-	tail=$(printf '%s' "${text_payload}" | tail -c "${OBS_HEAD_TAIL_BYTES}")
-	line_count=$(printf '%s' "${text_payload}" | wc -l | tr -d ' ')
-	byte_count=$(printf '%s' "${text_payload}" | wc -c | tr -d ' ')
+	head=$(run_without_pipefail bash -c 'printf "%s" "$1" | head -c "$2"' _ "${text_payload}" "${OBS_HEAD_TAIL_BYTES}")
+	tail=$(run_without_pipefail bash -c 'printf "%s" "$1" | tail -c "$2"' _ "${text_payload}" "${OBS_HEAD_TAIL_BYTES}")
+	line_count=$(run_without_pipefail bash -c 'printf "%s" "$1" | wc -l | tr -d " "' _ "${text_payload}")
+	byte_count=$(run_without_pipefail bash -c 'printf "%s" "$1" | wc -c | tr -d " "' _ "${text_payload}")
 
 	jq -ncS --arg head "${head}" --arg tail "${tail}" --argjson lines "${line_count}" --argjson bytes "${byte_count}" \
 		'{lines:$lines,bytes:$bytes,head:$head,tail:$tail}'

@@ -12,6 +12,19 @@ SCRIPT
 	[ "$status" -eq 0 ]
 }
 
+@test "summarize_text_block avoids pipefail noise when truncated by consumer" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+source ./src/lib/react/observation_summary.sh
+payload=$(printf '%*s' 400 | tr ' ' 'y')
+summary=$(summarize_text_block "${payload}")
+printf '%s' "${summary}" | head -n1 >/dev/null
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	[ -z "$stderr" ]
+}
+
 @test "summarize_web_search_results captures top items deterministically" {
 	run bash <<'SCRIPT'
 set -euo pipefail
