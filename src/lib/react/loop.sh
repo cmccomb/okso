@@ -9,6 +9,7 @@
 # Environment variables:
 #   CANONICAL_TEXT_ARG_KEY (string): key for single-string tool arguments; default: "input".
 #   REACT_RETRY_BUFFER (int): extra attempts beyond plan length; default: 2.
+#   REACT_REPLAN_FAILURE_THRESHOLD (int): number of failures between replans; default: 2.
 #
 # Dependencies:
 #   - bash 3.2+
@@ -517,11 +518,11 @@ is_duplicate_action() {
 }
 
 increment_retry_count() {
-	# Increments the retry counter stored in state.
-	# Arguments:
-	#   $1 - state prefix
-	local state_name updated_document
-	state_name="$1"
+        # Increments the retry counter stored in state.
+        # Arguments:
+        #   $1 - state prefix
+        local state_name updated_document
+        state_name="$1"
 
 	if ! updated_document="$(
 		state_get_json_document "${state_name}" |
@@ -530,13 +531,246 @@ increment_retry_count() {
 		return 1
 	fi
 
-	state_set_json_document "${state_name}" "${updated_document}"
+        state_set_json_document "${state_name}" "${updated_document}"
+}
+
+increment_failure_count() {
+        # Increments the failure counter stored in state.
+        # Arguments:
+        #   $1 - state prefix
+        local state_name updated_document
+        state_name="$1"
+
+        if ! updated_document="$(
+                state_get_json_document "${state_name}" |
+                        jq -c '.failure_count = ((try (.failure_count|tonumber) catch 0) + 1)'
+        )"; then
+                return 1
+        fi
+
+        state_set_json_document "${state_name}" "${updated_document}"
+}
+
+build_execution_transcript() {
+        # Builds a human-readable transcript of prior steps with exit codes and outputs.
+        # Arguments:
+        #   $1 - state prefix
+        local state_name document
+        state_name="$1"
+        document="$(state_get_json_document "${state_name}")"
+
+        jq -r '
+                (.history // [])
+                | to_entries
+                | map(
+                        . as $wrapper
+                        | ($wrapper.value | (try (fromjson // .) catch .)) as $entry
+                        | if ($entry | type == "object") then
+                                ($entry.observation_raw // $entry.observation // $entry.observation_summary // "") as $raw_obs
+                                | ($entry.action.args // {}) as $args
+                                | ($entry.action.tool // "") as $tool
+                                | ($entry.thought // "") as $thought
+                                | ($entry.observation_raw // {}) as $raw_field
+                                | ($raw_field | (if type == "object" then . else {} end)) as $raw_obj
+                                | "Step " + (($entry.step // ($wrapper.key + 1))|tostring) + ":\n"
+                                + "- thought: " + $thought + "\n"
+                                + "- tool: " + $tool + "\n"
+                                + "- args: " + ($args | @json) + "\n"
+                                + "- observation: " + (
+                                        if ($raw_obj | length) > 0 then
+                                                (
+                                                        "output=" + (($raw_obj.output // $raw_obs // "")|tostring)
+                                                        + ", error=" + (($raw_obj.error // "")|tostring)
+                                                        + ", exit_code=" + (($raw_obj.exit_code // "(unknown)")|tostring)
+                                                )
+                                        else
+                                                ($raw_obs|tostring)
+                                        end
+                                )
+                        else
+                                "Step " + (($wrapper.key + 1)|tostring) + " (raw):\n- log: " + ($entry|tostring)
+                        end
+                )
+                | join("\n\n")
+        ' <<<"${document}" 2>/dev/null || printf ''
+}
+
+apply_replan_result() {
+        # Applies a planner response to the current ReAct state.
+        # Arguments:
+        #   $1 - state prefix
+        #   $2 - planner response JSON
+        #   $3 - current attempt index (int)
+        local state_prefix plan_response current_attempt plan_entries plan_outline allowed_tools plan_length retry_buffer current_max new_max document
+        state_prefix="$1"
+        plan_response="$2"
+        current_attempt="$3"
+
+        if ! plan_entries="$(plan_json_to_entries "${plan_response}")"; then
+                return 1
+        fi
+
+        if ! plan_outline="$(plan_json_to_outline "${plan_response}")"; then
+                return 1
+        fi
+
+        if ! allowed_tools="$(derive_allowed_tools_from_plan "${plan_response}")"; then
+                return 1
+        fi
+
+        plan_length=$(printf '%s\n' "${plan_entries}" | sed '/^[[:space:]]*$/d' | wc -l | tr -d ' ')
+        if ! [[ "${plan_length}" =~ ^[0-9]+$ ]]; then
+                plan_length=0
+        fi
+
+        retry_buffer="$(state_get "${state_prefix}" "retry_buffer")"
+        if ! [[ "${retry_buffer}" =~ ^[0-9]+$ ]]; then
+                retry_buffer=0
+        fi
+
+        current_max="$(state_get "${state_prefix}" "max_steps")"
+        if ! [[ "${current_max}" =~ ^[0-9]+$ ]]; then
+                current_max=${plan_length}
+        fi
+
+        if ! [[ "${current_attempt}" =~ ^[0-9]+$ ]]; then
+                current_attempt=0
+        fi
+
+        new_max=${current_max}
+        local recomputed_max
+        recomputed_max=$((current_attempt + plan_length + retry_buffer))
+        if ((recomputed_max > new_max)); then
+                new_max=${recomputed_max}
+        fi
+
+        if ! document="$(
+                state_get_json_document "${state_prefix}" |
+                        jq -c \
+                                --arg plan_entries "${plan_entries}" \
+                                --arg plan_outline "${plan_outline}" \
+                                --arg allowed_tools "${allowed_tools}" \
+                                --argjson plan_length "${plan_length}" \
+                                --argjson max_steps "${new_max}" \
+                                --argjson last_replan_attempt "${current_attempt}" \
+                                '.plan_entries = $plan_entries
+                                | .plan_outline = $plan_outline
+                                | .allowed_tools = $allowed_tools
+                                | .plan_length = $plan_length
+                                | .plan_index = 0
+                                | .pending_plan_step = null
+                                | .plan_skip_reason = ""
+                                | .max_steps = $max_steps
+                                | .last_replan_attempt = $last_replan_attempt'
+        )"; then
+                return 1
+        fi
+
+        state_set_json_document "${state_prefix}" "${document}"
+        state_set "${state_prefix}" "plan_length" "${plan_length}"
+        state_set "${state_prefix}" "max_steps" "${new_max}"
+        state_set "${state_prefix}" "plan_entries" "${plan_entries}"
+        state_set "${state_prefix}" "plan_outline" "${plan_outline}"
+        state_set "${state_prefix}" "allowed_tools" "${allowed_tools}"
+}
+
+maybe_trigger_replan() {
+        # Re-runs the planner when failure or plan divergence thresholds are met.
+        # Arguments:
+        #   $1 - state prefix
+        #   $2 - current attempt index (int)
+        #   $3 - whether the plan diverged from execution (string: true/false)
+        local state_prefix current_attempt plan_diverged failure_count threshold last_replan_attempt should_replan divergence_recorded
+        state_prefix="$1"
+        current_attempt="$2"
+        plan_diverged="$3"
+
+        failure_count="$(state_get "${state_prefix}" "failure_count")"
+        if ! [[ "${failure_count}" =~ ^[0-9]+$ ]]; then
+                failure_count=0
+        fi
+
+        threshold="${REACT_REPLAN_FAILURE_THRESHOLD:-2}"
+        if ! [[ "${threshold}" =~ ^[0-9]+$ ]] || ((threshold < 1)); then
+                threshold=2
+        fi
+
+        last_replan_attempt="$(state_get "${state_prefix}" "last_replan_attempt")"
+        if ! [[ "${last_replan_attempt}" =~ ^[0-9]+$ ]]; then
+                last_replan_attempt=0
+        fi
+
+        should_replan=false
+        divergence_recorded=false
+        if ((failure_count > 0)) && ((failure_count % threshold == 0)); then
+                should_replan=true
+        fi
+
+        if [[ "${plan_diverged}" == true ]]; then
+                        local last_divergence_step
+                        last_divergence_step="$(state_get "${state_prefix}" "last_plan_divergence_step")"
+                        if ! [[ "${last_divergence_step}" =~ ^[0-9]+$ ]]; then
+                                last_divergence_step=0
+                        fi
+                        if ((current_attempt > last_divergence_step)); then
+                                should_replan=true
+                                divergence_recorded=true
+                        fi
+        fi
+
+        if [[ "${should_replan}" != true ]]; then
+                return 0
+        fi
+
+        if ((last_replan_attempt == current_attempt)); then
+                return 0
+        fi
+
+        if [[ "${divergence_recorded}" == true ]]; then
+                state_set "${state_prefix}" "last_plan_divergence_step" "${current_attempt}"
+        fi
+
+        if ! declare -F generate_planner_response >/dev/null 2>&1; then
+                log "WARN" "Planner unavailable; skipping replanning" "generate_planner_response_missing"
+                return 1
+        fi
+
+        if ! declare -F plan_json_to_entries >/dev/null 2>&1 || ! declare -F plan_json_to_outline >/dev/null 2>&1 || ! declare -F derive_allowed_tools_from_plan >/dev/null 2>&1; then
+                log "WARN" "Planner helpers missing; skipping replanning" "planner_helpers_missing"
+                return 1
+        fi
+
+        local transcript user_query plan_response
+        transcript="$(build_execution_transcript "${state_prefix}")"
+        if [[ -z "${transcript}" ]]; then
+                transcript="Execution transcript unavailable."
+        fi
+
+        user_query="$(state_get "${state_prefix}" "user_query")"
+        if ! plan_response="$(generate_planner_response "${user_query}" "${transcript}")"; then
+                log "WARN" "Planner failed to generate replan" "planner_generation_failed"
+                return 1
+        fi
+
+        if ! apply_replan_result "${state_prefix}" "${plan_response}" "${current_attempt}"; then
+                        log "WARN" "Failed to apply replanned outline" "planner_application_failed"
+                        return 1
+        fi
+
+        state_set "${state_prefix}" "last_replan_attempt" "${current_attempt}"
+        local replan_metadata
+        replan_metadata="$(jq -nc \
+                --argjson attempt "${current_attempt}" \
+                --argjson failure_count "${failure_count}" \
+                --arg plan_diverged "${plan_diverged}" \
+                '{attempt:$attempt,failure_count:$failure_count,plan_diverged:($plan_diverged == "true")}')"
+        log "INFO" "Replanned after execution issue" "${replan_metadata}"
 }
 
 react_loop() {
-	local user_query allowed_tools plan_entries plan_outline action_json tool query observation current_step thought args_json action_context
-	local normalized_args_json final_answer_payload pending_plan_step
-	local state_prefix last_action
+        local user_query allowed_tools plan_entries plan_outline action_json tool query observation current_step thought args_json action_context
+        local normalized_args_json final_answer_payload pending_plan_step plan_diverged
+        local state_prefix last_action
 	user_query="$1"
 	allowed_tools="$2"
 	plan_entries="$3"
@@ -608,21 +842,23 @@ react_loop() {
 		# The plan index only advances after executing the expected tool (or when
 		# an explicit skip reason is recorded) to keep plan progress in sync with
 		# actual execution.
-		local planned_entry planned_tool plan_step_matches_action
-		plan_step_matches_action=true
-		planned_entry=""
-		planned_tool=""
+                local planned_entry planned_tool plan_step_matches_action
+                plan_step_matches_action=true
+                plan_diverged=false
+                planned_entry=""
+                planned_tool=""
 
 		pending_plan_step="$(state_get "${state_prefix}" "pending_plan_step")"
 		if [[ -n "${pending_plan_step}" ]]; then
-			planned_entry=$(printf '%s\n' "$(state_get "${state_prefix}" "plan_entries")" | sed -n "$((pending_plan_step + 1))p")
-			planned_tool="$(printf '%s' "${planned_entry}" | jq -r '.tool // empty' 2>/dev/null || printf '')"
-			if [[ -n "${planned_tool}" && "${planned_tool}" != "${tool}" ]]; then
-				plan_step_matches_action=false
-				record_plan_skip_without_progress "${state_prefix}" "plan_tool_mismatch"
-				increment_retry_count "${state_prefix}"
-			fi
-		fi
+                        planned_entry=$(printf '%s\n' "$(state_get "${state_prefix}" "plan_entries")" | sed -n "$((pending_plan_step + 1))p")
+                        planned_tool="$(printf '%s' "${planned_entry}" | jq -r '.tool // empty' 2>/dev/null || printf '')"
+                        if [[ -n "${planned_tool}" && "${planned_tool}" != "${tool}" ]]; then
+                                plan_step_matches_action=false
+                                plan_diverged=true
+                                record_plan_skip_without_progress "${state_prefix}" "plan_tool_mismatch"
+                                increment_retry_count "${state_prefix}"
+                        fi
+                fi
 
 		if [[ -z "${final_answer_payload}" ]]; then
 			final_answer_payload="$(extract_tool_query "${tool}" "${normalized_args_json}")"
@@ -715,16 +951,21 @@ react_loop() {
 			fi
 		fi
 
-		record_tool_execution "${state_prefix}" "${tool}" "${thought}" "${normalized_args_json}" "${observation}" "${observation_summary}" "${current_step}"
-		if ((exit_code != 0)); then
-			local plan_entries_text
-			plan_entries_text="$(state_get "${state_prefix}" "plan_entries")"
-			if [[ -n "${plan_entries_text}" && "${LLAMA_AVAILABLE}" == true ]]; then
-				log "INFO" "Tool failed during planned execution; falling back to LLM" "${tool}"
-				state_set "${state_prefix}" "plan_entries" ""
-			fi
-			increment_retry_count "${state_prefix}"
-		fi
+                record_tool_execution "${state_prefix}" "${tool}" "${thought}" "${normalized_args_json}" "${observation}" "${observation_summary}" "${current_step}"
+                if ((exit_code != 0)); then
+                        local plan_entries_text
+                        plan_entries_text="$(state_get "${state_prefix}" "plan_entries")"
+                        increment_retry_count "${state_prefix}"
+                        increment_failure_count "${state_prefix}"
+                        if ! maybe_trigger_replan "${state_prefix}" "${current_step}" "${plan_diverged}"; then
+                                if [[ -n "${plan_entries_text}" && "${LLAMA_AVAILABLE}" == true ]]; then
+                                        log "INFO" "Tool failed during planned execution; falling back to LLM" "${tool}"
+                                        state_set "${state_prefix}" "plan_entries" ""
+                                fi
+                        fi
+                elif [[ "${plan_diverged}" == true ]]; then
+                        maybe_trigger_replan "${state_prefix}" "${current_step}" "${plan_diverged}" || true
+                fi
 
 		local normalized_action
 		normalized_action="$(normalize_action "${tool}" "${normalized_args_json}")"

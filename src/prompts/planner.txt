@@ -62,4 +62,8 @@ A quick web search was attempted using the query text.
 Use the findings below as hints to ground your plan.
 ${search_context}
 
+# Execution transcript
+Review recent attempts (including stdout, stderr, and exit codes) to adjust the plan when tools fail or diverge.
+${execution_transcript}
+
 # Plan:

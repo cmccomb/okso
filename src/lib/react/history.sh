@@ -66,7 +66,7 @@ initialize_react_state() {
 		--argjson max_steps "${max_steps}" \
 		--argjson plan_length "${plan_length}" \
 		--argjson retry_buffer "${retry_buffer}" \
-		'{
+                '{
                         user_query: $user_query,
                         allowed_tools: $allowed_tools,
                         plan_entries: $plan_entries,
@@ -74,10 +74,13 @@ initialize_react_state() {
                         history: [],
                         step: 0,
                         attempts: 0,
+                        failure_count: 0,
                         retry_count: 0,
                         plan_index: 0,
                         pending_plan_step: null,
                         plan_skip_reason: "",
+                        last_replan_attempt: 0,
+                        last_plan_divergence_step: 0,
                         max_steps: $max_steps,
                         final_answer: "",
                         final_answer_action: "",

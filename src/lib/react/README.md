@@ -27,6 +27,16 @@ invalid action, or the loop detects a duplicate call), the loop records a skip r
 keeps the current plan index unchanged. Callers can inspect `plan_skip_reason` and
 `pending_plan_step` in the state to understand why a plan step was bypassed.
 
+### Automatic replanning
+
+Tool failures and plan divergence can trigger a fresh planning pass without losing the
+ongoing transcript. The loop counts consecutive failures and, once the
+`REACT_REPLAN_FAILURE_THRESHOLD` (default: 2) is met, asks the planner for a new outline.
+The request includes the current execution transcript with stdout, stderr, and exit codes so
+the new outline accounts for recent errors. Plan divergence (for example, when the selected
+tool differs from the pending plan step) also schedules a single replanning pass to realign
+execution without spamming the planner.
+
 ### Budgeting and completion
 
 The loop derives its attempt budget from the number of planned steps plus the

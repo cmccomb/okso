@@ -234,11 +234,17 @@ validate_temperature() {
 }
 
 generate_planner_response() {
-	# Arguments:
-	#   $1 - user query (string)
-	local user_query
-	local -a planner_tools=()
-	user_query="$1"
+        # Arguments:
+        #   $1 - user query (string)
+        #   $2 - execution transcript (string, optional)
+        local user_query execution_transcript
+        local -a planner_tools=()
+        user_query="$1"
+        execution_transcript="${2:-}"
+
+        if [[ -z "${execution_transcript}" ]]; then
+                execution_transcript="Execution transcript unavailable."
+        fi
 
 	if ! require_llama_available "planner generation"; then
 		log "ERROR" "Planner cannot generate steps without llama.cpp" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}" >&2
@@ -270,8 +276,8 @@ generate_planner_response() {
 
 	tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_line)"
 	search_context="$(planner_fetch_search_context "${user_query}")"
-	planner_prompt_prefix="$(build_planner_prompt_static_prefix)"
-	planner_suffix="$(build_planner_prompt_dynamic_suffix "${user_query}" "${tool_lines}" "${search_context}")"
+        planner_prompt_prefix="$(build_planner_prompt_static_prefix)"
+        planner_suffix="$(build_planner_prompt_dynamic_suffix "${user_query}" "${tool_lines}" "${search_context}" "${execution_transcript}")"
 	prompt="${planner_prompt_prefix}${planner_suffix}"
 	log "DEBUG" "Generated planner prompt" "${prompt}" >&2
 

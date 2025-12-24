@@ -405,7 +405,7 @@ SCRIPT
 }
 
 @test "react_loop clears plan entries after tool failure" {
-	run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
+        run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
 MAX_STEPS=1
 LLAMA_AVAILABLE=true
@@ -425,8 +425,66 @@ plan_steps=$(jq length <<<"${PLAN_JSON:-[]}")
 printf 'history_len=%s plan_steps=%s' "${history_len}" "${plan_steps}"
 SCRIPT
 
-	[ "$status" -eq 0 ]
-	[ "$output" = "history_len=0 plan_steps=0" ]
+        [ "$status" -eq 0 ]
+        [ "$output" = "history_len=0 plan_steps=0" ]
+}
+
+@test "react_loop replans after failed tool run and forwards transcript" {
+        run env -i HOME="$HOME" PATH="$PATH" REACT_REPLAN_FAILURE_THRESHOLD=1 MAX_STEPS=4 LLAMA_AVAILABLE=true bash --noprofile --norc <<'SCRIPT'
+set -euo pipefail
+source ./src/lib/react/react.sh
+log() { :; }
+log_pretty() { :; }
+emit_boxed_summary() { :; }
+format_tool_history() { printf '%s' "$1"; }
+respond_text() { printf 'fallback'; }
+validate_tool_permission() { return 0; }
+select_observation_summary() { printf '%s' "$2"; }
+
+transcript_sink=$(mktemp)
+generate_planner_response() {
+        printf '%s' "$2" >"${transcript_sink}"
+        printf '%s' '[{"tool":"alpha","thought":"retry","args":{"input":"retry"}},{"tool":"final_answer","thought":"wrap","args":{"input":"done"}}]'
+}
+plan_json_to_entries() {
+        printf '%s\n' '{"tool":"alpha","thought":"retry","args":{"input":"retry"}}' '{"tool":"final_answer","thought":"wrap","args":{"input":"done"}}'
+}
+plan_json_to_outline() { printf '1. retry\n2. wrap'; }
+derive_allowed_tools_from_plan() { printf '%s\n' 'alpha' 'final_answer'; }
+
+call_count=0
+execute_tool_action() {
+        call_count=$((call_count + 1))
+        if [[ ${call_count} -eq 1 ]]; then
+                printf '{"output":"oops","error":"boom","exit_code":9}'
+                return 9
+        fi
+        if [[ "$1" == "final_answer" ]]; then
+                printf '{"output":"done","exit_code":0}'
+                return 0
+        fi
+        printf '{"output":"ok","exit_code":0}'
+}
+
+plan_entry=$(jq -nc '{tool:"alpha",thought:"start",args:{input:"start"}}')
+react_loop "question" $'alpha\nfinal_answer' "${plan_entry}" "initial outline"
+
+final_answer=$(state_get react_state final_answer)
+outline_flat=$(printf '%s' "$(state_get react_state plan_outline)" | tr '\n' '\\n')
+transcript=$(cat "${transcript_sink}")
+rm -f "${transcript_sink}"
+
+transcript_count=$(grep -c exit_code <<<"${transcript}" || true)
+if [[ ${transcript_count:-0} -lt 1 ]]; then
+        echo "transcript missing exit codes"
+        exit 1
+fi
+
+printf 'final=%s outline=%s transcript_count=%s' "${final_answer}" "${outline_flat}" "${transcript_count}"
+SCRIPT
+
+        [ "$status" -eq 0 ]
+        [[ "$output" == "final=done outline=1. retry\\n2. wrap transcript_count="* ]]
 }
 
 @test "react_loop stops after final_answer" {
