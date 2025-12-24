@@ -56,12 +56,12 @@ log_emit() {
 		return 0
 	fi
 
-        payload=$(printf '%s' "${detail}" | jq -n \
-                --arg time "${timestamp}" \
-                --arg level "${level}" \
-                --arg message "${message}" \
-                --rawfile detail /dev/stdin \
-                '{
+	payload=$(printf '%s' "${detail}" | jq -n \
+		--arg time "${timestamp}" \
+		--arg level "${level}" \
+		--arg message "${message}" \
+		--rawfile detail /dev/stdin \
+		'{
                         time: $time,
                         level: $level,
                         message: $message,

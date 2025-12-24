@@ -28,7 +28,7 @@ setup() {
 }
 
 @test "log emits compact JSON with message metadata" {
-        run bash -lc '
+	run bash -lc '
                 source ./src/lib/core/logging.sh
                 VERBOSITY=1 log INFO "visible" "more-detail"
         '
@@ -39,26 +39,26 @@ setup() {
 	detail=$(jq -r '.detail' <<<"${output}")
 
 	[[ "${level}" == "INFO" ]]
-        [[ "${message}" == "visible" ]]
-        [[ "${detail}" == "more-detail" ]]
+	[[ "${message}" == "visible" ]]
+	[[ "${detail}" == "more-detail" ]]
 }
 
 @test "log handles large detail payloads without blowing argv" {
-        run bash -lc '
+	run bash -lc '
                 source ./src/lib/core/logging.sh
 
                 detail=$(perl -e "print '"'"'a'"'"' x 200000")
                 VERBOSITY=1 log INFO "large" "${detail}"
         '
 
-        [ "$status" -eq 0 ]
-        detail_length=$(jq -r '.detail | length' <<<"${output}")
+	[ "$status" -eq 0 ]
+	detail_length=$(jq -r '.detail | length' <<<"${output}")
 
-        [[ "${detail_length}" -eq 200000 ]]
+	[[ "${detail_length}" -eq 200000 ]]
 }
 
 @test "log debug messages honor verbosity" {
-        run bash -lc '
+	run bash -lc '
                 source ./src/lib/core/logging.sh
                 VERBOSITY=1 log DEBUG "silenced" "detail"
         '
