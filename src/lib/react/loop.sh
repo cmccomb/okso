@@ -681,8 +681,8 @@ react_loop() {
 			observation="${final_answer_payload}"
 		fi
 
-                local observation_summary
-                observation_summary="$(select_observation_summary "${tool}" "${observation}" "$(pwd)")"
+		local observation_summary
+		observation_summary="$(select_observation_summary "${tool}" "${observation}" "$(pwd)")"
 
 		local failure_record failure_error
 		failure_error=$(printf '%s' "${observation}" | jq -r '.error // empty' 2>/dev/null || printf '')

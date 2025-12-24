@@ -118,10 +118,10 @@ execute_tool_with_query() {
 		return 0
 	fi
 
-        local stdout_file stderr_file stderr_output cwd snapshot_summary observation_payload
-        stdout_file="$(mktemp)"
-        stderr_file="$(mktemp)"
-        cwd="$(pwd)"
+	local stdout_file stderr_file stderr_output cwd snapshot_summary observation_payload
+	stdout_file="$(mktemp)"
+	stderr_file="$(mktemp)"
+	cwd="$(pwd)"
 
 	TOOL_QUERY="${tool_query}" TOOL_ARGS="${tool_args_json}" ${handler} >"${stdout_file}" 2>"${stderr_file}"
 
@@ -138,20 +138,20 @@ execute_tool_with_query() {
 		log "WARN" "Tool reported non-zero exit" "${tool_name}" >&2
 	fi
 
-        observation_payload=$(jq -nc \
-                --arg output "${output}" \
-                --arg error "${stderr_output}" \
-                --argjson exit_code "${status}" \
-                --arg cwd "${cwd}" \
-                '{output: $output, error: $error, exit_code: $exit_code, cwd: $cwd}')
+	observation_payload=$(jq -nc \
+		--arg output "${output}" \
+		--arg error "${stderr_output}" \
+		--argjson exit_code "${status}" \
+		--arg cwd "${cwd}" \
+		'{output: $output, error: $error, exit_code: $exit_code, cwd: $cwd}')
 
-        snapshot_summary="$(summarize_observation "${tool_name}" "${observation_payload}" "${cwd}" || printf '')"
+	snapshot_summary="$(summarize_observation "${tool_name}" "${observation_payload}" "${cwd}" || printf '')"
 
-        jq -nc \
-                --argjson payload "${observation_payload}" \
-                --arg summary "${snapshot_summary}" \
-                '$payload + {summary: $summary}'
-        return 0
+	jq -nc \
+		--argjson payload "${observation_payload}" \
+		--arg summary "${snapshot_summary}" \
+		'$payload + {summary: $summary}'
+	return 0
 }
 
 export -f should_prompt_for_tool
