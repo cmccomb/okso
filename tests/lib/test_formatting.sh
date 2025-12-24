@@ -52,7 +52,7 @@ EOF
 }
 
 @test "format_tool_history collects multi-line observations case-insensitively" {
-        run bash -lc '
+	run bash -lc '
                 set -e
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 source ./src/lib/formatting.sh
