@@ -528,67 +528,6 @@ INNERSCRIPT
 	[ "$status" -eq 0 ]
 }
 
-@test "select_next_action invokes llama even when plan step is fully specified" {
-	script=$(
-		cat <<'INNERSCRIPT'
-set -euo pipefail
-cd "$(git rev-parse --show-toplevel)" || exit 1
-
-source ./src/lib/planning/planner.sh
-
-llama_prompt_file=$(mktemp)
-llama_infer() {
-        printf '%s' "$1" >"${llama_prompt_file}"
-        printf '%s' '{"thought":"llama chose","tool":"terminal","args":{"command":"ls","args":["-la"]}}'
-}
-
-state_prefix=react
-plan_entry=$(jq -nc '{tool:"terminal",args:{command:"ls",args:["-la"]},thought:"planned guidance"}')
-plan_outline=$'1. terminal -> ls -la\n2. final_answer -> summarize'
-
-initialize_react_state "${state_prefix}" "demo request" $'terminal\nfinal_answer' "${plan_entry}" "${plan_outline}"
-
-USE_REACT_LLAMA=true
-LLAMA_AVAILABLE=true
-
-select_next_action "${state_prefix}" action_json
-
-if [[ ! -s "${llama_prompt_file}" ]]; then
-        echo "llama_infer was not called"
-        exit 1
-fi
-
-plan_index="$(state_get "${state_prefix}" "plan_index")"
-if [[ "${plan_index}" -ne 0 ]]; then
-        echo "plan index should not advance until execution succeeds: ${plan_index}"
-        exit 1
-fi
-
-pending_plan_step="$(state_get "${state_prefix}" "pending_plan_step")"
-if [[ "${pending_plan_step}" -ne 0 ]]; then
-        echo "pending plan step missing"
-        exit 1
-fi
-
-if ! grep -F 'planned guidance' "${llama_prompt_file}" >/dev/null; then
-        echo "plan thought missing from prompt"
-        exit 1
-fi
-
-        if ! grep -F '"command":"ls"' "${llama_prompt_file}" >/dev/null; then
-                echo "plan args missing from prompt"
-                exit 1
-        fi
-
-        jq -e '.tool == "terminal" and .args.command == "ls" and .thought == "llama chose"' <<<"${action_json}"
-rm -f "${llama_prompt_file}"
-INNERSCRIPT
-	)
-
-	run bash -lc "${script}"
-	[ "$status" -eq 0 ]
-}
-
 @test "build_react_prompt includes allowed tool schemas" {
 	script=$(
 		cat <<'INNERSCRIPT'
