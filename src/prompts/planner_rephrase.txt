@@ -15,8 +15,25 @@ Rewrite strategy:
 - Query 2: Add a clarifying axis likely needed for planning (official source, docs, version, platform, error message).
 - Query 3 (optional): A focused sub-question that would unblock execution (constraints, edge cases, comparisons).
 
+Examples:
+- User request: Find latest stable Node.js version
+  Searches: ["latest Node.js stable version","Node.js release date stable","Node.js LTS vs Current"]
+
+- User request: Fix ShellCheck SC2026 in heredoc
+  Searches: ["ShellCheck SC2026 heredoc fix","SC2026 Bats cat heredoc quoting","ShellCheck heredoc single quotes"]
+
+- User request: iPhone 16 Pro Max to Lenovo M14d USB-C
+  Searches: ["iPhone 16 Pro Max USB-C display out","Lenovo M14d iPhone USB-C compatibility","iPhone USB-C DP Alt Mode support"]
+
+- User request: PyPI requests latest version and upload date
+  Searches: ["PyPI requests latest release version","pypi.org requests json release date","requests package upload timestamp"]
+
+- User request: NYC congestion pricing exemptions start date
+  Searches: ["NYC congestion pricing start date","NYC congestion pricing exemptions list","NYC congestion pricing toll rates"]
+
 JSON schema for the response:
 ${PLANNER_SEARCH_SCHEMA}
 
-User request:
-${USER_QUERY}
+User request: ${USER_QUERY}
+
+Searches:
