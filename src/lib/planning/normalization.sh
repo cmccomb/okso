@@ -105,20 +105,17 @@ normalize_planner_plan() {
                                 $step as $s
                                 | $s.tool as $tool
                                 | $s.thought as $thought
-                                | with_canonical_args($s.required_args // $s.args) as $required_args
-                                | with_canonical_args($s.optional_args) as $optional_args
+                                | with_canonical_args($s.args // $s.required_args // {}) as $args
                                 | {
                                         tool: $tool,
                                         thought: $thought,
-                                        required_args: (if ($required_args | type) == "object" then $required_args else {} end),
-                                        optional_args: (if ($optional_args | type) == "object" then $optional_args else {} end)
-                                }
-                                | .args = (.optional_args + .required_args);
+                                        args: (if ($args | type) == "object" then $args else {} end)
+                                };
 
                         def valid_step($step):
                                 ($step.tool | type == "string")
                                 and ($step.tool | length) > 0
-                                and (($step.args | type == "object") or ($step.args == null) or ($step.required_args | type == "object") or ($step.optional_args | type == "object"))
+                                and (($step.args | type == "object") or ($step.args == null))
                                 and ($step.thought | type == "string")
                                 and ($step.thought | length) > 0;
 
@@ -232,7 +229,7 @@ append_final_answer_step() {
 		return 0
 	fi
 
-	updated_plan="$(jq -c '. + [{tool:"final_answer",thought:"Summarize the result for the user.",required_args:{},optional_args:{},args:{}}]' <<<"${plan_clean}" 2>/dev/null || printf '%s' "${plan_json}")"
+	updated_plan="$(jq -c '. + [{tool:"final_answer",thought:"Summarize the result for the user.",args:{}}]' <<<"${plan_clean}" 2>/dev/null || printf '%s' "${plan_json}")"
 	printf '%s' "${updated_plan}"
 }
 

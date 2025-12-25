@@ -122,85 +122,52 @@ normalize_args_json() {
 }
 
 planned_step_required_args() {
-	# Extracts required_args from a planned step, falling back to args.
 	# Arguments:
 	#   $1 - plan entry JSON (string)
-	local plan_entry
-	plan_entry="$1"
-	jq -c '(.required_args // .args // {}) // {}' <<<"${plan_entry}" 2>/dev/null || printf '{}'
+	printf '{}'
 }
 
 planned_step_optional_args() {
-	# Extracts optional_args from a planned step.
+	# Arguments:
+	#   $1 - plan entry JSON (string)
+	printf '{}'
+}
+
+planned_step_effective_args() {
+	# Extracts args from a planned step.
 	# Arguments:
 	#   $1 - plan entry JSON (string)
 	local plan_entry
 	plan_entry="$1"
-	jq -c '(.optional_args // {}) // {}' <<<"${plan_entry}" 2>/dev/null || printf '{}'
-}
-
-planned_step_effective_args() {
-	# Merges required and optional args for a planned step.
-	# Arguments:
-	#   $1 - plan entry JSON (string)
-	local plan_entry required optional
-	plan_entry="$1"
-	required="$(planned_step_required_args "${plan_entry}")"
-	optional="$(planned_step_optional_args "${plan_entry}")"
-	jq -nc --argjson required "${required}" --argjson optional "${optional}" '($optional // {}) + ($required // {})'
+	jq -c '(.args // {})' <<<"${plan_entry}" 2>/dev/null || printf '{}'
 }
 
 build_executor_action_schema() {
 	# Builds a JSON schema for executor mode, constraining args to planner guidance.
 	# Arguments:
-	#   $1 - required args JSON (string)
-	#   $2 - optional args JSON (string)
-	local required_json optional_json
-	required_json="$1"
-	optional_json="$2"
+	#   $1 - planner args JSON (string)
+	local planner_args_json
+	planner_args_json="$1"
 
 	if ! require_python3_available "Executor schema generation"; then
-		log "ERROR" "Unable to build executor action schema; python3 missing" "${required_json}" >&2
+		log "ERROR" "Unable to build executor action schema; python3 missing" "${planner_args_json}" >&2
 		return 1
 	fi
 
-	python3 - "${required_json}" "${optional_json}" <<'PY'
+	python3 - "${planner_args_json}" <<'PY'
 import json
 import sys
 import tempfile
 
-required = json.loads(sys.argv[1] or "{}")
-optional = json.loads(sys.argv[2] or "{}")
+planner_args = json.loads(sys.argv[1] or "{}")
 
-
-def infer_schema(value):
-    if value is None:
-        return {"type": "null"}
-    if isinstance(value, bool):
-        return {"type": "boolean"}
-    if isinstance(value, int):
-        return {"type": "integer"}
-    if isinstance(value, float):
-        return {"type": "number"}
-    if isinstance(value, list):
-        return {"type": "array"}
-    if isinstance(value, dict):
-        return {"type": "object"}
-    return {"type": "string"}
-
-
-def build_properties(source, const_only=False):
+def build_properties(source):
     properties = {}
     for key, value in source.items():
-        if const_only:
-            properties[key] = {"const": value, "description": "Required by the planner"}
-        else:
-            properties[key] = infer_schema(value)
+        properties[key] = {"const": value, "description": "Required by the planner"}
     return properties
 
-
-required_properties = build_properties(required, const_only=True)
-optional_properties = build_properties({k: v for k, v in optional.items() if k not in required})
+required_properties = build_properties(planner_args)
 
 schema = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -216,9 +183,9 @@ schema = {
         },
         "args": {
             "type": "object",
-            "additionalProperties": False,
-            "required": list(required.keys()),
-            "properties": {**required_properties, **optional_properties},
+            "additionalProperties": True,
+            "required": list(planner_args.keys()),
+            "properties": required_properties,
         },
     },
 }
@@ -234,13 +201,10 @@ validate_executor_action() {
 	# Validates llama executor output against planner-required args.
 	# Arguments:
 	#   $1 - raw action JSON
-	#   $2 - required args JSON (string)
-	#   $3 - optional args JSON (string)
-	local raw_action required_json optional_json action_json args_json allowed_keys required_key expected_value extra_keys
-	local validation_error
+	#   $2 - planner args JSON (string)
+	local raw_action planner_args_json action_json args_json required_key expected_value
 	raw_action="$1"
-	required_json="$2"
-	optional_json="$3"
+	planner_args_json="$2"
 
 	if ! action_json=$(jq -ce '.' <<<"${raw_action}" 2>/dev/null); then
 		printf 'Invalid executor JSON' >&2
@@ -253,16 +217,9 @@ validate_executor_action() {
 	fi
 
 	args_json="$(jq -c '.args' <<<"${action_json}")"
-	allowed_keys=$(jq -nc --argjson required "${required_json}" --argjson optional "${optional_json}" '($required + $optional) | keys | unique')
-
-	extra_keys=$(jq -rc --argjson allowed "${allowed_keys}" '.args | keys | map(select(. as $k | ($allowed | index($k) | not))) | first? // empty' <<<"${action_json}")
-	if [[ -n "${extra_keys}" ]]; then
-		printf 'Unexpected arg key: %s' "${extra_keys}" >&2
-		return 1
-	fi
 
 	while IFS= read -r required_key; do
-		expected_value=$(jq -c --arg key "${required_key}" '.[$key]' <<<"${required_json}")
+		expected_value=$(jq -c --arg key "${required_key}" '.[$key]' <<<"${planner_args_json}")
 		if ! jq -e --arg key "${required_key}" 'has($key)' <<<"${args_json}" >/dev/null; then
 			printf 'Missing required arg: %s' "${required_key}" >&2
 			return 1
@@ -271,7 +228,7 @@ validate_executor_action() {
 			printf 'Required arg mismatch: %s' "${required_key}" >&2
 			return 1
 		fi
-	done < <(jq -r 'keys[]?' <<<"${required_json}")
+	done < <(jq -r 'keys[]?' <<<"${planner_args_json}")
 
 	printf '%s' "${action_json}"
 }
@@ -368,7 +325,7 @@ _select_action_from_llama() {
 
 	if [[ "${invoke_llama}" == true && -n "${planned_entry}" ]]; then
 		local executor_schema_path executor_schema_text executor_prompt raw_executor_action executor_validation_file merged_args executor_action_json executor_thought
-		executor_schema_path="$(build_executor_action_schema "${planned_required_args}" "${planned_optional_args}")" || return 1
+		executor_schema_path="$(build_executor_action_schema "${planned_args_json}")" || return 1
 		executor_schema_text="$(cat "${executor_schema_path}")" || return 1
 		history="$(format_tool_history "$(state_get_history_lines "${state_name}")")"
 
@@ -386,13 +343,13 @@ EOF
 		executor_prompt+=$'\n\nRecent history:\n'
 		executor_prompt+="${history}"$'\n'
 		executor_prompt+=$'\nRespond strictly with JSON of the form:\n'
-		executor_prompt+=$'{"thought":"short reasoning","args":{"<required+optional args>"}}\n'
+		executor_prompt+=$'{"thought":"short reasoning","args":{"<arguments>"}}\n'
 
 		executor_validation_file="$(mktemp)"
 		raw_executor_action="$(LLAMA_TEMPERATURE=0 llama_infer "${executor_prompt}" "" 128 "${executor_schema_text}" "${REACT_MODEL_REPO:-}" "${REACT_MODEL_FILE:-}" "${REACT_CACHE_FILE:-}" "${executor_prompt}")"
 		log_pretty "INFO" "Executor action received" "${raw_executor_action}"
 
-		if ! executor_action_json=$(validate_executor_action "${raw_executor_action}" "${planned_required_args}" "${planned_optional_args}" 2>"${executor_validation_file}"); then
+		if ! executor_action_json=$(validate_executor_action "${raw_executor_action}" "${planned_args_json}" 2>"${executor_validation_file}"); then
 			validation_error="$(cat "${executor_validation_file}")"
 			record_history "${state_name}" "$(printf 'Invalid executor action from model: %s' "${validation_error}")"
 			log "WARN" "Invalid executor output from llama" "${validation_error}"
@@ -402,7 +359,7 @@ EOF
 			if [[ -z "${executor_thought}" ]]; then
 				executor_thought="${planned_thought}"
 			fi
-			merged_args=$(jq -nc --argjson required "${planned_required_args}" --argjson optional "${planned_optional_args}" --argjson model_args "$(jq -c '.args // {}' <<<"${executor_action_json}" 2>/dev/null || printf '{}')" '($optional // {}) + ($model_args // {}) + ($required // {})')
+			merged_args=$(jq -nc --argjson planner_args "${planned_args_json}" --argjson model_args "$(jq -c '.args // {}' <<<"${executor_action_json}" 2>/dev/null || printf '{}')" '($planner_args // {}) + ($model_args // {})')
 			validated_action="$(jq -nc --arg thought "${executor_thought}" --arg tool "${tool}" --argjson args "${merged_args}" '{thought:$thought,tool:$tool,args:$args}')"
 			rm -f "${executor_validation_file}" "${executor_schema_path}"
 			printf -v "${output_name}" '%s' "${validated_action}" || return 1
@@ -470,10 +427,9 @@ EOF
 	rm -f "${react_schema_path}"
 
 	if [[ -n "${planned_entry}" ]]; then
-		local required_args optional_args merged_args
-		required_args="$(planned_step_required_args "${planned_entry}")"
-		optional_args="$(planned_step_optional_args "${planned_entry}")"
-		merged_args=$(jq -nc --argjson required "${required_args}" --argjson optional "${optional_args}" --argjson model_args "$(printf '%s' "${validated_action}" | jq -c '.args // {}' 2>/dev/null || printf '{}')" '($optional // {}) + ($model_args // {}) + ($required // {})')
+		local planner_args merged_args
+		planner_args="$(planned_step_effective_args "${planned_entry}")"
+		merged_args=$(jq -nc --argjson planner_args "${planner_args}" --argjson model_args "$(printf '%s' "${validated_action}" | jq -c '.args // {}' 2>/dev/null || printf '{}')" '($planner_args // {}) + ($model_args // {})')
 		validated_action="$(jq -c --argjson args "${merged_args}" '.args = $args' <<<"${validated_action}" 2>/dev/null || printf '%s' "${validated_action}")"
 	fi
 
@@ -834,7 +790,7 @@ build_execution_transcript() {
                 | to_entries
                 | map(
                         . as $wrapper
-                        | ($wrapper.value | (try (fromjson // .) catch .)) as $entry
+                        | ($wrapper.value | (try (fromjson // .) catch $wrapper.value)) as $entry
                         | if ($entry | type == "object") then
                                 ($entry.observation_raw // $entry.observation // $entry.observation_summary // "") as $raw_obs
                                 | ($entry.action.args // {}) as $args

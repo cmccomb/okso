@@ -39,13 +39,7 @@ Plan:
 - {"tool":"notes_create","args":{"title":"TODO inventory","body":"Sorted list + totals."},"thought":"Persist the summary."}
 - {"tool":"final_answer","args":{"input":"Share the top offenders and the note title."},"thought":"Report back."}
 
-# Example 6 (2 steps, plan-only)
-User request: "Write a two-sentence status update I can paste into Slack about finishing a draft and waiting on feedback."
-Plan:
-- {"tool":"notes_create","args":{"title":"Status update draft","body":"Two-sentence Slack-ready status about finishing the draft and awaiting feedback."},"thought":"Capture the status for reuse."}
-- {"tool":"final_answer","args":{"input":"Share the two-sentence status update and mention the saved note title."},"thought":"Provide the ready-to-paste text."}
-
-# Example 7 (4 steps, web_search then local capture)
+# Example 6 (4 steps, web_search then local capture)
 User request: "What’s the latest stable Node.js version, and store it in a note for my setup checklist."
 Plan:
 - {"tool":"web_search","args":{"query":"latest stable Node.js version"},"thought":"Find the current release from the official source."}
@@ -53,19 +47,8 @@ Plan:
 - {"tool":"notes_create","args":{"title":"Dev environment versions","body":"Node.js: vX.Y.Z + source link + date."},"thought":"Store the version for reuse."}
 - {"tool":"final_answer","args":{"input":"Report the version and confirm the note title."},"thought":"Share the answer."}
 
-# Example 8 (2 steps)
+# Example 7 (2 steps)
 User request: "List my upcoming calendar events that mention 'proposal' in the title."
 Plan:
 - {"tool":"calendar_search","args":{"input":"proposal"},"thought":"Match by title/location/description."}
 - {"tool":"final_answer","args":{"input":"List matches with date/time and location when present."},"thought":"Return the matches."}
-
-# Example 9 (7 steps, web_search → values → python_repl → artifact)
-User request: "Estimate the monthly cost to run a 600W server 24/7 in Pittsburgh using the current PA residential kWh rate."
-Plan:
-- {"tool":"web_search","args":{"query":"Pennsylvania residential electricity rate cents per kWh current"},"thought":"Find a reputable source and note the date."}
-- {"tool":"web_fetch","args":{"url":"Fetch the chosen page to capture the numeric rate and units."},"thought":"Ground the rate."}
-- {"tool":"python_repl","args":{"input":"Compute kWh/month from 0.6 kW * 24 * 30 (show math)."},"thought":"Translate power draw into energy."}
-- {"tool":"python_repl","args":{"input":"Compute cost = kWh/month * $/kWh and a ±10% sensitivity band."},"thought":"Estimate the spend."}
-- {"tool":"notes_create","args":{"title":"Server electricity estimate","body":"Assumptions, source link, outputs."},"thought":"Save the calculation."}
-- {"tool":"reminders_create","args":{"title":"Refresh electricity rate","time":"30 days from now","notes":"Revisit the rate with the same source."},"thought":"Schedule a refresh."}
-- {"tool":"final_answer","args":{"input":"Report the estimate, assumptions, and sensitivity band."},"thought":"Return the summary."}

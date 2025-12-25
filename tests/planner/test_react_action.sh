@@ -17,16 +17,16 @@ cd "$(git rev-parse --show-toplevel)" || exit 1
 
 schema_path="./src/schemas/react_action.schema.json"
 
-jq -e '
-        (.oneOf | length == 2)
-        and (.oneOf[0].additionalProperties == false)
-        and (.oneOf[0].required | sort == ["args","thought","tool"])
-        and (.oneOf[0].properties.tool.const == "final_answer")
-        and (.oneOf[0].properties.args.required == ["input"])
-        and (.oneOf[0].properties.args.additionalProperties == false)
-        and (.oneOf[0].properties.args.properties.input.minLength == 1)
-        and (.oneOf[0]."$comment" | contains("Illustrative example only"))
-        and (.oneOf[1]."$comment" | contains("variants are injected"))
+        jq -e '
+        (.type == "object")
+        and (.additionalProperties == false)
+        and (.required | sort == ["args","thought","tool"])
+        and (.properties.tool.enum == ["final_answer"])
+        and (.properties.args.additionalProperties == true)
+        and (."$defs".args_by_tool.final_answer.properties.input.minLength == 1)
+        and (."$defs".args_by_tool.final_answer.required == ["input"])
+        and (."$defs".args_by_tool.final_answer.additionalProperties == false)
+        and (.properties.tool."$comment" | contains("Illustrative example only"))
 ' "${schema_path}"
 INNERSCRIPT
 	)
@@ -78,7 +78,7 @@ tool_names() { printf "%s\n" "alpha"; }
 
 schema_path="$(build_react_action_schema "alpha")"
 
-jq -e '.oneOf[0].properties.args.additionalProperties == false' "${schema_path}"
+jq -e '."$defs".args_by_tool.alpha.additionalProperties == false' "${schema_path}"
 
 rm -f "${schema_path}"
 INNERSCRIPT
@@ -88,7 +88,7 @@ INNERSCRIPT
 	[ "$status" -eq 0 ]
 }
 
-@test "build_react_action_schema encodes tool args in if/then branches" {
+@test "build_react_action_schema embeds tool enums without branches" {
 	script=$(
 		cat <<'INNERSCRIPT'
 set -euo pipefail
@@ -110,12 +110,51 @@ schema_path="$(build_react_action_schema $'alpha\nbeta')"
 
 jq -e '
         . as $root
-        | ($root.oneOf | length) == 2
-        and (all($root.oneOf[]; (.required | sort) == ["args", "thought", "tool"]))
-        and (any($root.oneOf[]; .properties.tool.const == "alpha" and .properties.args.required == ["input"]))
-        and (any($root.oneOf[]; .properties.tool.const == "beta" and .properties.args.required == ["command"]))
-        and (all($root.oneOf[]; .additionalProperties == false))
+        | ($root.properties.tool.enum | sort) == ["alpha", "beta"]
+        and ($root.required | sort == ["args", "thought", "tool"])
+        and ($root."$defs".args_by_tool.alpha.required == ["input"])
+        and ($root."$defs".args_by_tool.beta.required == ["command"])
+        and ($root."$defs".args_by_tool.alpha.additionalProperties == false)
+        and ($root."$defs".args_by_tool.beta.additionalProperties == false)
+        and (($root.oneOf // []) | length == 0)
+        and (($root.anyOf // []) | length == 0)
 ' "${schema_path}"
+
+rm -f "${schema_path}"
+INNERSCRIPT
+	)
+
+	run bash -lc "${script}"
+	[ "$status" -eq 0 ]
+}
+
+@test "build_react_action_schema emits llama.cpp-friendly schema" {
+	script=$(
+		cat <<'INNERSCRIPT'
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+source ./src/lib/planning/planner.sh
+
+tool_registry_json() {
+        cat <<'JSON'
+{"names":["alpha","beta"],"registry":{"alpha":{"args_schema":{"type":"object","required":["input"],"properties":{"input":{"type":"string"}},"additionalProperties":false}},"beta":{"args_schema":{"type":"object","properties":{"note":{"type":"string"}},"required":[],"additionalProperties":false}}}}
+JSON
+}
+
+tool_names() {
+        printf "%s\n" "alpha" "beta"
+}
+
+schema_path="$(build_react_action_schema $'alpha\nbeta')"
+
+if jq -e 'paths | map(tostring) | join("/") | test("oneOf|anyOf")' "${schema_path}" >/dev/null; then
+        echo "Schema contains disallowed combinators" >&2
+        rm -f "${schema_path}"
+        exit 1
+fi
+
+jq -e '.properties.tool.enum == ["alpha","beta"] and (."$defs".args_by_tool | length == 2)' "${schema_path}" >/dev/null
 
 rm -f "${schema_path}"
 INNERSCRIPT
@@ -208,6 +247,89 @@ INNERSCRIPT
 	[ "$status" -eq 0 ]
 }
 
+@test "validate_react_action rejects schemas without allowed tool enums" {
+	script=$(
+		cat <<'INNERSCRIPT'
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+source ./src/lib/planning/planner.sh
+
+schema_path=$(mktemp)
+cat >"${schema_path}" <<'JSON'
+{
+  "$defs": {
+    "args_by_tool": {
+      "alpha": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    }
+  },
+  "properties": {"tool": {}}
+}
+JSON
+
+action='{"thought":"go","tool":"alpha","args":{}}'
+
+set +e
+validate_react_action "${action}" "${schema_path}" 2>err.log
+status=$?
+set -e
+
+if [[ ${status} -eq 0 ]]; then
+        echo "validation unexpectedly succeeded"
+        exit 1
+fi
+
+grep -F "Schema has no allowed tools" err.log
+rm -f "${schema_path}" err.log
+INNERSCRIPT
+	)
+
+	run bash -lc "${script}"
+	[ "$status" -eq 0 ]
+}
+
+@test "validate_react_action normalizes null args" {
+	script=$(
+		cat <<'INNERSCRIPT'
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+source ./src/lib/planning/planner.sh
+
+schema_path=$(mktemp)
+cat >"${schema_path}" <<'JSON'
+{
+  "$defs": {
+    "args_by_tool": {
+      "alpha": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    }
+  },
+  "properties": {"tool": {"enum": ["alpha"]}}
+}
+JSON
+
+action='{"thought":"go","tool":"alpha","args":null}'
+
+validated="$(validate_react_action "${action}" "${schema_path}")"
+rm -f "${schema_path}"
+
+jq -e '.args == {}' <<<"${validated}"
+INNERSCRIPT
+	)
+
+	run bash -lc "${script}"
+	[ "$status" -eq 0 ]
+}
+
 @test "validate_react_action enforces argument type schemas" {
 	script=$(
 		cat <<'INNERSCRIPT'
@@ -246,6 +368,47 @@ if [[ ${status} -eq 0 ]]; then
 fi
 
 grep -F "Arg input must be a string" err.log
+rm -f "${schema_path}" err.log
+INNERSCRIPT
+	)
+
+	run bash -lc "${script}"
+	[ "$status" -eq 0 ]
+}
+
+@test "validate_react_action enforces required args for the selected tool" {
+	script=$(
+		cat <<'INNERSCRIPT'
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+source ./src/lib/planning/planner.sh
+
+tool_registry_json() {
+        cat <<'JSON'
+{"names":["alpha","beta"],"registry":{"alpha":{"args_schema":{"type":"object","required":["input"],"properties":{"input":{"type":"string"}},"additionalProperties":false}},"beta":{"args_schema":{"type":"object","required":["command"],"properties":{"command":{"type":"string"}},"additionalProperties":false}}}}
+JSON
+}
+
+tool_names() {
+        printf "%s\n" "alpha" "beta"
+}
+
+schema_path="$(build_react_action_schema $'alpha\nbeta')"
+
+invalid_action='{"thought":"run","tool":"beta","args":{"input":"hi"}}'
+
+set +e
+validate_react_action "${invalid_action}" "${schema_path}" 2>err.log
+status=$?
+set -e
+
+if [[ ${status} -eq 0 ]]; then
+        echo "validation unexpectedly succeeded"
+        exit 1
+fi
+
+grep -F "Missing arg: command" err.log
 rm -f "${schema_path}" err.log
 INNERSCRIPT
 	)
@@ -358,67 +521,6 @@ initialize_react_state "${state_prefix}" "demo request" $'terminal\nfinal_answer
 next_action="$(select_next_action "${state_prefix}")"
 
 jq -e '.tool == "terminal" and (.args == {} or .args == null)' <<<"${next_action}"
-INNERSCRIPT
-	)
-
-	run bash -lc "${script}"
-	[ "$status" -eq 0 ]
-}
-
-@test "select_next_action invokes llama even when plan step is fully specified" {
-	script=$(
-		cat <<'INNERSCRIPT'
-set -euo pipefail
-cd "$(git rev-parse --show-toplevel)" || exit 1
-
-source ./src/lib/planning/planner.sh
-
-llama_prompt_file=$(mktemp)
-llama_infer() {
-        printf '%s' "$1" >"${llama_prompt_file}"
-        printf '%s' '{"thought":"llama chose","tool":"terminal","args":{"command":"ls","args":["-la"]}}'
-}
-
-state_prefix=react
-plan_entry=$(jq -nc '{tool:"terminal",args:{command:"ls",args:["-la"]},thought:"planned guidance"}')
-plan_outline=$'1. terminal -> ls -la\n2. final_answer -> summarize'
-
-initialize_react_state "${state_prefix}" "demo request" $'terminal\nfinal_answer' "${plan_entry}" "${plan_outline}"
-
-USE_REACT_LLAMA=true
-LLAMA_AVAILABLE=true
-
-select_next_action "${state_prefix}" action_json
-
-if [[ ! -s "${llama_prompt_file}" ]]; then
-        echo "llama_infer was not called"
-        exit 1
-fi
-
-plan_index="$(state_get "${state_prefix}" "plan_index")"
-if [[ "${plan_index}" -ne 0 ]]; then
-        echo "plan index should not advance until execution succeeds: ${plan_index}"
-        exit 1
-fi
-
-pending_plan_step="$(state_get "${state_prefix}" "pending_plan_step")"
-if [[ "${pending_plan_step}" -ne 0 ]]; then
-        echo "pending plan step missing"
-        exit 1
-fi
-
-if ! grep -F 'planned guidance' "${llama_prompt_file}" >/dev/null; then
-        echo "plan thought missing from prompt"
-        exit 1
-fi
-
-        if ! grep -F '"command":"ls"' "${llama_prompt_file}" >/dev/null; then
-                echo "plan args missing from prompt"
-                exit 1
-        fi
-
-        jq -e '.tool == "terminal" and .args.command == "ls" and .thought == "llama chose"' <<<"${action_json}"
-rm -f "${llama_prompt_file}"
 INNERSCRIPT
 	)
 

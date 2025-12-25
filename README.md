@@ -34,3 +34,8 @@ See [docs/user-guides/usage.md](docs/user-guides/usage.md) for task-based walkth
 - [Prompt assets](docs/reference/prompts.md): where prompts live and how they load.
 - [Architecture overview](docs/reference/architecture.md): deeper look at the planner pass, ReAct loop, llama.cpp fallbacks, and tool ranking.
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, testing, and contribution guidelines.
+
+

@@ -34,3 +34,14 @@ The planner drives execution through a structured outline:
 ### Dependencies
 
 Runtime helpers require `jq` and exit with a structured dependency error when it is unavailable. Install `jq` locally before running scripts.
+
+## Documenting Code
+
+All shell libraries and scripts should include a header comment block explaining:
+- **Purpose**: What the file does.
+- **Usage**: How to source or run it.
+- **Environment Variables**: Variables that configure behavior.
+- **Dependencies**: Required external tools (e.g., `jq`, `llama.cpp`).
+- **Exit Codes**: formatting of exit conditions.
+
+See `src/lib/config.sh` for the canonical example.

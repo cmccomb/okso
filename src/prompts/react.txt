@@ -38,7 +38,8 @@ Observations may contain the output of the tool, but also errors and exit codes 
 Use these observations to decide if you need to retry an action or try a different approach.
 If a tool fails, look at the "Error" field in the observation to understand why.
 
-Specifically, your response must follow the format:
+# Response Schema
+Always respond with JSON only. Match this schema exactly (no Markdown, no additional keys):
 ${react_schema}
 
 You have access to the following tools:
