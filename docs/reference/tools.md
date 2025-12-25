@@ -7,7 +7,7 @@ use the canonical `input` property so prompts and schemas can reference `args.in
 - `terminal`: persistent working directory with `pwd`, `ls`, `cd`, `find`, `grep`, `stat`, `wc`, `du`, `date`, `base64 encode|decode`, and guarded mutations (`rm -i`, `mkdir`, `mv`, `cp`, `touch`). Uses `open` on macOS.
 - `python_repl`: run Python snippets in an ephemeral sandbox using quiet `python -i` startup guards that confine writes.
 - `web_search`: query the Google Custom Search API with a structured payload (`query` and optional `num`, default `5`, maximum `10`) and return JSON results.
-- `web_fetch`: retrieve HTTP response bodies with a configurable size cap, returning JSON metadata (final URL, HTTP status, content type, headers, byte length, truncation flag, body encoding, body snippet, and optional `body_markdown`).
+- `web_fetch`: retrieve HTTP response bodies with a configurable size cap, returning JSON metadata (final URL, HTTP status, content type, headers, byte length, truncation flag, body encoding, body snippet, and optional `body_markdown`). Supports optional header overrides via a `headers` object (string values) while blocking sensitive headers such as `Authorization`, `Cookie`, `Host`, `User-Agent`, and hop-by-hop values.
 - `*_search`: Notes, Calendar, and Mail searches reuse the same `input` field for the search term.
 - `notes_*`: create, append, list, read, or search Apple Notes entries.
 - `reminders_*`: create, list, or complete Apple Reminders.
@@ -15,7 +15,7 @@ use the canonical `input` property so prompts and schemas can reference `args.in
 - `mail_*`: draft, send, search, or list Apple Mail messages.
 - `final_answer`: emit the assistant's final reply with an `input` string.
 
-`web_fetch` responses include the final URL, HTTP status, content type, headers, byte length, a truncation flag, a preview snippet, and a `body_markdown` field when text-like payloads can be converted. Text responses (HTML, JSON, XML, or plain text) are transformed into Markdown with previews truncated to 1024 characters. Non-text payloads are base64-encoded with `body_encoding` set to `base64` to avoid unsafe binary output. Conversion failures fall back to raw snippets with `body_markdown` set to `null`.
+`web_fetch` responses include the final URL, HTTP status, content type, headers, byte length, a truncation flag, a preview snippet, and a `body_markdown` field when text-like payloads can be converted. Text responses (HTML, JSON, XML, or plain text) are transformed into Markdown with previews truncated to 1024 characters. Non-text payloads are base64-encoded with `body_encoding` set to `base64` to avoid unsafe binary output. Conversion failures fall back to raw snippets with `body_markdown` set to `null`. Requests send an explicit `User-Agent` by default and honor additional headers supplied via the `headers` argument so long as they exclude sensitive values (for example, authentication or hop-by-hop headers).
 
 For end-to-end scenarios that show how tools fit into approvals and offline runs, see the [Run with approvals](../user-guides/usage.md#run-with-approvals) and [Offline or noninteractive feedback collection](../user-guides/usage.md#offline-or-noninteractive-feedback-collection) walkthroughs.
 

@@ -13,6 +13,7 @@
 #   WEB_HTTP_CONNECT_TIMEOUT (integer): connect timeout in seconds (default: 5).
 #   WEB_HTTP_RETRIES (integer): retry attempts for transient failures (default: 1).
 #   WEB_HTTP_RETRY_DELAY (integer): delay between retries in seconds (default: 1).
+#   WEB_HTTP_USER_AGENT (string): explicit User-Agent header (default: okso-web-fetch/1.0).
 #
 # Dependencies:
 #   - bash 3.2+
@@ -109,6 +110,7 @@ web_http_request() {
 		--connect-timeout "${WEB_HTTP_CONNECT_TIMEOUT:-5}" \
 		--retry "${WEB_HTTP_RETRIES:-1}" \
 		--retry-delay "${WEB_HTTP_RETRY_DELAY:-1}" \
+		--user-agent "${WEB_HTTP_USER_AGENT:-okso-web-fetch/1.0}" \
 		--dump-header "${header_file}" \
 		--output "${body_file}" \
 		--write-out '%{http_code}\n%{url_effective}\n%{content_type}\n%{size_download}' \

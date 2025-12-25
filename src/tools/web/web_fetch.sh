@@ -7,7 +7,8 @@
 #   source "${BASH_SOURCE[0]%/tools/web/web_fetch.sh}/tools/web/web_fetch.sh"
 #
 # Environment variables:
-#   TOOL_ARGS (JSON object): structured args with required `url` and optional `max_bytes`.
+#   TOOL_ARGS (JSON object): structured args with required `url` and optional `max_bytes` and
+#     `headers` overrides (object of additional HTTP headers).
 #
 # Dependencies:
 #   - bash 3.2+
@@ -31,32 +32,78 @@ source "${SRC_ROOT}/tools/registry.sh"
 
 web_fetch_parse_args() {
 	# Parses TOOL_ARGS JSON for the web_fetch tool.
-	# Returns a JSON object with `url` and `max_bytes`.
+	# Returns a JSON object with `url`, `max_bytes`, and `headers`.
 	local args_json err
 	args_json="${TOOL_ARGS:-}" || true
 
 	if ! err=$(jq -cer '
-                if (type != "object") then error("args must be object") end
-                | if (.url? == null) then error("missing url") end
-                | if (.url | type) != "string" or (.url | length) == 0 then error("url must be non-empty string") end
-                | if (.max_bytes? != null) then
-                        if (.max_bytes | type) != "number" or (.max_bytes | floor) != .max_bytes then error("max_bytes must be integer") end
-                        | if (.max_bytes < 1 or .max_bytes > 5242880) then error("max_bytes must be between 1 and 5242880") end
-                else
-                        .max_bytes = 1048576
-                end
-                | if ((del(.url, .max_bytes) | length) != 0) then error("unexpected properties") end
-                | {url: .url, max_bytes: (.max_bytes // 1)}
-        ' <<<"${args_json}" 2>&1); then
+def normalize_max_bytes($value):
+if ($value == null) then 1048576
+elif ($value | type) != "number" or ($value | floor) != $value then error("max_bytes must be integer")
+elif ($value < 1 or $value > 5242880) then error("max_bytes must be between 1 and 5242880")
+else $value end;
+
+def normalize_headers($headers):
+if ($headers == null) then {}
+elif ($headers | type) != "object" then error("headers must be object")
+elif (([$headers | to_entries[]? | select((.value | type) != "string" or (.value | length) == 0)] | length) > 0) then error("headers must map to non-empty strings")
+else $headers end;
+
+if (type != "object") then error("args must be object") end
+| .max_bytes = normalize_max_bytes(.max_bytes)
+| .headers = normalize_headers(.headers)
+| if (.url? == null) then error("missing url") end
+| if (.url | type) != "string" or (.url | length) == 0 then error("url must be non-empty string") end
+| if ((del(.url, .max_bytes, .headers) | length) != 0) then error("unexpected properties") end
+| {url: .url, max_bytes: (.max_bytes // 1), headers: .headers}
+' <<<"${args_json}" 2>&1); then
 		log "ERROR" "Invalid web_fetch arguments" "${err}" >&2
 		return 1
 	fi
 	printf '%s' "${err}"
 }
 
+web_fetch_validate_headers() {
+	# Validates caller-supplied headers and prepares curl arguments.
+	# Arguments:
+	#   $1 (JSON object): header map where keys are header names and values are strings.
+	# Side effects:
+	#   Populates WEB_FETCH_HEADER_ARGS (array) and WEB_FETCH_ACCEPT_PROVIDED (bool) for caller use.
+	local headers_json header_name header_value header_name_lc
+	WEB_FETCH_HEADER_ARGS=()
+	WEB_FETCH_ACCEPT_PROVIDED=false
+	headers_json="$1"
+
+	while IFS=$'\t' read -r header_name header_value; do
+		header_name_lc=$(printf '%s' "${header_name}" | tr '[:upper:]' '[:lower:]')
+		case "${header_name_lc}" in
+		user-agent | authorization | cookie | proxy-* | connection | host | expect | transfer-encoding | te | trailer | upgrade | sec-*)
+			log "ERROR" "disallowed header" "${header_name}" >&2
+			return 1
+			;;
+		esac
+		if [[ -z "${header_name}" || "${header_name}" == *$'\n'* || "${header_name}" == *$'\r'* ]]; then
+			log "ERROR" "invalid header name" "${header_name}" >&2
+			return 1
+		fi
+		if [[ "${header_name}" != [A-Za-z0-9][A-Za-z0-9_-]* ]]; then
+			log "ERROR" "invalid header token" "${header_name}" >&2
+			return 1
+		fi
+		if [[ "${header_value}" == *$'\n'* || "${header_value}" == *$'\r'* ]]; then
+			log "ERROR" "invalid header value" "${header_value}" >&2
+			return 1
+		fi
+		if [[ "${header_name_lc}" == "accept" ]]; then
+			WEB_FETCH_ACCEPT_PROVIDED=true
+		fi
+		WEB_FETCH_HEADER_ARGS+=("--header" "${header_name}: ${header_value}")
+	done < <(jq -r 'to_entries[] | "\(.key)\t\(.value)"' <<<"${headers_json}")
+}
+
 tool_web_fetch() {
 	# Downloads the response body for a URL, enforcing size limits and returning JSON metadata.
-	local parsed_args url max_bytes response payload body_path content_type truncated body_size headers final_url body_encoding body_snippet snippet_limit body_markdown
+	local parsed_args url max_bytes response payload body_path content_type truncated body_size headers final_url body_encoding body_snippet snippet_limit body_markdown headers_json
 
 	if ! parsed_args=$(web_fetch_parse_args); then
 		return 1
@@ -64,10 +111,24 @@ tool_web_fetch() {
 
 	url=$(jq -r '.url' <<<"${parsed_args}")
 	max_bytes=$(jq -r '.max_bytes' <<<"${parsed_args}")
+	headers_json=$(jq -c '.headers' <<<"${parsed_args}")
+
+	WEB_FETCH_HEADER_ARGS=()
+	WEB_FETCH_ACCEPT_PROVIDED=false
+	if ! web_fetch_validate_headers "${headers_json}"; then
+		return 1
+	fi
+
+	local -a request_headers
+	request_headers=()
+	if [[ "${WEB_FETCH_ACCEPT_PROVIDED}" != "true" ]]; then
+		request_headers+=("--header" "Accept: */*")
+	fi
+	request_headers+=("${WEB_FETCH_HEADER_ARGS[@]}")
 
 	log "INFO" "Fetching URL" "${url}" >&2
 
-	response=$(web_http_request "${url}" "${max_bytes}" --header 'Accept: */*')
+	response=$(web_http_request "${url}" "${max_bytes}" "${request_headers[@]}")
 	if [[ -z "${response}" ]]; then
 		log "ERROR" "Failed to fetch URL" "${url}" >&2
 		return 1
@@ -150,14 +211,15 @@ register_web_fetch() {
 	local args_schema
 
 	args_schema=$(jq -nc '{
-                type: "object",
-                required: ["url"],
-                additionalProperties: false,
-                properties: {
-                        url: {type: "string", format: "uri", minLength: 1},
-                        max_bytes: {type: "integer", minimum: 1, maximum: 5242880}
-                }
-        }')
+type: "object",
+required: ["url"],
+additionalProperties: false,
+properties: {
+url: {type: "string", format: "uri", minLength: 1},
+max_bytes: {type: "integer", minimum: 1, maximum: 5242880},
+headers: {type: "object", additionalProperties: {type: "string", minLength: 1}}
+}
+}')
 
 	register_tool \
 		"web_fetch" \
