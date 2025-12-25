@@ -131,7 +131,7 @@ SCRIPT
 }
 
 @test "react prompt segments recombine into full prompt" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 real_date="$(command -v date)"
 mock_bin_dir="$(mktemp -d)"
@@ -168,12 +168,12 @@ fi
 printf 'ok\n'
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ "${output}" = "ok" ]
+	[ "$status" -eq 0 ]
+	[ "${output}" = "ok" ]
 }
 
 @test "react prompt sets current date once" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 real_date="$(command -v date)"
 mock_bin_dir="$(mktemp -d)"
@@ -210,11 +210,11 @@ rm -f "${react_schema_path}"
 [[ "$(grep -c 'Current date:' <<<"${prompt}")" -eq 1 ]]
 SCRIPT
 
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "react prompt respects default token budget" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 real_date="$(command -v date)"
 mock_bin_dir="$(mktemp -d)"
@@ -254,5 +254,5 @@ rm -f "${react_schema_path}"
 (( total_tokens <= PROMPT_TOKEN_BUDGET ))
 SCRIPT
 
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
