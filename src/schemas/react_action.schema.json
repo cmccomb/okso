@@ -1,27 +1,34 @@
 {
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "ReactAction",
-  "description": "Template ReAct action schema; per-tool oneOf variants are populated during compilation/generation.",
-  "oneOf": [
-    {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["thought", "tool", "args"],
-      "properties": {
-        "thought": { "type": "string", "minLength": 1 },
-        "tool": { "const": "final_answer" },
-        "args": {
-          "type": "object",
-          "required": ["input"],
-          "additionalProperties": false,
-          "properties": {
-            "input": { "type": "string", "minLength": 1 }
-          }
-        }
-      },
+  "description": "Template ReAct action schema; per-tool tool/args variants are populated during compilation/generation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["thought", "tool", "args"],
+  "properties": {
+    "thought": { "type": "string", "minLength": 1 },
+    "tool": {
+      "type": "string",
+      "enum": ["final_answer"],
       "$comment": "Illustrative example only; actual tools and schemas are generated dynamically."
     },
-    {
-      "$comment": "Per-tool variants are injected during schema compilation/generation."
+    "args": {
+      "type": "object",
+      "additionalProperties": true,
+      "$comment": "Tool-specific schemas are populated under $defs.args_by_tool."
     }
-  ]
+  },
+  "$defs": {
+    "args_by_tool": {
+      "final_answer": {
+        "type": "object",
+        "required": ["input"],
+        "additionalProperties": false,
+        "properties": {
+          "input": { "type": "string", "minLength": 1 }
+        },
+        "$comment": "Illustrative example only; actual tools and schemas are generated dynamically."
+      }
+    }
+  }
 }

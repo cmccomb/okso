@@ -95,19 +95,15 @@ schema_doc = {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "title": "ReactAction",
     "description": "ReAct tool call constrained to the provided allowed tools.",
-    "oneOf": [
-        {
-            "type": "object",
-            "additionalProperties": False,
-            "required": ["thought", "tool", "args"],
-            "properties": {
-                "thought": {"type": "string", "minLength": 1},
-                "tool": {"const": name},
-                "args": args_by_tool[name],
-            },
-        }
-        for name in tool_enum
-    ],
+    "type": "object",
+    "additionalProperties": False,
+    "required": ["thought", "tool", "args"],
+    "properties": {
+        "thought": {"type": "string", "minLength": 1},
+        "tool": {"type": "string", "enum": tool_enum},
+        "args": {"type": "object", "additionalProperties": True},
+    },
+    "$defs": {"args_by_tool": args_by_tool},
 }
 
 tmp_file = tempfile.NamedTemporaryFile(mode="w", delete=False, suffix=".schema.json", encoding="utf-8")
