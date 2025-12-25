@@ -336,11 +336,16 @@ select_next_action() {
 	state_name="$1"
 	output_name="${2:-}"
 
+	planned_args_json="{}"
+
 	plan_index="$(state_get "${state_name}" "plan_index")"
 	plan_index=${plan_index:-0}
 	planned_entry=$(printf '%s\n' "$(state_get "${state_name}" "plan_entries")" | sed -n "$((plan_index + 1))p")
 
 	if [[ -n "${planned_entry}" ]]; then
+		if ! planned_args_json="$(printf '%s' "${planned_entry}" | jq -c '.args // {}' 2>/dev/null)"; then
+			planned_args_json="{}"
+		fi
 		local pending_index_json pending_index_current preserved_reason
 		pending_index_json=$(jq -nc --arg plan_index "${plan_index}" '($plan_index | select(length>0) | tonumber?) // null')
 		pending_index_current="$(state_get "${state_name}" "pending_plan_step")"

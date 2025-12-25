@@ -338,6 +338,33 @@ INNERSCRIPT
 	[ "$status" -eq 0 ]
 }
 
+@test "select_next_action initializes planned args before fallback" {
+	script=$(
+		cat <<'INNERSCRIPT'
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+USE_REACT_LLAMA=false
+LLAMA_AVAILABLE=false
+
+source ./src/lib/planning/planner.sh
+
+state_prefix=react
+plan_entry=$(jq -nc '{tool:"terminal",thought:"planned step"}')
+plan_outline=$'1. terminal -> run command'
+
+initialize_react_state "${state_prefix}" "demo request" $'terminal\nfinal_answer' "${plan_entry}" "${plan_outline}"
+
+next_action="$(select_next_action "${state_prefix}")"
+
+jq -e '.tool == "terminal" and (.args == {} or .args == null)' <<<"${next_action}"
+INNERSCRIPT
+	)
+
+	run bash -lc "${script}"
+	[ "$status" -eq 0 ]
+}
+
 @test "select_next_action invokes llama even when plan step is fully specified" {
 	script=$(
 		cat <<'INNERSCRIPT'
