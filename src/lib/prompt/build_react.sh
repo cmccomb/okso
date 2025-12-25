@@ -22,9 +22,9 @@ source "${PROMPT_BUILD_REACT_DIR}/../time/time.sh"
 
 build_react_prompt_static_prefix() {
 	# Returns the deterministic ReAct prompt prefix that excludes runtime fields.
-	local template anchor
-	template="$(load_prompt_template "react")" || return 1
-	anchor="\${current_date}"
+        local template anchor
+        template="$(load_prompt_template "react")" || return 1
+        anchor="Current date: \${current_date}"
 
 	if [[ "${template}" != *"${anchor}"* ]]; then
 		printf '%s' "${template}"
