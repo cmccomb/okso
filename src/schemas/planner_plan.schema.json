@@ -1,8 +1,10 @@
 {
   "title": "PlannerPlan",
   "type": "object",
-  "title": "Tool-based plan",
-  "required": ["mode", "plan"],
+  "required": [
+    "mode",
+    "plan"
+  ],
   "properties": {
     "mode": {
       "const": "plan",
@@ -19,7 +21,10 @@
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["tool", "thought"],
+        "required": [
+          "tool",
+          "thought"
+        ],
         "additionalProperties": false,
         "properties": {
           "thought": {
@@ -32,69 +37,50 @@
             "minLength": 1,
             "description": "Name of the tool to invoke for this step."
           },
-          "required_args": {
-            "type": "object",
-            "description": "Arguments that MUST be used exactly during execution.",
-            "default": {},
-            "additionalProperties": true
-          },
-          "optional_args": {
-            "type": "object",
-            "description": "Arguments that can be refined or filled by the executor.",
-            "default": {},
-            "additionalProperties": true
-          },
           "args": {
             "type": "object",
-            "description": "Backward-compatible argument block. If present, it is treated the same as required_args.",
+            "description": "Arguments for the tool. Use this to constrain the executor or provide known values.",
             "default": {},
             "additionalProperties": true
           }
         },
-        "anyOf": [
-          { "required": ["required_args"] },
-          { "required": ["optional_args"] },
-          { "required": ["args"] }
-        ]
-      },
-      "description": "Ordered list of high-level plan steps represented as objects with tool, thought, and structured argument fields (required_args and optional_args).",
-      "examples": [
-        [
-          {
-            "thought": "Record the requested notes.",
-            "tool": "notes_create",
-            "required_args": {
-              "title": "Research notes",
-              "body": "The next delivery step for the research are..."
+        "description": "Ordered list of high-level plan steps represented as objects with tool, thought, and arguments.",
+        "examples": [
+          [
+            {
+              "thought": "Record the requested notes.",
+              "tool": "notes_create",
+              "args": {
+                "title": "Research notes",
+                "body": "The next delivery step for the research are...",
+                "format": "markdown"
+              }
             },
-            "optional_args": {
-              "format": "markdown"
+            {
+              "thought": "Share the notes back to the user.",
+              "tool": "final_answer",
+              "args": {}
             }
-          },
-          {
-            "thought": "Share the notes back to the user.",
-            "tool": "final_answer",
-            "required_args": {},
-            "optional_args": {}
-          }
-        ],
-        [
-          {
-            "thought": "Inspect the current directory tree.",
-            "tool": "terminal",
-            "required_args": {
-              "command": "ls",
-              "args": ["-la"]
+          ],
+          [
+            {
+              "thought": "Inspect the current directory tree.",
+              "tool": "terminal",
+              "args": {
+                "command": "ls",
+                "args": [
+                  "-la"
+                ]
+              }
+            },
+            {
+              "thought": "Share the notes back to the user.",
+              "tool": "final_answer",
+              "args": {}
             }
-          },
-          {
-            "thought": "Share the notes back to the user.",
-            "tool": "final_answer",
-            "required_args": {},
-            "optional_args": {}
-          }
+          ]
         ]
-      ]
+      }
     }
   }
 }

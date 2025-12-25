@@ -190,6 +190,10 @@ from jsonschema import Draft202012Validator
 schema = json.loads(sys.argv[1])
 args = json.loads(sys.argv[2])
 
+# Allow partial args from the planner by removing the 'required' constraint
+if isinstance(schema, dict):
+    schema.pop("required", None)
+
 try:
     Draft202012Validator(schema).validate(args)
 except Exception:
