@@ -54,25 +54,26 @@ respond_text() { printf 'done'; }
 execute_tool_action() { printf '{"output":"ok","exit_code":0}'; }
 validate_tool_permission() { return 0; }
 call_count=0
-select_next_action() {
-        call_count=$((call_count + 1))
-        if [[ ${call_count} -eq 1 ]]; then
-                printf -v "$2" '{"thought":"first","tool":"alpha","args":{}}'
-        else
-                printf -v "$2" '{"thought":"second","tool":"alpha","args":{}}'
-        fi
-}
+        select_next_action() {
+                call_count=$((call_count + 1))
+                if [[ ${call_count} -eq 1 ]]; then
+                        printf -v "$2" '{"action":{"tool":"alpha","args":{}}}'
+                else
+                        printf -v "$2" '{"action":{"tool":"alpha","args":{}}}'
+                fi
+        }
 react_loop "question" "alpha" "" ""
 history_lines="$(state_get_history_lines react_state)"
 first_entry=$(printf '%s\n' "${history_lines}" | sed -n '1p')
 second_entry=$(printf '%s\n' "${history_lines}" | sed -n '2p')
-printf 'first_thought=%s second_thought=%s' \
-        "$(printf '%s' "${first_entry}" | jq -r '.thought')" \
-        "$(printf '%s' "${second_entry}" | jq -r '.thought')"
+printf 'first_tool=%s second_obs=%s' \
+        "$(printf '%s' "${first_entry}" | jq -r '.action.tool')" \
+        "$(printf '%s' "${second_entry}" | jq -r '.observation')"
 SCRIPT
 
-	[ "$status" -eq 0 ]
-	[ "$output" = "first_thought=first second_thought=second (REPEATED)" ]
+        [ "$status" -eq 0 ]
+        [[ "$output" == first_tool=alpha* ]]
+        [[ "$output" == *"Duplicate action detected"* ]]
 }
 
 @test "react_loop identifies duplicates with reordered args" {
@@ -88,26 +89,27 @@ format_tool_history() { printf '%s' "$1"; }
 respond_text() { printf 'done'; }
 execute_tool_action() { printf '{"output":"ok","exit_code":0}'; }
 validate_tool_permission() { return 0; }
-call_count=0
-select_next_action() {
-        call_count=$((call_count + 1))
-        if [[ ${call_count} -eq 1 ]]; then
-                printf -v "$2" '{"thought":"first","tool":"alpha","args":{"b":1,"a":2}}'
-        else
-                printf -v "$2" '{"thought":"second","tool":"alpha","args":{"a":2,"b":1}}'
-        fi
-}
+        call_count=0
+        select_next_action() {
+                call_count=$((call_count + 1))
+                if [[ ${call_count} -eq 1 ]]; then
+                        printf -v "$2" '{"action":{"tool":"alpha","args":{"b":1,"a":2}}}'
+                else
+                        printf -v "$2" '{"action":{"tool":"alpha","args":{"a":2,"b":1}}}'
+                fi
+        }
 react_loop "question" "alpha" "" ""
 history_lines="$(state_get_history_lines react_state)"
 first_entry=$(printf '%s\n' "${history_lines}" | sed -n '1p')
 second_entry=$(printf '%s\n' "${history_lines}" | sed -n '2p')
-printf 'first_thought=%s second_thought=%s' \
-        "$(printf '%s' "${first_entry}" | jq -r '.thought')" \
-        "$(printf '%s' "${second_entry}" | jq -r '.thought')"
+printf 'first_tool=%s second_obs=%s' \
+        "$(printf '%s' "${first_entry}" | jq -r '.action.tool')" \
+        "$(printf '%s' "${second_entry}" | jq -r '.observation')"
 SCRIPT
 
-	[ "$status" -eq 0 ]
-	[ "$output" = "first_thought=first second_thought=second (REPEATED)" ]
+        [ "$status" -eq 0 ]
+        [[ "$output" == first_tool=alpha* ]]
+        [[ "$output" == *"Duplicate action detected"* ]]
 }
 
 @test "react_loop allows retries after failed actions" {
@@ -122,15 +124,15 @@ emit_boxed_summary() { :; }
 format_tool_history() { printf '%s' "$1"; }
 respond_text() { printf 'done'; }
 validate_tool_permission() { return 0; }
-selection_count=0
-select_next_action() {
-        selection_count=$((selection_count + 1))
-        if [[ ${selection_count} -eq 1 ]]; then
-                printf -v "$2" '{"thought":"initial","tool":"alpha","args":{"q":1}}'
-        else
-                printf -v "$2" '{"thought":"retry","tool":"alpha","args":{"q":1}}'
-        fi
-}
+        selection_count=0
+        select_next_action() {
+                selection_count=$((selection_count + 1))
+                if [[ ${selection_count} -eq 1 ]]; then
+                        printf -v "$2" '{"action":{"tool":"alpha","args":{"q":1}}}'
+                else
+                        printf -v "$2" '{"action":{"tool":"alpha","args":{"q":1}}}'
+                fi
+        }
 tool_calls=0
 execute_tool_action() {
         tool_calls=$((tool_calls + 1))
@@ -142,15 +144,12 @@ execute_tool_action() {
 }
 react_loop "question" "alpha" "" ""
 history_lines="$(state_get_history_lines react_state)"
-first_entry=$(printf '%s\n' "${history_lines}" | sed -n '1p')
-second_entry=$(printf '%s\n' "${history_lines}" | sed -n '2p')
-printf 'first_thought=%s second_thought=%s' \
-        "$(printf '%s' "${first_entry}" | jq -r '.thought')" \
-        "$(printf '%s' "${second_entry}" | jq -r '.thought')"
+history_len=$(printf '%s\n' "${history_lines}" | sed '/^$/d' | wc -l | tr -d ' ')
+printf 'history_len=%s' "${history_len}"
 SCRIPT
 
-	[ "$status" -eq 0 ]
-	[ "$output" = "first_thought=initial second_thought=retry" ]
+        [ "$status" -eq 0 ]
+        [ "$output" = "history_len=2" ]
 }
 
 @test "react_loop records tool invocation failures" {
@@ -171,7 +170,7 @@ format_tool_history() { printf '%s' "$1"; }
 respond_text() { printf 'fallback'; }
 validate_tool_permission() { return 0; }
 execute_tool_with_query() { echo ""; return 9; }
-select_next_action() { printf -v "$2" '{"thought":"fail","tool":"alpha","args":{}}'; }
+select_next_action() { printf -v "$2" '{"action":{"tool":"alpha","args":{}}}'; }
 react_loop "question" "alpha" "" ""
 last_action_exit=$(state_get react_state last_action | jq -r '.exit_code')
 last_error=$(state_get react_state last_tool_error)
@@ -200,7 +199,7 @@ respond_text() { printf 'done'; }
 validate_tool_permission() { return 0; }
 execute_tool_action() { printf '{"output":"fail","exit_code":1}'; }
 record_tool_execution() { :; }
-select_next_action() { printf -v "$2" '{"thought":"try","tool":"alpha","args":{}}'; }
+select_next_action() { printf -v "$2" '{"action":{"tool":"alpha","args":{}}}'; }
 react_loop "question" "alpha" '{"tool":"alpha"}' ""
 history_len=$(state_get_history_lines react_state | wc -l | tr -d ' ')
 plan_steps=$(jq length <<<"${PLAN_JSON:-[]}")
@@ -225,7 +224,7 @@ respond_text() { echo "fallback should not be used" 1>&2; exit 1; }
 validate_tool_permission() { return 0; }
 execute_tool_action() { printf '{"output":"complete","exit_code":0}'; }
 record_tool_execution() { :; }
-select_next_action() { printf -v "$2" '{"thought":"finish","tool":"final_answer","args":{}}'; }
+select_next_action() { printf -v "$2" '{"action":{"tool":"final_answer","args":{}}}'; }
 react_loop "question" "final_answer" "" ""
 printf 'final=%s step=%s' "$(state_get react_state final_answer)" "$(state_get react_state step)"
 SCRIPT
@@ -248,7 +247,7 @@ respond_text() { echo "fallback should not be used" 1>&2; exit 1; }
 validate_tool_permission() { return 1; }
 execute_tool_action() { echo "should not run" 1>&2; exit 1; }
 record_tool_execution() { :; }
-select_next_action() { printf -v "$2" '{"thought":"finish","tool":"final_answer","args":{"input":"done"}}'; }
+select_next_action() { printf -v "$2" '{"action":{"tool":"final_answer","args":{"input":"done"}}}'; }
 react_loop "question" "final_answer" "" ""
 printf 'final=%s stored=%s' "$(state_get react_state final_answer)" "$(state_get react_state final_answer_action)"
 SCRIPT

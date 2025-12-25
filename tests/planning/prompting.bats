@@ -131,33 +131,12 @@ SCRIPT
 }
 
 @test "react prompt segments recombine into full prompt" {
-	run bash <<'SCRIPT'
+        run bash <<'SCRIPT'
 set -euo pipefail
-real_date="$(command -v date)"
-mock_bin_dir="$(mktemp -d)"
-  cat >"${mock_bin_dir}/date" <<'DATE'
-  #!/usr/bin/env bash
-  fmt="${1-}"
-  if [[ "${fmt}" == "-u" ]]; then
-          fmt="${2-}"
-  fi
-
-  if [[ "${fmt}" == "+%Y-%m-%d" ]]; then
-          printf '2024-01-01\n'
-  elif [[ "${fmt}" == "+%H:%M:%S" ]]; then
-          printf '00:00:01\n'
-  elif [[ "${fmt}" == "+%A" ]]; then
-          printf 'Monday\n'
-  else
-          exec "${real_date}" "$@"
-  fi
-DATE
-chmod +x "${mock_bin_dir}/date"
-export PATH="${mock_bin_dir}:${PATH}"
 source ./src/lib/prompt/build_react.sh
 prefix="$(build_react_prompt_static_prefix)"
-suffix="$(build_react_prompt_dynamic_suffix "query" "tool list" "outline" "history" "{}" "step")"
-full="$(build_react_prompt "query" "tool list" "outline" "history" "{}" "step")"
+suffix="$(build_react_prompt_dynamic_suffix "query" "tool list" "outline" "{}" "step")"
+full="$(build_react_prompt "query" "tool list" "outline" "{}" "step")"
 if [[ "${full}" != "${prefix}${suffix}" ]]; then
         exit 1
 fi

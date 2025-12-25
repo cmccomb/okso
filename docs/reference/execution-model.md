@@ -17,18 +17,18 @@ okso separates high-level planning from step-by-step execution so that tool call
 
 See [Planner sampling](./planner-sampling.md) for detailed scoring heuristics and debug log fields that help compare candidates.
 
-## ReAct loop
+## Executor
 
-After the plan is approved, the runtime iterates through each item:
+After the plan is approved, the runtime requests a single structured tool call:
 
-- **Default behaviour:** llama.cpp is queried before each step to pick the next tool and craft an appropriate call based on the running transcript.
-- **Fallback behaviour:** if llama.cpp is unavailable or `USE_REACT_LLAMA=false` is set, okso runs a deterministic sequence that feeds the original user query to each planned tool.
+- **Default behaviour:** llama.cpp receives the executor prompt (no persona or transcript) and must emit one JSON action that matches the executor schema. Missing details are surfaced explicitly via the `__MISSING__` sentinel so gaps are auditable.
+- **Fallback behaviour:** if llama.cpp is unavailable or `USE_REACT_LLAMA=false` is set, okso replays the planned tool calls deterministically using the planner-provided arguments.
 
-The active plan item and observations are streamed to the terminal to make model decisions auditable. Use `--dry-run` when you want to inspect the generated plan and tool calls without executing anything.
+Each executor decision and observation is streamed to the terminal. Use `--dry-run` when you want to inspect the generated plan and tool calls without executing anything.
 
 ## Configuration hooks
 
-- `USE_REACT_LLAMA`: toggles the ReAct pass (defaults to enabled).
+- `USE_REACT_LLAMA`: toggles the executor llama.cpp call (defaults to enabled).
 - `OKSO_PLAN_OUTPUT`: file path for writing the approved plan JSON.
 - `OKSO_TRACE_DIR`: directory for trace artifacts from each tool run.
 

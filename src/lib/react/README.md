@@ -1,14 +1,10 @@
-# ReAct library
+# Executor library
 
-This package hosts the ReAct execution loop extracted from the planning helpers. The
-planner populates allowed tools, plan entries, and llama.cpp wiring, then delegates tool
-selection and execution to `react_loop` defined here. Callers that previously sourced
-`planning/react.sh` remain supported via the shim in that directory, but new entry points
-should source `react/react.sh` directly.
+This package hosts the executor that runs after planning. The planner populates allowed tools, plan entries, and llama.cpp wiring, then delegates tool validation and execution to `react_loop`. Callers that previously sourced `planning/react.sh` remain supported via the shim in that directory, but new entry points should source `react/react.sh` directly.
 
 ## Usage
 
-Source the entry point to load the ReAct helpers and run the loop:
+Source the entry point to load the executor helpers and run the loop:
 
 ```bash
 source "${PROJECT_ROOT}/src/lib/react/react.sh"

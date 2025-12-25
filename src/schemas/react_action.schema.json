@@ -1,26 +1,37 @@
 {
-  "title": "ReactAction",
-  "description": "Template ReAct action schema; per-tool oneOf variants are populated during compilation/generation.",
+  "title": "ExecutorAction",
+  "description": "Template executor schema for a single tool call. Per-tool variants and missing-value sentinels are injected during compilation.",
   "oneOf": [
     {
       "type": "object",
+      "required": ["action"],
       "additionalProperties": false,
-      "required": ["thought", "tool", "args"],
       "properties": {
-        "thought": { "type": "string", "minLength": 1 },
-        "tool": { "const": "final_answer" },
-        "args": {
+        "action": {
           "type": "object",
-          "required": ["input"],
           "additionalProperties": false,
+          "required": ["tool", "args"],
           "properties": {
-            "input": { "type": "string", "minLength": 1 }
+            "tool": { "const": "final_answer" },
+            "args": {
+              "type": "object",
+              "required": ["input"],
+              "additionalProperties": false,
+              "properties": {
+                "input": { "type": "string", "minLength": 1 }
+              }
+            }
           }
         }
       },
       "$comment": "Illustrative example only; actual tools and schemas are generated dynamically."
     },
     {
+      "type": "object",
+      "required": ["action"],
+      "properties": {
+        "action": { "const": "__MISSING__" }
+      },
       "$comment": "Per-tool variants are injected during schema compilation/generation."
     }
   ]

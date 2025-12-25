@@ -18,7 +18,7 @@ source ./src/lib/react/schema.sh
 schema_path=$(build_react_action_schema "web_search")
 trap 'rm -f "${schema_path}"' EXIT
 
-action='{"thought":"Search for docs","tool":"web_search","args":{"query":"okso","num":3}}'
+action='{"action":{"tool":"web_search","args":{"query":"okso","num":3}}}'
 validate_react_action "${action}" "${schema_path}"
 SCRIPT
 	[ "$status" -eq 0 ]
@@ -32,7 +32,7 @@ source ./src/lib/react/schema.sh
 schema_path=$(build_react_action_schema "web_search")
 trap 'rm -f "${schema_path}"' EXIT
 
-action='{"thought":"Search for docs","tool":"web_search","args":{"query":"okso","num":2.5}}'
+action='{"action":{"tool":"web_search","args":{"query":"okso","num":2.5}}}'
 set +e
 validate_react_action "${action}" "${schema_path}"
 result=$?
@@ -53,7 +53,7 @@ source ./src/lib/react/schema.sh
 schema_path=$(build_react_action_schema "web_search")
 trap 'rm -f "${schema_path}"' EXIT
 
-action='{"thought":"Search for docs","tool":"web_search","args":{"query":"okso","num":null}}'
+action='{"action":{"tool":"web_search","args":{"query":"okso","num":null}}}'
 validate_react_action "${action}" "${schema_path}"
 SCRIPT
 	[ "$status" -eq 0 ]
