@@ -131,7 +131,7 @@ SCRIPT
 }
 
 @test "react prompt segments recombine into full prompt" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/prompt/build_react.sh
 prefix="$(build_react_prompt_static_prefix)"

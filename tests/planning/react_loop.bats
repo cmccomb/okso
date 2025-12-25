@@ -71,9 +71,9 @@ printf 'first_tool=%s second_obs=%s' \
         "$(printf '%s' "${second_entry}" | jq -r '.observation')"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [[ "$output" == first_tool=alpha* ]]
-        [[ "$output" == *"Duplicate action detected"* ]]
+	[ "$status" -eq 0 ]
+	[[ "$output" == first_tool=alpha* ]]
+	[[ "$output" == *"Duplicate action detected"* ]]
 }
 
 @test "react_loop identifies duplicates with reordered args" {
@@ -107,9 +107,9 @@ printf 'first_tool=%s second_obs=%s' \
         "$(printf '%s' "${second_entry}" | jq -r '.observation')"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [[ "$output" == first_tool=alpha* ]]
-        [[ "$output" == *"Duplicate action detected"* ]]
+	[ "$status" -eq 0 ]
+	[[ "$output" == first_tool=alpha* ]]
+	[[ "$output" == *"Duplicate action detected"* ]]
 }
 
 @test "react_loop allows retries after failed actions" {
@@ -148,8 +148,8 @@ history_len=$(printf '%s\n' "${history_lines}" | sed '/^$/d' | wc -l | tr -d ' '
 printf 'history_len=%s' "${history_len}"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ "$output" = "history_len=2" ]
+	[ "$status" -eq 0 ]
+	[ "$output" = "history_len=2" ]
 }
 
 @test "react_loop records tool invocation failures" {

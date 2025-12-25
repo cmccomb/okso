@@ -10,8 +10,8 @@
 #   - bash 3.2+
 
 @test "react_action schema documents action wrapper" {
-        script=$(
-                cat <<'INNERSCRIPT'
+	script=$(
+		cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
@@ -26,15 +26,15 @@ jq -e '
         and (.oneOf[1].properties.action.const == "__MISSING__")
 ' "${schema_path}"
 INNERSCRIPT
-        )
+	)
 
-        run bash -lc "${script}"
-        [ "$status" -eq 0 ]
+	run bash -lc "${script}"
+	[ "$status" -eq 0 ]
 }
 
 @test "build_react_action_schema injects missing sentinel" {
-        script=$(
-                cat <<'INNERSCRIPT'
+	script=$(
+		cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
@@ -57,15 +57,15 @@ jq -e '
 
 rm -f "${schema_path}"
 INNERSCRIPT
-        )
+	)
 
-        run bash -lc "${script}"
-        [ "$status" -eq 0 ]
+	run bash -lc "${script}"
+	[ "$status" -eq 0 ]
 }
 
 @test "validate_react_action accepts missing sentinel payloads" {
-        script=$(
-                cat <<'INNERSCRIPT'
+	script=$(
+		cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
@@ -77,15 +77,15 @@ action='{"action":{"tool":"__MISSING__","args":"__MISSING__"}}'
 validate_react_action "${action}" "${schema_path}" >/dev/null
 rm -f "${schema_path}"
 INNERSCRIPT
-        )
+	)
 
-        run bash -lc "${script}"
-        [ "$status" -eq 0 ]
+	run bash -lc "${script}"
+	[ "$status" -eq 0 ]
 }
 
 @test "validate_react_action rejects unsupported tools" {
-        script=$(
-                cat <<'INNERSCRIPT'
+	script=$(
+		cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
@@ -130,15 +130,15 @@ fi
 grep -F "Unsupported tool: beta" err.log
 rm -f "${schema_path}" err.log
 INNERSCRIPT
-        )
+	)
 
-        run bash -lc "${script}"
-        [ "$status" -eq 0 ]
+	run bash -lc "${script}"
+	[ "$status" -eq 0 ]
 }
 
 @test "validate_react_action enforces argument type schemas" {
-        script=$(
-                cat <<'INNERSCRIPT'
+	script=$(
+		cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
@@ -191,15 +191,15 @@ fi
 grep -F "Arg count must be a integer" err.log
 rm -f "${schema_path}" err.log
 INNERSCRIPT
-        )
+	)
 
-        run bash -lc "${script}"
-        [ "$status" -eq 0 ]
+	run bash -lc "${script}"
+	[ "$status" -eq 0 ]
 }
 
 @test "build_react_prompt includes allowed tool schemas" {
-        script=$(
-                cat <<'INNERSCRIPT'
+	script=$(
+		cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
@@ -221,8 +221,8 @@ if grep -F "history" <<<"${prompt}"; then
         exit 1
 fi
 INNERSCRIPT
-        )
+	)
 
-        run bash -lc "${script}"
-        [ "$status" -eq 0 ]
+	run bash -lc "${script}"
+	[ "$status" -eq 0 ]
 }

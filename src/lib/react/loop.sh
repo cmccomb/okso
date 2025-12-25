@@ -205,8 +205,8 @@ _select_action_from_llama() {
 	# Arguments:
 	#   $1 - state prefix
 	#   $2 - output variable name for validated JSON
-        local state_name output_name allowed_tools react_schema_path react_schema_text react_prompt raw_action validated_action validation_error_file validation_error
-        local plan_step_guidance plan_index planned_entry tool planned_thought planned_args_json invoke_llama allowed_tool_lines allowed_tool_descriptions
+	local state_name output_name allowed_tools react_schema_path react_schema_text react_prompt raw_action validated_action validation_error_file validation_error
+	local plan_step_guidance plan_index planned_entry tool planned_thought planned_args_json invoke_llama allowed_tool_lines allowed_tool_descriptions
 	state_name="$1"
 	output_name="$2"
 
@@ -268,19 +268,19 @@ _select_action_from_llama() {
 		allowed_tool_descriptions+=$'\n'"${allowed_tool_lines}"
 	fi
 
-        react_schema_path="$(build_react_action_schema "${allowed_tools}")" || return 1
-        react_schema_text="$(cat "${react_schema_path}")" || return 1
+	react_schema_path="$(build_react_action_schema "${allowed_tools}")" || return 1
+	react_schema_text="$(cat "${react_schema_path}")" || return 1
 
-        react_prompt_prefix="$(build_react_prompt_static_prefix)" || return 1
-        react_prompt_suffix="$(
-                build_react_prompt_dynamic_suffix \
-                        "$(state_get "${state_name}" "user_query")" \
-                        "${allowed_tool_descriptions}" \
-                        "$(state_get "${state_name}" "plan_outline")" \
-                        "${react_schema_text}" \
-                        "${plan_step_guidance}"
-        )"
-        react_prompt="${react_prompt_prefix}${react_prompt_suffix}"
+	react_prompt_prefix="$(build_react_prompt_static_prefix)" || return 1
+	react_prompt_suffix="$(
+		build_react_prompt_dynamic_suffix \
+			"$(state_get "${state_name}" "user_query")" \
+			"${allowed_tool_descriptions}" \
+			"$(state_get "${state_name}" "plan_outline")" \
+			"${react_schema_text}" \
+			"${plan_step_guidance}"
+	)"
+	react_prompt="${react_prompt_prefix}${react_prompt_suffix}"
 	validation_error_file="$(mktemp)"
 
 	raw_action="$(llama_infer "${react_prompt}" "" 256 "${react_schema_text}" "${REACT_MODEL_REPO:-}" "${REACT_MODEL_FILE:-}" "${REACT_CACHE_FILE:-}" "${react_prompt_prefix}")"
@@ -315,14 +315,14 @@ select_next_action() {
 	plan_index=${plan_index:-0}
 	planned_entry=$(printf '%s\n' "$(state_get "${state_name}" "plan_entries")" | sed -n "$((plan_index + 1))p")
 
-        if [[ -n "${planned_entry}" ]]; then
-                react_fallback_action=$(jq -nc \
-                        --arg tool "$(printf '%s' "${planned_entry}" | jq -r '.tool // empty' 2>/dev/null || printf '')" \
-                        --argjson args "$(printf '%s' "${planned_entry}" | jq -c '.args // {}' 2>/dev/null || printf '{}')" \
-                        '{action:{tool:$tool,args:$args}}')
-        else
-                react_fallback_action=""
-        fi
+	if [[ -n "${planned_entry}" ]]; then
+		react_fallback_action=$(jq -nc \
+			--arg tool "$(printf '%s' "${planned_entry}" | jq -r '.tool // empty' 2>/dev/null || printf '')" \
+			--argjson args "$(printf '%s' "${planned_entry}" | jq -c '.args // {}' 2>/dev/null || printf '{}')" \
+			'{action:{tool:$tool,args:$args}}')
+	else
+		react_fallback_action=""
+	fi
 
 	if ! _select_action_from_llama "${state_name}" react_action_json; then
 		if [[ "${USE_REACT_LLAMA:-false}" == true && "${LLAMA_AVAILABLE}" == true ]]; then
@@ -406,9 +406,9 @@ is_duplicate_action() {
 }
 
 react_loop() {
-        local user_query allowed_tools plan_entries plan_outline action_json tool query observation current_step thought args_json action_context
-        local normalized_args_json final_answer_payload missing_token
-        local state_prefix last_action
+	local user_query allowed_tools plan_entries plan_outline action_json tool query observation current_step thought args_json action_context
+	local normalized_args_json final_answer_payload missing_token
+	local state_prefix last_action
 	user_query="$1"
 	allowed_tools="$2"
 	plan_entries="$3"
@@ -418,43 +418,43 @@ react_loop() {
 	initialize_react_state "${state_prefix}" "${user_query}" "${allowed_tools}" "${plan_entries}" "${plan_outline}"
 	action_json=""
 
-        missing_token="${MISSING_VALUE_TOKEN:-"__MISSING__"}"
+	missing_token="${MISSING_VALUE_TOKEN:-"__MISSING__"}"
 
-        while (($(state_get "${state_prefix}" "step") < $(state_get "${state_prefix}" "max_steps"))); do
-                current_step=$(($(state_get "${state_prefix}" "step") + 1))
-                action_json=""
+	while (($(state_get "${state_prefix}" "step") < $(state_get "${state_prefix}" "max_steps"))); do
+		current_step=$(($(state_get "${state_prefix}" "step") + 1))
+		action_json=""
 
 		if ! select_next_action "${state_prefix}" action_json; then
 			log "WARN" "Skipping step due to invalid action selection" "step=${current_step}"
 			state_set "${state_prefix}" "step" "${current_step}"
 			continue
 		fi
-                tool="$(printf '%s' "${action_json}" | jq -r '.action.tool // empty' 2>/dev/null || true)"
-                thought=""
-                args_json="$(printf '%s' "${action_json}" | jq -c '.action.args // {}' 2>/dev/null || printf '{}')"
-                normalized_args_json="$(normalize_args_json "${args_json}")"
+		tool="$(printf '%s' "${action_json}" | jq -r '.action.tool // empty' 2>/dev/null || true)"
+		thought=""
+		args_json="$(printf '%s' "${action_json}" | jq -c '.action.args // {}' 2>/dev/null || printf '{}')"
+		normalized_args_json="$(normalize_args_json "${args_json}")"
 
-                last_action="$(state_get "${state_prefix}" "last_action")"
+		last_action="$(state_get "${state_prefix}" "last_action")"
 
-                if [[ "${tool}" == "${missing_token}" ]]; then
-                        observation="Executor reported missing tool selection."
-                        record_tool_execution "${state_prefix}" "${tool}" "${thought}" "${normalized_args_json}" "${observation}" "${current_step}"
-                        state_set "${state_prefix}" "step" "${current_step}"
-                        continue
-                fi
+		if [[ "${tool}" == "${missing_token}" ]]; then
+			observation="Executor reported missing tool selection."
+			record_tool_execution "${state_prefix}" "${tool}" "${thought}" "${normalized_args_json}" "${observation}" "${current_step}"
+			state_set "${state_prefix}" "step" "${current_step}"
+			continue
+		fi
 
-                final_answer_payload=""
-                if [[ "${tool}" == "final_answer" ]]; then
-                        final_answer_payload="$(extract_tool_query "${tool}" "${normalized_args_json}")"
-                        state_set "${state_prefix}" "final_answer_action" "${final_answer_payload}"
-                fi
+		final_answer_payload=""
+		if [[ "${tool}" == "final_answer" ]]; then
+			final_answer_payload="$(extract_tool_query "${tool}" "${normalized_args_json}")"
+			state_set "${state_prefix}" "final_answer_action" "${final_answer_payload}"
+		fi
 
-                if jq -e --arg missing "${missing_token}" 'tostream | any(.[1] == $missing)' <<<"${normalized_args_json}" >/dev/null 2>&1; then
-                        observation="One or more arguments are marked as missing. Provide the missing information or adjust the plan."
-                        record_tool_execution "${state_prefix}" "${tool}" "${thought}" "${normalized_args_json}" "${observation}" "${current_step}"
-                        state_set "${state_prefix}" "step" "${current_step}"
-                        continue
-                fi
+		if jq -e --arg missing "${missing_token}" 'tostream | any(.[1] == $missing)' <<<"${normalized_args_json}" >/dev/null 2>&1; then
+			observation="One or more arguments are marked as missing. Provide the missing information or adjust the plan."
+			record_tool_execution "${state_prefix}" "${tool}" "${thought}" "${normalized_args_json}" "${observation}" "${current_step}"
+			state_set "${state_prefix}" "step" "${current_step}"
+			continue
+		fi
 
 		if ! validate_tool_permission "${state_prefix}" "${tool}"; then
 			state_set "${state_prefix}" "step" "${current_step}"
