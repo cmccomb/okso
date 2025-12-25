@@ -359,7 +359,7 @@ EOF
 			if [[ -z "${executor_thought}" ]]; then
 				executor_thought="${planned_thought}"
 			fi
-			merged_args=$(jq -nc  --argjson planner_args "${planned_args_json}" --argjson model_args "$(jq -c '.args // {}' <<<"${executor_action_json}" 2>/dev/null || printf '{}')" '($planner_args // {}) + ($model_args // {})')
+			merged_args=$(jq -nc --argjson planner_args "${planned_args_json}" --argjson model_args "$(jq -c '.args // {}' <<<"${executor_action_json}" 2>/dev/null || printf '{}')" '($planner_args // {}) + ($model_args // {})')
 			validated_action="$(jq -nc --arg thought "${executor_thought}" --arg tool "${tool}" --argjson args "${merged_args}" '{thought:$thought,tool:$tool,args:$args}')"
 			rm -f "${executor_validation_file}" "${executor_schema_path}"
 			printf -v "${output_name}" '%s' "${validated_action}" || return 1
