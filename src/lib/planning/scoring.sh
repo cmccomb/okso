@@ -183,7 +183,7 @@ planner_args_satisfiable() {
 		return 0
 	fi
 
-        python3 - "${schema_json}" "${args_json}" <<'PY'
+	python3 - "${schema_json}" "${args_json}" <<'PY'
 import json, sys
 try:
     from jsonschema import Draft202012Validator
@@ -199,12 +199,12 @@ except Exception:
     sys.exit(1)
 sys.exit(0)
 PY
-        status=$?
-        if ((status == 2)); then
-                log "WARN" "planner_args_satisfiable: jsonschema missing; skipping validation" "planner_args_schema_missing_jsonschema" >&2
-                return 0
-        fi
-        return ${status}
+	status=$?
+	if ((status == 2)); then
+		log "WARN" "planner_args_satisfiable: jsonschema missing; skipping validation" "planner_args_schema_missing_jsonschema" >&2
+		return 0
+	fi
+	return ${status}
 }
 
 score_planner_candidate() {

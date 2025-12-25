@@ -10,24 +10,24 @@ setup() {
 }
 
 @test "web_search rejects missing query" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/tools/web/web_search.sh
 TOOL_ARGS='{}' tool_web_search
 SCRIPT
 
-        [ "$status" -ne 0 ]
+	[ "$status" -ne 0 ]
 }
 
 @test "web_search accepts input alias for query" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/tools/web/web_search.sh
 parsed=$(TOOL_ARGS='{"input":"aliased query"}' web_search_parse_args)
 jq -e '.query == "aliased query" and .num == 5' <<<"${parsed}"
 SCRIPT
 
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "web_search surfaces API errors" {

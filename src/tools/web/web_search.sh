@@ -37,7 +37,7 @@ web_search_parse_args() {
 	local args_json err
 	args_json="${TOOL_ARGS:-}" || true
 
-        if ! err=$(jq -cer '
+	if ! err=$(jq -cer '
                 if (type != "object") then error("args must be object") end
                 | .query = (.query // .input)
                 | if (.query? == null) then error("missing query") end
@@ -110,7 +110,7 @@ tool_web_search() {
 register_web_search() {
 	local args_schema
 
-        args_schema=$(jq -nc '{
+	args_schema=$(jq -nc '{
                 type: "object",
                 anyOf: [
                         {required: ["query"]},

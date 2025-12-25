@@ -84,12 +84,12 @@ normalize_planner_plan() {
 		return 1
 	fi
 
-        plan_candidate="$(
-                parse_planner_payload "${raw}" "\\[[\\s\\S]*?\\]" "array"
-        )" || plan_candidate=""
+	plan_candidate="$(
+		parse_planner_payload "${raw}" "\\[[\\s\\S]*?\\]" "array"
+	)" || plan_candidate=""
 
 	if [[ -n "${plan_candidate:-}" ]]; then
-                normalized=$(jq -ec '
+		normalized=$(jq -ec '
                         def with_canonical_args($args):
                                 if ($args | type) != "object" then
                                         {}
