@@ -660,8 +660,47 @@ SCRIPT
 	[[ "$output" == "final=done outline=1. retry\\n2. wrap transcript_count="* ]]
 }
 
-@test "_select_action_from_llama defaults to planned tool set" {
-	run env -i HOME="$HOME" PATH="$PATH" LLAMA_AVAILABLE=true USE_REACT_LLAMA=true REACT_REPLAN_TOOL=replan_token bash --noprofile --norc <<'SCRIPT'
+@test "_select_action_from_llama uses executor mode for planned steps" {
+        run env -i HOME="$HOME" PATH="$PATH" LLAMA_AVAILABLE=true USE_REACT_LLAMA=true REACT_REPLAN_TOOL=replan_token bash --noprofile --norc <<'SCRIPT'
+set -euo pipefail
+source ./src/lib/react/react.sh
+
+log() { :; }
+log_pretty() { :; }
+apply_prompt_context_budget() { printf '%s' "$2"; }
+format_tool_history() { printf '%s' "$1"; }
+
+state_prefix="react_state"
+plan_entry=$(jq -nc '{tool:"alpha",thought:"plan",required_args:{input:"do"},optional_args:{mode:"fast"}}')
+initialize_react_state "${state_prefix}" "question" "" "${plan_entry}" ""
+
+llama_infer() {
+printf '%s' "$4" >schema_capture.json
+printf '{"thought":"brief","args":{"mode":"refined","input":"do"}}'
+}
+
+build_react_action_schema() {
+echo "should not be called" 1>&2
+exit 99
+}
+
+_select_action_from_llama "${state_prefix}" action_out
+
+schema_title=$(jq -r '.title' schema_capture.json)
+args_required=$(jq -c '.properties.args.required' schema_capture.json)
+
+printf 'action=%s\nschema_title=%s\nrequired=%s' "${action_out}" "${schema_title}" "${args_required}"
+SCRIPT
+
+        [ "$status" -eq 0 ]
+        [[ "$output" == *'"tool":"alpha"'* ]]
+        [[ "$output" == *'"input":"do"'* ]]
+        [[ "$output" == *'"mode":"refined"'* ]]
+        [[ "$output" == *'schema_title=ReactExecutorArgs'* ]]
+}
+
+@test "_select_action_from_llama builds default tool set without plan" {
+        run env -i HOME="$HOME" PATH="$PATH" LLAMA_AVAILABLE=true USE_REACT_LLAMA=true REACT_REPLAN_TOOL=replan_token bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/react/react.sh
 
@@ -675,8 +714,7 @@ format_tool_example_line() { printf -- '- %s' "$1"; }
 format_tool_history() { printf '%s' "$1"; }
 
 state_prefix="react_state"
-plan_entry=$(jq -nc '{tool:"alpha",thought:"plan",args:{input:"do"}}')
-initialize_react_state "${state_prefix}" "question" "" "${plan_entry}" ""
+initialize_react_state "${state_prefix}" "question" $'alpha\nbeta' "" ""
 
 llama_infer() {
 printf '%s' "$4" >schema_capture.json
@@ -699,9 +737,9 @@ schema_tools=$(jq -rc '.oneOf[].properties.tool.const' schema_capture.json | pas
 printf 'allowed=%s\nschema=%s' "${allowed_list}" "${schema_tools}"
 SCRIPT
 
-	[ "$status" -eq 0 ]
-	[[ "$output" == $'allowed=alpha,replan_token,final_answer\n'* ]]
-	[[ "$output" == *"schema=alpha,replan_token,final_answer" ]]
+        [ "$status" -eq 0 ]
+        [[ "$output" == $'allowed=alpha,beta,final_answer,replan_token\n'* ]]
+        [[ "$output" == *"schema=alpha,beta,final_answer,replan_token" ]]
 }
 
 @test "react_loop blocks off-plan tool selection and triggers replan" {
