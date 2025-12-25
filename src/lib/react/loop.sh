@@ -187,17 +187,103 @@ normalize_args_json() {
 }
 
 normalize_action() {
-	# Builds a normalized action object for comparison and storage.
-	# Arguments:
-	#   $1 - tool name
-	#   $2 - args JSON
+        # Builds a normalized action object for comparison and storage.
+        # Arguments:
+        #   $1 - tool name
+        #   $2 - args JSON
 	# Returns:
 	#   Canonical action JSON string.
 	local tool args_json normalized_args
 	tool="$1"
 	args_json="$2"
-	normalized_args="$(normalize_args_json "${args_json}")"
-	jq -ncS --arg tool "${tool}" --argjson args "${normalized_args}" '{tool:$tool,args:$args}'
+        normalized_args="$(normalize_args_json "${args_json}")"
+        jq -ncS --arg tool "${tool}" --argjson args "${normalized_args}" '{tool:$tool,args:$args}'
+}
+
+apply_plan_arg_controls() {
+        # Applies planner-provided arg control metadata to the executor args.
+        # Arguments:
+        #   $1 - tool name
+        #   $2 - executor args JSON
+        #   $3 - planner plan entry JSON (optional)
+        #   $4 - user query text
+        #   $5 - missing value token
+        local tool args_json plan_entry_json user_query missing_token tool_schema
+        tool="$1"
+        args_json="$2"
+        plan_entry_json="$3"
+        user_query="$4"
+        missing_token="$5"
+        tool_schema="$(tool_args_schema "${tool}")"
+
+        if ! command -v python3 >/dev/null 2>&1; then
+                log "WARN" "python3 unavailable; skipping arg control application" "${tool}" || true
+                printf '%s' "${args_json}"
+                return 0
+        fi
+
+        python3 - "${args_json}" "${plan_entry_json}" "${user_query}" "${missing_token}" "${tool_schema}" <<'PY'
+import json
+import sys
+from typing import Any
+
+
+def as_object(payload: str, default: dict[str, Any]) -> dict[str, Any]:
+    try:
+        value = json.loads(payload)
+        if isinstance(value, dict):
+            return value
+    except Exception:  # noqa: BLE001
+        pass
+    return default.copy()
+
+
+args_raw, plan_raw, user_query, missing_token, schema_raw = sys.argv[1:]
+args = as_object(args_raw, {})
+plan_entry = as_object(plan_raw, {})
+planned_args = as_object(json.dumps(plan_entry.get("args", {})), {})
+arg_controls = as_object(json.dumps(plan_entry.get("args_control", {})), {})
+schema = as_object(schema_raw, {})
+properties = schema.get("properties") if isinstance(schema, dict) else {}
+
+
+def expected_type(key: str) -> str | None:
+    if isinstance(properties, dict):
+        prop = properties.get(key)
+        if isinstance(prop, dict):
+            value_type = prop.get("type")
+            if isinstance(value_type, str):
+                return value_type
+    return None
+
+
+for arg_name, strategy in arg_controls.items():
+    if strategy not in {"context", "locked"}:
+        continue
+
+    planned_value = planned_args.get(arg_name)
+
+    if strategy == "locked":
+        if planned_value is not None and planned_value != missing_token:
+            args[arg_name] = planned_value
+        continue
+
+    current_value = args.get(arg_name)
+    if current_value is not None and current_value != missing_token:
+        continue
+
+    candidate: Any | None = None
+    value_type = expected_type(arg_name)
+    if value_type == "string":
+        candidate = user_query
+    elif planned_value != missing_token:
+        candidate = planned_value
+
+    if candidate is not None:
+        args[arg_name] = candidate
+
+print(json.dumps(args, separators=(",", ":")))
+PY
 }
 
 _select_action_from_llama() {
@@ -210,9 +296,9 @@ _select_action_from_llama() {
 	state_name="$1"
 	output_name="$2"
 
-	plan_index="$(state_get "${state_name}" "plan_index")"
-	plan_index=${plan_index:-0}
-	planned_entry=$(printf '%s\n' "$(state_get "${state_name}" "plan_entries")" | sed -n "$((plan_index + 1))p")
+        plan_index="$(state_get "${state_name}" "plan_index")"
+        plan_index=${plan_index:-0}
+        planned_entry=$(printf '%s\n' "$(state_get "${state_name}" "plan_entries")" | sed -n "$((plan_index + 1))p")
 	tool=""
 	planned_thought="Following planned step"
 	planned_args_json="{}"
@@ -313,16 +399,15 @@ select_next_action() {
 
 	plan_index="$(state_get "${state_name}" "plan_index")"
 	plan_index=${plan_index:-0}
-	planned_entry=$(printf '%s\n' "$(state_get "${state_name}" "plan_entries")" | sed -n "$((plan_index + 1))p")
+        planned_entry=$(printf '%s\n' "$(state_get "${state_name}" "plan_entries")" | sed -n "$((plan_index + 1))p")
 
-	if [[ -n "${planned_entry}" ]]; then
-		react_fallback_action=$(jq -nc \
-			--arg tool "$(printf '%s' "${planned_entry}" | jq -r '.tool // empty' 2>/dev/null || printf '')" \
-			--argjson args "$(printf '%s' "${planned_entry}" | jq -c '.args // {}' 2>/dev/null || printf '{}')" \
-			'{action:{tool:$tool,args:$args}}')
-	else
-		react_fallback_action=""
-	fi
+        if [[ -n "${planned_entry}" ]]; then
+                react_fallback_action=$(printf '%s' "${planned_entry}" | jq -c '{tool: (.tool // ""), args: (.args // {}), thought: (.thought // "Following planned step")}' 2>/dev/null || printf '')
+        else
+                react_fallback_action=""
+        fi
+
+        state_set "${state_name}" "current_plan_entry" "${planned_entry}"
 
 	if ! _select_action_from_llama "${state_name}" react_action_json; then
 		if [[ "${USE_REACT_LLAMA:-false}" == true && "${LLAMA_AVAILABLE}" == true ]]; then
@@ -406,9 +491,9 @@ is_duplicate_action() {
 }
 
 react_loop() {
-	local user_query allowed_tools plan_entries plan_outline action_json tool query observation current_step thought args_json action_context
-	local normalized_args_json final_answer_payload missing_token
-	local state_prefix last_action
+        local user_query allowed_tools plan_entries plan_outline action_json tool query observation current_step thought args_json action_context
+        local normalized_args_json final_answer_payload missing_token plan_entry_json
+        local state_prefix last_action
 	user_query="$1"
 	allowed_tools="$2"
 	plan_entries="$3"
@@ -429,10 +514,18 @@ react_loop() {
 			state_set "${state_prefix}" "step" "${current_step}"
 			continue
 		fi
-		tool="$(printf '%s' "${action_json}" | jq -r '.action.tool // empty' 2>/dev/null || true)"
-		thought=""
-		args_json="$(printf '%s' "${action_json}" | jq -c '.action.args // {}' 2>/dev/null || printf '{}')"
-		normalized_args_json="$(normalize_args_json "${args_json}")"
+                tool="$(printf '%s' "${action_json}" | jq -r '.action.tool // empty' 2>/dev/null || true)"
+                thought=""
+                args_json="$(printf '%s' "${action_json}" | jq -c '.action.args // {}' 2>/dev/null || printf '{}')"
+                normalized_args_json="$(normalize_args_json "${args_json}")"
+
+                plan_entry_json="$(state_get "${state_prefix}" "current_plan_entry")"
+                normalized_args_json="$(apply_plan_arg_controls \
+                        "${tool}" \
+                        "${normalized_args_json}" \
+                        "${plan_entry_json}" \
+                        "$(state_get "${state_prefix}" "user_query")" \
+                        "${missing_token}")"
 
 		last_action="$(state_get "${state_prefix}" "last_action")"
 

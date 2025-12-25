@@ -37,6 +37,15 @@
             "description": "Structured arguments for the tool. Provide the exact fields that the tool expects; use an empty object only when the tool accepts no arguments.",
             "default": {},
             "additionalProperties": true
+          },
+          "args_control": {
+            "type": "object",
+            "description": "Per-argument fill strategy. Use \"context\" to have the executor derive values from conversation context or \"locked\" to keep the planner-provided value immutable.",
+            "default": {},
+            "additionalProperties": {
+              "type": "string",
+              "enum": ["context", "locked"]
+            }
           }
         }
       },

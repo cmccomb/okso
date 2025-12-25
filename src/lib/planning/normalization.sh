@@ -84,12 +84,12 @@ normalize_planner_plan() {
 		return 1
 	fi
 
-	plan_candidate="$(
-		parse_planner_payload "${raw}" "\\[[\\s\\S]*?\\]" "array"
-	)" || plan_candidate=""
+        plan_candidate="$(
+                parse_planner_payload "${raw}" "\\[[\\s\\S]*?\\]" "array"
+        )" || plan_candidate=""
 
 	if [[ -n "${plan_candidate:-}" ]]; then
-		normalized=$(jq -ec '
+                normalized=$(jq -ec '
                         def with_canonical_args($args):
                                 if ($args | type) != "object" then
                                         {}
@@ -101,11 +101,22 @@ normalize_planner_plan() {
                                         $args
                                 end;
 
+                        def with_arg_controls($controls):
+                                if ($controls | type) != "object" then
+                                        {}
+                                else
+                                        $controls
+                                        | to_entries
+                                        | map(select(.value == "context" or .value == "locked"))
+                                        | from_entries
+                                end;
+
                         def valid_step:
                                 (.tool | type == "string")
                                 and (.tool | length) > 0
                                 and ((.args | type == "object") or (.args == null))
-                                and ((.thought | type == "string") or (.thought == null));
+                                and ((.thought | type == "string") or (.thought == null))
+                                and ((.args_control | type == "object") or (.args_control == null));
 
                         if type != "array" then
                                 error("plan must be an array")
@@ -114,7 +125,12 @@ normalize_planner_plan() {
                         elif any(.[]; (type != "object") or (valid_step | not)) then
                                 error("plan contains invalid steps")
                         else
-                                map({tool: .tool, args: with_canonical_args(.args), thought: (.thought // "")})
+                                map({
+                                        tool: .tool,
+                                        args: with_canonical_args(.args),
+                                        args_control: with_arg_controls(.args_control),
+                                        thought: (.thought // "")
+                                })
                         end
                         ' <<<"${plan_candidate}" 2>/dev/null || true)
 		if [[ -n "${normalized}" && "${normalized}" != "[]" ]]; then

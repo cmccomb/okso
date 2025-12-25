@@ -35,7 +35,7 @@ SCRIPT
 }
 
 @test "normalize_planner_plan maps code alias to args.input" {
-	run bash <<'SCRIPT'
+        run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/normalization.sh
 raw_plan='[{"tool":"python_repl","args":{"code":"print(1)"},"thought":"run code"}]'
@@ -44,7 +44,20 @@ SCRIPT
 
 	[ "$status" -eq 0 ]
 	[ "${lines[0]}" = "print(1)" ]
-	[ "${lines[1]}" = "false" ]
+        [ "${lines[1]}" = "false" ]
+}
+
+@test "normalize_planner_plan preserves valid arg controls" {
+        run bash <<'SCRIPT'
+set -euo pipefail
+source ./src/lib/planning/normalization.sh
+raw_plan='[{"tool":"notes_create","args":{"title":"t","body":"b"},"args_control":{"title":"context","body":"locked"}}]'
+normalize_planner_plan <<<"${raw_plan}" | jq -r '.[0].args_control.title,.[0].args_control.body'
+SCRIPT
+
+        [ "$status" -eq 0 ]
+        [ "${lines[0]}" = "context" ]
+        [ "${lines[1]}" = "locked" ]
 }
 
 @test "normalize_planner_response normalizes code alias inside plan" {
