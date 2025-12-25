@@ -70,8 +70,9 @@ web_fetch_validate_headers() {
 	# Side effects:
 	#   Populates WEB_FETCH_HEADER_ARGS (array) and WEB_FETCH_ACCEPT_PROVIDED (bool) for caller use.
 	local headers_json header_name header_value header_name_lc
-	WEB_FETCH_HEADER_ARGS=()
-	WEB_FETCH_ACCEPT_PROVIDED=false
+        # Arrays must be initialized before use to satisfy `set -u` callers.
+        WEB_FETCH_HEADER_ARGS=()
+        WEB_FETCH_ACCEPT_PROVIDED=false
 	headers_json="$1"
 
 	while IFS=$'\t' read -r header_name header_value; do
@@ -119,12 +120,14 @@ tool_web_fetch() {
 		return 1
 	fi
 
-	local -a request_headers
-	request_headers=()
+        local -a request_headers
+        request_headers=()
 	if [[ "${WEB_FETCH_ACCEPT_PROVIDED}" != "true" ]]; then
 		request_headers+=("--header" "Accept: */*")
 	fi
-	request_headers+=("${WEB_FETCH_HEADER_ARGS[@]}")
+        if [[ ${WEB_FETCH_HEADER_ARGS+x} ]]; then
+                request_headers+=("${WEB_FETCH_HEADER_ARGS[@]}")
+        fi
 
 	log "INFO" "Fetching URL" "${url}" >&2
 
