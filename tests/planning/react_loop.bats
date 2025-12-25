@@ -234,7 +234,7 @@ SCRIPT
 }
 
 @test "react_loop records duplicate actions with warning observation" {
-	run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
+        run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
 MAX_STEPS=2
 LLAMA_AVAILABLE=false
@@ -264,8 +264,56 @@ printf 'first_thought=%s second_thought=%s' \
         "$(printf '%s' "${second_entry}" | jq -r '.thought')"
 SCRIPT
 
-	[ "$status" -eq 0 ]
-	[ "$output" = "first_thought=first second_thought=second (REPEATED)" ]
+[ "$status" -eq 0 ]
+[ "$output" = "first_thought=first second_thought=second (REPEATED)" ]
+}
+
+@test "react_loop retries duplicate selections with revised llama action" {
+        run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
+set -euo pipefail
+MAX_STEPS=3
+USE_REACT_LLAMA=true
+LLAMA_AVAILABLE=true
+LLAMA_BIN=/bin/true
+source ./src/lib/react/react.sh
+log() { :; }
+log_pretty() { :; }
+emit_boxed_summary() { :; }
+respond_text() { printf 'done'; }
+format_tool_history() { printf '%s' "$1"; }
+validate_tool_permission() { return 0; }
+execute_tool_action() { printf '{"output":"ok","exit_code":0}'; }
+selection_counter=0
+select_next_action() {
+        selection_counter=$((selection_counter + 1))
+        if (( selection_counter == 1 )); then
+                printf -v "$2" '{"thought":"seed","tool":"alpha","args":{}}'
+        else
+                printf -v "$2" '{"thought":"repeat","tool":"alpha","args":{}}'
+        fi
+}
+rejection_hint_seen=""
+llama_calls=0
+_select_action_from_llama() {
+        local state_name output_name
+        state_name="$1"
+        output_name="$2"
+        llama_calls=$((llama_calls + 1))
+        rejection_hint_seen="$(state_get "${state_name}" "action_rejection_hint")"
+        printf -v "${output_name}" '{"thought":"revised","tool":"beta","args":{}}'
+}
+react_loop "question" "alpha" "" ""
+history_lines="$(state_get_history_lines react_state)"
+printf 'entries=%s skip_reason=%s hint=%s llama_calls=%s final_tool=%s' \
+        "$(printf '%s\n' "${history_lines}" | wc -l | tr -d ' ')" \
+        "$(state_get react_state plan_skip_reason)" \
+        "${rejection_hint_seen}" \
+        "${llama_calls}" \
+        "$(printf '%s\n' "${history_lines}" | tail -n1 | jq -r '.action.tool')"
+SCRIPT
+
+        [ "$status" -eq 0 ]
+        [[ "$output" == "entries=3 skip_reason= hint=Proposed action duplicated the last successful step (tool=alpha). Suggest a different tool or updated arguments. llama_calls=1 final_tool=beta" ]]
 }
 
 @test "state_get_history_lines prefers summaries except for the latest raw observation" {
