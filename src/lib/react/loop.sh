@@ -790,7 +790,7 @@ build_execution_transcript() {
                 | to_entries
                 | map(
                         . as $wrapper
-                        | ($wrapper.value | (try (fromjson // .) catch .)) as $entry
+                        | ($wrapper.value | (try (fromjson // .) catch $wrapper.value)) as $entry
                         | if ($entry | type == "object") then
                                 ($entry.observation_raw // $entry.observation // $entry.observation_summary // "") as $raw_obs
                                 | ($entry.action.args // {}) as $args
