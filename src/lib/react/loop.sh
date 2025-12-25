@@ -187,7 +187,9 @@ normalize_args_json() {
 	if [[ -z "${args_json}" ]]; then
 		args_json="{}"
 	fi
-	normalized="$(jq -cS '.' <<<"${args_json}" 2>/dev/null || printf '{}')"
+	if ! normalized="$(jq -cS '.' <<<"${args_json}" 2>/dev/null)"; then
+		normalized="{}"
+	fi
 	printf '%s' "${normalized}"
 }
 
@@ -225,7 +227,9 @@ _select_action_from_llama() {
 	if [[ -n "${planned_entry}" ]]; then
 		tool="$(printf '%s' "${planned_entry}" | jq -r '.tool // empty' 2>/dev/null || printf '')"
 		planned_thought="$(printf '%s' "${planned_entry}" | jq -r '.thought // "Following planned step"' 2>/dev/null || printf '')"
-		planned_args_json="$(printf '%s' "${planned_entry}" | jq -c '.args // {}' 2>/dev/null || printf '{}')"
+		if ! planned_args_json="$(printf '%s' "${planned_entry}" | jq -c '.args // {}' 2>/dev/null)"; then
+			planned_args_json="{}"
+		fi
 		plan_step_guidance="$(
 			jq -rn \
 				--arg step "$((plan_index + 1))" \
@@ -350,7 +354,7 @@ select_next_action() {
 	fi
 
 	if [[ -n "${planned_entry}" ]]; then
-		react_fallback_action=$(jq -nc --arg thought "$(printf '%s' "${planned_entry}" | jq -r '.thought // "Following planned step"' 2>/dev/null || printf '')" --arg tool "$(printf '%s' "${planned_entry}" | jq -r '.tool // empty' 2>/dev/null || printf '')" --argjson args "$(printf '%s' "${planned_entry}" | jq -c '.args // {}' 2>/dev/null || printf '{}')" '{thought:$thought,tool:$tool,args:$args}')
+		react_fallback_action=$(jq -nc --arg thought "$(printf '%s' "${planned_entry}" | jq -r '.thought // "Following planned step"' 2>/dev/null || printf '')" --arg tool "$(printf '%s' "${planned_entry}" | jq -r '.tool // empty' 2>/dev/null || printf '')" --argjson args "${planned_args_json}" '{thought:$thought,tool:$tool,args:$args}')
 	else
 		react_fallback_action=""
 	fi
@@ -493,28 +497,133 @@ is_duplicate_action() {
 	#   $1 - last action JSON
 	#   $2 - candidate tool name
 	#   $3 - candidate args JSON
-	local last_action tool args_json last_tool last_exit_code normalized_current normalized_last
+	#   $4 - (optional) output variable name for evaluation metadata JSON
+	local last_action tool args_json metadata_var last_tool last_exit_code normalized_current normalized_last duplicate
+	local metadata last_exit_code_json normalized_current_json normalized_last_json last_action_json
 	last_action="$1"
 	tool="$2"
 	args_json="$3"
+	metadata_var="${4:-}"
 
-	if [[ "${last_action}" == "null" ]]; then
-		return 1
-	fi
-
-	last_exit_code=$(printf '%s' "${last_action}" | jq -r '.exit_code // 0' 2>/dev/null || echo 0)
-	if ((last_exit_code != 0)); then
-		return 1
-	fi
-
-	last_tool="$(printf '%s' "${last_action}" | jq -r '.tool // empty')"
+	duplicate=false
+	last_exit_code=0
 	normalized_current="$(normalize_action "${tool}" "${args_json}")"
-	normalized_last="$(jq -cS '{tool,args}' <<<"$(jq -c '.' <<<"${last_action}" 2>/dev/null || printf '{}')" 2>/dev/null || printf '{}')"
-	if [[ "${tool}" == "${last_tool}" && "${normalized_current}" == "${normalized_last}" && "${tool}" != "final_answer" ]]; then
+	normalized_last="{}"
+	last_action_json="{}"
+
+	if [[ "${last_action}" != "null" && -n "${last_action}" ]]; then
+		if ! last_action_json="$(jq -c '.' <<<"${last_action}" 2>/dev/null)"; then
+			last_action_json="{}"
+		fi
+		last_exit_code=$(printf '%s' "${last_action}" | jq -r '.exit_code // 0' 2>/dev/null || echo 0)
+		if ((last_exit_code == 0)); then
+			last_tool="$(printf '%s' "${last_action}" | jq -r '.tool // empty')"
+			if ! normalized_last="$(jq -cS '{tool,args}' <<<"${last_action_json}" 2>/dev/null)"; then
+				normalized_last="{}"
+			fi
+			if [[ "${tool}" == "${last_tool}" && "${normalized_current}" == "${normalized_last}" && "${tool}" != "final_answer" ]]; then
+				duplicate=true
+			fi
+		fi
+	fi
+
+	if [[ "${last_exit_code}" =~ ^-?[0-9]+$ ]]; then
+		last_exit_code_json=${last_exit_code}
+	else
+		last_exit_code_json=null
+	fi
+
+	if ! normalized_current_json="$(jq -c '.' <<<"${normalized_current}" 2>/dev/null)"; then
+		normalized_current_json="{}"
+	fi
+	if ! normalized_last_json="$(jq -c '.' <<<"${normalized_last}" 2>/dev/null)"; then
+		normalized_last_json="{}"
+	fi
+
+	metadata="$(jq -nc \
+		--argjson duplicate "${duplicate}" \
+		--arg tool "${tool}" \
+		--argjson last_exit_code "${last_exit_code_json}" \
+		--argjson normalized_candidate "${normalized_current_json}" \
+		--argjson normalized_previous "${normalized_last_json}" \
+		'{
+                        duplicate_detected: $duplicate,
+                        tool: $tool,
+                        last_exit_code: $last_exit_code,
+                        normalized_candidate: $normalized_candidate,
+                        normalized_previous: $normalized_previous
+                }')"
+
+	if [[ -n "${metadata_var}" ]]; then
+		printf -v "${metadata_var}" '%s' "${metadata}"
+	fi
+
+	if [[ "${duplicate}" == true ]]; then
 		return 0
 	fi
 
 	return 1
+}
+
+log_action_gate() {
+	# Emits structured metadata describing gating decisions.
+	# Arguments:
+	#   $1 - state prefix
+	#   $2 - whether the action was allowed (string: true/false)
+	#   $3 - gating reason (string)
+	#   $4 - evaluation flags JSON (string, optional)
+	local state_prefix allowed reason flags_json allowed_json plan_index plan_index_json pending_plan_step pending_json
+	local attempt_index attempt_json payload normalized_flags
+	state_prefix="$1"
+	allowed="$2"
+	reason="$3"
+	flags_json="${4:-}"
+	if [[ -z "${flags_json}" ]]; then
+		flags_json="{}"
+	fi
+
+	allowed_json=false
+	if [[ "${allowed}" == true ]]; then
+		allowed_json=true
+	fi
+
+	plan_index="$(state_get "${state_prefix}" "plan_index")"
+	pending_plan_step="$(state_get "${state_prefix}" "pending_plan_step")"
+	attempt_index="$(state_get "${state_prefix}" "attempts")"
+
+	plan_index_json=null
+	pending_json=null
+	attempt_json=null
+	if [[ "${plan_index}" =~ ^-?[0-9]+$ ]]; then
+		plan_index_json=${plan_index}
+	fi
+	if [[ "${pending_plan_step}" =~ ^-?[0-9]+$ ]]; then
+		pending_json=${pending_plan_step}
+	fi
+	if [[ "${attempt_index}" =~ ^-?[0-9]+$ ]]; then
+		attempt_json=${attempt_index}
+	fi
+
+	if ! normalized_flags="$(jq -c '.' <<<"${flags_json}" 2>/dev/null)"; then
+		normalized_flags="{}"
+	fi
+	payload="$(jq -nc \
+		--arg reason "${reason}" \
+		--argjson allowed "${allowed_json}" \
+		--argjson plan_index "${plan_index_json}" \
+		--argjson pending_plan_step "${pending_json}" \
+		--argjson attempt "${attempt_json}" \
+		--argjson flags "${normalized_flags}" \
+		'{
+                        reason: $reason,
+                        allowed: $allowed,
+                        plan_index: $plan_index,
+                        pending_plan_step: $pending_plan_step,
+                        attempt: $attempt,
+                        flags: $flags
+                }')"
+
+	log "INFO" "Action gate evaluation" "${payload}"
 }
 
 increment_retry_count() {
@@ -808,7 +917,7 @@ maybe_trigger_replan() {
 
 react_loop() {
 	local user_query allowed_tools plan_entries plan_outline action_json tool query observation current_step thought args_json action_context
-	local normalized_args_json final_answer_payload pending_plan_step plan_diverged
+	local normalized_args_json final_answer_payload pending_plan_step plan_diverged gate_reason duplicate_metadata
 	local state_prefix last_action
 	user_query="$1"
 	allowed_tools="$2"
@@ -837,6 +946,8 @@ react_loop() {
 		current_step=$((attempts + 1))
 		state_set "${state_prefix}" "attempts" "${current_step}"
 		action_json=""
+		gate_reason="validated"
+		duplicate_metadata="{}"
 
 		local progress_step progress_made plan_completed
 		progress_step=$(($(state_get "${state_prefix}" "step") + 1))
@@ -845,13 +956,16 @@ react_loop() {
 
 		if ! select_next_action "${state_prefix}" action_json; then
 			log "WARN" "Skipping step due to invalid action selection" "step=${current_step}"
+			log_action_gate "${state_prefix}" false "action_selection_failed" "$(jq -nc '{selection_valid:false}')"
 			record_plan_skip_without_progress "${state_prefix}" "action_selection_failed"
 			increment_retry_count "${state_prefix}"
 			continue
 		fi
 		tool="$(printf '%s' "${action_json}" | jq -r '.tool // empty' 2>/dev/null || true)"
 		thought="$(printf '%s' "${action_json}" | jq -r '.thought // empty' 2>/dev/null || true)"
-		args_json="$(printf '%s' "${action_json}" | jq -c '.args // {}' 2>/dev/null || printf '{}')"
+		if ! args_json="$(printf '%s' "${action_json}" | jq -c '.args // {}' 2>/dev/null)"; then
+			args_json="{}"
+		fi
 		normalized_args_json="$(normalize_args_json "${args_json}")"
 
 		last_action="$(state_get "${state_prefix}" "last_action")"
@@ -863,12 +977,16 @@ react_loop() {
 		fi
 
 		if ! validate_tool_permission "${state_prefix}" "${tool}"; then
+			log_action_gate "${state_prefix}" false "tool_not_permitted" "$(jq -nc '{selection_valid:true,tool_permitted:false}')"
 			record_plan_skip_without_progress "${state_prefix}" "tool_not_permitted"
 			increment_retry_count "${state_prefix}"
 			continue
 		fi
 
-		if is_duplicate_action "${last_action}" "${tool}" "${normalized_args_json}"; then
+		if is_duplicate_action "${last_action}" "${tool}" "${normalized_args_json}" duplicate_metadata; then
+			local duplicate_flags
+			duplicate_flags="$(jq -nc --argjson duplicate_info "${duplicate_metadata}" '{selection_valid:true,tool_permitted:true} + ($duplicate_info // {})')"
+			log_action_gate "${state_prefix}" false "duplicate_action" "${duplicate_flags}"
 			log "WARN" "Duplicate action detected" "${tool}"
 			observation="Duplicate action detected. Please try a different approach or call final_answer if you are stuck."
 			record_tool_execution "${state_prefix}" "${tool}" "${thought} (REPEATED)" "${normalized_args_json}" "${observation}" "${observation}" "${current_step}"
@@ -894,6 +1012,7 @@ react_loop() {
 			if [[ -n "${planned_tool}" && "${planned_tool}" != "${tool}" ]]; then
 				plan_step_matches_action=false
 				plan_diverged=true
+				gate_reason="plan_tool_mismatch"
 				record_plan_skip_without_progress "${state_prefix}" "plan_tool_mismatch"
 				increment_retry_count "${state_prefix}"
 			fi
@@ -904,6 +1023,21 @@ react_loop() {
 		fi
 		query="${final_answer_payload}"
 		action_context="$(format_action_context "${thought}" "${tool}" "${normalized_args_json}")"
+
+		local gate_flags
+		gate_flags="$(jq -nc \
+			--argjson duplicate_info "${duplicate_metadata}" \
+			--argjson tool_permitted true \
+			--argjson selection_valid true \
+			--argjson plan_step_matches_action "$([[ "${plan_step_matches_action}" == true ]] && printf 'true' || printf 'false')" \
+			--argjson plan_diverged "$([[ "${plan_diverged}" == true ]] && printf 'true' || printf 'false')" \
+			'{
+                                selection_valid: $selection_valid,
+                                tool_permitted: $tool_permitted,
+                                plan_step_matches_action: $plan_step_matches_action,
+                                plan_diverged: $plan_diverged
+                        } + ($duplicate_info // {})')"
+		log_action_gate "${state_prefix}" true "${gate_reason}" "${gate_flags}"
 
 		local tool_status failure_detail errexit_enabled
 		observation=""

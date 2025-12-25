@@ -147,6 +147,37 @@ SCRIPT
 	[ "$output" = "plan_index=0 pending=0 skip_reason=tool_not_permitted" ]
 }
 
+@test "react_loop logs gating metadata when actions are blocked" {
+	run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
+set -euo pipefail
+MAX_STEPS=1
+LLAMA_AVAILABLE=false
+source ./src/lib/react/react.sh
+gate_logs=()
+log() {
+        if [[ "$2" == "Action gate evaluation" ]]; then
+                gate_logs+=("$3")
+        fi
+}
+log_pretty() { :; }
+emit_boxed_summary() { :; }
+format_tool_history() { printf '%s' "$1"; }
+respond_text() { printf 'fallback_response'; }
+select_next_action() { printf -v "$2" '{"thought":"planned","tool":"alpha","args":{}}'; }
+validate_tool_permission() { return 1; }
+execute_tool_action() { printf '{"output":"ok","exit_code":0}'; }
+react_loop "question" "alpha" '{"tool":"alpha"}' ""
+printf '%s\n' "${gate_logs[@]}"
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	gate_log=$(printf '%s' "$output" | head -n1)
+	[[ "$(jq -r '.reason' <<<"${gate_log}")" == "tool_not_permitted" ]]
+	[[ "$(jq -r '.allowed' <<<"${gate_log}")" == "false" ]]
+	[[ "$(jq -r '.flags.tool_permitted' <<<"${gate_log}")" == "false" ]]
+	[[ "$(jq -r '.plan_index' <<<"${gate_log}")" == "0" ]]
+}
+
 @test "react_loop keeps plan index when a planned tool fails" {
 	run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
@@ -291,6 +322,39 @@ SCRIPT
 
 	[ "$status" -eq 0 ]
 	[ "$output" = "plan_index=0 skip_reason=plan_tool_mismatch" ]
+}
+
+@test "react_loop logs gating metadata when planned actions proceed" {
+	run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
+set -euo pipefail
+MAX_STEPS=1
+LLAMA_AVAILABLE=false
+source ./src/lib/react/react.sh
+gate_logs=()
+log() {
+        if [[ "$2" == "Action gate evaluation" ]]; then
+                gate_logs+=("$3")
+        fi
+}
+log_pretty() { :; }
+emit_boxed_summary() { :; }
+format_tool_history() { printf '%s' "$1"; }
+respond_text() { printf 'fallback_response'; }
+select_next_action() { printf -v "$2" '{"thought":"planned","tool":"alpha","args":{}}'; }
+validate_tool_permission() { return 0; }
+execute_tool_action() { printf '{"output":"ok","exit_code":0}'; }
+plan_entry=$(jq -nc '{tool:"alpha",thought:"planned",args:{}}')
+react_loop "question" "alpha" "${plan_entry}" ""
+printf '%s\n' "${gate_logs[@]}"
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	gate_log=$(printf '%s' "$output" | head -n1)
+	[[ "$(jq -r '.reason' <<<"${gate_log}")" == "validated" ]]
+	[[ "$(jq -r '.allowed' <<<"${gate_log}")" == "true" ]]
+	[[ "$(jq -r '.plan_index' <<<"${gate_log}")" == "0" ]]
+	[[ "$(jq -r '.flags.plan_step_matches_action' <<<"${gate_log}")" == "true" ]]
+	[[ "$(jq -r '.flags.duplicate_detected' <<<"${gate_log}")" == "false" ]]
 }
 
 @test "react_loop identifies duplicates with reordered args" {
