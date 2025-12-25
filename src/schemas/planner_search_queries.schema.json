@@ -5,8 +5,8 @@
   "maxItems": 3,
   "items": {
     "type": "string",
-    "minLength": 5,
-    "maxLength": 50,
+    "minLength": 8,
+    "maxLength": 80,
     "description": "Concise web search string derived from the user request."
   },
   "examples": [
