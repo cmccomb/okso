@@ -240,6 +240,14 @@ _select_action_from_llama() {
 		)"
 	fi
 
+	local rejection_hint
+	rejection_hint="$(state_get "${state_name}" "action_rejection_hint")"
+	if [[ -n "${rejection_hint}" ]]; then
+		plan_step_guidance+=$'\n\nDuplicate action was rejected previously. Please propose a different tool or new arguments.\n'
+		plan_step_guidance+="Reason: ${rejection_hint}"
+		state_set "${state_name}" "action_rejection_hint" ""
+	fi
+
 	invoke_llama=false
 	if [[ "${USE_REACT_LLAMA:-false}" == true && "${LLAMA_AVAILABLE}" == true ]]; then
 		invoke_llama=true
@@ -966,37 +974,73 @@ react_loop() {
 			increment_retry_count "${state_prefix}"
 			continue
 		fi
-		tool="$(printf '%s' "${action_json}" | jq -r '.tool // empty' 2>/dev/null || true)"
-		thought="$(printf '%s' "${action_json}" | jq -r '.thought // empty' 2>/dev/null || true)"
-		if ! args_json="$(printf '%s' "${action_json}" | jq -c '.args // {}' 2>/dev/null)"; then
-			args_json="{}"
-		fi
-		normalized_args_json="$(normalize_args_json "${args_json}")"
+		local action_selected duplicate_resolution_attempts duplicate_resolution_limit
+		action_selected=false
+		duplicate_resolution_attempts=0
+		duplicate_resolution_limit=3
 
-		last_action="$(state_get "${state_prefix}" "last_action")"
+		while [[ "${action_selected}" == false ]]; do
+			tool="$(printf '%s' "${action_json}" | jq -r '.tool // empty' 2>/dev/null || true)"
+			thought="$(printf '%s' "${action_json}" | jq -r '.thought // empty' 2>/dev/null || true)"
+			if ! args_json="$(printf '%s' "${action_json}" | jq -c '.args // {}' 2>/dev/null)"; then
+				args_json="{}"
+			fi
+			normalized_args_json="$(normalize_args_json "${args_json}")"
 
-		final_answer_payload=""
-		if [[ "${tool}" == "final_answer" ]]; then
-			final_answer_payload="$(extract_tool_query "${tool}" "${normalized_args_json}")"
-			state_set "${state_prefix}" "final_answer_action" "${final_answer_payload}"
-		fi
+			last_action="$(state_get "${state_prefix}" "last_action")"
 
-		if ! validate_tool_permission "${state_prefix}" "${tool}"; then
-			log_action_gate "${state_prefix}" false "tool_not_permitted" "$(jq -nc '{selection_valid:true,tool_permitted:false}')"
-			record_plan_skip_without_progress "${state_prefix}" "tool_not_permitted"
-			increment_retry_count "${state_prefix}"
-			continue
-		fi
+			final_answer_payload=""
+			if [[ "${tool}" == "final_answer" ]]; then
+				final_answer_payload="$(extract_tool_query "${tool}" "${normalized_args_json}")"
+				state_set "${state_prefix}" "final_answer_action" "${final_answer_payload}"
+			fi
 
-		if is_duplicate_action "${last_action}" "${tool}" "${normalized_args_json}" duplicate_metadata; then
-			local duplicate_flags
-			duplicate_flags="$(jq -nc --argjson duplicate_info "${duplicate_metadata}" '{selection_valid:true,tool_permitted:true} + ($duplicate_info // {})')"
-			log_action_gate "${state_prefix}" false "duplicate_action" "${duplicate_flags}"
-			log "WARN" "Duplicate action detected" "${tool}"
-			observation="Duplicate action detected. Please try a different approach or call final_answer if you are stuck."
-			record_tool_execution "${state_prefix}" "${tool}" "${thought} (REPEATED)" "${normalized_args_json}" "${observation}" "${observation}" "${current_step}"
-			record_plan_skip_without_progress "${state_prefix}" "duplicate_action"
-			increment_retry_count "${state_prefix}"
+			if ! validate_tool_permission "${state_prefix}" "${tool}"; then
+				log_action_gate "${state_prefix}" false "tool_not_permitted" "$(jq -nc '{selection_valid:true,tool_permitted:false}')"
+				record_plan_skip_without_progress "${state_prefix}" "tool_not_permitted"
+				increment_retry_count "${state_prefix}"
+				action_json=""
+				break
+			fi
+
+			if is_duplicate_action "${last_action}" "${tool}" "${normalized_args_json}" duplicate_metadata; then
+				local duplicate_flags
+				duplicate_flags="$(jq -nc --argjson duplicate_info "${duplicate_metadata}" '{selection_valid:true,tool_permitted:true} + ($duplicate_info // {})')"
+				log_action_gate "${state_prefix}" false "duplicate_action" "${duplicate_flags}"
+				log "WARN" "Duplicate action detected" "${tool}"
+				observation="Duplicate action detected. Please try a different approach or call final_answer if you are stuck."
+				record_tool_execution "${state_prefix}" "${tool}" "${thought} (REPEATED)" "${normalized_args_json}" "${observation}" "${observation}" "${current_step}"
+				increment_failure_count "${state_prefix}"
+
+				state_set "${state_prefix}" "action_rejection_hint" "Proposed action duplicated the last successful step (tool=${tool}). Suggest a different tool or updated arguments." || true
+				duplicate_resolution_attempts=$((duplicate_resolution_attempts + 1))
+
+				if ((duplicate_resolution_attempts >= duplicate_resolution_limit)); then
+					log "WARN" "Exceeded duplicate resolution attempts" "$(jq -nc --argjson attempts "${duplicate_resolution_attempts}" '{attempts:$attempts,reason:"duplicate_persistence"}')"
+					maybe_trigger_replan "${state_prefix}" "${current_step}" false || true
+					increment_retry_count "${state_prefix}"
+					action_json=""
+					break
+				fi
+
+				if [[ "${USE_REACT_LLAMA:-false}" == true && "${LLAMA_AVAILABLE}" == true ]]; then
+					local revised_action_json
+					if _select_action_from_llama "${state_prefix}" revised_action_json; then
+						action_json="${revised_action_json}"
+						duplicate_metadata="{}"
+						continue
+					fi
+				fi
+
+				increment_retry_count "${state_prefix}"
+				action_json=""
+				break
+			fi
+
+			action_selected=true
+		done
+
+		if [[ "${action_selected}" != true ]]; then
 			continue
 		fi
 
