@@ -209,6 +209,89 @@ INNERSCRIPT
 	[ "$status" -eq 0 ]
 }
 
+@test "validate_react_action rejects schemas without allowed tool enums" {
+	script=$(
+		cat <<'INNERSCRIPT'
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+source ./src/lib/planning/planner.sh
+
+schema_path=$(mktemp)
+cat >"${schema_path}" <<'JSON'
+{
+  "$defs": {
+    "args_by_tool": {
+      "alpha": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      }
+    }
+  },
+  "properties": {"tool": {}}
+}
+JSON
+
+action='{"thought":"go","tool":"alpha","args":{}}'
+
+set +e
+validate_react_action "${action}" "${schema_path}" 2>err.log
+status=$?
+set -e
+
+if [[ ${status} -eq 0 ]]; then
+        echo "validation unexpectedly succeeded"
+        exit 1
+fi
+
+grep -F "Schema has no allowed tools" err.log
+rm -f "${schema_path}" err.log
+INNERSCRIPT
+	)
+
+	run bash -lc "${script}"
+	[ "$status" -eq 0 ]
+}
+
+@test "validate_react_action normalizes null args" {
+	script=$(
+		cat <<'INNERSCRIPT'
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+source ./src/lib/planning/planner.sh
+
+schema_path=$(mktemp)
+cat >"${schema_path}" <<'JSON'
+{
+  "$defs": {
+    "args_by_tool": {
+      "alpha": {
+        "type": "object",
+        "properties": {},
+        "required": [],
+        "additionalProperties": false
+      }
+    }
+  },
+  "properties": {"tool": {"enum": ["alpha"]}}
+}
+JSON
+
+action='{"thought":"go","tool":"alpha","args":null}'
+
+validated="$(validate_react_action "${action}" "${schema_path}")"
+rm -f "${schema_path}"
+
+jq -e '.args == {}' <<<"${validated}"
+INNERSCRIPT
+	)
+
+	run bash -lc "${script}"
+	[ "$status" -eq 0 ]
+}
+
 @test "validate_react_action enforces argument type schemas" {
 	script=$(
 		cat <<'INNERSCRIPT'
