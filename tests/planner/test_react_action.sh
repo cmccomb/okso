@@ -89,8 +89,8 @@ INNERSCRIPT
 }
 
 @test "build_react_action_schema embeds tool enums without branches" {
-        script=$(
-                cat <<'INNERSCRIPT'
+	script=$(
+		cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
@@ -122,15 +122,15 @@ jq -e '
 
 rm -f "${schema_path}"
 INNERSCRIPT
-        )
+	)
 
-        run bash -lc "${script}"
-        [ "$status" -eq 0 ]
+	run bash -lc "${script}"
+	[ "$status" -eq 0 ]
 }
 
 @test "build_react_action_schema emits llama.cpp-friendly schema" {
-        script=$(
-                cat <<'INNERSCRIPT'
+	script=$(
+		cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
@@ -158,10 +158,10 @@ jq -e '.properties.tool.enum == ["alpha","beta"] and (."$defs".args_by_tool | le
 
 rm -f "${schema_path}"
 INNERSCRIPT
-        )
+	)
 
-        run bash -lc "${script}"
-        [ "$status" -eq 0 ]
+	run bash -lc "${script}"
+	[ "$status" -eq 0 ]
 }
 
 @test "validate_react_action rejects extraneous arguments" {
@@ -331,8 +331,8 @@ INNERSCRIPT
 }
 
 @test "validate_react_action enforces argument type schemas" {
-        script=$(
-                cat <<'INNERSCRIPT'
+	script=$(
+		cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
@@ -372,13 +372,13 @@ rm -f "${schema_path}" err.log
 INNERSCRIPT
 	)
 
-        run bash -lc "${script}"
-        [ "$status" -eq 0 ]
+	run bash -lc "${script}"
+	[ "$status" -eq 0 ]
 }
 
 @test "validate_react_action enforces required args for the selected tool" {
-        script=$(
-                cat <<'INNERSCRIPT'
+	script=$(
+		cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
@@ -411,10 +411,10 @@ fi
 grep -F "Missing arg: command" err.log
 rm -f "${schema_path}" err.log
 INNERSCRIPT
-        )
+	)
 
-        run bash -lc "${script}"
-        [ "$status" -eq 0 ]
+	run bash -lc "${script}"
+	[ "$status" -eq 0 ]
 }
 
 @test "validate_react_action enforces enum constraints" {

@@ -11,7 +11,7 @@
 #   - jq
 
 @test "build_react_action_schema avoids combinators for llama.cpp" {
-        run env BASH_ENV= ENV= bash --noprofile --norc <<'SCRIPT'
+	run env BASH_ENV= ENV= bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 source ./src/lib/react/schema.sh
@@ -25,7 +25,7 @@ fi
 
 jq -e '(.properties.tool.enum | sort) == ["terminal","web_search"] and (."$defs".args_by_tool | length == 2)' "${schema_path}" >/dev/null
 SCRIPT
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "validate_react_action accepts integer web_search num" {
@@ -64,7 +64,7 @@ SCRIPT
 }
 
 @test "validate_react_action tolerates optional null args" {
-        run env BASH_ENV= ENV= bash --noprofile --norc <<'SCRIPT'
+	run env BASH_ENV= ENV= bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 source ./src/lib/react/schema.sh
@@ -74,11 +74,11 @@ trap 'rm -f "${schema_path}"' EXIT
 action='{"thought":"Search for docs","tool":"web_search","args":{"query":"okso","num":null}}'
 validate_react_action "${action}" "${schema_path}"
 SCRIPT
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "validate_react_action enforces active tool schema" {
-        run env BASH_ENV= ENV= bash --noprofile --norc <<'SCRIPT'
+	run env BASH_ENV= ENV= bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 source ./src/lib/react/schema.sh
@@ -131,5 +131,5 @@ if grep -F "Unexpected arg: query" err.log >/dev/null; then
         exit 1
 fi
 SCRIPT
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
