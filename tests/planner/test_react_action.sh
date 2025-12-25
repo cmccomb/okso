@@ -88,9 +88,9 @@ INNERSCRIPT
 	[ "$status" -eq 0 ]
 }
 
-@test "build_react_action_schema encodes tool args in if/then branches" {
-	script=$(
-		cat <<'INNERSCRIPT'
+@test "build_react_action_schema embeds tool enums without branches" {
+        script=$(
+                cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
@@ -116,14 +116,52 @@ jq -e '
         and ($root."$defs".args_by_tool.beta.required == ["command"])
         and ($root."$defs".args_by_tool.alpha.additionalProperties == false)
         and ($root."$defs".args_by_tool.beta.additionalProperties == false)
+        and (($root.oneOf // []) | length == 0)
+        and (($root.anyOf // []) | length == 0)
 ' "${schema_path}"
 
 rm -f "${schema_path}"
 INNERSCRIPT
-	)
+        )
 
-	run bash -lc "${script}"
-	[ "$status" -eq 0 ]
+        run bash -lc "${script}"
+        [ "$status" -eq 0 ]
+}
+
+@test "build_react_action_schema emits llama.cpp-friendly schema" {
+        script=$(
+                cat <<'INNERSCRIPT'
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+source ./src/lib/planning/planner.sh
+
+tool_registry_json() {
+        cat <<'JSON'
+{"names":["alpha","beta"],"registry":{"alpha":{"args_schema":{"type":"object","required":["input"],"properties":{"input":{"type":"string"}},"additionalProperties":false}},"beta":{"args_schema":{"type":"object","properties":{"note":{"type":"string"}},"required":[],"additionalProperties":false}}}}
+JSON
+}
+
+tool_names() {
+        printf "%s\n" "alpha" "beta"
+}
+
+schema_path="$(build_react_action_schema $'alpha\nbeta')"
+
+if jq -e 'paths | map(tostring) | join("/") | test("oneOf|anyOf")' "${schema_path}" >/dev/null; then
+        echo "Schema contains disallowed combinators" >&2
+        rm -f "${schema_path}"
+        exit 1
+fi
+
+jq -e '.properties.tool.enum == ["alpha","beta"] and (."$defs".args_by_tool | length == 2)' "${schema_path}" >/dev/null
+
+rm -f "${schema_path}"
+INNERSCRIPT
+        )
+
+        run bash -lc "${script}"
+        [ "$status" -eq 0 ]
 }
 
 @test "validate_react_action rejects extraneous arguments" {
@@ -293,8 +331,8 @@ INNERSCRIPT
 }
 
 @test "validate_react_action enforces argument type schemas" {
-	script=$(
-		cat <<'INNERSCRIPT'
+        script=$(
+                cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
@@ -334,8 +372,49 @@ rm -f "${schema_path}" err.log
 INNERSCRIPT
 	)
 
-	run bash -lc "${script}"
-	[ "$status" -eq 0 ]
+        run bash -lc "${script}"
+        [ "$status" -eq 0 ]
+}
+
+@test "validate_react_action enforces required args for the selected tool" {
+        script=$(
+                cat <<'INNERSCRIPT'
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+source ./src/lib/planning/planner.sh
+
+tool_registry_json() {
+        cat <<'JSON'
+{"names":["alpha","beta"],"registry":{"alpha":{"args_schema":{"type":"object","required":["input"],"properties":{"input":{"type":"string"}},"additionalProperties":false}},"beta":{"args_schema":{"type":"object","required":["command"],"properties":{"command":{"type":"string"}},"additionalProperties":false}}}}
+JSON
+}
+
+tool_names() {
+        printf "%s\n" "alpha" "beta"
+}
+
+schema_path="$(build_react_action_schema $'alpha\nbeta')"
+
+invalid_action='{"thought":"run","tool":"beta","args":{"input":"hi"}}'
+
+set +e
+validate_react_action "${invalid_action}" "${schema_path}" 2>err.log
+status=$?
+set -e
+
+if [[ ${status} -eq 0 ]]; then
+        echo "validation unexpectedly succeeded"
+        exit 1
+fi
+
+grep -F "Missing arg: command" err.log
+rm -f "${schema_path}" err.log
+INNERSCRIPT
+        )
+
+        run bash -lc "${script}"
+        [ "$status" -eq 0 ]
 }
 
 @test "validate_react_action enforces enum constraints" {
