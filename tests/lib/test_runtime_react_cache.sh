@@ -18,7 +18,7 @@
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 export CACHE_DIR="${TMPDIR:-/tmp}/okso_cache_scope"
-export RUN_ID="run-sentinel"
+export RUN_ID="run-cache-scope"
 export REACT_CACHE_FILE="/custom/location/react.prompt-cache"
 source ./src/lib/runtime.sh
 create_default_settings cache_scope
@@ -28,7 +28,7 @@ printf "%s\n%s" \
         "$(settings_get cache_scope react_cache_file)"
 SCRIPT
 	[ "$status" -eq 0 ]
-	expected_path="${TMPDIR:-/tmp}/okso_cache_scope/runs/run-sentinel/react.prompt-cache"
+expected_path="${TMPDIR:-/tmp}/okso_cache_scope/runs/run-cache-scope/react.prompt-cache"
 	[ "${lines[0]}" = "${expected_path}" ]
 	[ "${lines[1]}" = "${expected_path}" ]
 }

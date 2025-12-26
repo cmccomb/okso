@@ -1,6 +1,6 @@
 # Executor library
 
-This package hosts the executor that runs after planning. The planner populates allowed tools, plan entries, and llama.cpp wiring, then delegates tool validation and execution to `react_loop`. The loop is deterministic: it iterates through planner actions, validates each tool against the allowlist, fills missing arguments in a single LLM round-trip when needed, retries safely, and records enriched error details rather than depending on multi-turn interactions. Callers that previously sourced `planning/react.sh` remain supported via the shim in that directory, but new entry points should source `react/react.sh` directly.
+This package hosts the executor that runs after planning. The planner populates allowed tools, plan entries, and llama.cpp wiring, then delegates tool validation and execution to `react_loop`. The loop is deterministic: it iterates through planner actions, validates each tool against the allowlist, retries safely, and records enriched error details rather than depending on multi-turn interactions. Planner output must already include every required argument; only planner-marked context-controlled fields are eligible for a single LLM enrichment pass. Callers that previously sourced `planning/react.sh` remain supported via the shim in that directory, but new entry points should source `react/react.sh` directly.
 
 ## Usage
 
@@ -18,9 +18,9 @@ react_loop "${user_query}" "${allowed_tools}" "${plan_entries}" "${plan_outline}
 
 The executor honours planner `args_control` metadata. When a tool argument is marked as `context`,
 the loop flags it for LLM completion instead of copying history directly into the arg list. The
-missing-arg prompt shares the serialized history from `state_get_history_lines`, the planner
+context-enrichment prompt shares the serialized history from `state_get_history_lines`, the planner
 thought, plan outline, and any partial arg text so llama.cpp can compose a response rooted in the
-latest context rather than relying on the original `user_query` alone.
+latest context while leaving planner-provided required arguments untouched.
 
 ## Dependencies
 

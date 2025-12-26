@@ -13,7 +13,7 @@
 # Dependencies:
 #   - bash 3.2+
 #   - jq
-#   - llama.cpp binaries for optional arg infill
+#   - llama.cpp binaries for context arg infill
 #
 # Exit codes:
 #   Functions return non-zero on validation or execution failures.
@@ -250,7 +250,7 @@ PY
 }
 
 fill_missing_args_with_llm() {
-	# Fills missing arguments via a single LLM round-trip when possible.
+        # Fills planner-marked context arguments via a single LLM round-trip when possible.
 	# Arguments:
 	#   $1 - tool name
 	#   $2 - args JSON
