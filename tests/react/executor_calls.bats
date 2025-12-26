@@ -124,7 +124,7 @@ SCRIPT
 }
 
 @test "fill_missing_args_with_llm uses llama output for context args" {
-	run bash <<'SCRIPT'
+        run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/react/loop.sh
 LLAMA_AVAILABLE=true
@@ -144,7 +144,36 @@ filled=$(fill_missing_args_with_llm "notes_create" '{"title":"User seed"}' "User
 jq -r '.title,.body' <<<"${filled}"
 SCRIPT
 
-	[ "$status" -eq 0 ]
-	[ "${lines[0]}" = "Filled title" ]
-	[ "${lines[1]}" = "Filled body" ]
+        [ "$status" -eq 0 ]
+        [ "${lines[0]}" = "Filled title" ]
+        [ "${lines[1]}" = "Filled body" ]
+}
+
+@test "fill_missing_args_with_llm forwards tool schema to llama" {
+        run bash <<'SCRIPT'
+set -euo pipefail
+source ./src/lib/react/loop.sh
+LLAMA_AVAILABLE=true
+
+schema_log=$(mktemp)
+
+llama_infer() {
+        printf '%s' "$4" >"${schema_log}"
+        printf '{"args":{"ok":true}}'
+}
+
+log() { :; }
+log_pretty() { :; }
+
+tool_args_schema() {
+        printf '{"type":"object","properties":{"body":{"type":"string"}}}'
+}
+
+fill_missing_args_with_llm "notes_create" '{}' "User question" "Outline" "Planner thought" "" '["body"]' >/dev/null
+
+cat "${schema_log}"
+SCRIPT
+
+        [ "$status" -eq 0 ]
+        [ "${lines[0]}" = '{"type":"object","properties":{"body":{"type":"string"}}}' ]
 }
