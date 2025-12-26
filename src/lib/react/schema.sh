@@ -175,237 +175,111 @@ PY
 }
 
 validate_react_action() {
-	# Validates a llama-produced action against the generated schema.
-	# Arguments:
-	#   $1 - raw action JSON string
-	#   $2 - schema path
-	local raw_action schema_path action_json schema_json allowed_tools tool tool_schema properties_json additional_properties
-	local required_args err_log missing_token args_json
-	raw_action="$1"
-	schema_path="$2"
-	missing_token="${MISSING_VALUE_TOKEN}"
+        # Validates a llama-produced action against the generated schema.
+        # Arguments:
+        #   $1 - raw action JSON string
+        #   $2 - schema path
+        local raw_action schema_path action_json schema_json err_log missing_token tool allowed_tools python_status
+        raw_action="$1"
+        schema_path="$2"
+        missing_token="${MISSING_VALUE_TOKEN}"
 
-	err_log=$(mktemp)
+        err_log=$(mktemp)
 
-	if ! action_json=$(jq -ce '.' <<<"${raw_action}" 2>"${err_log}"); then
-		printf 'Invalid JSON: %s\n' "$(<"${err_log}")" >&2
-		rm -f "${err_log}"
-		return 1
-	fi
+        if ! action_json=$(jq -ce '.' <<<"${raw_action}" 2>"${err_log}"); then
+                printf 'Invalid JSON: %s\n' "$(<"${err_log}")" >&2
+                rm -f "${err_log}"
+                return 1
+        fi
 
-	if ! schema_json=$(jq -ce '.' "${schema_path}" 2>"${err_log}"); then
-		printf 'Schema load failed: %s\n' "$(<"${err_log}")" >&2
-		rm -f "${err_log}"
-		return 1
-	fi
+        if ! schema_json=$(jq -ce '.' "${schema_path}" 2>"${err_log}"); then
+                printf 'Schema load failed: %s\n' "$(<"${err_log}")" >&2
+                rm -f "${err_log}"
+                return 1
+        fi
 
-	rm -f "${err_log}"
+        rm -f "${err_log}"
 
-	if ! jq -e 'keys_unsorted == ["action"]' <<<"${action_json}" >/dev/null 2>&1; then
-		printf 'Unexpected or missing top-level fields\n' >&2
-		return 1
-	fi
+        if ! jq -e 'keys_unsorted == ["action"]' <<<"${action_json}" >/dev/null 2>&1; then
+                printf 'Unexpected or missing top-level fields\n' >&2
+                return 1
+        fi
 
-	if jq -e --arg missing "${missing_token}" '.action == $missing' <<<"${action_json}" >/dev/null 2>&1; then
-		jq -c --arg missing "${missing_token}" '{action:$missing}' <<<"${action_json}"
-		return 0
-	fi
+        if jq -e --arg missing "${missing_token}" '.action == $missing' <<<"${action_json}" >/dev/null 2>&1; then
+                jq -c --arg missing "${missing_token}" '{action:$missing}' <<<"${action_json}"
+                return 0
+        fi
 
-	if ! jq -e '.action | type == "object"' <<<"${action_json}" >/dev/null; then
-		printf 'action must be an object or missing sentinel\n' >&2
-		return 1
-	fi
+        tool="$(jq -r '.action.tool // empty' <<<"${action_json}" 2>/dev/null || printf '')"
+        allowed_tools=$(jq -cr --arg missing "${missing_token}" '[.oneOf[]?.properties.action.properties.tool.anyOf[]?.const // empty] | map(select(. != $missing))' <<<"${schema_json}" 2>/dev/null || printf '[]')
 
-	local unexpected_action_field
-	unexpected_action_field=$(jq -er '(.action | keys_unsorted) - ["tool","args"] | first? // empty' <<<"${action_json}" 2>/dev/null || true)
-	if [[ -n "${unexpected_action_field}" ]]; then
-		printf 'Unexpected field on action: %s\n' "${unexpected_action_field}" >&2
-		return 1
-	fi
+        if [[ -n "${tool}" && "${tool}" != "${missing_token}" ]]; then
+                if ! jq -e --arg tool "${tool}" --argjson allowed "${allowed_tools}" '$allowed | index($tool)' <<<"null" >/dev/null; then
+                        printf 'Unsupported tool: %s\n' "${tool}" >&2
+                        return 1
+                fi
+        fi
 
-	for key in tool args; do
-		if ! jq -e --arg key "${key}" '.action | has($key)' <<<"${action_json}" >/dev/null; then
-			printf 'Missing field: %s\n' "${key}" >&2
-			return 1
-		fi
-	done
+        python3 - "${schema_path}" "${action_json}" <<'PY'
+import json
+import sys
 
-	tool="$(jq -r '.action.tool' <<<"${action_json}" 2>/dev/null || printf '')"
-	args_json="$(jq -c '.action.args' <<<"${action_json}" 2>/dev/null || printf '{}')"
+try:
+    from jsonschema import Draft202012Validator
+except ImportError:
+    sys.stderr.write("jsonschema dependency missing; install with pip install jsonschema\n")
+    sys.exit(2)
 
-	allowed_tools=$(jq -cr --arg missing "${missing_token}" '[.oneOf[]?.properties.action.properties.tool.anyOf[]?.const // empty] | map(select(. != $missing))' <<<"${schema_json}" 2>/dev/null || printf '[]')
 
-	if [[ "${tool}" != "${missing_token}" ]]; then
-		if ! jq -e --arg tool "${tool}" --argjson allowed "${allowed_tools}" '$allowed | index($tool)' <<<"null" >/dev/null; then
-			printf 'Unsupported tool: %s\n' "${tool}" >&2
-			return 1
-		fi
-	fi
+def _leaf_errors(error):
+    if error.context:
+        for child in error.context:
+            yield from _leaf_errors(child)
+    else:
+        yield error
 
-	if [[ "${args_json}" == "\"${missing_token}\"" ]]; then
-		printf '%s' "${action_json}"
-		return 0
-	fi
 
-	if ! jq -e '.action.args | type == "object"' <<<"${action_json}" >/dev/null; then
-		printf 'args must be an object or missing sentinel\n' >&2
-		return 1
-	fi
+schema_path = sys.argv[1]
+instance = json.loads(sys.argv[2])
 
-	tool_schema=$(jq -c --arg tool "${tool}" '
-                [.oneOf[]? | select(.properties.action.properties.tool.const == $tool or (.properties.action.properties.tool.anyOf[]?.const == $tool)) | .properties.action.properties.args] | first // null
-        ' <<<"${schema_json}")
-	if [[ -z "${tool_schema}" || "${tool_schema}" == "null" ]]; then
-		printf 'No schema for tool: %s\n' "${tool}" >&2
-		return 1
-	fi
+with open(schema_path, "r", encoding="utf-8") as schema_file:
+    schema = json.load(schema_file)
 
-	local effective_schema
-	effective_schema=$(jq -c '
-                if (.anyOf | type == "array") then
-                        (.anyOf | map(select(type == "object" and (.properties | type == "object"))) | first)
-                else
-                        .
-                end
-        ' <<<"${tool_schema}")
+validator = Draft202012Validator(schema)
+errors = sorted(validator.iter_errors(instance), key=lambda err: (len(list(err.path)), err.path))
 
-	properties_json=$(jq -c 'if (.properties | type == "object") then .properties else {} end' <<<"${effective_schema}")
-	required_args=$(jq -c '.required // []' <<<"${effective_schema}")
-	additional_properties=$(jq -c 'if .additionalProperties == null then false else .additionalProperties end' <<<"${effective_schema}")
+if errors:
+    leaves = [leaf for err in errors for leaf in _leaf_errors(err)]
 
-	_react_enforce_arg_type() {
-		# Validates an argument value against a schema fragment using jq types.
-		# Arguments:
-		#   $1 - argument value
-		#   $2 - schema fragment JSON
-		local value schema type field format
-		value="$1"
-		schema="$2"
+    def _message_priority(message: str) -> int:
+        if "Additional properties" in message:
+            return 0
+        if "not of type" in message:
+            return 1
+        if "expected" in message:
+            return 2
+        return 3
 
-		if [[ "${value}" == "\"${missing_token}\"" ]]; then
-			return 0
-		fi
+    leaves.sort(
+        key=lambda err: (
+            _message_priority(err.message),
+            -len(list(err.absolute_path)),
+            list(err.absolute_path),
+            err.message,
+        )
+    )
+    leaf_error = leaves[0]
+    location = "/".join(str(part) for part in leaf_error.absolute_path) or "root"
+    sys.stderr.write(f"{location}: {leaf_error.message}\n")
+    sys.exit(1)
 
-		if jq -e '.anyOf? | type == "array"' <<<"${schema}" >/dev/null 2>&1; then
-			while IFS= read -r variant; do
-				if _react_enforce_arg_type "${value}" "${variant}"; then
-					return 0
-				fi
-			done < <(jq -c '.anyOf[]' <<<"${schema}")
-			return 1
-		fi
+print(json.dumps(instance, separators=(",", ":")))
+PY
+        python_status=$?
 
-		local const_value
-		const_value="$(jq -r '.const // empty' <<<"${schema}" 2>/dev/null || true)"
-		if [[ -n "${const_value}" ]]; then
-			if [[ "${value}" == "${const_value}" || "${value}" == "\"${const_value}\"" ]]; then
-				return 0
-			fi
-			return 1
-		fi
+        if ((python_status == 2)); then
+                return 1
+        fi
 
-		type="$(jq -r '.type // empty' <<<"${schema}" 2>/dev/null || true)"
-		field="$(jq -r '.const // empty' <<<"${schema}" 2>/dev/null || true)"
-		format="$(jq -r '.format // empty' <<<"${schema}" 2>/dev/null || true)"
-		if [[ -z "${type}" ]]; then
-			return 0
-		fi
-
-		case "${type}" in
-		object)
-			jq -e 'type == "object"' <<<"${value}" >/dev/null || return 1
-			;;
-		array)
-			jq -e 'type == "array"' <<<"${value}" >/dev/null || return 1
-			;;
-		string)
-			jq -e 'type == "string"' <<<"${value}" >/dev/null || return 1
-			if [[ -n "${field}" ]] && [[ "${value}" != "${field}" ]]; then
-				return 1
-			fi
-			if [[ "${format}" == "date-time" ]]; then
-				if ! jq -e 'test("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$")' <<<"${value}" >/dev/null; then
-					return 1
-				fi
-			fi
-			;;
-		number)
-			jq -e 'type == "number"' <<<"${value}" >/dev/null || return 1
-			;;
-		integer)
-			jq -e 'type == "number" and (. == (.|floor))' <<<"${value}" >/dev/null || return 1
-			;;
-		boolean)
-			jq -e 'type == "boolean"' <<<"${value}" >/dev/null || return 1
-			;;
-		null)
-			jq -e 'type == "null"' <<<"${value}" >/dev/null || return 1
-			;;
-		esac
-
-		return 0
-	}
-
-	local arg_key
-	for arg_key in $(jq -r 'keys_unsorted[]?' <<<"${properties_json}" 2>/dev/null || true); do
-		local arg_schema arg_value has_arg is_required
-		arg_schema=$(jq -c --arg key "${arg_key}" '.[$key]' <<<"${properties_json}")
-		if jq -e --arg key "${arg_key}" '.action.args | has($key)' <<<"${action_json}" >/dev/null; then
-			has_arg=true
-		else
-			has_arg=false
-		fi
-
-		if jq -e --arg key "${arg_key}" --argjson required "${required_args}" '$required | index($key)' <<<"null" >/dev/null; then
-			is_required=true
-		else
-			is_required=false
-		fi
-
-		if [[ "${has_arg}" == false ]]; then
-			if [[ "${is_required}" == true ]]; then
-				printf 'Missing arg: %s\n' "${arg_key}" >&2
-				return 1
-			fi
-			continue
-		fi
-
-		arg_value=$(jq -c --arg key "${arg_key}" '.action.args[$key]' <<<"${action_json}")
-		if [[ "${arg_value}" == "null" && "${is_required}" == false ]]; then
-			continue
-		fi
-
-		if ! _react_enforce_arg_type "${arg_value}" "${arg_schema}"; then
-			local expected_type enum_values
-			expected_type="$(jq -r '.type // empty' <<<"${arg_schema}" 2>/dev/null || true)"
-			enum_values="$(jq -cr '.enum // empty' <<<"${arg_schema}" 2>/dev/null || true)"
-			if [[ -n "${enum_values}" && "${enum_values}" != "null" ]]; then
-				printf 'Arg %s must be one of: %s\n' "${arg_key}" "$(jq -r '.enum | join(", ")' <<<"${arg_schema}" 2>/dev/null || printf '')" >&2
-			elif [[ -n "${expected_type}" ]]; then
-				printf 'Arg %s must be a %s\n' "${arg_key}" "${expected_type}" >&2
-			else
-				printf 'Invalid type for arg: %s\n' "${arg_key}" >&2
-			fi
-			return 1
-		fi
-
-		if jq -e '(.enum // null) != null' <<<"${arg_schema}" >/dev/null 2>&1; then
-			if ! jq -e --argjson value "${arg_value}" --argjson enums "$(jq -c '.enum' <<<"${arg_schema}" 2>/dev/null || printf '[]')" '$enums | index($value)' <<<"null" >/dev/null; then
-				printf 'Arg %s must be one of: %s\n' "${arg_key}" "$(jq -r '.enum | join(", ")' <<<"${arg_schema}" 2>/dev/null || printf '')" >&2
-				return 1
-			fi
-		fi
-	done
-
-	if [[ "${additional_properties}" == "false" ]]; then
-		local unknown_arg
-		unknown_arg=$(jq -er --argjson known "${properties_json}" '(.action.args | keys_unsorted) - ([$known | keys_unsorted] | add) | first? // empty' <<<"${action_json}" 2>/dev/null || true)
-		if [[ -n "${unknown_arg}" ]]; then
-			printf 'Unexpected arg: %s\n' "${unknown_arg}" >&2
-			return 1
-		fi
-	fi
-
-	printf '%s' "${action_json}"
-	return 0
+        return ${python_status}
 }
