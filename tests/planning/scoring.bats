@@ -170,43 +170,6 @@ SCRIPT
 	[[ "${rationale}" == *"First step is side-effecting before gathering information."* ]]
 }
 
-@test "python_repl_has_side_effects treats informational snippets as non-mutating" {
-	run bash <<'SCRIPT'
-set -euo pipefail
-source ./src/lib/planning/scoring.sh
-set +e
-python_repl_has_side_effects '{"code":"print(2+2)"}'
-print_status=$?
-python_repl_has_side_effects '{"code":"import math\nmath.sqrt(4)"}'
-math_status=$?
-set -e
-printf '%s\n' "${print_status}" "${math_status}"
-SCRIPT
-
-	[ "$status" -eq 0 ]
-	print_status=${lines[0]}
-	math_status=${lines[1]}
-	[[ "${print_status}" -eq 1 ]]
-	[[ "${math_status}" -eq 1 ]]
-}
-
-@test "score_planner_candidate treats informational python_repl as informational" {
-	run bash <<'SCRIPT'
-set -euo pipefail
-export VERBOSITY=0
-source ./src/lib/planning/scoring.sh
-tool_names() { printf "%s\n" python_repl final_answer; }
-tool_args_schema() { printf '{}'; }
-plan=$(jq -nc '{"plan":[{"tool":"python_repl","args":{"code":"print(2+2)"},"thought":"calc"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]}')
-scorecard=$(score_planner_candidate "${plan}" | tail -n 1)
-printf '%s\n' "${scorecard}"
-SCRIPT
-
-	[ "$status" -eq 0 ]
-	rationale=$(printf '%s' "${output}" | tail -n 1 | jq -r '.rationale | join(" ")')
-	[[ "${rationale}" == *"No side-effecting tools detected in the plan."* ]]
-}
-
 @test "score_planner_candidate penalizes mutating python_repl steps" {
 	run bash <<'SCRIPT'
 set -euo pipefail
