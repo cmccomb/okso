@@ -32,6 +32,8 @@ source "${REACT_LIB_DIR}/../exec/dispatch.sh"
 source "${REACT_LIB_DIR}/../core/logging.sh"
 # shellcheck source=../core/state.sh disable=SC1091
 source "${REACT_LIB_DIR}/../core/state.sh"
+# shellcheck source=../tools/query.sh disable=SC1091
+source "${REACT_LIB_DIR}/../tools/query.sh"
 # shellcheck source=./schema.sh disable=SC1091
 source "${REACT_LIB_DIR}/schema.sh"
 # shellcheck source=./history.sh disable=SC1091

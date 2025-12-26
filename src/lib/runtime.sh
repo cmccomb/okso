@@ -57,6 +57,8 @@ RUNTIME_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${RUNTIME_LIB_DIR}/core/errors.sh"
 # shellcheck source=./formatting.sh disable=SC1091
 source "${RUNTIME_LIB_DIR}/formatting.sh"
+# shellcheck source=./tools/query.sh disable=SC1091
+source "${RUNTIME_LIB_DIR}/tools/query.sh"
 # shellcheck source=./core/settings.sh disable=SC1091
 source "${RUNTIME_LIB_DIR}/core/settings.sh"
 
