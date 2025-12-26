@@ -131,7 +131,7 @@ SCRIPT
 }
 
 @test "executor prompt template exposes infill placeholders" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/prompt/templates.sh
 template="$(load_prompt_template executor)"
@@ -140,16 +140,16 @@ grep -F '${args_json}' <<<"${template}"
 grep -F '${context_fields}' <<<"${template}"
 SCRIPT
 
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "planner prompt keeps args_control outside args" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/prompt/build_planner.sh
 prompt="$(build_planner_prompt "demo" "tool: summary" "search context")"
 grep -F 'Never place `args_control` inside `args`' <<<"${prompt}"
 SCRIPT
 
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
