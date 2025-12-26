@@ -183,7 +183,7 @@ SCRIPT
 	[ "${lines[4]}" = "2" ]
 	[ "${lines[5]}" = "true" ]
 	[ "${lines[6]}" = "false" ]
-        [ "${lines[7]}" = "11" ]
+	[ "${lines[7]}" = "11" ]
 }
 
 @test "okso init writes clean config without stray characters" {
@@ -216,12 +216,12 @@ SCRIPT
 	[ "${lines[4]}" = "1" ]
 	[ "${lines[5]}" = "true" ]
 	[ "${lines[6]}" = "false" ]
-        [ "${lines[7]}" = "11" ]
-        [ "${lines[8]}" = "11" ]
+	[ "${lines[7]}" = "11" ]
+	[ "${lines[8]}" = "11" ]
 }
 
 @test "planner and react specs hydrate defaults and shared overrides" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 CONFIG_FILE="$(mktemp)"
 NOTES_DIR="$(mktemp -d)"
@@ -257,21 +257,21 @@ printf '%s\n' "${PLANNER_MODEL_SPEC}" "${REACT_MODEL_SPEC}" "${PLANNER_MODEL_BRA
 rm -f "${CONFIG_FILE}"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ "${lines[0]}" = "custom/planner-repo" ]
-        [ "${lines[1]}" = "planner-base.gguf" ]
-        [ "${lines[2]}" = "custom/react-repo" ]
-        [ "${lines[3]}" = "react-base.gguf" ]
-        [ "${lines[4]}" = "custom/planner-repo:planner-base.gguf" ]
-        [ "${lines[5]}" = "custom/react-repo:react-base.gguf" ]
-        [ "${lines[6]}" = "custom/planner-repo:planner-base.gguf" ]
-        [ "${lines[7]}" = "custom/react-repo:react-base.gguf" ]
-        [ "${lines[8]}" = "release" ]
-        [ "${lines[9]}" = "release" ]
-        [ "${lines[10]}" = "planner/model:plan.gguf" ]
-        [ "${lines[11]}" = "react/model:react.gguf" ]
-        [ "${lines[12]}" = "stable" ]
-        [ "${lines[13]}" = "beta" ]
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "custom/planner-repo" ]
+	[ "${lines[1]}" = "planner-base.gguf" ]
+	[ "${lines[2]}" = "custom/react-repo" ]
+	[ "${lines[3]}" = "react-base.gguf" ]
+	[ "${lines[4]}" = "custom/planner-repo:planner-base.gguf" ]
+	[ "${lines[5]}" = "custom/react-repo:react-base.gguf" ]
+	[ "${lines[6]}" = "custom/planner-repo:planner-base.gguf" ]
+	[ "${lines[7]}" = "custom/react-repo:react-base.gguf" ]
+	[ "${lines[8]}" = "release" ]
+	[ "${lines[9]}" = "release" ]
+	[ "${lines[10]}" = "planner/model:plan.gguf" ]
+	[ "${lines[11]}" = "react/model:react.gguf" ]
+	[ "${lines[12]}" = "stable" ]
+	[ "${lines[13]}" = "beta" ]
 }
 
 @test "cli shared model flags populate planner and react when unset" {
