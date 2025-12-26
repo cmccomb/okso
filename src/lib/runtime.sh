@@ -21,16 +21,16 @@
 #   ${settings_prefix}_json.config_file (string): path to the config file.
 #   ${settings_prefix}_json.cache_dir (string): base directory for prompt caches.
 #   ${settings_prefix}_json.planner_cache_file (string): prompt cache file used for planner calls.
-#   ${settings_prefix}_json.react_cache_file (string): prompt cache file used for executor calls.
+#   ${settings_prefix}_json.react_cache_file (string): prompt cache file used for executor calls (legacy key name).
 #   ${settings_prefix}_json.run_id (string): run identifier scoping executor caches.
 #   ${settings_prefix}_json.planner_model_spec (string): HF repo[:file] spec for planner llama.cpp.
 #   ${settings_prefix}_json.planner_model_branch (string): branch or tag for planner downloads.
 #   ${settings_prefix}_json.planner_model_repo (string): parsed planner HF repo.
 #   ${settings_prefix}_json.planner_model_file (string): parsed planner HF file.
-#   ${settings_prefix}_json.react_model_spec (string): HF repo[:file] spec for executor llama.cpp.
-#   ${settings_prefix}_json.react_model_branch (string): branch or tag for executor downloads.
-#   ${settings_prefix}_json.react_model_repo (string): parsed executor HF repo.
-#   ${settings_prefix}_json.react_model_file (string): parsed executor HF file.
+#   ${settings_prefix}_json.react_model_spec (string): HF repo[:file] spec for executor llama.cpp (legacy key name).
+#   ${settings_prefix}_json.react_model_branch (string): branch or tag for executor downloads (legacy key name).
+#   ${settings_prefix}_json.react_model_repo (string): parsed executor HF repo (legacy key name).
+#   ${settings_prefix}_json.react_model_file (string): parsed executor HF file (legacy key name).
 #   ${settings_prefix}_json.approve_all (bool string): true to bypass prompts.
 #   ${settings_prefix}_json.force_confirm (bool string): true to force prompts.
 #   ${settings_prefix}_json.dry_run (bool string): true to avoid execution.
@@ -38,7 +38,7 @@
 #   ${settings_prefix}_json.verbosity (int string): log verbosity level.
 #   ${settings_prefix}_json.notes_dir (string): notes storage directory.
 #   ${settings_prefix}_json.llama_available (bool string): llama binary availability.
-#   ${settings_prefix}_json.use_react_llama (bool string): toggle react llama usage.
+#   ${settings_prefix}_json.use_react_llama (bool string): toggle executor llama usage (legacy key name).
 #   ${settings_prefix}_json.is_macos (bool string): detected macOS flag.
 #   ${settings_prefix}_json.command (string): operational mode.
 #   ${settings_prefix}_json.user_query (string): provided user query.

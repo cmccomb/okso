@@ -13,4 +13,4 @@
 
 ## macOS tiny-model cache
 
-The macOS GitHub Actions job downloads a small GGUF (`TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF:tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf`) into the default Hugging Face cache under `~/Library/Caches/huggingface/hub`. The cache keeps the runtime Bats test fast while exercising the full `llama.cpp` pipeline. To update the model, edit the `REACT_MODEL_SPEC`, `REACT_MODEL_BRANCH`, and `HF_HOME` entries in `.github/workflows/macos_llama.yml` to point at the new artifact and cache location.
+The macOS GitHub Actions job downloads a small GGUF (`TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF:tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf`) into the default Hugging Face cache under `~/Library/Caches/huggingface/hub`. The cache keeps the runtime Bats test fast while exercising the full `llama.cpp` pipeline. To update the model, edit the `EXECUTOR_MODEL_SPEC`, `EXECUTOR_MODEL_BRANCH` (or the legacy `REACT_*` aliases), and `HF_HOME` entries in `.github/workflows/macos_llama.yml` to point at the new artifact and cache location.
