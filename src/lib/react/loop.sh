@@ -18,26 +18,27 @@
 # Exit codes:
 #   Functions return non-zero on validation or execution failures.
 
-REACT_LIB_DIR=${REACT_LIB_DIR:-$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)}
+EXECUTOR_LIB_DIR=${EXECUTOR_LIB_DIR:-$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)}
+REACT_LIB_DIR=${REACT_LIB_DIR:-${EXECUTOR_LIB_DIR}}
 
 # shellcheck source=../formatting.sh disable=SC1091
-source "${REACT_LIB_DIR}/../formatting.sh"
+source "${EXECUTOR_LIB_DIR}/../formatting.sh"
 # shellcheck source=../llm/llama_client.sh disable=SC1091
-source "${REACT_LIB_DIR}/../llm/llama_client.sh"
+source "${EXECUTOR_LIB_DIR}/../llm/llama_client.sh"
 # shellcheck source=../exec/dispatch.sh disable=SC1091
-source "${REACT_LIB_DIR}/../exec/dispatch.sh"
+source "${EXECUTOR_LIB_DIR}/../exec/dispatch.sh"
 # shellcheck source=../core/logging.sh disable=SC1091
-source "${REACT_LIB_DIR}/../core/logging.sh"
+source "${EXECUTOR_LIB_DIR}/../core/logging.sh"
 # shellcheck source=../core/state.sh disable=SC1091
-source "${REACT_LIB_DIR}/../core/state.sh"
+source "${EXECUTOR_LIB_DIR}/../core/state.sh"
 # shellcheck source=../tools/query.sh disable=SC1091
-source "${REACT_LIB_DIR}/../tools/query.sh"
+source "${EXECUTOR_LIB_DIR}/../tools/query.sh"
 # shellcheck source=../prompt/templates.sh disable=SC1091
-source "${REACT_LIB_DIR}/../prompt/templates.sh"
+source "${EXECUTOR_LIB_DIR}/../prompt/templates.sh"
 # shellcheck source=./schema.sh disable=SC1091
-source "${REACT_LIB_DIR}/schema.sh"
+source "${EXECUTOR_LIB_DIR}/schema.sh"
 # shellcheck source=./history.sh disable=SC1091
-source "${REACT_LIB_DIR}/history.sh"
+source "${EXECUTOR_LIB_DIR}/history.sh"
 
 normalize_args_json() {
 	# Normalizes argument JSON into canonical form.
@@ -391,8 +392,8 @@ execute_planned_action() {
 	fi
 }
 
-react_loop() {
-	# Executes planner actions deterministically.
+executor_loop() {
+        # Executes planner actions deterministically.
 	# Arguments:
 	#   $1 - user query
 	#   $2 - allowed tools (newline delimited)
@@ -403,9 +404,9 @@ react_loop() {
 	allowed_tools="$2"
 	plan_entries="$3"
 	plan_outline="$4"
-	state_prefix="react_state"
+        state_prefix="executor_state"
 
-	initialize_react_state "${state_prefix}" "${user_query}" "${allowed_tools}" "${plan_entries}" "${plan_outline}"
+        initialize_executor_state "${state_prefix}" "${user_query}" "${allowed_tools}" "${plan_entries}" "${plan_outline}"
 	max_steps=${MAX_STEPS:-6}
 
 	if [[ -z "${plan_entries}" ]]; then
@@ -460,9 +461,15 @@ react_loop() {
 		fi
 	done < <(jq -c '.[]' <<<"$plan_json")
 
-	finalize_react_result "${state_prefix}"
+        finalize_executor_result "${state_prefix}"
 }
 
+react_loop() {
+        # Compatibility shim preserving the legacy ReAct entry point.
+        executor_loop "$@"
+}
+
+export -f executor_loop
 export -f react_loop
 export -f apply_plan_arg_controls
 export -f validate_planner_action

@@ -7,13 +7,13 @@
 #   source "${BASH_SOURCE[0]%/settings.sh}/settings.sh"
 #
 # Environment variables:
-#   DEFAULT_MODEL_FILE_BASE (string): Default ReAct GGUF filename.
+#   DEFAULT_MODEL_FILE_BASE (string): Default executor GGUF filename.
 #   DEFAULT_PLANNER_MODEL_FILE_BASE (string): Default planner GGUF filename.
 #   DEFAULT_PLANNER_MODEL_SPEC_BASE (string): Default planner repo[:file] spec.
-#   DEFAULT_REACT_MODEL_SPEC_BASE (string): Default ReAct repo[:file] spec.
+#   DEFAULT_REACT_MODEL_SPEC_BASE (string): Default executor repo[:file] spec (legacy name).
 #   DEFAULT_PLANNER_MODEL_BRANCH_BASE (string): Default planner branch/tag.
-#   DEFAULT_REACT_MODEL_BRANCH_BASE (string): Default ReAct branch/tag.
-#   USE_REACT_LLAMA (bool string): Toggle ReAct llama usage ("true"/"false").
+#   DEFAULT_REACT_MODEL_BRANCH_BASE (string): Default executor branch/tag (legacy name).
+#   USE_REACT_LLAMA (bool string): Toggle executor llama usage ("true"/"false").
 #   LLAMA_BIN (string): Path to the llama.cpp binary.
 #   XDG_CONFIG_HOME (string): Config directory base; defaults to ${HOME}/.config.
 #

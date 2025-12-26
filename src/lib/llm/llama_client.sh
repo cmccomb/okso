@@ -13,8 +13,8 @@
 #   LLAMA_DEFAULT_CONTEXT_SIZE (int): assumed llama.cpp default context window.
 #   LLAMA_CONTEXT_CAP (int): maximum context window to request for llama.cpp invocations.
 #   LLAMA_CONTEXT_MARGIN_PERCENT (int): percentage safety margin added to context estimates.
-#   REACT_MODEL_REPO (string): Hugging Face repository name for the ReAct loop.
-#   REACT_MODEL_FILE (string): model file within the repository for the ReAct loop.
+#   REACT_MODEL_REPO (string): Hugging Face repository name for the executor loop (legacy name).
+#   REACT_MODEL_FILE (string): model file within the repository for the executor loop (legacy name).
 #   VERBOSITY (int): log verbosity.
 #
 # Dependencies:

@@ -216,7 +216,7 @@ VERBOSITY=0
 state_prefix=state
 plan_entry=$(jq -nc --arg tool "terminal" --arg command "echo" --arg arg0 "hi" '{tool:$tool,args:{command:$command,args:[$arg0]},thought:"Following planned step"}')
 plan_outline=$'1. terminal -> echo hi\n2. final_answer -> summarize'
-initialize_react_state "${state_prefix}" "list files" $'terminal\nfinal_answer' "${plan_entry}" "${plan_outline}"
+initialize_executor_state "${state_prefix}" "list files" $'terminal\nfinal_answer' "${plan_entry}" "${plan_outline}"
 state_set "${state_prefix}" "max_steps" 2
 USE_REACT_LLAMA=false
 LLAMA_AVAILABLE=false

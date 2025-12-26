@@ -316,7 +316,7 @@ validate_react_action() {
 		return 1
 	fi
 
-	if ! require_jsonschema_cli_available "ReAct action validation"; then
+    if ! require_jsonschema_cli_available "Executor action validation"; then
 		return 1
 	fi
 

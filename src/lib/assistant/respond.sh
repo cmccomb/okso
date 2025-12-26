@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 #
-# Direct-response helpers shared between planner and ReAct flows.
+# Direct-response helpers shared between planner and executor flows.
 #
 # Usage:
 #   source "${BASH_SOURCE[0]%/respond.sh}/respond.sh"

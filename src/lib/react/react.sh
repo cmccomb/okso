@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 #
-# Entry point for the ReAct execution loop. This file sources the modular
-# React helpers responsible for schema validation, state handling, and the
+# Entry point for the executor loop. This file sources the modular
+# executor helpers responsible for schema validation, state handling, and the
 # execution loop.
 #
 # Usage:
 #   source "${BASH_SOURCE[0]%/react.sh}/react.sh"
 #
 # Environment variables:
-#   MAX_STEPS (int): maximum number of ReAct turns; default: 6.
+#   MAX_STEPS (int): maximum number of executor turns; default: 6.
 #   CANONICAL_TEXT_ARG_KEY (string): key for single-string tool arguments; default: "input".
 #
 # Dependencies:
@@ -19,7 +19,8 @@
 # Exit codes:
 #   None directly; functions return status of operations.
 
-REACT_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+EXECUTOR_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+REACT_LIB_DIR=${REACT_LIB_DIR:-${EXECUTOR_LIB_DIR}}
 
 # shellcheck source=./schema.sh disable=SC1091
 source "${REACT_LIB_DIR}/schema.sh"

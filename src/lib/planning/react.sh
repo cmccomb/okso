@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 #
-# Compatibility wrapper for the relocated ReAct helpers.
+# Compatibility wrapper for the relocated executor helpers.
 #
-# The ReAct library now lives under src/lib/react. This shim keeps existing
+# The executor library now lives under src/lib/react. This shim keeps existing
 # callers functional by sourcing the new entrypoint.
 #
 # Usage:

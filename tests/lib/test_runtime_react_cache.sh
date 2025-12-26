@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # shellcheck shell=bash
 #
-# Tests for run-scoped ReAct cache lifecycle management.
+# Tests for run-scoped executor cache lifecycle management.
 #
 # Usage:
 #   bats tests/lib/test_runtime_react_cache.sh

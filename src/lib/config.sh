@@ -10,8 +10,8 @@
 #   CONFIG_FILE (string): config path; default resolved in detect_config_file.
 #   PLANNER_MODEL_SPEC (string): HF repo[:file] spec for planner llama calls.
 #   PLANNER_MODEL_BRANCH (string): HF branch for planner model downloads.
-#   REACT_MODEL_SPEC (string): HF repo[:file] spec for ReAct llama calls.
-#   REACT_MODEL_BRANCH (string): HF branch for ReAct model downloads.
+#   REACT_MODEL_SPEC (string): HF repo[:file] spec for executor llama calls (legacy name).
+#   REACT_MODEL_BRANCH (string): HF branch for executor model downloads (legacy name).
 #   SEARCH_REPHRASER_MODEL_SPEC (string): HF repo[:file] spec for search rephrasing llama calls.
 #   SEARCH_REPHRASER_MODEL_BRANCH (string): HF branch for search rephrasing model downloads.
 #   TESTING_PASSTHROUGH (bool): forces llama calls off during tests.
@@ -24,7 +24,7 @@
 #   OKSO_CACHE_DIR (string): base directory for prompt caches (default: ${XDG_CACHE_HOME:-${HOME}/.cache}/okso).
 #   OKSO_PLANNER_CACHE_FILE (string): prompt cache file used for planning llama.cpp calls.
 #   OKSO_REPHRASER_CACHE_FILE (string): prompt cache file used for search rephrasing llama.cpp calls.
-#   OKSO_REACT_CACHE_FILE (string): run-scoped prompt cache file for ReAct llama.cpp calls.
+#   OKSO_REACT_CACHE_FILE (string): run-scoped prompt cache file for executor llama.cpp calls (legacy name).
 #   OKSO_RUN_ID (string): unique identifier for the current run used to scope caches.
 #
 # Dependencies:

@@ -23,7 +23,7 @@ CLI_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${CLI_LIB_DIR}/../core/logging.sh"
 
 build_usage_text() {
-	local default_model_spec default_model_branch entrypoint_display default_planner_spec default_planner_branch default_react_spec default_react_branch
+        local default_model_spec default_model_branch entrypoint_display default_planner_spec default_planner_branch default_react_spec default_react_branch
 	default_model_spec="${DEFAULT_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-4B-GGUF:Qwen_Qwen3-4B-Q4_K_M.gguf}"
 	default_model_branch="${DEFAULT_MODEL_BRANCH_BASE:-main}"
 	default_planner_spec="${DEFAULT_PLANNER_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-8B-GGUF:Qwen_Qwen3-8B-Q4_K_M.gguf}"
@@ -43,7 +43,7 @@ Options:
       --confirm         Always prompt before running tools.
       --dry-run         Print the planned tool calls without running them.
       --plan-only       Emit the planned calls as JSON and exit (implies --dry-run).
-  -m, --model VALUE     HF repo[:file] used for both planner and ReAct models when specific flags are not set (default: ${default_model_spec}).
+  -m, --model VALUE     HF repo[:file] used for both planner and executor models when specific flags are not set (default: ${default_model_spec}).
       --model-branch BRANCH
                         HF branch or tag for the shared model download (default: ${default_model_branch}).
       --planner-model VALUE
@@ -51,9 +51,9 @@ Options:
       --planner-model-branch BRANCH
                         HF branch or tag for the planning model download (default: ${default_planner_branch}).
       --react-model VALUE
-                        HF repo[:file] for ReAct llama.cpp calls (default: ${default_react_spec}).
+                        HF repo[:file] for executor llama.cpp calls (default: ${default_react_spec}).
       --react-model-branch BRANCH
-                        HF branch or tag for the ReAct model download (default: ${default_react_branch}).
+                        HF branch or tag for the executor model download (default: ${default_react_branch}).
       --config FILE     Config file to load or create (default: ${XDG_CONFIG_HOME:-$HOME/.config}/okso/config.env).
   -v, --verbose         Increase log verbosity (JSON logs are always structured).
   -q, --quiet           Silence informational logs.

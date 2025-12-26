@@ -13,9 +13,9 @@
 #   PLANNER_MODEL_FILE (string): model file within the repository for planner inference.
 #   SEARCH_REPHRASER_MODEL_REPO (string): Hugging Face repository name for search rephrasing inference.
 #   SEARCH_REPHRASER_MODEL_FILE (string): model file within the repository for search rephrasing inference.
-#   REACT_MODEL_REPO (string): Hugging Face repository name for ReAct inference.
-#   REACT_MODEL_FILE (string): model file within the repository for ReAct inference.
-#   REACT_ENTRYPOINT (string): optional path override for the ReAct entrypoint script.
+#   REACT_MODEL_REPO (string): Hugging Face repository name for executor inference (legacy name).
+#   REACT_MODEL_FILE (string): model file within the repository for executor inference (legacy name).
+#   REACT_ENTRYPOINT (string): optional path override for the executor entrypoint script.
 #   TOOLS (array): optional array of tool names available to the planner.
 #   PLAN_ONLY, DRY_RUN (bool): control execution and preview behaviour.
 #   APPROVE_ALL, FORCE_CONFIRM (bool): confirmation toggles.
@@ -46,7 +46,7 @@ PLANNING_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # Planner architecture overview
 # -----------------------------
-# The planner performs a short, deterministic pass before the ReAct loop
+# The planner performs a short, deterministic pass before the executor loop
 # executes any tools. The high-level flow is:
 #   1. Tools and schemas are sourced so the planner understands which actions
 #      are available and how they should be called.
@@ -56,7 +56,7 @@ PLANNING_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 #      tool descriptions, and examples into a llama.cpp completion request.
 #   4. Raw model responses are normalized into the canonical planner schema
 #      and scored for safety + viability.
-#   5. The best candidate's plan and allowed tools are forwarded to the ReAct
+#   5. The best candidate's plan and allowed tools are forwarded to the executor
 #      loop, which handles execution, approvals, and final answers.
 #
 # This file owns steps (1)–(4); execution dispatch lives in ../react/react.sh.
@@ -99,7 +99,7 @@ if [[ "${PLANNER_SKIP_TOOL_LOAD:-false}" != true ]]; then
 fi
 
 initialize_planner_models() {
-	# Hydrates planner and ReAct model specs when callers did not pass
+    # Hydrates planner and executor model specs when callers did not pass
 	# explicit repositories or filenames via the environment. This keeps
 	# downstream llama.cpp calls predictable regardless of how the planner
 	# was sourced (CLI invocation vs. tests).
@@ -566,10 +566,10 @@ select_next_action() {
 REACT_ENTRYPOINT=${REACT_ENTRYPOINT:-"${PLANNING_LIB_DIR}/../react/react.sh"}
 
 if [[ "${PLANNER_SKIP_TOOL_LOAD:-false}" == true ]]; then
-	log "DEBUG" "Skipping ReAct entrypoint load" "planner_skip_tool_load=true" >&2
+    log "DEBUG" "Skipping executor entrypoint load" "planner_skip_tool_load=true" >&2
 else
 	if [[ ! -f "${REACT_ENTRYPOINT}" ]]; then
-		log "ERROR" "ReAct entrypoint missing" "REACT_ENTRYPOINT=${REACT_ENTRYPOINT}" >&2
+            log "ERROR" "Executor entrypoint missing" "REACT_ENTRYPOINT=${REACT_ENTRYPOINT}" >&2
 		return 1 2>/dev/null
 	fi
 

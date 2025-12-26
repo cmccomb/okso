@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # shellcheck shell=bash
 #
-# ReAct schema validation tests for tool argument handling.
+# Executor schema validation tests for tool argument handling.
 #
 # Usage:
 #   bats tests/lib/test_react_schema.sh

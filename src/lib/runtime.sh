@@ -15,22 +15,22 @@
 # Expected types (namespaced JSON scoped by a settings prefix):
 #   ${settings_prefix}_json.version (string): application version.
 #   ${settings_prefix}_json.llama_bin (string): llama.cpp binary path.
-#   ${settings_prefix}_json.default_model_file (string): default GGUF filename for ReAct.
+#   ${settings_prefix}_json.default_model_file (string): default GGUF filename for executor runs.
 #   ${settings_prefix}_json.default_planner_model_file (string): default GGUF filename for the planner.
 #   ${settings_prefix}_json.config_dir (string): directory for config file.
 #   ${settings_prefix}_json.config_file (string): path to the config file.
 #   ${settings_prefix}_json.cache_dir (string): base directory for prompt caches.
 #   ${settings_prefix}_json.planner_cache_file (string): prompt cache file used for planner calls.
-#   ${settings_prefix}_json.react_cache_file (string): prompt cache file used for ReAct calls.
-#   ${settings_prefix}_json.run_id (string): run identifier scoping ReAct caches.
+#   ${settings_prefix}_json.react_cache_file (string): prompt cache file used for executor calls.
+#   ${settings_prefix}_json.run_id (string): run identifier scoping executor caches.
 #   ${settings_prefix}_json.planner_model_spec (string): HF repo[:file] spec for planner llama.cpp.
 #   ${settings_prefix}_json.planner_model_branch (string): branch or tag for planner downloads.
 #   ${settings_prefix}_json.planner_model_repo (string): parsed planner HF repo.
 #   ${settings_prefix}_json.planner_model_file (string): parsed planner HF file.
-#   ${settings_prefix}_json.react_model_spec (string): HF repo[:file] spec for ReAct llama.cpp.
-#   ${settings_prefix}_json.react_model_branch (string): branch or tag for ReAct downloads.
-#   ${settings_prefix}_json.react_model_repo (string): parsed ReAct HF repo.
-#   ${settings_prefix}_json.react_model_file (string): parsed ReAct HF file.
+#   ${settings_prefix}_json.react_model_spec (string): HF repo[:file] spec for executor llama.cpp.
+#   ${settings_prefix}_json.react_model_branch (string): branch or tag for executor downloads.
+#   ${settings_prefix}_json.react_model_repo (string): parsed executor HF repo.
+#   ${settings_prefix}_json.react_model_file (string): parsed executor HF file.
 #   ${settings_prefix}_json.approve_all (bool string): true to bypass prompts.
 #   ${settings_prefix}_json.force_confirm (bool string): true to force prompts.
 #   ${settings_prefix}_json.dry_run (bool string): true to avoid execution.
@@ -113,7 +113,7 @@ EOF
 }
 
 react_run_cache_dir() {
-	# Derives the directory that scopes the ReAct prompt cache for the current run.
+        # Derives the directory that scopes the executor prompt cache for the current run.
 	# Returns:
 	#   The directory path (string) or empty string when unset.
 	if [[ -z "${REACT_CACHE_FILE:-}" ]]; then
@@ -125,7 +125,7 @@ react_run_cache_dir() {
 }
 
 coerce_react_run_cache_path() {
-	# Ensures the ReAct prompt cache is scoped to the current run directory.
+        # Ensures the executor prompt cache is scoped to the current run directory.
 	# Arguments:
 	#   $1 - settings namespace prefix
 	local settings_prefix cache_dir run_id cache_basename run_cache_dir coerced_path
@@ -146,7 +146,7 @@ coerce_react_run_cache_path() {
 }
 
 ensure_react_run_cache_dir() {
-	# Ensures the run-scoped ReAct cache directory exists for llama.cpp caching.
+        # Ensures the run-scoped executor cache directory exists for llama.cpp caching.
 	local cache_dir
 	cache_dir="$(react_run_cache_dir)"
 
@@ -156,11 +156,11 @@ ensure_react_run_cache_dir() {
 
 	mkdir -p "${cache_dir}"
 	REACT_RUN_CACHE_DIR="${cache_dir}"
-	log "INFO" "Prepared ReAct run cache" "path=${cache_dir}"
+        log "INFO" "Prepared executor run cache" "path=${cache_dir}"
 }
 
 cleanup_react_run_cache_dir() {
-	# Cleans up the run-scoped ReAct cache directory on success and retains it on failure.
+        # Cleans up the run-scoped executor cache directory on success and retains it on failure.
 	# Arguments:
 	#   $1 - exit status to evaluate
 	local status cache_dir
@@ -173,11 +173,11 @@ cleanup_react_run_cache_dir() {
 
 	if [[ "${status}" -eq 0 ]]; then
 		rm -rf "${cache_dir}"
-		log "INFO" "Cleaned ReAct run cache" "path=${cache_dir}"
+                log "INFO" "Cleaned executor run cache" "path=${cache_dir}"
 		return
 	fi
 
-	log "INFO" "Retaining ReAct run cache for debugging" "path=${cache_dir} status=${status}"
+        log "INFO" "Retaining executor run cache for debugging" "path=${cache_dir} status=${status}"
 }
 
 apply_settings_to_globals() {
