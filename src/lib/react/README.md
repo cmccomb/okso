@@ -18,9 +18,9 @@ executor_loop "${user_query}" "${allowed_tools}" "${plan_entries}" "${plan_outli
 
 The executor honours planner `args_control` metadata. When a tool argument is marked as `context`,
 the loop flags it for LLM completion instead of copying history directly into the arg list. The
-missing-arg prompt shares the serialized history from `state_get_history_lines`, the planner
+context-enrichment prompt shares the serialized history from `state_get_history_lines`, the planner
 thought, plan outline, and any partial arg text so llama.cpp can compose a response rooted in the
-latest context rather than relying on the original `user_query` alone.
+latest context while leaving planner-provided required arguments untouched.
 
 ## Dependencies
 

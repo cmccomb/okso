@@ -41,7 +41,7 @@ Use `--dry-run` to stop after plan generation and approvals if you want to inspe
 ## Executor
 
 - Requests one schema-constrained tool call from llama.cpp using the executor prompt (no persona or interaction transcript).
-- Executes the chosen tool and streams observations; planner-specified context-controlled fields may be enriched by the executor LLM while other required fields must already be present.
+- Executes the chosen tool and streams observations; planner-specified context-controlled fields may be enriched by the executor LLM while all other required fields must be fully populated by the planner.
 - When `USE_REACT_LLAMA=false` or llama.cpp is unavailable, replays each planned tool deterministically using the original user query and the step context.
 - Stops after `final_answer` emits the user-facing result or when a tool returns a fatal error.
 

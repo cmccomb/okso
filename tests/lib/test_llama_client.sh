@@ -40,7 +40,7 @@ setup() {
                 args_file="${args_dir}/args.txt"
                 mock_binary="${args_dir}/mock_llama.sh"
                 json_schema="${args_dir}/schema.json"
-                printf "{\"title\":\"sentinel-schema\"}" >"${json_schema}"
+                printf "{\"title\":\"forwarded-schema\"}" >"${json_schema}"
                 cat >"${mock_binary}" <<SCRIPT
 #!/usr/bin/env bash
 printf "%s\n" "\$@" >"${args_file}"
@@ -57,7 +57,7 @@ SCRIPT
                         args+=("$line")
                 done <"${args_file}"
                 [[ "${args[*]}" == *"--json-schema"* ]]
-                [[ "${args[*]}" == *"sentinel-schema"* ]]
+                [[ "${args[*]}" == *"forwarded-schema"* ]]
                 [[ "${args[*]}" == *"-r"* ]]
                 [[ "${args[*]}" == *"STOP"* ]]
         '
