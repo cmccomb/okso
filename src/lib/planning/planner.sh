@@ -240,6 +240,8 @@ generate_planner_response() {
 	local -a planner_tools=()
 	user_query="$1"
 
+	initialize_planner_models
+
 	if ! require_llama_available "planner generation"; then
 		log "ERROR" "Planner cannot generate steps without llama.cpp" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}" >&2
 		local fallback
