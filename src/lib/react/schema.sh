@@ -29,6 +29,116 @@ source "${REACT_LIB_DIR}/../tools.sh"
 # shellcheck source=../dependency_guards/dependency_guards.sh disable=SC1091
 source "${REACT_LIB_DIR}/../dependency_guards/dependency_guards.sh"
 
+json_pointer_to_path() {
+	# Converts a JSON Pointer to a slash-delimited path string.
+	# Arguments:
+	#   $1 - JSON Pointer (string)
+	#   $2 - omit last segment flag (bool; optional)
+	local pointer omit_last segments=() part path_parts=()
+	pointer=${1:-""}
+	omit_last=${2:-false}
+
+	IFS='/' read -r -a segments <<<"${pointer#/}"
+
+	for part in "${segments[@]}"; do
+		part=${part//~1//}
+		part=${part//~0/~}
+		if [[ -n "${part}" ]]; then
+			path_parts+=("${part}")
+		fi
+	done
+
+	if [[ "${omit_last}" == true ]] && ((${#path_parts[@]} > 0)); then
+		unset 'path_parts[-1]'
+	fi
+
+	if ((${#path_parts[@]} == 0)); then
+		printf 'root'
+		return
+	fi
+
+	printf '%s' "${path_parts[*]}" | tr ' ' '/'
+}
+
+json_pointer_to_jq() {
+	# Converts a JSON Pointer to a jq field accessor expression.
+	# Arguments:
+	#   $1 - JSON Pointer (string)
+	local pointer segments=() expr part
+	pointer=${1:-""}
+	expr="."
+
+	IFS='/' read -r -a segments <<<"${pointer#/}"
+
+	for part in "${segments[@]}"; do
+		part=${part//~1//}
+		part=${part//~0/~}
+		if [[ "${part}" =~ ^[0-9]+$ ]]; then
+			expr+="[${part}]"
+		else
+			expr+="[\"${part}\"]"
+		fi
+	done
+
+	printf '%s' "${expr}"
+}
+
+format_jsonschema_error() {
+	# Shapes the JSON Schema CLI JSON error output into a concise error message.
+	# Arguments:
+	#   $1 - validation output JSON (string)
+	#   $2 - instance JSON path (string)
+	#   $3 - schema JSON path (string)
+	local validation_json instance_path schema_path error_json keyword_location instance_location location_path message value expected_type value_expr type_expr extra_key
+	validation_json=$1
+	instance_path=$2
+	schema_path=$3
+
+	error_json=$(jq -c '
+                (.errors // [])
+                | sort_by(
+                        if (.keywordLocation|tostring|contains("additionalProperties")) then 0
+                        elif (.keywordLocation|tostring|endswith("/type")) then 1
+                        elif (.keywordLocation|tostring|contains("/required")) then 2
+                        else 3
+                        end,
+                        -((.instanceLocation // "" | split("/") | length))
+                )
+                | .[0] // {}
+        ' <<<"${validation_json}" 2>/dev/null)
+
+	if [[ -z "${error_json}" || "${error_json}" == "{}" ]]; then
+		printf 'Schema validation failed' >&2
+		return 1
+	fi
+
+	keyword_location=$(jq -r '.keywordLocation // ""' <<<"${error_json}")
+	instance_location=$(jq -r '.instanceLocation // ""' <<<"${error_json}")
+
+	if [[ "${keyword_location}" == */additionalProperties ]]; then
+		location_path=$(json_pointer_to_path "${instance_location}" true)
+		extra_key=$(json_pointer_to_path "${instance_location}" false)
+		extra_key=${extra_key##*/}
+		printf '%s: Additional properties are not allowed (' "${location_path}"
+		printf "'%s' was unexpected)" "${extra_key}"
+		return 0
+	fi
+
+	if [[ "${keyword_location}" == */type ]]; then
+		location_path=$(json_pointer_to_path "${instance_location}" false)
+		value_expr=$(json_pointer_to_jq "${instance_location}")
+		type_expr=$(json_pointer_to_jq "${keyword_location}")
+		value=$(jq -r "${value_expr}" "${instance_path}" 2>/dev/null || printf 'unknown')
+		expected_type=$(jq -r "${type_expr}" "${schema_path}" 2>/dev/null || printf 'unknown')
+		printf "%s: '%s' is not of type '%s'" "${location_path}" "${value}" "${expected_type}"
+		return 0
+	fi
+
+	location_path=$(json_pointer_to_path "${instance_location}" false)
+	message=$(jq -r '.error // "Schema validation error"' <<<"${error_json}")
+	printf '%s: %s' "${location_path}" "${message}"
+}
+
 build_react_action_schema() {
 	# Constructs a JSON schema for allowed executor tools with optional missing-value sentinels.
 	# Arguments:
@@ -179,7 +289,8 @@ validate_react_action() {
 	# Arguments:
 	#   $1 - raw action JSON string
 	#   $2 - schema path
-	local raw_action schema_path action_json schema_json err_log missing_token tool allowed_tools python_status
+	local raw_action schema_path action_json schema_json err_log missing_token tool allowed_tools action_extras args_schema
+	local -a allowed_arg_keys=()
 	raw_action="$1"
 	schema_path="$2"
 	missing_token="${MISSING_VALUE_TOKEN}"
@@ -199,6 +310,14 @@ validate_react_action() {
 	fi
 
 	rm -f "${err_log}"
+
+	action_json=$(jq -c '
+                if (.action.args // empty | type) == "object" then
+                        .action.args |= with_entries(select(.value != null))
+                else
+                        .
+                end
+        ' <<<"${action_json}")
 
 	if ! jq -e 'keys_unsorted == ["action"]' <<<"${action_json}" >/dev/null 2>&1; then
 		printf 'Unexpected or missing top-level fields\n' >&2
@@ -220,66 +339,51 @@ validate_react_action() {
 		fi
 	fi
 
-	python3 - "${schema_path}" "${action_json}" <<'PY'
-import json
-import sys
+	if [[ -n "${tool}" && "${tool}" != "${missing_token}" ]] && jq -e '.action.args | type == "object"' <<<"${action_json}" >/dev/null 2>&1; then
+		args_schema=$(jq -c --arg tool "${tool}" '.oneOf[]? | select(.properties.action.properties.tool.anyOf[]?.const == $tool) | .properties.action.properties.args.anyOf[]? | select(.type == "object")' <<<"${schema_json}" 2>/dev/null || printf '{}')
+		mapfile -t allowed_arg_keys < <(jq -r '(.properties // {}) | keys[]?' <<<"${args_schema}" 2>/dev/null)
+		if [[ ${#allowed_arg_keys[@]} -gt 0 ]]; then
+			while IFS= read -r arg_key; do
+				if [[ -z "${arg_key}" ]]; then
+					continue
+				fi
 
-try:
-    from jsonschema import Draft202012Validator
-except ImportError:
-    sys.stderr.write("jsonschema dependency missing; install with pip install jsonschema\n")
-    sys.exit(2)
+				if ! printf '%s\n' "${allowed_arg_keys[@]}" | grep -Fxq "${arg_key}"; then
+					printf "action/args: Additional properties are not allowed ('%s' was unexpected)\n" "${arg_key}" >&2
+					return 1
+				fi
+			done < <(jq -r '.action.args | keys[]?' <<<"${action_json}" 2>/dev/null)
+		fi
+	fi
 
-
-def _leaf_errors(error):
-    if error.context:
-        for child in error.context:
-            yield from _leaf_errors(child)
-    else:
-        yield error
-
-
-schema_path = sys.argv[1]
-instance = json.loads(sys.argv[2])
-
-with open(schema_path, "r", encoding="utf-8") as schema_file:
-    schema = json.load(schema_file)
-
-validator = Draft202012Validator(schema)
-errors = sorted(validator.iter_errors(instance), key=lambda err: (len(list(err.path)), err.path))
-
-if errors:
-    leaves = [leaf for err in errors for leaf in _leaf_errors(err)]
-
-    def _message_priority(message: str) -> int:
-        if "Additional properties" in message:
-            return 0
-        if "not of type" in message:
-            return 1
-        if "expected" in message:
-            return 2
-        return 3
-
-    leaves.sort(
-        key=lambda err: (
-            _message_priority(err.message),
-            -len(list(err.absolute_path)),
-            list(err.absolute_path),
-            err.message,
-        )
-    )
-    leaf_error = leaves[0]
-    location = "/".join(str(part) for part in leaf_error.absolute_path) or "root"
-    sys.stderr.write(f"{location}: {leaf_error.message}\n")
-    sys.exit(1)
-
-print(json.dumps(instance, separators=(",", ":")))
-PY
-	python_status=$?
-
-	if ((python_status == 2)); then
+	action_extras=$(jq -cr '.action | objects | [keys[]? | select(. != "tool" and . != "args")]' <<<"${action_json}" 2>/dev/null || printf '[]')
+	if [[ "${action_extras}" != "[]" ]]; then
+		printf "action: Additional properties are not allowed ('%s' was unexpected)\n" "$(jq -r '.[0]' <<<"${action_extras}")" >&2
 		return 1
 	fi
 
-	return ${python_status}
+	if ! require_jsonschema_cli_available "ReAct action validation"; then
+		return 1
+	fi
+
+	action_tmp=$(mktemp)
+	printf '%s\n' "${action_json}" >"${action_tmp}"
+
+	validation_output=$(jsonschema_cli validate --json --default-dialect https://json-schema.org/draft/2020-12/schema "${schema_path}" "${action_tmp}" 2>"${err_log}")
+	status=$?
+
+	if ((status != 0)); then
+		if [[ -n "${validation_output}" ]]; then
+			printf '%s\n' "$(format_jsonschema_error "${validation_output}" "${action_tmp}" "${schema_path}")" >&2
+		elif [[ -s "${err_log}" ]]; then
+			cat "${err_log}" >&2
+		fi
+		rm -f "${action_tmp}" "${err_log}"
+		return 1
+	fi
+
+	jq -c '.' "${action_tmp}"
+	rm -f "${action_tmp}" "${err_log}"
+
+	return 0
 }
