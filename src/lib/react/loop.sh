@@ -221,12 +221,14 @@ fill_missing_args_with_llm() {
 	#   $3 - user query
 	#   $4 - plan outline
 	#   $5 - planner thought
+	#   $6 - history text
 	local tool args_json user_query plan_outline planner_thought schema prompt response
 	tool="$1"
 	args_json="$2"
 	user_query="$3"
 	plan_outline="$4"
 	planner_thought="$5"
+	history_text="$6"
 	schema="$(tool_args_schema "${tool}")"
 
 	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
@@ -242,11 +244,14 @@ fill_missing_args_with_llm() {
 		plan_outline "${plan_outline}" \
 		planner_thought "${planner_thought}" \
 		args_json "${args_json}" \
-		args_schema "${schema}")"; then
+		args_schema "${schema}" \
+		history_text "${history_text}")"; then
 		log "WARN" "Failed to render executor prompt" "${tool}" || true
 		printf '%s' "${args_json}"
 		return 0
 	fi
+
+	log_pretty "INFO" "prompt" "${prompt}"
 
 	response="$(llama_infer "${prompt}" "" 256 "" "${REACT_MODEL_REPO:-}" "${REACT_MODEL_FILE:-}" "${REACT_CACHE_FILE:-}")"
 	if jq -e 'type == "object"' <<<"${response}" >/dev/null 2>&1; then
@@ -291,7 +296,7 @@ resolve_action_args() {
 			break
 		fi
 		log "INFO" "Filling missing args" "$(printf 'tool=%s attempt=%s missing=%s' "${tool}" "${attempt}" "${missing_keys}")"
-		resolved_args="$(fill_missing_args_with_llm "${tool}" "${resolved_args}" "${user_query}" "${plan_outline}" "${planner_thought}")"
+		resolved_args="$(fill_missing_args_with_llm "${tool}" "${resolved_args}" "${user_query}" "${plan_outline}" "${planner_thought}" "${history_text}")"
 	done
 
 	normalize_args_json "${resolved_args}"
