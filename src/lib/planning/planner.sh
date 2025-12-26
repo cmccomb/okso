@@ -13,9 +13,9 @@
 #   PLANNER_MODEL_FILE (string): model file within the repository for planner inference.
 #   SEARCH_REPHRASER_MODEL_REPO (string): Hugging Face repository name for search rephrasing inference.
 #   SEARCH_REPHRASER_MODEL_FILE (string): model file within the repository for search rephrasing inference.
-#   REACT_MODEL_REPO (string): Hugging Face repository name for executor inference (legacy name).
-#   REACT_MODEL_FILE (string): model file within the repository for executor inference (legacy name).
-#   REACT_ENTRYPOINT (string): optional path override for the executor entrypoint script.
+#   EXECUTOR_MODEL_REPO (string): Hugging Face repository name for executor inference.
+#   EXECUTOR_MODEL_FILE (string): model file within the repository for executor inference.
+#   EXECUTOR_ENTRYPOINT (string): optional path override for the executor entrypoint script.
 #   TOOLS (array): optional array of tool names available to the planner.
 #   PLAN_ONLY, DRY_RUN (bool): control execution and preview behaviour.
 #   APPROVE_ALL, FORCE_CONFIRM (bool): confirmation toggles.
@@ -59,7 +59,7 @@ PLANNING_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 #   5. The best candidate's plan and allowed tools are forwarded to the executor
 #      loop, which handles execution, approvals, and final answers.
 #
-# This file owns steps (1)–(4); execution dispatch lives in ../react/react.sh.
+# This file owns steps (1)–(4); execution dispatch lives in ../executor/executor.sh.
 
 # shellcheck source=../core/errors.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/../core/errors.sh"
@@ -475,7 +475,7 @@ derive_allowed_tools_from_plan() {
 	seen=""
 	local -a required=()
 	local plan_contains_fallback=false
-	if jq -e '.[] | select(.tool == "react_fallback")' <<<"${plan_json}" >/dev/null 2>&1; then
+	if jq -e '.[] | select(.tool == "executor_fallback")' <<<"${plan_json}" >/dev/null 2>&1; then
 		plan_contains_fallback=true
 	fi
 
@@ -565,16 +565,16 @@ select_next_action() {
 	printf -v "${output_var}" '%s' "${next_action}"
 }
 
-REACT_ENTRYPOINT=${REACT_ENTRYPOINT:-"${PLANNING_LIB_DIR}/../react/react.sh"}
+EXECUTOR_ENTRYPOINT=${EXECUTOR_ENTRYPOINT:-"${PLANNING_LIB_DIR}/../executor/executor.sh"}
 
 if [[ "${PLANNER_SKIP_TOOL_LOAD:-false}" == true ]]; then
 	log "DEBUG" "Skipping executor entrypoint load" "planner_skip_tool_load=true" >&2
 else
-	if [[ ! -f "${REACT_ENTRYPOINT}" ]]; then
-		log "ERROR" "Executor entrypoint missing" "REACT_ENTRYPOINT=${REACT_ENTRYPOINT}" >&2
+	if [[ ! -f "${EXECUTOR_ENTRYPOINT}" ]]; then
+		log "ERROR" "Executor entrypoint missing" "EXECUTOR_ENTRYPOINT=${EXECUTOR_ENTRYPOINT}" >&2
 		return 1 2>/dev/null
 	fi
 
-	# shellcheck source=../react/react.sh disable=SC1091
-	source "${REACT_ENTRYPOINT}"
+	# shellcheck source=../executor/executor.sh disable=SC1091
+	source "${EXECUTOR_ENTRYPOINT}"
 fi

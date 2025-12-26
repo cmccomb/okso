@@ -16,16 +16,16 @@
 # Exit codes:
 #   Functions return non-zero on validation or schema construction failures.
 
-REACT_LIB_DIR=${REACT_LIB_DIR:-$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)}
+EXECUTOR_LIB_DIR=${EXECUTOR_LIB_DIR:-$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)}
 
 # shellcheck source=../schema/schema.sh disable=SC1091
-source "${REACT_LIB_DIR}/../schema/schema.sh"
+source "${EXECUTOR_LIB_DIR}/../schema/schema.sh"
 # shellcheck source=../core/logging.sh disable=SC1091
-source "${REACT_LIB_DIR}/../core/logging.sh"
+source "${EXECUTOR_LIB_DIR}/../core/logging.sh"
 # shellcheck source=../tools.sh disable=SC1091
-source "${REACT_LIB_DIR}/../tools.sh"
+source "${EXECUTOR_LIB_DIR}/../tools.sh"
 # shellcheck source=../dependency_guards/dependency_guards.sh disable=SC1091
-source "${REACT_LIB_DIR}/../dependency_guards/dependency_guards.sh"
+source "${EXECUTOR_LIB_DIR}/../dependency_guards/dependency_guards.sh"
 
 json_pointer_to_path() {
 	# Converts a JSON Pointer to a slash-delimited path string.
@@ -137,7 +137,7 @@ format_jsonschema_error() {
 	printf '%s: %s' "${location_path}" "${message}"
 }
 
-build_react_action_schema() {
+build_executor_action_schema() {
 	# Constructs a JSON schema for allowed executor tools.
 	# Arguments:
 	#   $1 - newline-delimited allowed tools (optional)
@@ -239,7 +239,7 @@ with tempfile.NamedTemporaryFile(
 PY
 }
 
-validate_react_action() {
+validate_executor_action() {
 	# Validates a llama-produced action against the generated schema.
 	# Arguments:
 	#   $1 - raw action JSON string

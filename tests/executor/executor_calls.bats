@@ -7,7 +7,7 @@ setup() {
 @test "apply_plan_arg_controls marks context args and preserves planner seeds" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-source ./src/lib/react/loop.sh
+source ./src/lib/executor/loop.sh
 
 tool_args_schema() {
         printf '{"properties":{"title":{"type":"string"},"body":{"type":"string"}}}'
@@ -30,7 +30,7 @@ SCRIPT
 @test "context args are completed via llama_infer" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-source ./src/lib/react/loop.sh
+source ./src/lib/executor/loop.sh
 LLAMA_AVAILABLE=true
 LLAMA_PROMPT_LOG=$(mktemp)
 
@@ -70,7 +70,7 @@ SCRIPT
 @test "resolve_action_args receives args_control from validated actions" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-source ./src/lib/react/loop.sh
+source ./src/lib/executor/loop.sh
 LLAMA_AVAILABLE=true
 
 log() { :; }
@@ -111,7 +111,7 @@ SCRIPT
 @test "validate_planner_action rejects disallowed tools" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-source ./src/lib/react/loop.sh
+source ./src/lib/executor/loop.sh
 allowed_tools=$'notes_create\nfinal_answer'
 if validate_planner_action '{"tool":"unknown","args":{}}' "${allowed_tools}" 2>/tmp/validation_err; then
         exit 1
@@ -126,7 +126,7 @@ SCRIPT
 @test "fill_missing_args_with_llm uses llama output for context args" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-source ./src/lib/react/loop.sh
+source ./src/lib/executor/loop.sh
 LLAMA_AVAILABLE=true
 llama_infer() {
         printf '{"title":"Filled title","body":"Filled body"}'
@@ -152,7 +152,7 @@ SCRIPT
 @test "fill_missing_args_with_llm forwards tool schema to llama" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-source ./src/lib/react/loop.sh
+source ./src/lib/executor/loop.sh
 LLAMA_AVAILABLE=true
 
 schema_log=$(mktemp)

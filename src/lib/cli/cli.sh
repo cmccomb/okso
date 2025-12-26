@@ -55,10 +55,6 @@ Options:
                         HF repo[:file] for executor llama.cpp calls (default: ${default_executor_spec}).
       --executor-model-branch BRANCH
                         HF branch or tag for the executor model download (default: ${default_executor_branch}).
-      --react-model VALUE
-                        Legacy alias for --executor-model.
-      --react-model-branch BRANCH
-                        Legacy alias for --executor-model-branch.
       --config FILE     Config file to load or create (default: ${XDG_CONFIG_HOME:-$HOME/.config}/okso/config.env).
   -v, --verbose         Increase log verbosity (JSON logs are always structured).
   -q, --quiet           Silence informational logs.
@@ -99,11 +95,11 @@ show_version() {
 parse_args() {
 	local positional
 	positional=()
-	local planner_model_spec_set react_model_spec_set planner_model_branch_set react_model_branch_set
+	local planner_model_spec_set executor_model_spec_set planner_model_branch_set executor_model_branch_set
 	planner_model_spec_set=false
-	react_model_spec_set=false
+	executor_model_spec_set=false
 	planner_model_branch_set=false
-	react_model_branch_set=false
+	executor_model_branch_set=false
 
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
@@ -147,8 +143,8 @@ parse_args() {
 			if [[ "${planner_model_spec_set}" != true ]]; then
 				PLANNER_MODEL_SPEC="$2"
 			fi
-			if [[ "${react_model_spec_set}" != true ]]; then
-				REACT_MODEL_SPEC="$2"
+			if [[ "${executor_model_spec_set}" != true ]]; then
+				EXECUTOR_MODEL_SPEC="$2"
 			fi
 			shift 2
 			;;
@@ -159,8 +155,8 @@ parse_args() {
 			if [[ "${planner_model_branch_set}" != true ]]; then
 				PLANNER_MODEL_BRANCH="$2"
 			fi
-			if [[ "${react_model_branch_set}" != true ]]; then
-				REACT_MODEL_BRANCH="$2"
+			if [[ "${executor_model_branch_set}" != true ]]; then
+				EXECUTOR_MODEL_BRANCH="$2"
 			fi
 			shift 2
 			;;
@@ -184,32 +180,16 @@ parse_args() {
 			if [[ $# -lt 2 ]]; then
 				die "cli" "usage" "--executor-model requires an HF repo[:file] value"
 			fi
-			REACT_MODEL_SPEC="$2"
-			react_model_spec_set=true
-			shift 2
-			;;
-		--react-model)
-			if [[ $# -lt 2 ]]; then
-				die "cli" "usage" "--react-model requires an HF repo[:file] value"
-			fi
-			REACT_MODEL_SPEC="$2"
-			react_model_spec_set=true
+			EXECUTOR_MODEL_SPEC="$2"
+			executor_model_spec_set=true
 			shift 2
 			;;
 		--executor-model-branch)
 			if [[ $# -lt 2 ]]; then
 				die "cli" "usage" "--executor-model-branch requires a branch or tag"
 			fi
-			REACT_MODEL_BRANCH="$2"
-			react_model_branch_set=true
-			shift 2
-			;;
-		--react-model-branch)
-			if [[ $# -lt 2 ]]; then
-				die "cli" "usage" "--react-model-branch requires a branch or tag"
-			fi
-			REACT_MODEL_BRANCH="$2"
-			react_model_branch_set=true
+			EXECUTOR_MODEL_BRANCH="$2"
+			executor_model_branch_set=true
 			shift 2
 			;;
 		--config)

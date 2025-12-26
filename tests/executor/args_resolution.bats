@@ -7,7 +7,7 @@ setup() {
 @test "resolve_action_args skips LLM when args complete" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-source ./src/lib/react/loop.sh
+source ./src/lib/executor/loop.sh
 
 log() {
         :
@@ -42,7 +42,7 @@ SCRIPT
 @test "execute_planned_action forwards resolved args and preserves output" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-source ./src/lib/react/loop.sh
+source ./src/lib/executor/loop.sh
 
 log() {
         :
@@ -104,7 +104,7 @@ SCRIPT
 @test "resolve_action_args ignores malformed context metadata" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-source ./src/lib/react/loop.sh
+source ./src/lib/executor/loop.sh
 
 log() { :; }
 

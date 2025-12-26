@@ -19,7 +19,6 @@
 #   Functions return non-zero on validation or execution failures.
 
 EXECUTOR_LIB_DIR=${EXECUTOR_LIB_DIR:-$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)}
-REACT_LIB_DIR=${REACT_LIB_DIR:-${EXECUTOR_LIB_DIR}}
 
 # shellcheck source=../formatting.sh disable=SC1091
 source "${EXECUTOR_LIB_DIR}/../formatting.sh"
@@ -240,7 +239,7 @@ fill_missing_args_with_llm() {
 
 	log_pretty "INFO" "prompt" "${prompt}"
 
-	response="$(llama_infer "${prompt}" "" 256 "${schema}" "${REACT_MODEL_REPO:-}" "${REACT_MODEL_FILE:-}" "${REACT_CACHE_FILE:-}")"
+	response="$(llama_infer "${prompt}" "" 256 "${schema}" "${EXECUTOR_MODEL_REPO:-}" "${EXECUTOR_MODEL_FILE:-}" "${EXECUTOR_CACHE_FILE:-}")"
 	if jq -e 'type == "object"' <<<"${response}" >/dev/null 2>&1; then
 		jq -c '.' <<<"${response}"
 		return 0
@@ -386,7 +385,7 @@ executor_loop() {
 	if [[ -z "${plan_entries}" ]]; then
 		log "ERROR" "No planner actions provided" "${user_query}" >&2
 		state_set "${state_prefix}" "final_answer" "Planner did not provide any executable steps."
-		finalize_react_result "${state_prefix}"
+		finalize_executor_result "${state_prefix}"
 		return 1
 	fi
 
@@ -434,13 +433,7 @@ executor_loop() {
 	finalize_executor_result "${state_prefix}"
 }
 
-react_loop() {
-	# Compatibility shim preserving the legacy ReAct entry point.
-	executor_loop "$@"
-}
-
 export -f executor_loop
-export -f react_loop
 export -f apply_plan_arg_controls
 export -f validate_planner_action
 export -f validate_required_args_present

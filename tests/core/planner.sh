@@ -133,12 +133,12 @@ SCRIPT
 	[ "${lines[1]}" = "final_answer" ]
 }
 
-@test "derive_allowed_tools_from_plan expands react_fallback to available tools" {
+@test "derive_allowed_tools_from_plan expands executor_fallback to available tools" {
 	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/planner.sh
 tool_names() { printf "%s\n" terminal notes_create calendar_list; }
-plan_json='[{"tool":"react_fallback","args":{},"thought":"fallback"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"summarize"}]'
+plan_json='[{"tool":"executor_fallback","args":{},"thought":"fallback"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"summarize"}]'
 tools=()
 while IFS= read -r line; do
         tools+=("$line")

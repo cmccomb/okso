@@ -10,7 +10,7 @@
 #   - Build structured settings from defaults, config files, and CLI arguments.
 #   - Prepare the environment and tool registry using the provided settings.
 #   - Render plan output handling dry-run and plan-only flows.
-#   - Select the execution strategy (direct response vs. react loop).
+#   - Select the execution strategy (direct response vs. executor loop).
 #
 # Expected types (namespaced JSON scoped by a settings prefix):
 #   ${settings_prefix}_json.version (string): application version.
@@ -21,16 +21,16 @@
 #   ${settings_prefix}_json.config_file (string): path to the config file.
 #   ${settings_prefix}_json.cache_dir (string): base directory for prompt caches.
 #   ${settings_prefix}_json.planner_cache_file (string): prompt cache file used for planner calls.
-#   ${settings_prefix}_json.react_cache_file (string): prompt cache file used for executor calls (legacy key name).
+#   ${settings_prefix}_json.executor_cache_file (string): prompt cache file used for executor calls.
 #   ${settings_prefix}_json.run_id (string): run identifier scoping executor caches.
 #   ${settings_prefix}_json.planner_model_spec (string): HF repo[:file] spec for planner llama.cpp.
 #   ${settings_prefix}_json.planner_model_branch (string): branch or tag for planner downloads.
 #   ${settings_prefix}_json.planner_model_repo (string): parsed planner HF repo.
 #   ${settings_prefix}_json.planner_model_file (string): parsed planner HF file.
-#   ${settings_prefix}_json.react_model_spec (string): HF repo[:file] spec for executor llama.cpp (legacy key name).
-#   ${settings_prefix}_json.react_model_branch (string): branch or tag for executor downloads (legacy key name).
-#   ${settings_prefix}_json.react_model_repo (string): parsed executor HF repo (legacy key name).
-#   ${settings_prefix}_json.react_model_file (string): parsed executor HF file (legacy key name).
+#   ${settings_prefix}_json.executor_model_spec (string): HF repo[:file] spec for executor llama.cpp.
+#   ${settings_prefix}_json.executor_model_branch (string): branch or tag for executor downloads.
+#   ${settings_prefix}_json.executor_model_repo (string): parsed executor HF repo.
+#   ${settings_prefix}_json.executor_model_file (string): parsed executor HF file.
 #   ${settings_prefix}_json.approve_all (bool string): true to bypass prompts.
 #   ${settings_prefix}_json.force_confirm (bool string): true to force prompts.
 #   ${settings_prefix}_json.dry_run (bool string): true to avoid execution.
@@ -38,7 +38,7 @@
 #   ${settings_prefix}_json.verbosity (int string): log verbosity level.
 #   ${settings_prefix}_json.notes_dir (string): notes storage directory.
 #   ${settings_prefix}_json.llama_available (bool string): llama binary availability.
-#   ${settings_prefix}_json.use_react_llama (bool string): toggle executor llama usage (legacy key name).
+#   ${settings_prefix}_json.use_executor_llama (bool string): toggle executor llama usage.
 #   ${settings_prefix}_json.is_macos (bool string): detected macOS flag.
 #   ${settings_prefix}_json.command (string): operational mode.
 #   ${settings_prefix}_json.user_query (string): provided user query.
@@ -83,19 +83,19 @@ config_dir CONFIG_DIR
 config_file CONFIG_FILE
 cache_dir CACHE_DIR
 planner_cache_file PLANNER_CACHE_FILE
-react_cache_file REACT_CACHE_FILE
+executor_cache_file EXECUTOR_CACHE_FILE
 rephraser_cache_file SEARCH_REPHRASER_CACHE_FILE
 run_id RUN_ID
 planner_model_spec PLANNER_MODEL_SPEC
 planner_model_branch PLANNER_MODEL_BRANCH
-react_model_spec REACT_MODEL_SPEC
-react_model_branch REACT_MODEL_BRANCH
+executor_model_spec EXECUTOR_MODEL_SPEC
+executor_model_branch EXECUTOR_MODEL_BRANCH
 rephraser_model_spec SEARCH_REPHRASER_MODEL_SPEC
 rephraser_model_branch SEARCH_REPHRASER_MODEL_BRANCH
 planner_model_repo PLANNER_MODEL_REPO
 planner_model_file PLANNER_MODEL_FILE
-react_model_repo REACT_MODEL_REPO
-react_model_file REACT_MODEL_FILE
+executor_model_repo EXECUTOR_MODEL_REPO
+executor_model_file EXECUTOR_MODEL_FILE
 rephraser_model_repo SEARCH_REPHRASER_MODEL_REPO
 rephraser_model_file SEARCH_REPHRASER_MODEL_FILE
 approve_all APPROVE_ALL
@@ -105,7 +105,7 @@ plan_only PLAN_ONLY
 verbosity VERBOSITY
 notes_dir NOTES_DIR
 llama_available LLAMA_AVAILABLE
-use_react_llama USE_REACT_LLAMA
+use_executor_llama USE_EXECUTOR_LLAMA
 is_macos IS_MACOS
 command COMMAND
 user_query USER_QUERY
@@ -326,5 +326,5 @@ select_response_strategy() {
 
 	apply_settings_to_globals "${settings_prefix}"
 
-	react_loop "${USER_QUERY}" "${required_tools}" "${plan_entries}" "${plan_outline}"
+	executor_loop "${USER_QUERY}" "${required_tools}" "${plan_entries}" "${plan_outline}"
 }

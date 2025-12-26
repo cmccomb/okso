@@ -6,7 +6,7 @@
 # execution loop.
 #
 # Usage:
-#   source "${BASH_SOURCE[0]%/react.sh}/react.sh"
+#   source "${BASH_SOURCE[0]%/executor.sh}/executor.sh"
 #
 # Environment variables:
 #   MAX_STEPS (int): maximum number of executor turns; default: 6.
@@ -20,11 +20,10 @@
 #   None directly; functions return status of operations.
 
 EXECUTOR_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-REACT_LIB_DIR=${REACT_LIB_DIR:-${EXECUTOR_LIB_DIR}}
 
 # shellcheck source=./schema.sh disable=SC1091
-source "${REACT_LIB_DIR}/schema.sh"
+source "${EXECUTOR_LIB_DIR}/schema.sh"
 # shellcheck source=./history.sh disable=SC1091
-source "${REACT_LIB_DIR}/history.sh"
+source "${EXECUTOR_LIB_DIR}/history.sh"
 # shellcheck source=./loop.sh disable=SC1091
-source "${REACT_LIB_DIR}/loop.sh"
+source "${EXECUTOR_LIB_DIR}/loop.sh"

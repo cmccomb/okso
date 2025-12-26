@@ -28,7 +28,7 @@ PLANNER_PARAMETERLESS_TOOLS=(
 	mail_list_inbox
 	mail_list_unread
 	notes_list
-	react_fallback
+	executor_fallback
 	reminders_list
 )
 

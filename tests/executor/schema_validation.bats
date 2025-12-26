@@ -4,10 +4,10 @@ setup() {
 	unset -f chpwd _mise_hook 2>/dev/null || true
 }
 
-@test "react schema rejects missing required args" {
+@test "executor schema rejects missing required args" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-source ./src/lib/react/schema.sh
+source ./src/lib/executor/schema.sh
 
 tool_registry_json() {
         cat <<'JSON'
@@ -19,19 +19,19 @@ tool_names() {
         printf 'alpha\n'
 }
 
-schema_path=$(build_react_action_schema "alpha")
+schema_path=$(build_executor_action_schema "alpha")
 invalid_action='{"action":{"tool":"alpha","args":{"optional":"ok"}}}'
-validate_react_action "${invalid_action}" "${schema_path}" 2>&1
+validate_executor_action "${invalid_action}" "${schema_path}" 2>&1
 rm -f "${schema_path}"
 SCRIPT
 
 	[ "$status" -ne 0 ]
 }
 
-@test "react schema surfaces argument type failures" {
+@test "executor schema surfaces argument type failures" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-source ./src/lib/react/schema.sh
+source ./src/lib/executor/schema.sh
 
 tool_registry_json() {
         cat <<'JSON'
@@ -43,11 +43,11 @@ tool_names() {
         printf 'alpha\n'
 }
 
-schema_path=$(build_react_action_schema "alpha")
+schema_path=$(build_executor_action_schema "alpha")
 invalid_action='{"action":{"tool":"alpha","args":{"count":"oops"}}}'
 
 set +e
-validate_react_action "${invalid_action}" "${schema_path}" 2>err.log
+validate_executor_action "${invalid_action}" "${schema_path}" 2>err.log
 status=$?
 set -e
 

@@ -17,7 +17,6 @@
 #   Functions return non-zero on state failures.
 
 EXECUTOR_LIB_DIR=${EXECUTOR_LIB_DIR:-$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)}
-REACT_LIB_DIR=${REACT_LIB_DIR:-${EXECUTOR_LIB_DIR}}
 
 # shellcheck source=../core/logging.sh disable=SC1091
 source "${EXECUTOR_LIB_DIR}/../core/logging.sh"
@@ -189,9 +188,4 @@ finalize_executor_result() {
 		"$(state_get "${state_name}" "plan_outline")" \
 		"$(state_get_history_lines "${state_name}")" \
 		"${final_answer}"
-}
-
-finalize_react_result() {
-	# Compatibility shim for the legacy ReAct naming.
-	finalize_executor_result "$@"
 }

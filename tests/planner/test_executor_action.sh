@@ -3,19 +3,19 @@
 # Regression tests for executor action validation and selection.
 #
 # Usage:
-#   bats tests/planner/test_react_action.sh
+#   bats tests/planner/test_executor_action.sh
 #
 # Dependencies:
 #   - bats
 #   - bash 3.2+
 
-@test "react_action schema documents action wrapper" {
+@test "executor_action schema documents action wrapper" {
 	script=$(
 		cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
-schema_path="./src/schemas/react_action.schema.json"
+schema_path="./src/schemas/executor_action.schema.json"
 
 jq -e '
         (.oneOf | length == 1)
@@ -31,13 +31,13 @@ INNERSCRIPT
 	[ "$status" -eq 0 ]
 }
 
-@test "build_react_action_schema constrains allowed tools" {
+@test "build_executor_action_schema constrains allowed tools" {
 	script=$(
 		cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
-source ./src/lib/react/schema.sh
+source ./src/lib/executor/schema.sh
 
 tool_registry_json() {
         printf "%s" '{"names":["alpha"],"registry":{"alpha":{"args_schema":{"type":"object","required":["input"],"properties":{"input":{"type":"string","minLength":1}},"additionalProperties":false}}}}'
@@ -45,7 +45,7 @@ tool_registry_json() {
 
 tool_names() { printf "%s\n" "alpha"; }
 
-schema_path="$(build_react_action_schema "alpha")"
+schema_path="$(build_executor_action_schema "alpha")"
 
 jq -e '
         (.oneOf | length == 1)
@@ -61,13 +61,13 @@ INNERSCRIPT
 	[ "$status" -eq 0 ]
 }
 
-@test "validate_react_action rejects unsupported tools" {
+@test "validate_executor_action rejects unsupported tools" {
 	script=$(
 		cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
-source ./src/lib/react/schema.sh
+source ./src/lib/executor/schema.sh
 schema_path=$(mktemp)
 cat >"${schema_path}" <<'JSON'
 {
@@ -95,7 +95,7 @@ JSON
 invalid_action='{"action":{"tool":"beta","args":{"input":"hi"}}}'
 
 set +e
-validate_react_action "${invalid_action}" "${schema_path}" 2>err.log
+validate_executor_action "${invalid_action}" "${schema_path}" 2>err.log
 status=$?
 set -e
 
@@ -113,13 +113,13 @@ INNERSCRIPT
 	[ "$status" -eq 0 ]
 }
 
-@test "validate_react_action surfaces schema validation errors" {
+@test "validate_executor_action surfaces schema validation errors" {
 	script=$(
 		cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
-source ./src/lib/react/schema.sh
+source ./src/lib/executor/schema.sh
 
 schema_path=$(mktemp)
 cat >"${schema_path}" <<'JSON'
@@ -153,7 +153,7 @@ JSON
 invalid_action='{"action":{"tool":"alpha","args":{"count":"oops"}}}'
 
 set +e
-validate_react_action "${invalid_action}" "${schema_path}" 2>err.log
+validate_executor_action "${invalid_action}" "${schema_path}" 2>err.log
 status=$?
 set -e
 
@@ -181,7 +181,7 @@ prompt_log="$(mktemp)"
 prompt_capture="${prompt_log}.prompt"
 trap 'rm -f "${prompt_log}" "${prompt_capture}"' EXIT
 
-source ./src/lib/react/loop.sh
+source ./src/lib/executor/loop.sh
 
 render_prompt_template() {
         printf 'executor:%s' "$*" >"${prompt_log}"
