@@ -67,7 +67,7 @@ normalize_planner_plan <<<"${raw_plan}"
 SCRIPT
 
 	[ "$status" -ne 0 ]
-        [[ "${output}" == *"steps missing required args"* ]]
+	[[ "${output}" == *"steps missing required args"* ]]
 }
 
 @test "normalize_planner_plan enforces args_control matching arg keys" {
@@ -79,7 +79,7 @@ normalize_planner_plan <<<"${raw_plan}"
 SCRIPT
 
 	[ "$status" -ne 0 ]
-        [[ "${output}" == *"args_control must mirror args keys"* ]]
+	[[ "${output}" == *"args_control must mirror args keys"* ]]
 }
 
 @test "normalize_planner_plan allows parameterless tools without args" {
@@ -144,4 +144,3 @@ SCRIPT
 	[ "$status" -eq 0 ]
 	[ "${lines[0]}" = "terminal" ]
 }
-

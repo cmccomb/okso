@@ -31,10 +31,10 @@ source "${EXECUTOR_LIB_DIR}/../formatting.sh"
 source "${EXECUTOR_LIB_DIR}/../dependency_guards/dependency_guards.sh"
 
 initialize_executor_state() {
-        # Initializes the executor state document with user query, tools, and plan.
-        # Arguments:
-        #   $1 - state prefix to populate (string)
-        #   $2 - user query (string)
+	# Initializes the executor state document with user query, tools, and plan.
+	# Arguments:
+	#   $1 - state prefix to populate (string)
+	#   $2 - user query (string)
 	#   $3 - allowed tools (string, newline delimited)
 	#   $4 - ranked plan entries (string)
 	#   $5 - plan outline text (string)

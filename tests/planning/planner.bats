@@ -8,7 +8,7 @@ setup() {
 }
 
 @test "generate_plan_json falls back when llama is unavailable" {
-        run env -i HOME="$HOME" PATH="$PATH" bash <<'SCRIPT'
+	run env -i HOME="$HOME" PATH="$PATH" bash <<'SCRIPT'
 set -euo pipefail
 PLANNER_SKIP_TOOL_LOAD=true
 export PLANNER_SKIP_TOOL_LOAD
@@ -25,4 +25,3 @@ SCRIPT
 	[ "${plan_length}" -ge 1 ]
 	[ "${final_tool}" = "final_answer" ]
 }
-
