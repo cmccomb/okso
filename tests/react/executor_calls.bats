@@ -5,7 +5,7 @@ setup() {
 }
 
 @test "apply_plan_arg_controls fills context args and locks planner values" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/react/loop.sh
 
@@ -21,12 +21,12 @@ jq -r '.title,.body' <<<"${resolved}"
 SCRIPT
 
 	[ "$status" -eq 0 ]
-        [ "${lines[0]}" = "Planner Title" ]
-        [ "${lines[1]}" = "Provide meeting summary" ]
+	[ "${lines[0]}" = "Planner Title" ]
+	[ "${lines[1]}" = "Provide meeting summary" ]
 }
 
 @test "apply_plan_arg_controls prefers history for context args" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/react/loop.sh
 
@@ -42,8 +42,8 @@ resolved=$(apply_plan_arg_controls "final_answer" "${executor_args}" "${plan_ent
 jq -r '.body' <<<"${resolved}"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ "${lines[0]}" = 'Observation: last tool returned 42.' ]
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = 'Observation: last tool returned 42.' ]
 }
 
 @test "validate_planner_action rejects disallowed tools" {

@@ -132,8 +132,8 @@ printf '\n'
 cat "${history_log}"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ "${lines[0]}" = "recorded" ]
-        [ "${lines[1]}" = '{"alpha":1,"beta":2}' ]
-        [ "${lines[2]}" = 'recent observation' ]
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "recorded" ]
+	[ "${lines[1]}" = '{"alpha":1,"beta":2}' ]
+	[ "${lines[2]}" = 'recent observation' ]
 }
