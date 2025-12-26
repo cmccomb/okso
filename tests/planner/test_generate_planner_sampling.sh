@@ -47,9 +47,9 @@ llama_infer() {
 
         printf '%s' "${LLAMA_TEMPERATURE}" >"/tmp/planner_temperature_${call_count}"
         if [[ ${call_count} -eq 1 ]]; then
-                printf '{"mode":"quickdraw","final_answer":"fast","rationale":"r"}'
+        printf '{"mode":"quickdraw","final_answer":"fast","rationale":"r"}'
         else
-                printf '[{"tool":"terminal","args":{},"thought":"t"}]'
+                printf '[{"tool":"terminal","args":{"command":"ls"},"thought":"t"}]'
         fi
 }
 
@@ -69,7 +69,7 @@ call_count=$(<"${LLAMA_CALL_COUNTER_FILE}")
 [[ "${call_count}" -eq 2 ]]
 [[ -f "${PLANNER_DEBUG_LOG}" ]]
 [[ "$(wc -l <"${PLANNER_DEBUG_LOG}")" -eq 1 ]]
-jq -e '.mode == "plan"' <<<"${response_json}" >/dev/null
+jq -e '.plan | type == "array"' <<<"${response_json}" >/dev/null
 [[ "$(cat /tmp/planner_temperature_1)" == "0.15" ]]
 [[ "$(cat /tmp/planner_temperature_2)" == "0.15" ]]
 INNERSCRIPT
@@ -116,7 +116,7 @@ llama_infer() {
         call_count=$((call_count + 1))
         printf '%s' "${call_count}" >"${LLAMA_CALL_COUNTER_FILE}"
 
-        printf '{"mode":"plan","plan":[{"tool":"terminal","args":{},"thought":"first"},{"tool":"final_answer","args":{"input":"done"},"thought":"finish"}]}'
+        printf '{"plan":[{"tool":"terminal","args":{"command":"ls"},"thought":"first"},{"tool":"final_answer","args":{"input":"done"},"thought":"finish"}]}'
 }
 
 tool_names() { printf '%s\n' "terminal" "web_search"; }

@@ -8,7 +8,7 @@ setup() {
 	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/prompting.sh
-raw_plan='[{"tool":"terminal","args":{"command":"ls"},"thought":"list"},{"tool":"final_answer","args":{},"thought":"wrap up"}]'
+raw_plan='[{"tool":"terminal","args":{"command":"ls"},"thought":"list"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"wrap up"}]'
 plan_json_to_outline "${raw_plan}"
 SCRIPT
 
@@ -21,7 +21,7 @@ SCRIPT
 	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/prompting.sh
-response='{"mode":"plan","plan":[{"tool":"terminal","args":{},"thought":"step one"},{"tool":"final_answer","args":{},"thought":"finish"}]}'
+response='{"plan":[{"tool":"terminal","args":{"command":"ls"},"thought":"step one"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]}'
 plan_json_to_outline "${response}"
 SCRIPT
 

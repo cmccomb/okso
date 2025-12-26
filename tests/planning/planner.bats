@@ -36,7 +36,7 @@ LLAMA_AVAILABLE=true
 PLANNER_MODEL_REPO=fake
 PLANNER_MODEL_FILE=fake
 planner_fetch_search_context() { printf 'Search context unavailable.'; }
-llama_infer() { printf '[{"tool":"terminal","args":{},"thought":"do"}]'; }
+llama_infer() { printf '[{"tool":"terminal","args":{"command":"ls"},"thought":"do"}]'; }
 PLANNER_SAMPLE_COUNT=1
 generate_plan_json "list" | jq -r '.[].tool'
 SCRIPT

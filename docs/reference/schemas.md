@@ -4,7 +4,7 @@ Structured outputs keep planner interactions predictable. Schema files live in `
 
 ## Available schemas
 
-- `planner_plan.schema.json`: numbered outline that proposes tools and ends with `final_answer`; each step can set `args_control` to mark arguments as locked or to be filled from executor context; loaded at runtime by `planner.sh` before plan validation.
+- `planner_plan.schema.json`: JSON object with a `plan` array of tool steps and rationales; each step requires `tool`, `args`, and `thought`, and may set `args_control` entries (matching `args` keys) to lock values or request executor-provided context; loaded at runtime by `planner.sh` before plan validation.
 - `react_action.schema.json`: executor action template; tool enums, per-tool args, and missing-value sentinels are injected during schema generation and consumed by the executor in `react/loop.sh` for validation and fallback selection.
 - `concise_response.schema.json`: short direct answers when no tools should run; used by `respond.sh` to constrain final-answer fallback summaries.
 

@@ -29,7 +29,7 @@ score_planner_candidate() { printf '{"score":1,"tie_breaker":0,"rationale":[]}';
 
 llama_infer() {
         printf '%s' "$3" > /tmp/planner_token_budget
-        printf '[{"tool":"final_answer","args":{},"thought":"done"}]'
+        printf '[{"tool":"final_answer","args":{"input":"done"},"thought":"done"}]'
 }
 
 LLAMA_AVAILABLE=true
@@ -69,7 +69,7 @@ score_planner_candidate() { printf '{"score":1,"tie_breaker":0,"rationale":[]}';
 
 llama_infer() {
         printf '%s' "$3" > /tmp/planner_token_budget_override
-        printf '[{"tool":"final_answer","args":{},"thought":"done"}]'
+        printf '[{"tool":"final_answer","args":{"input":"done"},"thought":"done"}]'
 }
 
 LLAMA_AVAILABLE=true
