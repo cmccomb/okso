@@ -14,9 +14,9 @@ tool_args_schema() {
 }
 
 plan_entry='{"tool":"notes_create","args":{"title":"Planner Title","body":"Original body"},"args_control":{"title":"locked","body":"context"}}'
-executor_args='{"title":"User Title","body":"__MISSING__"}'
+executor_args='{"title":"User Title","body":"User body"}'
 user_query='Provide meeting summary'
-resolved=$(apply_plan_arg_controls "notes_create" "${executor_args}" "${plan_entry}" "${user_query}" "" "__MISSING__")
+resolved=$(apply_plan_arg_controls "notes_create" "${executor_args}" "${plan_entry}" "${user_query}" "")
 jq -r '.title,.body,."__context_controlled"[0],."__context_seeds".body' <<<"${resolved}"
 SCRIPT
 
@@ -82,7 +82,7 @@ SCRIPT
         [[ "${output}" == *"not permitted"* ]]
 }
 
-@test "fill_missing_args_with_llm uses llama output for missing args" {
+@test "fill_missing_args_with_llm uses llama output for context args" {
         run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/react/loop.sh
@@ -99,7 +99,7 @@ log_pretty() {
 tool_args_schema() {
         printf '{"type":"object","properties":{"title":{"type":"string"},"body":{"type":"string"}}}'
 }
-filled=$(fill_missing_args_with_llm "notes_create" '{"title":"__MISSING__","body":"__MISSING__"}' "User question" "Outline" "Planner thought" "")
+filled=$(fill_missing_args_with_llm "notes_create" '{"title":"User seed"}' "User question" "Outline" "Planner thought" "" '["title","body"]')
 jq -r '.title,.body' <<<"${filled}"
 SCRIPT
 

@@ -21,7 +21,7 @@ See [Planner sampling](./planner-sampling.md) for detailed scoring heuristics an
 
 After the plan is approved, the runtime requests a single structured tool call:
 
-- **Default behaviour:** llama.cpp receives the executor prompt (no persona or transcript) and must emit one JSON action that matches the executor schema. Missing details are surfaced explicitly via the `__MISSING__` sentinel so gaps are auditable, and validation only tolerates that sentinel on required fields or the top-level `action` wrapper to keep schemas lean.
+- **Default behaviour:** llama.cpp receives the executor prompt (no persona or transcript) and must emit one JSON action that matches the executor schema. Planner output must fully populate required arguments; only planner-marked context-controlled fields are eligible for executor enrichment, and missing required values outside that list result in validation errors.
 - **Fallback behaviour:** if llama.cpp is unavailable or `USE_REACT_LLAMA=false` is set, okso replays the planned tool calls deterministically using the planner-provided arguments.
 
 Each executor decision and observation is streamed to the terminal. Use `--dry-run` when you want to inspect the generated plan and tool calls without executing anything.

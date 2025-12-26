@@ -1,6 +1,6 @@
 {
   "title": "ExecutorAction",
-  "description": "Template executor schema for a single tool call. Per-tool variants and missing-value sentinels are injected during compilation.",
+  "description": "Template executor schema for a single tool call. Per-tool variants are injected during compilation.",
   "oneOf": [
     {
       "type": "object",
@@ -25,14 +25,6 @@
         }
       },
       "$comment": "Illustrative example only; actual tools and schemas are generated dynamically."
-    },
-    {
-      "type": "object",
-      "required": ["action"],
-      "properties": {
-        "action": { "const": "__MISSING__" }
-      },
-      "$comment": "Per-tool variants are injected during schema compilation/generation."
     }
   ]
 }

@@ -135,9 +135,9 @@ SCRIPT
 set -euo pipefail
 source ./src/lib/prompt/templates.sh
 template="$(load_prompt_template executor)"
-grep -F '${missing_token}' <<<"${template}"
 grep -F '${tool}' <<<"${template}"
 grep -F '${args_json}' <<<"${template}"
+grep -F '${context_fields}' <<<"${template}"
 SCRIPT
 
 	[ "$status" -eq 0 ]

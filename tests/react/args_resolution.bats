@@ -4,8 +4,8 @@ setup() {
 	unset -f chpwd _mise_hook 2>/dev/null || true
 }
 
-@test "resolve_action_args normalizes once while filling missing values" {
-	run bash <<'SCRIPT'
+@test "resolve_action_args normalizes once while filling context args" {
+        run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/react/loop.sh
 
@@ -20,20 +20,16 @@ normalize_args_json() {
 }
 
 apply_plan_arg_controls() {
-        printf '%s' "$2"
+        printf '{"title":"seed","__context_controlled":["title"]}'
 }
 
 fill_missing_args_with_llm() {
         printf '{"title":"filled","body":"done"}'
 }
 
-missing_arg_keys() {
-        if [[ "$1" == *"__MISSING__"* ]]; then
-                printf 'title\n'
-        fi
-}
+tool_args_schema() { printf '{}'; }
 
-resolved=$(resolve_action_args "notes_create" '{"title":"__MISSING__","body":"__MISSING__"}' '{"args_control":{}}' "User" "" "Outline" "Thought")
+resolved=$(resolve_action_args "notes_create" '{"title":"pending"}' '{"args_control":{}}' "User" "" "Outline" "Thought")
 normalize_calls=$(wc -l <"${normalize_log}")
 printf 'resolved=%s\nnormalizations=%s\n' "${resolved}" "${normalize_calls}"
 SCRIPT
@@ -44,8 +40,8 @@ SCRIPT
 	[ "${lines[1]}" = "normalizations=1" ]
 }
 
-@test "resolve_action_args skips missing scans when args complete" {
-	run bash <<'SCRIPT'
+@test "resolve_action_args skips LLM when args complete" {
+        run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/react/loop.sh
 
@@ -53,9 +49,9 @@ log() {
         :
 }
 
-missing_scan_log=$(mktemp)
-missing_arg_keys() {
-        printf 'scan\n' >>"${missing_scan_log}"
+fill_missing_args_with_llm() {
+        echo "llm_called" >>/tmp/llm_log
+        printf '{}'
 }
 
 apply_plan_arg_controls() {
@@ -67,13 +63,16 @@ normalize_args_json() {
 }
 
 resolved=$(resolve_action_args "notes_create" '{"title":"ready"}' '{"args_control":{}}' "User" "" "Outline" "Thought")
-missing_scans=$(wc -l <"${missing_scan_log}")
-printf 'resolved=%s\nmissing_scans=%s\n' "${resolved}" "${missing_scans}"
+llm_calls=0
+if [[ -f /tmp/llm_log ]]; then
+        llm_calls=$(wc -l </tmp/llm_log)
+fi
+printf 'resolved=%s\nllm_calls=%s\n' "${resolved}" "${llm_calls}"
 SCRIPT
 
-	[ "$status" -eq 0 ]
-	[ "${lines[1]}" = "missing_scans=0" ]
-	[[ "${lines[0]}" == *'"title":"ready"'* ]]
+        [ "$status" -eq 0 ]
+        [ "${lines[1]}" = "llm_calls=0" ]
+        [[ "${lines[0]}" == *'"title":"ready"'* ]]
 }
 
 @test "execute_planned_action forwards resolved args and preserves output" {

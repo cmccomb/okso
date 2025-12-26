@@ -1,8 +1,11 @@
-You are completing missing fields for a tool call.
-Return ONLY a JSON object for the tool args with all "${missing_token}" tokens replaced.
+You are enriching context-controlled fields for a tool call.
+Return ONLY a JSON object for the tool args. Do not add or remove keys beyond the context-controlled list.
 
 Tool:
 ${tool}
+
+Context-controlled fields:
+${context_fields}
 
 User request:
 ${user_query}
@@ -22,4 +25,4 @@ ${args_json}
 Args schema:
 ${args_schema}
 
-Update any placeholders based on the history context.
+Update only the context-controlled fields based on the history context.
