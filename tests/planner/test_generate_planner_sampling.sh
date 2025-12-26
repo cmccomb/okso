@@ -23,9 +23,16 @@ export TOOL_REGISTRY_JSON
 PLANNER_SKIP_TOOL_LOAD=true
 export PLANNER_SKIP_TOOL_LOAD
 
-rm -f /tmp/planner_temperature_* /tmp/planner_candidates_test.log /tmp/planner_llama_calls
+rm -f /tmp/planner_temperature_* /tmp/planner_candidates_test.log /tmp/planner_llama_calls \
+        /tmp/planner_model_repo_arg /tmp/planner_model_file_arg \
+        /tmp/react_model_repo_arg /tmp/react_model_file_arg
 
 source ./src/lib/planning/planner.sh
+
+PLANNER_MODEL_REPO=""
+PLANNER_MODEL_FILE=""
+REACT_MODEL_REPO=""
+REACT_MODEL_FILE=""
 
 current_date_local() { printf '2024-01-01'; }
 current_time_local() { printf '12:00'; }
@@ -44,6 +51,11 @@ llama_infer() {
         fi
         call_count=$((call_count + 1))
         printf '%s' "${call_count}" >"${LLAMA_CALL_COUNTER_FILE}"
+
+        printf '%s' "$5" >/tmp/planner_model_repo_arg
+        printf '%s' "$6" >/tmp/planner_model_file_arg
+        printf '%s' "${REACT_MODEL_REPO}" >/tmp/react_model_repo_arg
+        printf '%s' "${REACT_MODEL_FILE}" >/tmp/react_model_file_arg
 
         printf '%s' "${LLAMA_TEMPERATURE}" >"/tmp/planner_temperature_${call_count}"
         if [[ ${call_count} -eq 1 ]]; then
@@ -70,6 +82,10 @@ call_count=$(<"${LLAMA_CALL_COUNTER_FILE}")
 [[ -f "${PLANNER_DEBUG_LOG}" ]]
 [[ "$(wc -l <"${PLANNER_DEBUG_LOG}")" -eq 1 ]]
 jq -e '.plan | type == "array"' <<<"${response_json}" >/dev/null
+[[ "$(cat /tmp/planner_model_repo_arg)" == "${DEFAULT_PLANNER_MODEL_REPO_BASE}" ]]
+[[ "$(cat /tmp/planner_model_file_arg)" == "${DEFAULT_PLANNER_MODEL_FILE_BASE}" ]]
+[[ "$(cat /tmp/react_model_repo_arg)" == "${DEFAULT_MODEL_REPO_BASE}" ]]
+[[ "$(cat /tmp/react_model_file_arg)" == "${DEFAULT_MODEL_FILE_BASE}" ]]
 [[ "$(cat /tmp/planner_temperature_1)" == "0.15" ]]
 [[ "$(cat /tmp/planner_temperature_2)" == "0.15" ]]
 INNERSCRIPT

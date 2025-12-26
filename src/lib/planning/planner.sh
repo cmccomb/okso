@@ -234,17 +234,19 @@ validate_temperature() {
 }
 
 generate_planner_response() {
-	# Arguments:
-	#   $1 - user query (string)
-	local user_query
-	local -a planner_tools=()
-	user_query="$1"
+        # Arguments:
+        #   $1 - user query (string)
+        local user_query
+        local -a planner_tools=()
+        user_query="$1"
 
-	if ! require_llama_available "planner generation"; then
-		log "ERROR" "Planner cannot generate steps without llama.cpp" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}" >&2
-		local fallback
-		fallback="LLM unavailable. Request received: ${user_query}"
-		jq -nc \
+        initialize_planner_models
+
+        if ! require_llama_available "planner generation"; then
+                log "ERROR" "Planner cannot generate steps without llama.cpp" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}" >&2
+                local fallback
+                fallback="LLM unavailable. Request received: ${user_query}"
+                jq -nc \
 			--arg answer "${fallback}" \
 			'{plan:[{tool:"final_answer", args:{input:$answer}, thought:"Provide the direct response."}]}'
 		return 0
