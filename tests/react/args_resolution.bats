@@ -33,7 +33,7 @@ missing_arg_keys() {
         fi
 }
 
-resolved=$(resolve_action_args "notes_create" '{"title":"__MISSING__","body":"__MISSING__"}' '{"args_control":{}}' "User" "Outline" "Thought")
+resolved=$(resolve_action_args "notes_create" '{"title":"__MISSING__","body":"__MISSING__"}' '{"args_control":{}}' "User" "" "Outline" "Thought")
 normalize_calls=$(wc -l <"${normalize_log}")
 printf 'resolved=%s\nnormalizations=%s\n' "${resolved}" "${normalize_calls}"
 SCRIPT
@@ -66,7 +66,7 @@ normalize_args_json() {
         printf '%s' "$1"
 }
 
-resolved=$(resolve_action_args "notes_create" '{"title":"ready"}' '{"args_control":{}}' "User" "Outline" "Thought")
+resolved=$(resolve_action_args "notes_create" '{"title":"ready"}' '{"args_control":{}}' "User" "" "Outline" "Thought")
 missing_scans=$(wc -l <"${missing_scan_log}")
 printf 'resolved=%s\nmissing_scans=%s\n' "${resolved}" "${missing_scans}"
 SCRIPT
@@ -85,6 +85,8 @@ log() {
         :
 }
 
+history_log=$(mktemp)
+
 state_get() {
         if [[ "$2" == "user_query" ]]; then
                 printf 'user question'
@@ -93,7 +95,12 @@ state_get() {
         fi
 }
 
+state_get_history_lines() {
+        printf 'recent observation'
+}
+
 resolve_action_args() {
+        printf '%s\n' "$5" >"${history_log}"
         printf '{"alpha":1,"beta":2}'
 }
 
@@ -121,9 +128,12 @@ state_set() {
 validated_action='{"tool":"demo","args":{"beta":2,"alpha":1},"thought":"thinking"}'
 execute_planned_action "prefix" 1 "${validated_action}"
 cat /tmp/resolved_args.json
+printf '\n'
+cat "${history_log}"
 SCRIPT
 
 	[ "$status" -eq 0 ]
 	[ "${lines[0]}" = "recorded" ]
 	[ "${lines[1]}" = '{"alpha":1,"beta":2}' ]
+	[ "${lines[2]}" = 'recent observation' ]
 }

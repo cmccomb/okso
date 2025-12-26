@@ -16,13 +16,34 @@ tool_args_schema() {
 plan_entry='{"tool":"notes_create","args":{"title":"Planner Title","body":"Original body"},"args_control":{"title":"locked","body":"context"}}'
 executor_args='{"title":"User Title","body":"__MISSING__"}'
 user_query='Provide meeting summary'
-resolved=$(apply_plan_arg_controls "notes_create" "${executor_args}" "${plan_entry}" "${user_query}" "__MISSING__")
+resolved=$(apply_plan_arg_controls "notes_create" "${executor_args}" "${plan_entry}" "${user_query}" "" "__MISSING__")
 jq -r '.title,.body' <<<"${resolved}"
 SCRIPT
 
 	[ "$status" -eq 0 ]
 	[ "${lines[0]}" = "Planner Title" ]
 	[ "${lines[1]}" = "Provide meeting summary" ]
+}
+
+@test "apply_plan_arg_controls prefers history for context args" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+source ./src/lib/react/loop.sh
+
+tool_args_schema() {
+        printf '{"properties":{"body":{"type":"string"}}}'
+}
+
+plan_entry='{"tool":"final_answer","args":{"body":"__MISSING__"},"args_control":{"body":"context"}}'
+executor_args='{"body":"__MISSING__"}'
+user_query='Fallback question'
+history_text='Observation: last tool returned 42.'
+resolved=$(apply_plan_arg_controls "final_answer" "${executor_args}" "${plan_entry}" "${user_query}" "${history_text}" "__MISSING__")
+jq -r '.body' <<<"${resolved}"
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = 'Observation: last tool returned 42.' ]
 }
 
 @test "validate_planner_action rejects disallowed tools" {
