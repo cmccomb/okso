@@ -69,99 +69,44 @@ format_action_context() {
 }
 
 apply_plan_arg_controls() {
-	# Applies planner-provided arg control metadata to the executor args.
-	# Arguments:
-	#   $1 - tool name
-	#   $2 - executor args JSON
-	#   $3 - planner plan entry JSON (optional)
-	#   $4 - user query text
-	#   $5 - serialized history text
-	local tool args_json plan_entry_json user_query history_text tool_schema
-	tool="$1"
-	args_json="$2"
-	plan_entry_json="$3"
-	user_query="$4"
-	history_text="$5"
-	tool_schema="$(tool_args_schema "${tool}")"
+        # Applies planner-provided arg control metadata to the executor args using jq only.
+        # Arguments:
+        #   $1 - tool name
+        #   $2 - executor args JSON
+        #   $3 - planner plan entry JSON (optional)
+        #   $4 - user query text (unused; kept for API stability)
+        #   $5 - serialized history text (unused; kept for API stability)
+        local tool args_json plan_entry_json user_query history_text args_obj plan_args plan_controls jq_filter
+        tool="$1"
+        args_json="$2"
+        plan_entry_json="$3"
+        user_query="$4"
+        history_text="$5"
 
-	if ! command -v python3 >/dev/null 2>&1; then
-		log "WARN" "python3 unavailable; skipping arg control application" "${tool}" || true
-		printf '%s' "${args_json}"
-		return 0
-	fi
+        args_obj="$(jq -ce 'if type=="object" then . else {} end' <<<"${args_json}" 2>/dev/null || printf '{}')"
+        plan_args="$(jq -ce '.args // {} | if type=="object" then . else {} end' <<<"${plan_entry_json}" 2>/dev/null || printf '{}')"
+        plan_controls="$(jq -ce '.args_control // {} | if type=="object" then . else {} end' <<<"${plan_entry_json}" 2>/dev/null || printf '{}')"
 
-	python3 - "${args_json}" "${plan_entry_json}" "${user_query}" "${history_text}" "${tool_schema}" <<'PY'
-import json
-import sys
-from typing import Any
+        jq_filter=$(cat <<'JQ'
+reduce ($controls|to_entries[]) as $item (
+  {args:$args,context:[],seeds:{}};
+  if $item.value=="locked" then
+    if $planned[$item.key]!=null then .args[$item.key]=$planned[$item.key] else . end
+  elif $item.value=="context" then
+    (if $planned[$item.key]!=null then $planned[$item.key] else .args[$item.key] end) as $seed
+    | (if $seed!=null then .args[$item.key]=$seed else (.args|=del(.[$item.key])) end)
+    | (if ($seed!=null and ($seed|type)=="string") then .seeds[$item.key]=$seed else . end)
+    | (if (.context|index($item.key))==null then .context+=[ $item.key ] else . end)
+  else . end
+)
+| . as $state
+| $state.args
+| (if ($state.context|length>0) then .+{__context_controlled:$state.context} else . end)
+| (if ($state.seeds|length>0) then .+{__context_seeds:$state.seeds} else . end)
+JQ
+)
 
-
-def as_object(payload: str, default: dict[str, Any]) -> dict[str, Any]:
-    try:
-        value = json.loads(payload)
-        if isinstance(value, dict):
-            return value
-    except Exception:  # noqa: BLE001
-        pass
-    return default.copy()
-
-
-args_raw, plan_raw, user_query, history_text, schema_raw = sys.argv[1:]
-args = as_object(args_raw, {})
-plan_entry = as_object(plan_raw, {})
-planned_args = as_object(json.dumps(plan_entry.get("args", {})), {})
-arg_controls = as_object(json.dumps(plan_entry.get("args_control", {})), {})
-schema = as_object(schema_raw, {})
-properties = schema.get("properties") if isinstance(schema, dict) else {}
-context_fields: list[str] = []
-context_seeds: dict[str, str] = {}
-
-
-def expected_type(key: str) -> str | None:
-    if isinstance(properties, dict):
-        prop = properties.get(key)
-        if isinstance(prop, dict):
-            value_type = prop.get("type")
-            if isinstance(value_type, str):
-                return value_type
-    return None
-
-
-for arg_name, strategy in arg_controls.items():
-    if strategy not in {"context", "locked"}:
-        continue
-
-    planned_value = planned_args.get(arg_name)
-
-    if strategy == "locked":
-        if planned_value is not None:
-            args[arg_name] = planned_value
-        continue
-
-    current_value = args.get(arg_name)
-    seed_value: Any | None = None
-    if planned_value is not None:
-        seed_value = planned_value
-    elif current_value is not None:
-        seed_value = current_value
-
-    if seed_value is not None:
-        if isinstance(seed_value, str):
-            context_seeds[arg_name] = seed_value
-        args[arg_name] = seed_value
-    elif arg_name in args:
-        del args[arg_name]
-
-    if arg_name not in context_fields:
-        context_fields.append(arg_name)
-
-if context_fields:
-    args["__context_controlled"] = context_fields
-if context_seeds:
-    args["__context_seeds"] = context_seeds
-
-print(json.dumps(args, separators=(',', ':')))
-PY
+        jq -c -n --argjson args "${args_obj}" --argjson planned "${plan_args}" --argjson controls "${plan_controls}" "${jq_filter}" 2>/dev/null
 }
 
 validate_planner_action() {
