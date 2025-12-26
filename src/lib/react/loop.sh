@@ -70,22 +70,22 @@ format_action_context() {
 }
 
 apply_plan_arg_controls() {
-	# Applies planner-provided arg control metadata to the executor args.
-	# Arguments:
-	#   $1 - tool name
-	#   $2 - executor args JSON
-	#   $3 - planner plan entry JSON (optional)
-	#   $4 - user query text
-	#   $5 - serialized history text
-	#   $6 - missing value token
-	local tool args_json plan_entry_json user_query history_text missing_token tool_schema
-	tool="$1"
-	args_json="$2"
-	plan_entry_json="$3"
-	user_query="$4"
-	history_text="$5"
-	missing_token="$6"
-	tool_schema="$(tool_args_schema "${tool}")"
+        # Applies planner-provided arg control metadata to the executor args.
+        # Arguments:
+        #   $1 - tool name
+        #   $2 - executor args JSON
+        #   $3 - planner plan entry JSON (optional)
+        #   $4 - user query text
+        #   $5 - serialized history text
+        #   $6 - missing value token
+        local tool args_json plan_entry_json user_query history_text missing_token tool_schema
+        tool="$1"
+        args_json="$2"
+        plan_entry_json="$3"
+        user_query="$4"
+        history_text="$5"
+        missing_token="$6"
+        tool_schema="$(tool_args_schema "${tool}")"
 
 	if ! command -v python3 >/dev/null 2>&1; then
 		log "WARN" "python3 unavailable; skipping arg control application" "${tool}" || true
@@ -93,7 +93,7 @@ apply_plan_arg_controls() {
 		return 0
 	fi
 
-	python3 - "${args_json}" "${plan_entry_json}" "${user_query}" "${history_text}" "${missing_token}" "${tool_schema}" <<'PY'
+        python3 - "${args_json}" "${plan_entry_json}" "${user_query}" "${history_text}" "${missing_token}" "${tool_schema}" <<'PY'
 import json
 import sys
 from typing import Any
@@ -116,6 +116,8 @@ planned_args = as_object(json.dumps(plan_entry.get("args", {})), {})
 arg_controls = as_object(json.dumps(plan_entry.get("args_control", {})), {})
 schema = as_object(schema_raw, {})
 properties = schema.get("properties") if isinstance(schema, dict) else {}
+context_fields: list[str] = []
+context_seeds: dict[str, str] = {}
 
 
 def expected_type(key: str) -> str | None:
@@ -140,20 +142,26 @@ for arg_name, strategy in arg_controls.items():
         continue
 
     current_value = args.get(arg_name)
-    if current_value is not None and current_value != missing_token:
-        continue
+    seed_value: Any | None = None
+    if planned_value is not None and planned_value != missing_token:
+        seed_value = planned_value
+    elif current_value is not None and current_value != missing_token:
+        seed_value = current_value
 
-    candidate: Any | None = None
-    value_type = expected_type(arg_name)
-    if history_text.strip():
-        candidate = history_text
-    elif value_type == "string":
-        candidate = user_query
-    elif planned_value != missing_token:
-        candidate = planned_value
+    if seed_value is not None:
+        if isinstance(seed_value, str):
+            context_seeds[arg_name] = seed_value
+        args[arg_name] = seed_value
+    else:
+        args[arg_name] = missing_token
 
-    if candidate is not None:
-        args[arg_name] = candidate
+    if arg_name not in context_fields:
+        context_fields.append(arg_name)
+
+if context_fields:
+    args["__context_controlled"] = context_fields
+if context_seeds:
+    args["__context_seeds"] = context_seeds
 
 print(json.dumps(args, separators=(',', ':')))
 PY
@@ -264,42 +272,65 @@ fill_missing_args_with_llm() {
 }
 
 resolve_action_args() {
-	# Applies planner controls, fills missing args, and normalizes the final JSON.
-	# Arguments:
-	#   $1 - tool name
-	#   $2 - args JSON
-	#   $3 - planner plan entry JSON
-	#   $4 - user query
-	#   $5 - serialized history text
-	#   $6 - plan outline
-	#   $7 - planner thought
-	local tool args_json plan_entry_json user_query history_text plan_outline planner_thought
-	local resolved_args missing_keys attempt
-	tool="$1"
-	args_json="$2"
-	plan_entry_json="$3"
-	user_query="$4"
-	history_text="$5"
-	plan_outline="$6"
-	planner_thought="$7"
+        # Applies planner controls, fills missing args, and normalizes the final JSON.
+        # Arguments:
+        #   $1 - tool name
+        #   $2 - args JSON
+        #   $3 - planner plan entry JSON
+        #   $4 - user query
+        #   $5 - serialized history text
+        #   $6 - plan outline
+        #   $7 - planner thought
+        local tool args_json plan_entry_json user_query history_text plan_outline planner_thought
+        local resolved_args missing_keys attempt context_fields_json context_seed_lines history_for_prompt
+        local should_use_llm context_pending
+        tool="$1"
+        args_json="$2"
+        plan_entry_json="$3"
+        user_query="$4"
+        history_text="$5"
+        plan_outline="$6"
+        planner_thought="$7"
 
-	resolved_args="$(apply_plan_arg_controls "${tool}" "${args_json}" "${plan_entry_json}" "${user_query}" "${history_text}" "${MISSING_VALUE_TOKEN}")"
+        resolved_args="$(apply_plan_arg_controls "${tool}" "${args_json}" "${plan_entry_json}" "${user_query}" "${history_text}" "${MISSING_VALUE_TOKEN}")"
 
-	if [[ "${resolved_args}" != *"${MISSING_VALUE_TOKEN}"* ]]; then
-		normalize_args_json "${resolved_args}"
-		return 0
-	fi
+        context_fields_json="$(jq -c '.__context_controlled // []' <<<"${resolved_args}" 2>/dev/null || printf '[]')"
+        context_seed_lines="$(jq -r '.__context_seeds // {} | to_entries[] | "\(.key): \(.value)"' <<<"${resolved_args}" 2>/dev/null || true)"
+        resolved_args="$(jq -c 'del(.__context_controlled,.__context_seeds)' <<<"${resolved_args}" 2>/dev/null || printf '%s' "${resolved_args}")"
 
-	for attempt in 1 2; do
-		missing_keys="$(missing_arg_keys "${resolved_args}")"
-		if [[ -z "${missing_keys}" ]]; then
-			break
-		fi
-		log "INFO" "Filling missing args" "$(printf 'tool=%s attempt=%s missing=%s' "${tool}" "${attempt}" "${missing_keys}")"
-		resolved_args="$(fill_missing_args_with_llm "${tool}" "${resolved_args}" "${user_query}" "${plan_outline}" "${planner_thought}" "${history_text}")"
-	done
+        should_use_llm=false
+        if [[ "${resolved_args}" == *"${MISSING_VALUE_TOKEN}"* ]]; then
+                should_use_llm=true
+        fi
+        if [[ "${context_fields_json}" != "[]" ]]; then
+                should_use_llm=true
+        fi
 
-	normalize_args_json "${resolved_args}"
+        if [[ "${should_use_llm}" == false ]]; then
+                normalize_args_json "${resolved_args}"
+                return 0
+        fi
+
+        history_for_prompt="${history_text}"
+        if [[ -n "${context_seed_lines}" ]]; then
+                history_for_prompt+=$'\n'
+                history_for_prompt+="Context arg seeds:"
+                history_for_prompt+=$'\n'
+                history_for_prompt+="${context_seed_lines}"
+        fi
+
+        context_pending="${context_fields_json}"
+        for attempt in 1 2; do
+                missing_keys="$(missing_arg_keys "${resolved_args}")"
+                if [[ -z "${missing_keys}" && "${context_pending}" == "[]" ]]; then
+                        break
+                fi
+                log "INFO" "Filling missing args" "$(printf 'tool=%s attempt=%s missing=%s' "${tool}" "${attempt}" "${missing_keys}")"
+                resolved_args="$(fill_missing_args_with_llm "${tool}" "${resolved_args}" "${user_query}" "${plan_outline}" "${planner_thought}" "${history_for_prompt}")"
+                context_pending="[]"
+        done
+
+        normalize_args_json "${resolved_args}"
 }
 
 execute_planned_action() {

@@ -17,10 +17,10 @@ react_loop "${user_query}" "${allowed_tools}" "${plan_entries}" "${plan_outline}
 - `plan_outline`: plain-text planner outline used to guide the loop.
 
 The executor honours planner `args_control` metadata. When a tool argument is marked as `context`,
-the loop prefers the serialized history fetched via `state_get_history_lines` (recent thoughts,
-actions, and observations) to populate the value. If no history is available, the original
-`user_query` is used as a fallback. This ensures final steps such as `final_answer` can reference
-fresh tool output without relying solely on the initial prompt.
+the loop flags it for LLM completion instead of copying history directly into the arg list. The
+missing-arg prompt shares the serialized history from `state_get_history_lines`, the planner
+thought, plan outline, and any partial arg text so llama.cpp can compose a response rooted in the
+latest context rather than relying on the original `user_query` alone.
 
 ## Dependencies
 
