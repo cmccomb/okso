@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 
 @test "create_default_settings seeds derived defaults without hardcoded models" {
-        run bash -lc '
+	run bash -lc '
                 set -e
                 source ./src/lib/core/settings.sh
                 create_default_settings compat
@@ -23,15 +23,15 @@
                         "$(jq -r ".react_cache_file" <<<"${doc}")" \
                         "${run_id}"
         '
-        [ "$status" -eq 0 ]
-        config_dir_expected="${XDG_CONFIG_HOME:-${HOME}/.config}/okso"
-        [ "${lines[0]}" = "${config_dir_expected}" ]
-        [ "${lines[1]}" = "${config_dir_expected}/config.env" ]
-        [ "${lines[2]}" = "true" ]
-        cache_dir_expected="${XDG_CACHE_HOME:-${HOME}/.cache}/okso"
-        [ "${lines[3]}" = "${cache_dir_expected}" ]
-        [ "${lines[4]}" = "${cache_dir_expected}/planner.prompt-cache" ]
-        [[ "${lines[5]}" = "${cache_dir_expected}/runs/${lines[6]}/react.prompt-cache" ]]
+	[ "$status" -eq 0 ]
+	config_dir_expected="${XDG_CONFIG_HOME:-${HOME}/.config}/okso"
+	[ "${lines[0]}" = "${config_dir_expected}" ]
+	[ "${lines[1]}" = "${config_dir_expected}/config.env" ]
+	[ "${lines[2]}" = "true" ]
+	cache_dir_expected="${XDG_CACHE_HOME:-${HOME}/.cache}/okso"
+	[ "${lines[3]}" = "${cache_dir_expected}" ]
+	[ "${lines[4]}" = "${cache_dir_expected}/planner.prompt-cache" ]
+	[[ "${lines[5]}" = "${cache_dir_expected}/runs/${lines[6]}/react.prompt-cache" ]]
 }
 
 @test "settings persist across shells using cache" {

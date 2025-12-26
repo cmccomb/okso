@@ -10,8 +10,8 @@
 #   - bash 3.2+
 
 @test "planner token budget honors override" {
-        run bash -lc "$(
-                cat <<'INNERSCRIPT'
+	run bash -lc "$(
+		cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
