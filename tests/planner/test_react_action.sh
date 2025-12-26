@@ -137,8 +137,8 @@ INNERSCRIPT
 }
 
 @test "validate_react_action surfaces schema validation errors" {
-        script=$(
-                cat <<'INNERSCRIPT'
+	script=$(
+		cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
@@ -191,7 +191,7 @@ fi
 grep -F "action/args/count: 'oops' is not of type 'integer'" err.log
 rm -f "${schema_path}" err.log
 INNERSCRIPT
-        )
+	)
 
 	run bash -lc "${script}"
 	[ "$status" -eq 0 ]

@@ -175,52 +175,52 @@ PY
 }
 
 validate_react_action() {
-        # Validates a llama-produced action against the generated schema.
-        # Arguments:
-        #   $1 - raw action JSON string
-        #   $2 - schema path
-        local raw_action schema_path action_json schema_json err_log missing_token tool allowed_tools python_status
-        raw_action="$1"
-        schema_path="$2"
-        missing_token="${MISSING_VALUE_TOKEN}"
+	# Validates a llama-produced action against the generated schema.
+	# Arguments:
+	#   $1 - raw action JSON string
+	#   $2 - schema path
+	local raw_action schema_path action_json schema_json err_log missing_token tool allowed_tools python_status
+	raw_action="$1"
+	schema_path="$2"
+	missing_token="${MISSING_VALUE_TOKEN}"
 
-        err_log=$(mktemp)
+	err_log=$(mktemp)
 
-        if ! action_json=$(jq -ce '.' <<<"${raw_action}" 2>"${err_log}"); then
-                printf 'Invalid JSON: %s\n' "$(<"${err_log}")" >&2
-                rm -f "${err_log}"
-                return 1
-        fi
+	if ! action_json=$(jq -ce '.' <<<"${raw_action}" 2>"${err_log}"); then
+		printf 'Invalid JSON: %s\n' "$(<"${err_log}")" >&2
+		rm -f "${err_log}"
+		return 1
+	fi
 
-        if ! schema_json=$(jq -ce '.' "${schema_path}" 2>"${err_log}"); then
-                printf 'Schema load failed: %s\n' "$(<"${err_log}")" >&2
-                rm -f "${err_log}"
-                return 1
-        fi
+	if ! schema_json=$(jq -ce '.' "${schema_path}" 2>"${err_log}"); then
+		printf 'Schema load failed: %s\n' "$(<"${err_log}")" >&2
+		rm -f "${err_log}"
+		return 1
+	fi
 
-        rm -f "${err_log}"
+	rm -f "${err_log}"
 
-        if ! jq -e 'keys_unsorted == ["action"]' <<<"${action_json}" >/dev/null 2>&1; then
-                printf 'Unexpected or missing top-level fields\n' >&2
-                return 1
-        fi
+	if ! jq -e 'keys_unsorted == ["action"]' <<<"${action_json}" >/dev/null 2>&1; then
+		printf 'Unexpected or missing top-level fields\n' >&2
+		return 1
+	fi
 
-        if jq -e --arg missing "${missing_token}" '.action == $missing' <<<"${action_json}" >/dev/null 2>&1; then
-                jq -c --arg missing "${missing_token}" '{action:$missing}' <<<"${action_json}"
-                return 0
-        fi
+	if jq -e --arg missing "${missing_token}" '.action == $missing' <<<"${action_json}" >/dev/null 2>&1; then
+		jq -c --arg missing "${missing_token}" '{action:$missing}' <<<"${action_json}"
+		return 0
+	fi
 
-        tool="$(jq -r '.action.tool // empty' <<<"${action_json}" 2>/dev/null || printf '')"
-        allowed_tools=$(jq -cr --arg missing "${missing_token}" '[.oneOf[]?.properties.action.properties.tool.anyOf[]?.const // empty] | map(select(. != $missing))' <<<"${schema_json}" 2>/dev/null || printf '[]')
+	tool="$(jq -r '.action.tool // empty' <<<"${action_json}" 2>/dev/null || printf '')"
+	allowed_tools=$(jq -cr --arg missing "${missing_token}" '[.oneOf[]?.properties.action.properties.tool.anyOf[]?.const // empty] | map(select(. != $missing))' <<<"${schema_json}" 2>/dev/null || printf '[]')
 
-        if [[ -n "${tool}" && "${tool}" != "${missing_token}" ]]; then
-                if ! jq -e --arg tool "${tool}" --argjson allowed "${allowed_tools}" '$allowed | index($tool)' <<<"null" >/dev/null; then
-                        printf 'Unsupported tool: %s\n' "${tool}" >&2
-                        return 1
-                fi
-        fi
+	if [[ -n "${tool}" && "${tool}" != "${missing_token}" ]]; then
+		if ! jq -e --arg tool "${tool}" --argjson allowed "${allowed_tools}" '$allowed | index($tool)' <<<"null" >/dev/null; then
+			printf 'Unsupported tool: %s\n' "${tool}" >&2
+			return 1
+		fi
+	fi
 
-        python3 - "${schema_path}" "${action_json}" <<'PY'
+	python3 - "${schema_path}" "${action_json}" <<'PY'
 import json
 import sys
 
@@ -275,11 +275,11 @@ if errors:
 
 print(json.dumps(instance, separators=(",", ":")))
 PY
-        python_status=$?
+	python_status=$?
 
-        if ((python_status == 2)); then
-                return 1
-        fi
+	if ((python_status == 2)); then
+		return 1
+	fi
 
-        return ${python_status}
+	return ${python_status}
 }

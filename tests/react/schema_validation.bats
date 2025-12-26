@@ -1,11 +1,11 @@
 #!/usr/bin/env bats
 
 setup() {
-        unset -f chpwd _mise_hook 2>/dev/null || true
+	unset -f chpwd _mise_hook 2>/dev/null || true
 }
 
 @test "react schema accepts required args marked missing" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/react/schema.sh
 
@@ -25,13 +25,13 @@ validate_react_action "${action_missing}" "${schema_path}" >/tmp/validated_actio
 cat /tmp/validated_action.json
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [[ "${output}" == *'"needed":"__MISSING__"'* ]]
-        [[ "${output}" == *'"inner":"__MISSING__"'* ]]
+	[ "$status" -eq 0 ]
+	[[ "${output}" == *'"needed":"__MISSING__"'* ]]
+	[[ "${output}" == *'"inner":"__MISSING__"'* ]]
 }
 
 @test "react schema accepts fully specified payloads" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/react/schema.sh
 
@@ -51,13 +51,13 @@ validate_react_action "${action_full}" "${schema_path}" >/tmp/validated_action.j
 cat /tmp/validated_action.json
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [[ "${output}" == *'"needed":"value"'* ]]
-        [[ "${output}" == *'"inner":5'* ]]
+	[ "$status" -eq 0 ]
+	[[ "${output}" == *'"needed":"value"'* ]]
+	[[ "${output}" == *'"inner":5'* ]]
 }
 
 @test "react schema rejects unexpected fields with clear error" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/react/schema.sh
 
@@ -91,11 +91,11 @@ grep -F "action/args: Additional properties are not allowed ('extra' was unexpec
 rm -f err.log
 SCRIPT
 
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "react schema surfaces argument type failures" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/react/schema.sh
 
@@ -129,5 +129,5 @@ grep -F "action/args/count: 'oops' is not of type 'integer'" err.log
 rm -f err.log
 SCRIPT
 
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }

@@ -192,19 +192,19 @@ validate_planner_action() {
 }
 
 missing_arg_keys() {
-        # Emits names of args containing the missing token.
-        # Arguments:
-        #   $1 - args JSON
-        #   $2 - missing token (optional)
-        local args_json missing_token
-        args_json="$1"
-        missing_token="${2:-${MISSING_VALUE_TOKEN}}"
+	# Emits names of args containing the missing token.
+	# Arguments:
+	#   $1 - args JSON
+	#   $2 - missing token (optional)
+	local args_json missing_token
+	args_json="$1"
+	missing_token="${2:-${MISSING_VALUE_TOKEN}}"
 
-        if [[ "${args_json}" != *"${missing_token}"* ]]; then
-                return 0
-        fi
+	if [[ "${args_json}" != *"${missing_token}"* ]]; then
+		return 0
+	fi
 
-        jq -r --arg missing "${missing_token}" 'paths(scalars) as $p | select(getpath($p) == $missing) | ($p|map(tostring)|join("."))' <<<"${args_json}" 2>/dev/null || true
+	jq -r --arg missing "${missing_token}" 'paths(scalars) as $p | select(getpath($p) == $missing) | ($p|map(tostring)|join("."))' <<<"${args_json}" 2>/dev/null || true
 }
 
 fill_missing_args_with_llm() {
@@ -257,69 +257,69 @@ PROMPT
 }
 
 resolve_action_args() {
-        # Applies planner controls, fills missing args, and normalizes the final JSON.
-        # Arguments:
-        #   $1 - tool name
-        #   $2 - args JSON
-        #   $3 - planner plan entry JSON
-        #   $4 - user query
-        #   $5 - plan outline
-        #   $6 - planner thought
-        local tool args_json plan_entry_json user_query plan_outline planner_thought
-        local resolved_args missing_keys attempt
-        tool="$1"
-        args_json="$2"
-        plan_entry_json="$3"
-        user_query="$4"
-        plan_outline="$5"
-        planner_thought="$6"
+	# Applies planner controls, fills missing args, and normalizes the final JSON.
+	# Arguments:
+	#   $1 - tool name
+	#   $2 - args JSON
+	#   $3 - planner plan entry JSON
+	#   $4 - user query
+	#   $5 - plan outline
+	#   $6 - planner thought
+	local tool args_json plan_entry_json user_query plan_outline planner_thought
+	local resolved_args missing_keys attempt
+	tool="$1"
+	args_json="$2"
+	plan_entry_json="$3"
+	user_query="$4"
+	plan_outline="$5"
+	planner_thought="$6"
 
-        resolved_args="$(apply_plan_arg_controls "${tool}" "${args_json}" "${plan_entry_json}" "${user_query}" "${MISSING_VALUE_TOKEN}")"
+	resolved_args="$(apply_plan_arg_controls "${tool}" "${args_json}" "${plan_entry_json}" "${user_query}" "${MISSING_VALUE_TOKEN}")"
 
-        if [[ "${resolved_args}" != *"${MISSING_VALUE_TOKEN}"* ]]; then
-                normalize_args_json "${resolved_args}"
-                return 0
-        fi
+	if [[ "${resolved_args}" != *"${MISSING_VALUE_TOKEN}"* ]]; then
+		normalize_args_json "${resolved_args}"
+		return 0
+	fi
 
-        for attempt in 1 2; do
-                missing_keys="$(missing_arg_keys "${resolved_args}")"
-                if [[ -z "${missing_keys}" ]]; then
-                        break
-                fi
-                log "INFO" "Filling missing args" "$(printf 'tool=%s attempt=%s missing=%s' "${tool}" "${attempt}" "${missing_keys}")"
-                resolved_args="$(fill_missing_args_with_llm "${tool}" "${resolved_args}" "${user_query}" "${plan_outline}" "${planner_thought}")"
-        done
+	for attempt in 1 2; do
+		missing_keys="$(missing_arg_keys "${resolved_args}")"
+		if [[ -z "${missing_keys}" ]]; then
+			break
+		fi
+		log "INFO" "Filling missing args" "$(printf 'tool=%s attempt=%s missing=%s' "${tool}" "${attempt}" "${missing_keys}")"
+		resolved_args="$(fill_missing_args_with_llm "${tool}" "${resolved_args}" "${user_query}" "${plan_outline}" "${planner_thought}")"
+	done
 
-        normalize_args_json "${resolved_args}"
+	normalize_args_json "${resolved_args}"
 }
 
 execute_planned_action() {
-        # Executes a validated action with retries for arg infill failures.
-        # Arguments:
-        #   $1 - state prefix
-        #   $2 - step index
-        #   $3 - validated action JSON
-        local state_prefix step_index action_json tool args_json thought args_after_controls
-        local observation context
-        state_prefix="$1"
-        step_index="$2"
-        action_json="$3"
+	# Executes a validated action with retries for arg infill failures.
+	# Arguments:
+	#   $1 - state prefix
+	#   $2 - step index
+	#   $3 - validated action JSON
+	local state_prefix step_index action_json tool args_json thought args_after_controls
+	local observation context
+	state_prefix="$1"
+	step_index="$2"
+	action_json="$3"
 
-        tool="$(jq -r '.tool' <<<"${action_json}")"
-        args_json="$(jq -c '.args' <<<"${action_json}")"
-        thought="$(jq -r '.thought' <<<"${action_json}")"
+	tool="$(jq -r '.tool' <<<"${action_json}")"
+	args_json="$(jq -c '.args' <<<"${action_json}")"
+	thought="$(jq -r '.thought' <<<"${action_json}")"
 
-        args_after_controls="$(resolve_action_args "${tool}" "${args_json}" "${action_json}" "$(state_get "${state_prefix}" "user_query")" "$(state_get "${state_prefix}" "plan_outline")" "${thought}")"
+	args_after_controls="$(resolve_action_args "${tool}" "${args_json}" "${action_json}" "$(state_get "${state_prefix}" "user_query")" "$(state_get "${state_prefix}" "plan_outline")" "${thought}")"
 
-        context="$(format_action_context "${thought}" "${tool}" "${args_after_controls}")"
-        observation="$(execute_tool_with_query "${tool}" "$(extract_tool_query "${tool}" "${args_after_controls}")" "${context}" "${args_after_controls}")"
+	context="$(format_action_context "${thought}" "${tool}" "${args_after_controls}")"
+	observation="$(execute_tool_with_query "${tool}" "$(extract_tool_query "${tool}" "${args_after_controls}")" "${context}" "${args_after_controls}")"
 
-        record_tool_execution "${state_prefix}" "${tool}" "${thought}" "${args_after_controls}" "${observation}" "${step_index}"
+	record_tool_execution "${state_prefix}" "${tool}" "${thought}" "${args_after_controls}" "${observation}" "${step_index}"
 
-        if [[ "${tool}" == "final_answer" ]]; then
-                state_set "${state_prefix}" "final_answer_action" "${observation}"
-                state_set "${state_prefix}" "final_answer" "${observation}"
-        fi
+	if [[ "${tool}" == "final_answer" ]]; then
+		state_set "${state_prefix}" "final_answer_action" "${observation}"
+		state_set "${state_prefix}" "final_answer" "${observation}"
+	fi
 }
 
 react_loop() {

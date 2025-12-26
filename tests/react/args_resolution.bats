@@ -1,11 +1,11 @@
 #!/usr/bin/env bats
 
 setup() {
-        unset -f chpwd _mise_hook 2>/dev/null || true
+	unset -f chpwd _mise_hook 2>/dev/null || true
 }
 
 @test "resolve_action_args normalizes once while filling missing values" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/react/loop.sh
 
@@ -38,14 +38,14 @@ normalize_calls=$(wc -l <"${normalize_log}")
 printf 'resolved=%s\nnormalizations=%s\n' "${resolved}" "${normalize_calls}"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [[ "${lines[0]}" == *'"title":"filled"'* ]]
-        [[ "${lines[0]}" == *'"body":"done"'* ]]
-        [ "${lines[1]}" = "normalizations=1" ]
+	[ "$status" -eq 0 ]
+	[[ "${lines[0]}" == *'"title":"filled"'* ]]
+	[[ "${lines[0]}" == *'"body":"done"'* ]]
+	[ "${lines[1]}" = "normalizations=1" ]
 }
 
 @test "resolve_action_args skips missing scans when args complete" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/react/loop.sh
 
@@ -71,13 +71,13 @@ missing_scans=$(wc -l <"${missing_scan_log}")
 printf 'resolved=%s\nmissing_scans=%s\n' "${resolved}" "${missing_scans}"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ "${lines[1]}" = "missing_scans=0" ]
-        [[ "${lines[0]}" == *'"title":"ready"'* ]]
+	[ "$status" -eq 0 ]
+	[ "${lines[1]}" = "missing_scans=0" ]
+	[[ "${lines[0]}" == *'"title":"ready"'* ]]
 }
 
 @test "execute_planned_action forwards resolved args and preserves output" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/react/loop.sh
 
@@ -123,7 +123,7 @@ execute_planned_action "prefix" 1 "${validated_action}"
 cat /tmp/resolved_args.json
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ "${lines[0]}" = "recorded" ]
-        [ "${lines[1]}" = '{"alpha":1,"beta":2}' ]
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "recorded" ]
+	[ "${lines[1]}" = '{"alpha":1,"beta":2}' ]
 }
