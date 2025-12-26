@@ -26,12 +26,12 @@ raw_response=$'Preface before JSON {"plan":[{"tool":"notes_create","args":{"titl
 normalize_planner_response <<<"${raw_response}" | jq -r '.plan[0].tool,.plan[0].args.title,.plan[0].thought,.plan[-1].tool,.plan[-1].args.input'
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ "${lines[0]}" = "notes_create" ]
-        [ "${lines[1]}" = "t" ]
-        [ "${lines[2]}" = "note" ]
-        [ "${lines[3]}" = "final_answer" ]
-        [ "${lines[4]}" = "Summarize the result." ]
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "notes_create" ]
+	[ "${lines[1]}" = "t" ]
+	[ "${lines[2]}" = "note" ]
+	[ "${lines[3]}" = "final_answer" ]
+	[ "${lines[4]}" = "Summarize the result." ]
 }
 
 @test "normalize_planner_plan maps code alias to args.input" {
@@ -48,53 +48,53 @@ SCRIPT
 }
 
 @test "normalize_planner_plan preserves valid arg controls" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/normalization.sh
 raw_plan='[{"tool":"notes_create","args":{"title":"t","body":"b"},"args_control":{"title":"context","body":"locked"},"thought":"capture"}]'
 normalize_planner_plan <<<"${raw_plan}" | jq -r '.[0].args_control.title,.[0].args_control.body'
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ "${lines[0]}" = "context" ]
-        [ "${lines[1]}" = "locked" ]
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "context" ]
+	[ "${lines[1]}" = "locked" ]
 }
 
 @test "normalize_planner_plan rejects empty args for tools requiring parameters" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/normalization.sh
 raw_plan='[{"tool":"terminal","args":{},"thought":"list"}]'
 normalize_planner_plan <<<"${raw_plan}"
 SCRIPT
 
-        [ "$status" -ne 0 ]
-        [[ "${output}" == *"unable to parse planner output"* ]]
+	[ "$status" -ne 0 ]
+	[[ "${output}" == *"unable to parse planner output"* ]]
 }
 
 @test "normalize_planner_plan enforces args_control matching arg keys" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/normalization.sh
 raw_plan='[{"tool":"terminal","args":{"command":"ls"},"args_control":{"unexpected":"locked"},"thought":"list"}]'
 normalize_planner_plan <<<"${raw_plan}"
 SCRIPT
 
-        [ "$status" -ne 0 ]
-        [[ "${output}" == *"unable to parse planner output"* ]]
+	[ "$status" -ne 0 ]
+	[[ "${output}" == *"unable to parse planner output"* ]]
 }
 
 @test "normalize_planner_plan allows parameterless tools without args" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/normalization.sh
 raw_plan='[{"tool":"notes_list","args":{},"thought":"list notes"}]'
 normalize_planner_plan <<<"${raw_plan}" | jq -r '.[0].tool,(.[0].args_control | type)'
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ "${lines[0]}" = "notes_list" ]
-        [ "${lines[1]}" = "object" ]
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "notes_list" ]
+	[ "${lines[1]}" = "object" ]
 }
 
 @test "normalize_planner_response normalizes code alias inside plan" {

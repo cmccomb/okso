@@ -30,15 +30,15 @@ SCRIPT
 }
 
 @test "normalize_planner_plan rejects missing thought fields" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/planner.sh
 raw_plan='[{"tool":"notes_create","args":{"title":"t"}}]'
 normalize_planner_plan <<<"${raw_plan}"
 SCRIPT
 
-        [ "$status" -ne 0 ]
-        [[ "${output}" == *"unable to parse planner output"* ]]
+	[ "$status" -ne 0 ]
+	[[ "${output}" == *"unable to parse planner output"* ]]
 }
 
 @test "normalize_planner_plan rejects steps with non-object args" {
@@ -190,11 +190,11 @@ response='{"plan":[{"tool":"terminal","args":{"command":"ls"},"thought":"list"},
 plan_json_to_entries "${response}"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        first_tool=$(printf '%s' "${output}" | jq -r '.[0].tool')
-        second_tool=$(printf '%s' "${output}" | jq -r '.[1].tool')
-        [ "${first_tool}" = "terminal" ]
-        [ "${second_tool}" = "final_answer" ]
+	[ "$status" -eq 0 ]
+	first_tool=$(printf '%s' "${output}" | jq -r '.[0].tool')
+	second_tool=$(printf '%s' "${output}" | jq -r '.[1].tool')
+	[ "${first_tool}" = "terminal" ]
+	[ "${second_tool}" = "final_answer" ]
 }
 
 @test "plan_json_to_entries errors on non-plan payloads" {
