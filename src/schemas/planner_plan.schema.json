@@ -26,7 +26,11 @@
           "args": {
             "type": "object",
             "description": "Arguments for the chosen tool.",
-            "additionalProperties": true
+            "additionalProperties": true,
+            "propertyNames": {
+              "type": "string",
+              "not": { "const": "args_control" }
+            }
           },
           "args_control": {
             "type": "object",

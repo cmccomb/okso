@@ -416,9 +416,6 @@ executor_loop() {
 		return 1
 	fi
 
-	log "INFO" "pre-loop" "${plan_entries}"
-	log_pretty "INFO" "pre-loop" "${plan_entries}"
-
 	step_index=0
 	normalize_plan_json() {
 		local raw="$1" normalized
@@ -439,7 +436,6 @@ executor_loop() {
 	}
 
 	while IFS= read -r plan_entry || [[ -n "$plan_entry" ]]; do
-		log_pretty "INFO" "first line in loop" "${plan_entry}"
 		((++step_index))
 		if ((step_index > max_steps)); then
 			log "WARN" "Exceeded max steps" "${max_steps}"

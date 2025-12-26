@@ -142,3 +142,14 @@ SCRIPT
 
 	[ "$status" -eq 0 ]
 }
+
+@test "planner prompt keeps args_control outside args" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+source ./src/lib/prompt/build_planner.sh
+prompt="$(build_planner_prompt "demo" "tool: summary" "search context")"
+grep -F 'Never place `args_control` inside `args`' <<<"${prompt}"
+SCRIPT
+
+	[ "$status" -eq 0 ]
+}

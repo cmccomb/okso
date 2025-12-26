@@ -29,6 +29,7 @@ Each action must clearly indicate which tool will be used.
 If a query involves any kind of calculation or mathematical operation, recommend the python_repl tool.
 When describing tool usage, reference the structured argument fields each tool expects (for example terminal => {command, args}, notes_create => {title, body}, reminders_create => {title, time, notes}).
 For every argument, set an entry in `args_control` indicating whether the executor should fill it from context (`"context"`) or preserve the planner-specified value (`"locked"`). Ensure `args_control` keys exactly match the provided `args` keys.
+Never place `args_control` inside `args`; keep it as a sibling field that mirrors the `args` keys.
 Use the argument names specified by each tool's schema (for example web_search => {query, num}, terminal => {command}). Reserve `args.input` for tools that explicitly accept free-form text payloads.
 
 # Tool Argument Discipline
