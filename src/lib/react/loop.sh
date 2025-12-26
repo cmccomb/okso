@@ -73,15 +73,17 @@ apply_plan_arg_controls() {
 	#   $1 - tool name
 	#   $2 - executor args JSON
 	#   $3 - planner plan entry JSON (optional)
-	#   $4 - user query text
-	#   $5 - missing value token
-	local tool args_json plan_entry_json user_query missing_token tool_schema
-	tool="$1"
-	args_json="$2"
-	plan_entry_json="$3"
-	user_query="$4"
-	missing_token="$5"
-	tool_schema="$(tool_args_schema "${tool}")"
+#   $4 - user query text
+#   $5 - serialized history text
+#   $6 - missing value token
+        local tool args_json plan_entry_json user_query history_text missing_token tool_schema
+        tool="$1"
+        args_json="$2"
+        plan_entry_json="$3"
+        user_query="$4"
+        history_text="$5"
+        missing_token="$6"
+        tool_schema="$(tool_args_schema "${tool}")"
 
 	if ! command -v python3 >/dev/null 2>&1; then
 		log "WARN" "python3 unavailable; skipping arg control application" "${tool}" || true
@@ -89,7 +91,7 @@ apply_plan_arg_controls() {
 		return 0
 	fi
 
-	python3 - "${args_json}" "${plan_entry_json}" "${user_query}" "${missing_token}" "${tool_schema}" <<'PY'
+        python3 - "${args_json}" "${plan_entry_json}" "${user_query}" "${history_text}" "${missing_token}" "${tool_schema}" <<'PY'
 import json
 import sys
 from typing import Any
@@ -105,7 +107,7 @@ def as_object(payload: str, default: dict[str, Any]) -> dict[str, Any]:
     return default.copy()
 
 
-args_raw, plan_raw, user_query, missing_token, schema_raw = sys.argv[1:]
+args_raw, plan_raw, user_query, history_text, missing_token, schema_raw = sys.argv[1:]
 args = as_object(args_raw, {})
 plan_entry = as_object(plan_raw, {})
 planned_args = as_object(json.dumps(plan_entry.get("args", {})), {})
@@ -141,7 +143,9 @@ for arg_name, strategy in arg_controls.items():
 
     candidate: Any | None = None
     value_type = expected_type(arg_name)
-    if value_type == "string":
+    if history_text.strip():
+        candidate = history_text
+    elif value_type == "string":
         candidate = user_query
     elif planned_value != missing_token:
         candidate = planned_value
@@ -262,19 +266,21 @@ resolve_action_args() {
 	#   $1 - tool name
 	#   $2 - args JSON
 	#   $3 - planner plan entry JSON
-	#   $4 - user query
-	#   $5 - plan outline
-	#   $6 - planner thought
-	local tool args_json plan_entry_json user_query plan_outline planner_thought
-	local resolved_args missing_keys attempt
-	tool="$1"
-	args_json="$2"
-	plan_entry_json="$3"
-	user_query="$4"
-	plan_outline="$5"
-	planner_thought="$6"
+#   $4 - user query
+#   $5 - serialized history text
+#   $6 - plan outline
+#   $7 - planner thought
+        local tool args_json plan_entry_json user_query history_text plan_outline planner_thought
+        local resolved_args missing_keys attempt
+        tool="$1"
+        args_json="$2"
+        plan_entry_json="$3"
+        user_query="$4"
+        history_text="$5"
+        plan_outline="$6"
+        planner_thought="$7"
 
-	resolved_args="$(apply_plan_arg_controls "${tool}" "${args_json}" "${plan_entry_json}" "${user_query}" "${MISSING_VALUE_TOKEN}")"
+        resolved_args="$(apply_plan_arg_controls "${tool}" "${args_json}" "${plan_entry_json}" "${user_query}" "${history_text}" "${MISSING_VALUE_TOKEN}")"
 
 	if [[ "${resolved_args}" != *"${MISSING_VALUE_TOKEN}"* ]]; then
 		normalize_args_json "${resolved_args}"
@@ -287,7 +293,7 @@ resolve_action_args() {
 			break
 		fi
 		log "INFO" "Filling missing args" "$(printf 'tool=%s attempt=%s missing=%s' "${tool}" "${attempt}" "${missing_keys}")"
-		resolved_args="$(fill_missing_args_with_llm "${tool}" "${resolved_args}" "${user_query}" "${plan_outline}" "${planner_thought}")"
+                resolved_args="$(fill_missing_args_with_llm "${tool}" "${resolved_args}" "${user_query}" "${plan_outline}" "${planner_thought}")"
 	done
 
 	normalize_args_json "${resolved_args}"
@@ -299,8 +305,8 @@ execute_planned_action() {
 	#   $1 - state prefix
 	#   $2 - step index
 	#   $3 - validated action JSON
-	local state_prefix step_index action_json tool args_json thought args_after_controls
-	local observation context
+        local state_prefix step_index action_json tool args_json thought args_after_controls
+        local observation context history_text
 	state_prefix="$1"
 	step_index="$2"
 	action_json="$3"
@@ -309,7 +315,8 @@ execute_planned_action() {
 	args_json="$(jq -c '.args' <<<"${action_json}")"
 	thought="$(jq -r '.thought' <<<"${action_json}")"
 
-	args_after_controls="$(resolve_action_args "${tool}" "${args_json}" "${action_json}" "$(state_get "${state_prefix}" "user_query")" "$(state_get "${state_prefix}" "plan_outline")" "${thought}")"
+        history_text="$(state_get_history_lines "${state_prefix}")"
+        args_after_controls="$(resolve_action_args "${tool}" "${args_json}" "${action_json}" "$(state_get "${state_prefix}" "user_query")" "${history_text}" "$(state_get "${state_prefix}" "plan_outline")" "${thought}")"
 
 	context="$(format_action_context "${thought}" "${tool}" "${args_after_controls}")"
 	observation="$(execute_tool_with_query "${tool}" "$(extract_tool_query "${tool}" "${args_after_controls}")" "${context}" "${args_after_controls}")"
