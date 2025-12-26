@@ -20,7 +20,9 @@ The executor honours planner `args_control` metadata. When a tool argument is ma
 the loop flags it for LLM completion instead of copying history directly into the arg list. The
 context-enrichment prompt shares the serialized history from `state_get_history_lines`, the planner
 thought, plan outline, and any partial arg text so llama.cpp can compose a response rooted in the
-latest context while leaving planner-provided required arguments untouched.
+latest context while leaving planner-provided required arguments untouched. Validation keeps the
+`args_control` map attached to each plan entry, ensuring `resolve_action_args` receives the
+context-marked keys and forwards them to the LLM prompt when enrichment is required.
 
 ## Dependencies
 

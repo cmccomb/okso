@@ -28,7 +28,7 @@ SCRIPT
 }
 
 @test "context args are completed via llama_infer" {
-	run bash <<'SCRIPT'
+        run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/react/loop.sh
 LLAMA_AVAILABLE=true
@@ -64,11 +64,52 @@ SCRIPT
 	[[ "${output}" == *"History snippet"* ]]
 	[[ "${output}" == *"Planner thought"* ]]
 	[[ "${output}" == *"Outline"* ]]
-	[[ "${output}" == *"planner seed"* ]]
+        [[ "${output}" == *"planner seed"* ]]
+}
+
+@test "resolve_action_args receives args_control from validated actions" {
+        run bash <<'SCRIPT'
+set -euo pipefail
+source ./src/lib/react/loop.sh
+LLAMA_AVAILABLE=true
+
+log() { :; }
+log_pretty() { :; }
+
+tool_args_schema() {
+        printf '{"type":"object","properties":{"body":{"type":"string"}}}'
+}
+
+context_fields_log=$(mktemp)
+
+fill_missing_args_with_llm() {
+        local tool args_json user_query plan_outline planner_thought history_text context_fields_json
+        tool="$1"
+        args_json="$2"
+        user_query="$3"
+        plan_outline="$4"
+        planner_thought="$5"
+        history_text="$6"
+        context_fields_json="$7"
+        printf '%s' "${context_fields_json}" >"${context_fields_log}"
+        printf '{"body":"llm-filled"}'
+}
+
+plan_entry='{"tool":"final_answer","args":{"body":""},"args_control":{"body":"context"},"thought":"needs context"}'
+validated=$(validate_planner_action "${plan_entry}" "final_answer")
+resolved=$(resolve_action_args "final_answer" '{}' "${validated}" "User question" "History block" "Outline" "Planner thought")
+
+printf 'resolved=%s\n' "${resolved}"
+printf 'context_fields=%s\n' "$(cat "${context_fields_log}")"
+SCRIPT
+
+        [ "$status" -eq 0 ]
+        [ "${lines[0]}" = 'resolved={"body":"llm-filled"}' ]
+        [ "${lines[1]}" = 'context_fields=["body"]' ]
 }
 
 @test "validate_planner_action rejects disallowed tools" {
-	run bash <<'SCRIPT'
+        run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/react/loop.sh
 allowed_tools=$'notes_create\nfinal_answer'

@@ -170,7 +170,7 @@ validate_planner_action() {
 	#   $1 - raw action JSON
 	#   $2 - newline-delimited allowed tools
 	# Outputs validated JSON to stdout.
-	local raw_action allowed_tools err_log action_json tool args_json tool_schema
+        local raw_action allowed_tools err_log action_json tool args_json args_control_json tool_schema
 	raw_action="$1"
 	allowed_tools="$2"
 	err_log=$(mktemp)
@@ -193,13 +193,15 @@ validate_planner_action() {
 		return 1
 	fi
 
-	args_json="$(jq -c '.args // {}' <<<"${action_json}" 2>/dev/null || printf '{}')"
-	tool_schema="$(tool_args_schema "${tool}")"
-	if [[ -n "${tool_schema}" ]] && ! jq -e --argjson schema "${tool_schema}" '.args|. as $args|$schema as $s|$args|=.' <<<"${action_json}" >/dev/null 2>&1; then
-		log "WARN" "Unable to validate args schema; continuing" "${tool}" || true
-	fi
+        args_json="$(jq -c '.args // {}' <<<"${action_json}" 2>/dev/null || printf '{}')"
+        args_control_json="$(jq -c '.args_control // {}' <<<"${action_json}" 2>/dev/null || printf '{}')"
+        tool_schema="$(tool_args_schema "${tool}")"
+        if [[ -n "${tool_schema}" ]] && ! jq -e --argjson schema "${tool_schema}" '.args|. as $args|$schema as $s|$args|=.' <<<"${action_json}" >/dev/null 2>&1; then
+                log "WARN" "Unable to validate args schema; continuing" "${tool}" || true
+        fi
 
-	jq -c --argjson args "${args_json}" '{tool:.tool,args:$args,thought:(.thought//"Planner provided no commentary")}' <<<"${action_json}"
+        jq -c --argjson args "${args_json}" --argjson args_control "${args_control_json}" \
+                '{tool:.tool,args:$args,args_control:$args_control,thought:(.thought//"Planner provided no commentary")}' <<<"${action_json}"
 }
 
 validate_required_args_present() {
