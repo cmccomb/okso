@@ -53,30 +53,6 @@
       "examples": [
         [
           {
-            "thought": "Capture the user's research notes.",
-            "tool": "notes_create",
-            "args": {
-              "title": "Research notes",
-              "body": "The next delivery step for the research is to..."
-            },
-            "args_control": {
-              "title": "locked",
-              "body": "context"
-            }
-          },
-          {
-            "thought": "Return the saved note details to the user.",
-            "tool": "final_answer",
-            "args": {
-              "input": "Saved the Research notes and summarized the captured content."
-            },
-            "args_control": {
-              "input": "locked"
-            }
-          }
-        ],
-        [
-          {
             "thought": "Inspect the current directory tree.",
             "tool": "terminal",
             "args": {
@@ -92,10 +68,10 @@
             "thought": "Summarize the directory listing for the user.",
             "tool": "final_answer",
             "args": {
-              "input": "Provided the directory listing with permissions and sizes."
+              "input": "The directory contains..."
             },
             "args_control": {
-              "input": "locked"
+              "input": "context"
             }
           }
         ]
