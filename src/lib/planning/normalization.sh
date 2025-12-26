@@ -151,7 +151,9 @@ normalize_planner_plan() {
                                    else . end)
                         end
                         ' <<<"${plan_candidate}" 2>"${normalized_error_file}" || true)
-	normalized_error_message="$(<"${normalized_error_file}" 2>/dev/null || printf '')"
+	normalized_error_message="$(
+		cat -- "$normalized_error_file" 2>/dev/null || true
+	)"
 	rm -f "${normalized_error_file}" 2>/dev/null || true
 
 	if [[ -n "${normalized}" && "${normalized}" != "[]" ]]; then
@@ -221,7 +223,9 @@ normalize_planner_response() {
   end
 ' <<<"${candidate}" 2>"${normalized_error_file}" || true)
 
-	normalized_error_message="$(<"${normalized_error_file}" 2>/dev/null || printf '')"
+	normalized_error_message="$(
+		cat -- "$normalized_error_file" 2>/dev/null || true
+	)"
 	rm -f "${normalized_error_file}" 2>/dev/null || true
 
 	if [[ -z "${normalized}" ]]; then
