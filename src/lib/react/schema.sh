@@ -75,24 +75,35 @@ if not allowed:
     sys.stderr.write("No tools available for executor schema\n")
     sys.exit(1)
 
-def allow_missing(schema_fragment):
+def _inject_missing_for_required(schema_fragment):
+    """Allow missing sentinels only for required properties."""
+
     if not isinstance(schema_fragment, dict):
         return schema_fragment
+
     updated = dict(schema_fragment)
-    if "properties" in updated and isinstance(updated["properties"], dict):
-        updated["properties"] = {
-            key: {"anyOf": [allow_missing(value), {"const": missing_token}]}
-            for key, value in updated["properties"].items()
-        }
+    properties = updated.get("properties", {})
+    required = updated.get("required", [])
+
+    if isinstance(properties, dict):
+        next_properties = {}
+        for key, value in properties.items():
+            normalized_value = _inject_missing_for_required(value)
+            if isinstance(required, list) and key in required:
+                next_properties[key] = {
+                    "anyOf": [normalized_value, {"const": missing_token}]
+                }
+            else:
+                next_properties[key] = normalized_value
+        updated["properties"] = next_properties
+
     if "items" in updated:
-        updated["items"] = allow_missing(updated["items"])
-    if "additionalProperties" in updated:
-        if updated["additionalProperties"] is False:
-            updated["additionalProperties"] = False
-        else:
-            updated["additionalProperties"] = {
-                "anyOf": [allow_missing(updated["additionalProperties"]), {"const": missing_token}]
-            }
+        updated["items"] = _inject_missing_for_required(updated["items"])
+    if "additionalProperties" in updated and updated["additionalProperties"] is not False:
+        updated["additionalProperties"] = _inject_missing_for_required(
+            updated["additionalProperties"]
+        )
+
     return updated
 
 def normalize_args_schema(name):
@@ -109,10 +120,10 @@ def normalize_args_schema(name):
     else:
         normalized.setdefault(
             "additionalProperties",
-            {"anyOf": [{"type": "string"}, {"const": missing_token}]},
+            {"type": "string"},
         )
 
-    return allow_missing(normalized)
+    return _inject_missing_for_required(normalized)
 
 variants = []
 
@@ -127,8 +138,8 @@ for name in allowed:
                 "action": {
                     "type": "object",
                     "additionalProperties": False,
-                    "required": ["tool", "args"],
-                    "properties": {
+                        "required": ["tool", "args"],
+                        "properties": {
                         "tool": {"anyOf": [{"const": name}, {"const": missing_token}]},
                         "args": {"anyOf": [args_schema, {"const": missing_token}]},
                     },
