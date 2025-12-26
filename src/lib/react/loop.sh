@@ -300,20 +300,20 @@ fill_missing_args_with_llm() {
 		return 0
 	fi
 
-        log "WARN" "LLM returned non-object args; preserving original" "${response}" || true
-        printf '%s' "${args_json}"
+	log "WARN" "LLM returned non-object args; preserving original" "${response}" || true
+	printf '%s' "${args_json}"
 }
 
 extract_context_controls() {
-        # Extracts context metadata and cleaned args from a resolved args JSON blob.
-        # Arguments:
-        #   $1 - resolved args JSON
-        # Returns:
-        #   JSON object with keys: args, context_fields, context_seed_lines
-        local resolved_json
-        resolved_json="$1"
+	# Extracts context metadata and cleaned args from a resolved args JSON blob.
+	# Arguments:
+	#   $1 - resolved args JSON
+	# Returns:
+	#   JSON object with keys: args, context_fields, context_seed_lines
+	local resolved_json
+	resolved_json="$1"
 
-        jq -ce '
+	jq -ce '
                 def ensure_array(x): if (x|type) == "array" then x else [] end;
                 def ensure_object(x): if (x|type) == "object" then x else {} end;
 
@@ -326,10 +326,10 @@ extract_context_controls() {
 }
 
 resolve_action_args() {
-        # Applies planner controls, validates required args, fills context fields, and normalizes the final JSON.
-        # Arguments:
-        #   $1 - tool name
-        #   $2 - args JSON
+	# Applies planner controls, validates required args, fills context fields, and normalizes the final JSON.
+	# Arguments:
+	#   $1 - tool name
+	#   $2 - args JSON
 	#   $3 - planner plan entry JSON
 	#   $4 - user query
 	#   $5 - serialized history text
@@ -347,14 +347,14 @@ resolve_action_args() {
 
 	resolved_args="$(apply_plan_arg_controls "${tool}" "${args_json}" "${plan_entry_json}" "${user_query}" "${history_text}")"
 
-        if ! context_metadata="$(extract_context_controls "${resolved_args}")"; then
-                printf 'Invalid args JSON after planner controls\n' >&2
-                return 1
-        fi
+	if ! context_metadata="$(extract_context_controls "${resolved_args}")"; then
+		printf 'Invalid args JSON after planner controls\n' >&2
+		return 1
+	fi
 
-        context_fields_json="$(jq -c '.context_fields' <<<"${context_metadata}")"
-        context_seed_lines="$(jq -r '.context_seed_lines[]?' <<<"${context_metadata}")"
-        resolved_args="$(jq -c '.args' <<<"${context_metadata}")"
+	context_fields_json="$(jq -c '.context_fields' <<<"${context_metadata}")"
+	context_seed_lines="$(jq -r '.context_seed_lines[]?' <<<"${context_metadata}")"
+	resolved_args="$(jq -c '.args' <<<"${context_metadata}")"
 
 	schema="$(tool_args_schema "${tool}")"
 	if [[ -n "${schema}" ]]; then

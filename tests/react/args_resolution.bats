@@ -76,7 +76,7 @@ SCRIPT
 }
 
 @test "execute_planned_action forwards resolved args and preserves output" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/react/loop.sh
 
@@ -133,12 +133,12 @@ SCRIPT
 
 	[ "$status" -eq 0 ]
 	[ "${lines[0]}" = "recorded" ]
-        [ "${lines[1]}" = '{"alpha":1,"beta":2}' ]
-        [ "${lines[2]}" = 'recent observation' ]
+	[ "${lines[1]}" = '{"alpha":1,"beta":2}' ]
+	[ "${lines[2]}" = 'recent observation' ]
 }
 
 @test "resolve_action_args ignores malformed context metadata" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/react/loop.sh
 
@@ -169,7 +169,7 @@ fi
 printf 'resolved=%s\nllm_calls=%s\n' "${resolved}" "${llm_calls}"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ "${lines[1]}" = "llm_calls=0" ]
-        [[ "${lines[0]}" == *'"title":"seed"'* ]]
+	[ "$status" -eq 0 ]
+	[ "${lines[1]}" = "llm_calls=0" ]
+	[[ "${lines[0]}" == *'"title":"seed"'* ]]
 }
