@@ -1,78 +1,90 @@
 {
-  "title": "PlannerPlan",
-  "type": "object",
   "title": "Tool-based plan",
-  "required": ["mode", "plan"],
+  "description": "Structured planner response consumed by the executor.",
+  "type": "object",
+  "required": ["plan"],
   "properties": {
-    "mode": {
-      "const": "plan",
-      "description": "Planner expects downstream execution of tool steps."
-    },
     "plan": {
-      "$ref": "#/definitions/plan_steps"
-    }
-  },
-  "additionalProperties": false,
-  "definitions": {
-    "plan_steps": {
       "type": "array",
       "minItems": 1,
+      "description": "Ordered steps pairing tools with arguments and short reasoning.",
       "items": {
         "type": "object",
-        "required": ["tool", "args"],
+        "required": ["tool", "args", "thought"],
         "additionalProperties": false,
         "properties": {
           "thought": {
             "type": "string",
-            "description": "Short reasoning blurb about why the following tool and arguments are chosen.",
+            "description": "Brief rationale for the step.",
             "minLength": 1
           },
           "tool": {
             "type": "string",
-            "minLength": 1,
-            "description": "Name of the tool to invoke for this step."
+            "description": "Tool to invoke.",
+            "minLength": 1
           },
           "args": {
             "type": "object",
-            "description": "Structured arguments for the tool. Provide the exact fields that the tool expects; use an empty object only when the tool accepts no arguments.",
-            "default": {},
-            "additionalProperties": true
-          }
-        }
-      },
-      "description": "Ordered list of high-level plan steps represented as objects with tool, args, and thought fields.",
-      "examples": [
-        [
-          {
-            "thought": "Record the requested notes.",
-            "tool": "notes_create",
-            "args": {
-              "title": "Research notes",
-              "body": "The next delivery step for the research are..."
+            "description": "Arguments for the chosen tool.",
+            "additionalProperties": true,
+            "propertyNames": {
+              "type": "string",
+              "not": { "const": "args_control" }
             }
           },
+          "args_control": {
+            "type": "object",
+            "description": "Per-argument fill hints: context (executor fills) or locked (planner provided).",
+            "additionalProperties": {
+              "type": "string",
+              "enum": ["context", "locked"]
+            }
+          }
+        },
+        "allOf": [
           {
-            "thought": "Share the notes back to the user.",
-            "tool": "final_answer",
-            "args": {}
+            "if": {
+              "properties": {
+                "tool": {
+                  "enum": [
+                    "calendar_list",
+                    "mail_list_inbox",
+                    "mail_list_unread",
+                    "notes_list",
+                    "executor_fallback",
+                    "reminders_list"
+                  ]
+                }
+              }
+            },
+            "then": {
+              "properties": {
+                "args": { "minProperties": 0 }
+              }
+            },
+            "else": {
+              "properties": {
+                "args": { "minProperties": 1 }
+              }
+            }
           }
         ],
-        [
+        "examples": [
           {
-            "thought": "Inspect the current directory tree.",
             "tool": "terminal",
-            "args": {
-              "command": "ls",
-              "args": ["-la"]
-            }
+            "args": { "command": "pwd" },
+            "args_control": { "command": "locked" },
+            "thought": "Inspect the working directory."
           },
           {
-            "thought": "Share the notes back to the user.",
             "tool": "final_answer",
-            "args": {}
+            "args": { "input": "Summarize findings." },
+            "args_control": { "input": "context" },
+            "thought": "Share the result."
           }
         ]
-      ]
+      }
     }
-  }
+  },
+  "additionalProperties": false
 }

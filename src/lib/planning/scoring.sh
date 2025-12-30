@@ -25,6 +25,8 @@ PLANNING_SCORING_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck source=../core/logging.sh disable=SC1091
 source "${PLANNING_SCORING_DIR}/../core/logging.sh"
+# shellcheck source=../dependency_guards/dependency_guards.sh disable=SC1091
+source "${PLANNING_SCORING_DIR}/../dependency_guards/dependency_guards.sh"
 
 planner_is_tool_available() {
 	# Checks whether the provided tool is registered.
@@ -183,19 +185,26 @@ planner_args_satisfiable() {
 		return 0
 	fi
 
-	python3 - "${schema_json}" "${args_json}" <<'PY'
-import json, sys
-from jsonschema import Draft202012Validator
+	if ! require_jsonschema_cli_available "planner argument validation"; then
+		log "WARN" "planner_args_satisfiable: jsonschema CLI missing; skipping validation" "planner_args_schema_missing_jsonschema" >&2
+		return 0
+	fi
 
-schema = json.loads(sys.argv[1])
-args = json.loads(sys.argv[2])
+	schema_tmp=$(mktemp)
+	args_tmp=$(mktemp)
+	err_log=$(mktemp)
 
-try:
-    Draft202012Validator(schema).validate(args)
-except Exception:
-    sys.exit(1)
-sys.exit(0)
-PY
+	printf '%s\n' "${schema_json}" >"${schema_tmp}"
+	printf '%s\n' "${args_json}" >"${args_tmp}"
+
+	if jsonschema_cli validate --json --default-dialect https://json-schema.org/draft/2020-12/schema "${schema_tmp}" "${args_tmp}" >/dev/null 2>"${err_log}"; then
+		rm -f "${schema_tmp}" "${args_tmp}" "${err_log}"
+		return 0
+	fi
+
+	cat "${err_log}" >&2
+	rm -f "${schema_tmp}" "${args_tmp}" "${err_log}"
+	return 1
 }
 
 score_planner_candidate() {

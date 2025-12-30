@@ -1,0 +1,30 @@
+{
+  "title": "ExecutorAction",
+  "description": "Template executor schema for a single tool call. Per-tool variants are injected during compilation.",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": ["action"],
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["tool", "args"],
+          "properties": {
+            "tool": { "const": "final_answer" },
+            "args": {
+              "type": "object",
+              "required": ["input"],
+              "additionalProperties": false,
+              "properties": {
+                "input": { "type": "string", "minLength": 1 }
+              }
+            }
+          }
+        }
+      },
+      "$comment": "Illustrative example only; actual tools and schemas are generated dynamically."
+    }
+  ]
+}

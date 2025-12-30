@@ -28,4 +28,4 @@ jobs:
             | xargs -0 shellcheck
 
       - name: Run Bats suite with coverage
-        run: bats --verbose-run $(find tests -type f -name 'test*.sh' -print | sort | tr '\n' ' ')
+        run: bats --verbose-run $(find tests -type f \( -name '*.bats' -o -name 'test_*.sh' \) -print | sort | tr '\n' ' ')

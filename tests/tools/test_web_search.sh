@@ -19,6 +19,17 @@ SCRIPT
 	[ "$status" -ne 0 ]
 }
 
+@test "web_search accepts input alias for query" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+source ./src/tools/web/web_search.sh
+parsed=$(TOOL_ARGS='{"input":"aliased query"}' web_search_parse_args)
+jq -e '.query == "aliased query" and .num == 5' <<<"${parsed}"
+SCRIPT
+
+	[ "$status" -eq 0 ]
+}
+
 @test "web_search surfaces API errors" {
 	run bash <<'SCRIPT'
 set -euo pipefail

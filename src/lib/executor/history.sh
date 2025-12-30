@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 #
-# State and history helpers for the ReAct execution loop.
+# State and history helpers for the executor loop.
 #
 # Usage:
 #   source "${BASH_SOURCE[0]%/history.sh}/history.sh"
 #
 # Environment variables:
-#   MAX_STEPS (int): maximum number of ReAct turns; default: 6.
+#   MAX_STEPS (int): maximum number of executor turns; default: 6.
 #
 # Dependencies:
 #   - bash 3.2+
@@ -16,21 +16,21 @@
 # Exit codes:
 #   Functions return non-zero on state failures.
 
-REACT_LIB_DIR=${REACT_LIB_DIR:-$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)}
+EXECUTOR_LIB_DIR=${EXECUTOR_LIB_DIR:-$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)}
 
 # shellcheck source=../core/logging.sh disable=SC1091
-source "${REACT_LIB_DIR}/../core/logging.sh"
+source "${EXECUTOR_LIB_DIR}/../core/logging.sh"
 # shellcheck source=../core/state.sh disable=SC1091
-source "${REACT_LIB_DIR}/../core/state.sh"
+source "${EXECUTOR_LIB_DIR}/../core/state.sh"
 # shellcheck source=../assistant/respond.sh disable=SC1091
-source "${REACT_LIB_DIR}/../assistant/respond.sh"
+source "${EXECUTOR_LIB_DIR}/../assistant/respond.sh"
 # shellcheck source=../formatting.sh disable=SC1091
-source "${REACT_LIB_DIR}/../formatting.sh"
+source "${EXECUTOR_LIB_DIR}/../formatting.sh"
 # shellcheck source=../dependency_guards/dependency_guards.sh disable=SC1091
-source "${REACT_LIB_DIR}/../dependency_guards/dependency_guards.sh"
+source "${EXECUTOR_LIB_DIR}/../dependency_guards/dependency_guards.sh"
 
-initialize_react_state() {
-	# Initializes the ReAct state document with user query, tools, and plan.
+initialize_executor_state() {
+	# Initializes the executor state document with user query, tools, and plan.
 	# Arguments:
 	#   $1 - state prefix to populate (string)
 	#   $2 - user query (string)
@@ -62,7 +62,7 @@ initialize_react_state() {
 }
 
 record_history() {
-	# Appends a formatted history entry to the ReAct state.
+	# Appends a formatted history entry to the executor state.
 	# Arguments:
 	#   $1 - state prefix (string)
 	#   $2 - formatted history entry (string)
@@ -111,7 +111,7 @@ record_tool_execution() {
 	fi
 	args_json="$(jq -cS '.' <<<"${args_json}" 2>/dev/null || printf '{}')"
 
-	if ! require_python3_available "ReAct history serialization"; then
+	if ! require_python3_available "Executor history serialization"; then
 		log "ERROR" "Failed to record tool execution; python3 missing" "${tool}" >&2
 		return 1
 	fi
@@ -149,8 +149,8 @@ PY
 	log "INFO" "Recorded tool execution" "$(printf 'step=%s tool=%s' "${step_index}" "${tool}")"
 }
 
-finalize_react_result() {
-	# Finalizes and emits the ReAct run result.
+finalize_executor_result() {
+	# Finalizes and emits the executor run result.
 	# Arguments:
 	#   $1 - state prefix
 	local state_name history_formatted final_answer observation final_answer_action

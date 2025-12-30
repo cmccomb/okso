@@ -26,8 +26,8 @@ Artifacts are written to `coverage/`. Set `COVERAGE_THRESHOLD=75` to warn when t
 
 The planner drives execution through a structured outline:
 
-1. `generate_planner_response` prompts the model with the tool catalog to produce a tool-based plan (array ending with `final_answer`).
-2. `derive_allowed_tools_from_plan` converts the structured plan into the allowed tool list, expanding `react_fallback` to the full catalog.
+1. `generate_planner_response` prompts the model with the tool catalog to produce a tool-based plan object whose `plan` array ends with `final_answer`.
+2. `derive_allowed_tools_from_plan` converts the structured plan into the allowed tool list, expanding `executor_fallback` to the full catalog.
 3. `plan_json_to_entries` prepares newline-delimited entries for the ReAct loop while preserving the outline for tool-based plans.
 4. The ReAct loop executes tools in order and finishes when the `final_answer` tool runs.
 

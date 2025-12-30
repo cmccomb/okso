@@ -15,6 +15,7 @@ class Okso < Formula
   depends_on "bash"
   depends_on "coreutils"
   depends_on "jq"
+  depends_on "sourcemeta/apps/jsonschema"
   depends_on "gum"
   depends_on "ripgrep"
   depends_on "fd"

@@ -76,6 +76,42 @@ require_python3_available() {
 	return 1
 }
 
+jsonschema_cli() {
+	# Executes the JSON Schema CLI using Homebrew (preferred) or npx as a fallback.
+	# Arguments:
+	#   Remaining arguments - forwarded to the jsonschema CLI.
+	local -a cli_cmd=()
+
+	if command -v jsonschema >/dev/null 2>&1; then
+		cli_cmd=(jsonschema)
+	elif command -v npx >/dev/null 2>&1; then
+		cli_cmd=(npx --yes @sourcemeta/jsonschema)
+	else
+		return 127
+	fi
+
+	"${cli_cmd[@]}" "$@"
+}
+
+require_jsonschema_cli_available() {
+	# Ensures the sourcemeta JSON Schema CLI is available.
+	# Arguments:
+	#   $1 - feature name for logging context (string; optional)
+	local feature
+	feature=${1:-"JSON Schema validation"}
+
+	hash -r 2>/dev/null || true
+
+	if jsonschema_cli version >/dev/null 2>&1; then
+		return 0
+	fi
+
+	log "ERROR" "jsonschema CLI is required for ${feature}" "jsonschema CLI unavailable; install with brew install sourcemeta/apps/jsonschema" || true
+	return 1
+}
+
 export -f require_llama_available
 export -f require_macos_capable_terminal
 export -f require_python3_available
+export -f jsonschema_cli
+export -f require_jsonschema_cli_available

@@ -35,8 +35,8 @@ schema_path() {
 	schema_name="$1"
 
 	case "${schema_name}" in
-	react_action)
-		schema_file="react_action.schema.json"
+	executor_action)
+		schema_file="executor_action.schema.json"
 		;;
 	planner_plan)
 		schema_file="planner_plan.schema.json"

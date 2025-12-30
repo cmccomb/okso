@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 #
-# Direct-response helpers shared between planner and ReAct flows.
+# Direct-response helpers shared between planner and executor flows.
 #
 # Usage:
 #   source "${BASH_SOURCE[0]%/respond.sh}/respond.sh"
@@ -64,8 +64,11 @@ respond_text() {
 	context_for_prompt="$(apply_prompt_context_budget "${prompt}" "${context}" "${number_of_tokens}" "direct_response")"
 	prompt="$(build_final_answer_fallback_prompt "${user_query}" "${context_for_prompt}")"
 	log "INFO" "Invoking llama inference" "$(printf 'tokens=%s schema=%s' "${number_of_tokens}" "${concise_schema_path}")" >&2
-	local response_text
-	response_text="$(llama_infer "${prompt}" "" "${number_of_tokens}" "${concise_schema_text}" "${REACT_MODEL_REPO:-}" "${REACT_MODEL_FILE:-}" "${REACT_CACHE_FILE:-}")"
+	local response_text executor_model_repo executor_model_file executor_cache_file
+	executor_model_repo="${EXECUTOR_MODEL_REPO:-}"
+	executor_model_file="${EXECUTOR_MODEL_FILE:-}"
+	executor_cache_file="${EXECUTOR_CACHE_FILE:-}"
+	response_text="$(llama_infer "${prompt}" "" "${number_of_tokens}" "${concise_schema_text}" "${executor_model_repo}" "${executor_model_file}" "${executor_cache_file}")"
 	user_output "${response_text}"
 	log "INFO" "Direct response generation finished" "${user_query}" >&2
 	return 0

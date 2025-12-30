@@ -13,8 +13,11 @@
 #   LLAMA_DEFAULT_CONTEXT_SIZE (int): assumed llama.cpp default context window.
 #   LLAMA_CONTEXT_CAP (int): maximum context window to request for llama.cpp invocations.
 #   LLAMA_CONTEXT_MARGIN_PERCENT (int): percentage safety margin added to context estimates.
-#   REACT_MODEL_REPO (string): Hugging Face repository name for the ReAct loop.
-#   REACT_MODEL_FILE (string): model file within the repository for the ReAct loop.
+#   EXECUTOR_MODEL_REPO (string): Hugging Face repository name for the executor loop.
+#   EXECUTOR_MODEL_FILE (string): model file within the repository for the executor loop.
+#   EXECUTOR_CACHE_FILE (string): prompt cache path for executor llama.cpp calls.
+#   REACT_MODEL_REPO (string): Legacy alias for EXECUTOR_MODEL_REPO.
+#   REACT_MODEL_FILE (string): Legacy alias for EXECUTOR_MODEL_FILE.
 #   VERBOSITY (int): log verbosity.
 #
 # Dependencies:
@@ -87,9 +90,9 @@ llama_infer() {
 	stop_string="${2:-}"
 	number_of_tokens="${3:-256}"
 	schema_json="${4:-}"
-	repo_override="${5:-${REACT_MODEL_REPO:-}}"
-	file_override="${6:-${REACT_MODEL_FILE:-}}"
-	cache_file="${7:-}"
+	repo_override="${5:-${EXECUTOR_MODEL_REPO:-${REACT_MODEL_REPO:-}}}"
+	file_override="${6:-${EXECUTOR_MODEL_FILE:-${REACT_MODEL_FILE:-}}}"
+	cache_file="${7:-${EXECUTOR_CACHE_FILE:-${REACT_CACHE_FILE:-}}}"
 	prompt_prefix="${8:-}"
 
 	if [[ "${LLAMA_AVAILABLE}" != true ]]; then

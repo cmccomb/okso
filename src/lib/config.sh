@@ -10,8 +10,8 @@
 #   CONFIG_FILE (string): config path; default resolved in detect_config_file.
 #   PLANNER_MODEL_SPEC (string): HF repo[:file] spec for planner llama calls.
 #   PLANNER_MODEL_BRANCH (string): HF branch for planner model downloads.
-#   REACT_MODEL_SPEC (string): HF repo[:file] spec for ReAct llama calls.
-#   REACT_MODEL_BRANCH (string): HF branch for ReAct model downloads.
+#   EXECUTOR_MODEL_SPEC (string): HF repo[:file] spec for executor llama calls.
+#   EXECUTOR_MODEL_BRANCH (string): HF branch for executor model downloads.
 #   SEARCH_REPHRASER_MODEL_SPEC (string): HF repo[:file] spec for search rephrasing llama calls.
 #   SEARCH_REPHRASER_MODEL_BRANCH (string): HF branch for search rephrasing model downloads.
 #   TESTING_PASSTHROUGH (bool): forces llama calls off during tests.
@@ -23,7 +23,7 @@
 #   OKSO_CACHE_DIR (string): base directory for prompt caches (default: ${XDG_CACHE_HOME:-${HOME}/.cache}/okso).
 #   OKSO_PLANNER_CACHE_FILE (string): prompt cache file used for planning llama.cpp calls.
 #   OKSO_REPHRASER_CACHE_FILE (string): prompt cache file used for search rephrasing llama.cpp calls.
-#   OKSO_REACT_CACHE_FILE (string): run-scoped prompt cache file for ReAct llama.cpp calls.
+#   OKSO_EXECUTOR_CACHE_FILE (string): run-scoped prompt cache file for executor llama.cpp calls.
 #   OKSO_RUN_ID (string): unique identifier for the current run used to scope caches.
 #
 # Dependencies:
@@ -43,8 +43,8 @@ source "${CONFIG_LIB_DIR}/core/logging.sh"
 : "${DEFAULT_MODEL_FILE_BASE:=Qwen_Qwen3-4B-Q4_K_M.gguf}"
 : "${DEFAULT_MODEL_SPEC_BASE:=${DEFAULT_MODEL_REPO_BASE}:${DEFAULT_MODEL_FILE_BASE}}"
 : "${DEFAULT_MODEL_BRANCH_BASE:=main}"
-: "${DEFAULT_REACT_MODEL_SPEC_BASE:=${DEFAULT_MODEL_SPEC_BASE}}"
-: "${DEFAULT_REACT_MODEL_BRANCH_BASE:=${DEFAULT_MODEL_BRANCH_BASE}}"
+: "${DEFAULT_EXECUTOR_MODEL_SPEC_BASE:=${DEFAULT_MODEL_SPEC_BASE}}"
+: "${DEFAULT_EXECUTOR_MODEL_BRANCH_BASE:=${DEFAULT_MODEL_BRANCH_BASE}}"
 
 : "${DEFAULT_REPHRASER_MODEL_REPO_BASE:=bartowski/Qwen_Qwen3-1.7B-GGUF}"
 : "${DEFAULT_REPHRASER_MODEL_FILE_BASE:=Qwen_Qwen3-1.7B-Q4_K_M.gguf}"
@@ -57,7 +57,7 @@ source "${CONFIG_LIB_DIR}/core/logging.sh"
 : "${DEFAULT_PLANNER_MODEL_BRANCH_BASE:=main}"
 
 readonly DEFAULT_MODEL_REPO_BASE DEFAULT_MODEL_FILE_BASE DEFAULT_MODEL_SPEC_BASE DEFAULT_MODEL_BRANCH_BASE
-readonly DEFAULT_REACT_MODEL_SPEC_BASE DEFAULT_REACT_MODEL_BRANCH_BASE
+readonly DEFAULT_EXECUTOR_MODEL_SPEC_BASE DEFAULT_EXECUTOR_MODEL_BRANCH_BASE
 readonly DEFAULT_PLANNER_MODEL_REPO_BASE DEFAULT_PLANNER_MODEL_FILE_BASE
 readonly DEFAULT_PLANNER_MODEL_SPEC_BASE DEFAULT_PLANNER_MODEL_BRANCH_BASE
 readonly DEFAULT_REPHRASER_MODEL_REPO_BASE DEFAULT_REPHRASER_MODEL_FILE_BASE
@@ -90,7 +90,6 @@ detect_config_file() {
 		esac
 	done
 }
-
 load_config() {
 	# Load file-backed configuration first so environment overrides and CLI flags
 	# can layer on top in a predictable order.
@@ -261,51 +260,35 @@ load_config() {
 		APPROVE_ALL=${APPROVE_ALL:-false}
 	fi
 
-	OKSO_RUN_ID=${OKSO_RUN_ID:-$(default_run_id)}
+	: "${EXECUTOR_MODEL_SPEC:=bartowski/Qwen_Qwen3-4B-GGUF:Qwen_Qwen3-4B-Q4_K_M.gguf}"
+	: "${EXECUTOR_MODEL_BRANCH:=main}"
+
+	: "${SEARCH_REPHRASER_MODEL_SPEC:=bartowski/Qwen_Qwen3-1.7B-GGUF:Qwen_Qwen3-1.7B-Q4_K_M.gguf}"
+	: "${SEARCH_REPHRASER_MODEL_BRANCH:=main}"
+
+	: "${VERBOSITY:=1}"
+	: "${APPROVE_ALL:=false}"
+	: "${FORCE_CONFIRM:=false}"
+
+	: "${OKSO_RUN_ID:=$(default_run_id)}"
 
 	local default_cache_dir
 	default_cache_dir="${XDG_CACHE_HOME:-${HOME}/.cache}/okso"
-
-	if [[ "${preexisting_okso_cache_dir_set}" == true ]]; then
-		OKSO_CACHE_DIR="${preexisting_okso_cache_dir}"
-	else
-		OKSO_CACHE_DIR=${OKSO_CACHE_DIR:-${default_cache_dir}}
-	fi
-
+	: "${OKSO_CACHE_DIR:=${default_cache_dir}}"
 	CACHE_DIR="${OKSO_CACHE_DIR}"
 
-	if [[ "${preexisting_okso_planner_cache_file_set}" == true ]]; then
-		OKSO_PLANNER_CACHE_FILE="${preexisting_okso_planner_cache_file}"
-	else
-		OKSO_PLANNER_CACHE_FILE=${OKSO_PLANNER_CACHE_FILE:-${CACHE_DIR}/planner.prompt-cache}
-	fi
-
+	: "${OKSO_PLANNER_CACHE_FILE:=${CACHE_DIR}/planner.prompt-cache}"
 	PLANNER_CACHE_FILE="${OKSO_PLANNER_CACHE_FILE}"
 
-	if [[ "${preexisting_okso_react_cache_file_set}" == true ]]; then
-		OKSO_REACT_CACHE_FILE="${preexisting_okso_react_cache_file}"
-	else
-		OKSO_REACT_CACHE_FILE=${OKSO_REACT_CACHE_FILE:-${CACHE_DIR}/runs/${OKSO_RUN_ID}/react.prompt-cache}
-	fi
+	: "${OKSO_EXECUTOR_CACHE_FILE:=${CACHE_DIR}/runs/${OKSO_RUN_ID}/executor.prompt-cache}"
+	EXECUTOR_CACHE_FILE="${OKSO_EXECUTOR_CACHE_FILE}"
 
-	if [[ "${preexisting_okso_rephraser_cache_file_set}" == true ]]; then
-		OKSO_REPHRASER_CACHE_FILE="${preexisting_okso_rephraser_cache_file}"
-	else
-		OKSO_REPHRASER_CACHE_FILE=${OKSO_REPHRASER_CACHE_FILE:-${CACHE_DIR}/rephraser.prompt-cache}
-	fi
-
-	REACT_CACHE_FILE="${OKSO_REACT_CACHE_FILE}"
+	: "${OKSO_REPHRASER_CACHE_FILE:=${CACHE_DIR}/rephraser.prompt-cache}"
 	SEARCH_REPHRASER_CACHE_FILE="${OKSO_REPHRASER_CACHE_FILE}"
 
-	if [[ "${preexisting_okso_run_id_set}" == true ]]; then
-		OKSO_RUN_ID="${preexisting_okso_run_id}"
-	fi
-
-	# shellcheck disable=SC2034
-	RUN_ID="${OKSO_RUN_ID}"
-
-	GOOGLE_SEARCH_API_KEY=${GOOGLE_SEARCH_API_KEY:-${OKSO_GOOGLE_CSE_API_KEY:-}}
-	GOOGLE_SEARCH_CX=${GOOGLE_SEARCH_CX:-${OKSO_GOOGLE_CSE_ID:-}}
+	# Google search vars (keep simple)
+	GOOGLE_SEARCH_API_KEY="${GOOGLE_SEARCH_API_KEY:-${OKSO_GOOGLE_CSE_API_KEY:-}}"
+	GOOGLE_SEARCH_CX="${GOOGLE_SEARCH_CX:-${OKSO_GOOGLE_CSE_ID:-}}"
 }
 
 write_config_file() {
@@ -327,12 +310,13 @@ write_config_file() {
 	cat >"${CONFIG_FILE}" <<EOF_CONFIG
 PLANNER_MODEL_SPEC=$(quote_config_value "${PLANNER_MODEL_SPEC}")
 PLANNER_MODEL_BRANCH=$(quote_config_value "${PLANNER_MODEL_BRANCH}")
-REACT_MODEL_SPEC=$(quote_config_value "${REACT_MODEL_SPEC}")
-REACT_MODEL_BRANCH=$(quote_config_value "${REACT_MODEL_BRANCH}")
+EXECUTOR_MODEL_SPEC=$(quote_config_value "${EXECUTOR_MODEL_SPEC}")
+EXECUTOR_MODEL_BRANCH=$(quote_config_value "${EXECUTOR_MODEL_BRANCH}")
 SEARCH_REPHRASER_MODEL_SPEC=$(quote_config_value "${SEARCH_REPHRASER_MODEL_SPEC}")
 SEARCH_REPHRASER_MODEL_BRANCH=$(quote_config_value "${SEARCH_REPHRASER_MODEL_BRANCH}")
 OKSO_CACHE_DIR=$(quote_config_value "${CACHE_DIR}")
 OKSO_PLANNER_CACHE_FILE=$(quote_config_value "${PLANNER_CACHE_FILE}")
+OKSO_EXECUTOR_CACHE_FILE=$(quote_config_value "${OKSO_EXECUTOR_CACHE_FILE}")
 VERBOSITY=${VERBOSITY}
 APPROVE_ALL=${APPROVE_ALL}
 EOF_CONFIG
@@ -398,19 +382,19 @@ hydrate_model_spec_to_vars() {
 }
 
 hydrate_model_specs() {
-	# Normalizes planner and react model specs into repo and file components.
+	# Normalizes planner and executor model specs into repo and file components.
 	DEFAULT_PLANNER_MODEL_FILE=${DEFAULT_PLANNER_MODEL_FILE:-${DEFAULT_PLANNER_MODEL_FILE_BASE}}
 	DEFAULT_MODEL_FILE=${DEFAULT_MODEL_FILE:-${DEFAULT_MODEL_FILE_BASE}}
 
 	PLANNER_MODEL_SPEC=${PLANNER_MODEL_SPEC:-"${DEFAULT_PLANNER_MODEL_SPEC_BASE}"}
 	PLANNER_MODEL_BRANCH=${PLANNER_MODEL_BRANCH:-"${DEFAULT_PLANNER_MODEL_BRANCH_BASE}"}
-	REACT_MODEL_SPEC=${REACT_MODEL_SPEC:-"${DEFAULT_REACT_MODEL_SPEC_BASE}"}
-	REACT_MODEL_BRANCH=${REACT_MODEL_BRANCH:-"${DEFAULT_REACT_MODEL_BRANCH_BASE}"}
+	EXECUTOR_MODEL_SPEC=${EXECUTOR_MODEL_SPEC:-"${DEFAULT_EXECUTOR_MODEL_SPEC_BASE}"}
+	EXECUTOR_MODEL_BRANCH=${EXECUTOR_MODEL_BRANCH:-"${DEFAULT_EXECUTOR_MODEL_BRANCH_BASE}"}
 	SEARCH_REPHRASER_MODEL_SPEC=${SEARCH_REPHRASER_MODEL_SPEC:-"${DEFAULT_REPHRASER_MODEL_SPEC_BASE}"}
 	SEARCH_REPHRASER_MODEL_BRANCH=${SEARCH_REPHRASER_MODEL_BRANCH:-"${DEFAULT_REPHRASER_MODEL_BRANCH_BASE}"}
 
 	hydrate_model_spec_to_vars "${PLANNER_MODEL_SPEC}" "${DEFAULT_PLANNER_MODEL_FILE}" PLANNER_MODEL_REPO PLANNER_MODEL_FILE
-	hydrate_model_spec_to_vars "${REACT_MODEL_SPEC}" "${DEFAULT_MODEL_FILE}" REACT_MODEL_REPO REACT_MODEL_FILE
+	hydrate_model_spec_to_vars "${EXECUTOR_MODEL_SPEC}" "${DEFAULT_MODEL_FILE}" EXECUTOR_MODEL_REPO EXECUTOR_MODEL_FILE
 	hydrate_model_spec_to_vars "${SEARCH_REPHRASER_MODEL_SPEC}" "${DEFAULT_REPHRASER_MODEL_FILE_BASE}" SEARCH_REPHRASER_MODEL_REPO SEARCH_REPHRASER_MODEL_FILE
 
 }
@@ -438,6 +422,6 @@ init_environment() {
 		LLAMA_AVAILABLE=false
 	fi
 
-	mkdir -p "${CACHE_DIR}" "$(dirname "${PLANNER_CACHE_FILE}")" "$(dirname "${REACT_CACHE_FILE}")" "$(dirname "${SEARCH_REPHRASER_CACHE_FILE}")"
+	mkdir -p "${CACHE_DIR}" "$(dirname "${PLANNER_CACHE_FILE}")" "$(dirname "${EXECUTOR_CACHE_FILE}")" "$(dirname "${SEARCH_REPHRASER_CACHE_FILE}")"
 	mkdir -p "${NOTES_DIR}"
 }
