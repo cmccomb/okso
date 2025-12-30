@@ -8,10 +8,23 @@ setup() {
 	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/exec/dispatch.sh
-PLAN_ONLY=true
-DRY_RUN=false
-FORCE_CONFIRM=false
 APPROVE_ALL=false
+if should_prompt_for_tool; then
+        echo "prompt"
+else
+        echo "skip"
+fi
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	[ "${output}" = "prompt" ]
+}
+
+@test "should_prompt_for_tool skips prompts when APPROVE_ALL is true" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+source ./src/lib/exec/dispatch.sh
+APPROVE_ALL=true
 if should_prompt_for_tool; then
         echo "prompt"
 else
@@ -28,9 +41,6 @@ SCRIPT
 set -euo pipefail
 source ./src/lib/exec/dispatch.sh
 APPROVE_ALL=true
-PLAN_ONLY=false
-DRY_RUN=false
-FORCE_CONFIRM=false
 
 tool_handler() { printf 'fake_handler'; }
 fake_handler() {

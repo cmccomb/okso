@@ -85,9 +85,6 @@ LLAMA_AVAILABLE=true
 VERBOSITY=0
 MAX_STEPS=3
 APPROVE_ALL=true
-PLAN_ONLY=false
-DRY_RUN=false
-FORCE_CONFIRM=false
 
 select_next_action "${state_prefix}" first_action
 tool_one=$(jq -r '.tool' <<<"${first_action}")

@@ -16,7 +16,6 @@
 #   SEARCH_REPHRASER_MODEL_BRANCH (string): HF branch for search rephrasing model downloads.
 #   TESTING_PASSTHROUGH (bool): forces llama calls off during tests.
 #   APPROVE_ALL (bool): skip prompts when true.
-#   FORCE_CONFIRM (bool): always prompt when true.
 #   VERBOSITY (int): logging verbosity.
 #   DEFAULT_MODEL_FILE (string): fallback file name for parsing model spec.
 #   OKSO_GOOGLE_CSE_API_KEY (string): Google Custom Search API key; may be overridden by environment.
@@ -112,7 +111,6 @@ load_config() {
 	local preexisting_default_planner_model_file preexisting_default_planner_model_file_set
 	local preexisting_verbosity preexisting_verbosity_set
 	local preexisting_approve_all preexisting_approve_all_set
-	local preexisting_force_confirm preexisting_force_confirm_set
 
 	preexisting_okso_google_cse_api_key_set=false
 	preexisting_okso_google_cse_id_set=false
@@ -131,7 +129,6 @@ load_config() {
 	preexisting_default_planner_model_file_set=false
 	preexisting_verbosity_set=false
 	preexisting_approve_all_set=false
-	preexisting_force_confirm_set=false
 
 	if [[ -n "${OKSO_GOOGLE_CSE_API_KEY+x}" ]]; then
 		preexisting_okso_google_cse_api_key="${OKSO_GOOGLE_CSE_API_KEY}"
@@ -201,10 +198,6 @@ load_config() {
 		preexisting_approve_all="${APPROVE_ALL}"
 		preexisting_approve_all_set=true
 	fi
-	if [[ -n "${FORCE_CONFIRM+x}" ]]; then
-		preexisting_force_confirm="${FORCE_CONFIRM}"
-		preexisting_force_confirm_set=true
-	fi
 
 	if [[ -f "${CONFIG_FILE}" ]]; then
 		# shellcheck source=/dev/null
@@ -266,11 +259,6 @@ load_config() {
 		APPROVE_ALL="${preexisting_approve_all}"
 	else
 		APPROVE_ALL=${APPROVE_ALL:-false}
-	fi
-	if [[ "${preexisting_force_confirm_set}" == true ]]; then
-		FORCE_CONFIRM="${preexisting_force_confirm}"
-	else
-		FORCE_CONFIRM=${FORCE_CONFIRM:-false}
 	fi
 
 	OKSO_RUN_ID=${OKSO_RUN_ID:-$(default_run_id)}
@@ -347,7 +335,6 @@ OKSO_CACHE_DIR=$(quote_config_value "${CACHE_DIR}")
 OKSO_PLANNER_CACHE_FILE=$(quote_config_value "${PLANNER_CACHE_FILE}")
 VERBOSITY=${VERBOSITY}
 APPROVE_ALL=${APPROVE_ALL}
-FORCE_CONFIRM=${FORCE_CONFIRM}
 EOF_CONFIG
 	printf 'Wrote config to %s\n' "${CONFIG_FILE}"
 }
@@ -386,19 +373,6 @@ normalize_approval_flags() {
 	*)
 		log "WARN" "Invalid approval flag; defaulting to prompts" "${APPROVE_ALL}"
 		APPROVE_ALL=false
-		;;
-	esac
-
-	case "${FORCE_CONFIRM}" in
-	true | True | TRUE | 1)
-		FORCE_CONFIRM=true
-		;;
-	false | False | FALSE | 0)
-		FORCE_CONFIRM=false
-		;;
-	*)
-		log "WARN" "Invalid confirm flag; defaulting to prompts" "${FORCE_CONFIRM}"
-		FORCE_CONFIRM=false
 		;;
 	esac
 }

@@ -21,6 +21,12 @@
 
 EXEC_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
+# Initialize default values for optional environment variables
+DRY_RUN="${DRY_RUN:-false}"
+PLAN_ONLY="${PLAN_ONLY:-false}"
+FORCE_CONFIRM="${FORCE_CONFIRM:-false}"
+APPROVE_ALL="${APPROVE_ALL:-false}"
+
 # shellcheck source=../core/logging.sh disable=SC1091
 source "${EXEC_LIB_DIR}/../core/logging.sh"
 # shellcheck source=../core/errors.sh disable=SC1091
@@ -31,12 +37,10 @@ source "${EXEC_LIB_DIR}/../config.sh"
 source "${EXEC_LIB_DIR}/../tools.sh"
 
 should_prompt_for_tool() {
-	if [[ "${PLAN_ONLY}" == true || "${DRY_RUN}" == true ]]; then
-		return 1
-	fi
-	if [[ "${FORCE_CONFIRM}" == true ]]; then
-		return 0
-	fi
+	# Default behavior is to prompt unless APPROVE_ALL is explicitly set to true.
+	# Arguments: none
+	# Environment:
+	#   APPROVE_ALL (bool): if true, skip prompts; otherwise prompt
 	if [[ "${APPROVE_ALL}" == true ]]; then
 		return 1
 	fi
