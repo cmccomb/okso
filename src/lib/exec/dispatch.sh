@@ -70,8 +70,18 @@ confirm_tool() {
 		return 0
 	fi
 
-	printf '%s [y/N]: ' "${prompt}" >&2
+	printf '%s [y/N/feedback]: ' "${prompt}" >&2
 	read -r reply
+
+	# Check if reply is feedback (not empty and not y/Y/n/N)
+	if [[ -n "${reply}" && "${reply}" != "y" && "${reply}" != "Y" && "${reply}" != "n" && "${reply}" != "N" ]]; then
+		# User provided feedback instead of a simple y/N response
+		log "INFO" "User provided feedback during tool confirmation" "tool=${tool_name}"
+		# Store feedback for planner to consume
+		printf '{"type":"feedback","tool":"%s","feedback":"%s"}' "${tool_name}" "$(printf '%s' "${reply}" | jq -Rs .)"
+		return 2
+	fi
+
 	if [[ "${reply}" != "y" && "${reply}" != "Y" ]]; then
 		log "WARN" "Tool execution declined" "${tool_name}"
 		printf '[%s skipped]\n' "${tool_name}"
@@ -109,7 +119,14 @@ execute_tool_with_query() {
 			log "INFO" "Requesting tool confirmation" "$(printf 'tool=%s query=%s' "${tool_name}" "${tool_query}")" >&2
 		fi
 
-		if ! confirm_tool "${tool_name}" "${context}"; then
+		if ! confirm_tool_output=$(confirm_tool "${tool_name}" "${context}"); then
+			confirm_status=$?
+			# Check if user provided feedback (exit code 2)
+			if [[ ${confirm_status} -eq 2 ]]; then
+				# Output the feedback JSON and return 2 to signal replanning needed
+				printf '%s' "${confirm_tool_output}"
+				return 2
+			fi
 			printf 'Declined %s\n' "${tool_name}"
 			return 0
 		fi

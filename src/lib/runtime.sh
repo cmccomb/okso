@@ -281,6 +281,61 @@ render_plan_outputs() {
 	fi
 }
 
+execute_with_feedback_loop() {
+	# Executes the react loop and handles feedback-driven replanning.
+	# Arguments:
+	#   $1 - settings namespace prefix
+	#   $2 - required tools string
+	#   $3 - plan entries string
+	#   $4 - plan outline text
+	#   $5 - planner response JSON
+	#   $6 - user query (may include feedback from previous iteration)
+	local settings_prefix required_tools plan_entries plan_outline plan_response user_query
+	settings_prefix="$1"
+	required_tools="$2"
+	plan_entries="$3"
+	plan_outline="$4"
+	plan_response="$5"
+	user_query="${6:-$(settings_get "${settings_prefix}" "user_query")}"
+
+	local react_output feedback
+	local max_feedback_iterations=3
+	local feedback_iteration=0
+
+	while ((feedback_iteration < max_feedback_iterations)); do
+		# Run the react loop with current user query (may include feedback)
+		react_output="$(react_loop "${user_query}" "${required_tools}" "${plan_entries}" "${plan_outline}")"
+
+		# Check if the output indicates feedback was received
+		if printf '%s' "${react_output}" | jq -e '.status == "feedback_received"' >/dev/null 2>&1; then
+			feedback="$(printf '%s' "${react_output}" | jq -r '.feedback // empty')"
+			if [[ -n "${feedback}" ]]; then
+				log "INFO" "Feedback received; updating query and replanning" "feedback=${feedback}"
+				# Update user_query to include the feedback for the next planning iteration
+				user_query="${user_query} [User feedback: ${feedback}]"
+
+				# Regenerate the plan with the feedback-enhanced query
+				log "INFO" "Regenerating plan with user feedback" "${feedback}"
+				plan_response="$(generate_planner_response "${user_query}")"
+				plan_outline="$(plan_json_to_outline "${plan_response}")"
+				required_tools="$(derive_allowed_tools_from_plan "${plan_response}")"
+				plan_entries="$(plan_json_to_entries "${plan_response}")"
+
+				feedback_iteration=$((feedback_iteration + 1))
+				continue
+			fi
+		fi
+
+		# No feedback or max iterations reached; output the final result
+		printf '%s' "${react_output}"
+		return 0
+	done
+
+	log "WARN" "Max feedback iterations reached; returning last output" "iterations=${feedback_iteration}"
+	printf '%s' "${react_output}"
+	return 0
+}
+
 select_response_strategy() {
 	# Arguments:
 	#   $1 - settings namespace prefix
@@ -304,5 +359,5 @@ select_response_strategy() {
 		return 1
 	fi
 
-	react_loop "${USER_QUERY}" "${required_tools}" "${plan_entries}" "${plan_outline}"
+	execute_with_feedback_loop "${settings_prefix}" "${required_tools}" "${plan_entries}" "${plan_outline}" "${plan_response}" "${USER_QUERY}"
 }

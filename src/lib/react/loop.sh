@@ -486,6 +486,22 @@ react_loop() {
 		if [[ "${errexit_enabled}" == true ]]; then
 			set -e
 		fi
+
+		# Handle feedback response from tool confirmation (exit code 2)
+		if ((tool_status == 2)); then
+			local feedback_json user_feedback
+			feedback_json="${observation}"
+			user_feedback=$(printf '%s' "${feedback_json}" | jq -r '.feedback // empty' 2>/dev/null || echo "")
+			if [[ -n "${user_feedback}" ]]; then
+				log "INFO" "User provided feedback during tool confirmation; triggering replanning" "feedback=${user_feedback}"
+				# Store feedback in state for potential replanning
+				state_set_json_document "${state_prefix}" "$(state_get_json_document "${state_prefix}" | jq -c --arg feedback "${user_feedback}" '.user_feedback = $feedback')"
+				# Break the react loop and signal to the parent that replanning is needed
+				state_set "${state_prefix}" "needs_replanning" "true"
+				break
+			fi
+		fi
+
 		if ((tool_status != 0)); then
 			failure_detail="Tool ${tool} failed to run (exit ${tool_status}). Check stderr logs for details."
 			log "ERROR" "Tool execution failed" "$(printf 'step=%s tool=%s exit_code=%s' "${current_step}" "${tool}" "${tool_status}")"
