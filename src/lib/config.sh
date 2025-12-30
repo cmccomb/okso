@@ -95,11 +95,6 @@ load_config() {
 	# can layer on top in a predictable order.
 	local preexisting_okso_google_cse_api_key preexisting_okso_google_cse_api_key_set
 	local preexisting_okso_google_cse_id preexisting_okso_google_cse_id_set
-	local preexisting_okso_cache_dir preexisting_okso_cache_dir_set
-	local preexisting_okso_planner_cache_file preexisting_okso_planner_cache_file_set
-	local preexisting_okso_react_cache_file preexisting_okso_react_cache_file_set
-	local preexisting_okso_rephraser_cache_file preexisting_okso_rephraser_cache_file_set
-	local preexisting_okso_run_id preexisting_okso_run_id_set
 	local preexisting_planner_model_spec preexisting_planner_model_spec_set
 	local preexisting_planner_model_branch preexisting_planner_model_branch_set
 	local preexisting_react_model_spec preexisting_react_model_spec_set
@@ -113,11 +108,6 @@ load_config() {
 
 	preexisting_okso_google_cse_api_key_set=false
 	preexisting_okso_google_cse_id_set=false
-	preexisting_okso_cache_dir_set=false
-	preexisting_okso_planner_cache_file_set=false
-	preexisting_okso_react_cache_file_set=false
-	preexisting_okso_rephraser_cache_file_set=false
-	preexisting_okso_run_id_set=false
 	preexisting_planner_model_spec_set=false
 	preexisting_planner_model_branch_set=false
 	preexisting_react_model_spec_set=false
@@ -136,26 +126,6 @@ load_config() {
 	if [[ -n "${OKSO_GOOGLE_CSE_ID+x}" ]]; then
 		preexisting_okso_google_cse_id="${OKSO_GOOGLE_CSE_ID}"
 		preexisting_okso_google_cse_id_set=true
-	fi
-	if [[ -n "${OKSO_CACHE_DIR+x}" ]]; then
-		preexisting_okso_cache_dir="${OKSO_CACHE_DIR}"
-		preexisting_okso_cache_dir_set=true
-	fi
-	if [[ -n "${OKSO_PLANNER_CACHE_FILE+x}" ]]; then
-		preexisting_okso_planner_cache_file="${OKSO_PLANNER_CACHE_FILE}"
-		preexisting_okso_planner_cache_file_set=true
-	fi
-	if [[ -n "${OKSO_REACT_CACHE_FILE+x}" ]]; then
-		preexisting_okso_react_cache_file="${OKSO_REACT_CACHE_FILE}"
-		preexisting_okso_react_cache_file_set=true
-	fi
-	if [[ -n "${OKSO_REPHRASER_CACHE_FILE+x}" ]]; then
-		preexisting_okso_rephraser_cache_file="${OKSO_REPHRASER_CACHE_FILE}"
-		preexisting_okso_rephraser_cache_file_set=true
-	fi
-	if [[ -n "${OKSO_RUN_ID+x}" ]]; then
-		preexisting_okso_run_id="${OKSO_RUN_ID}"
-		preexisting_okso_run_id_set=true
 	fi
 	if [[ -n "${PLANNER_MODEL_SPEC+x}" ]]; then
 		preexisting_planner_model_spec="${PLANNER_MODEL_SPEC}"
