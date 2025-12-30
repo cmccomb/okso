@@ -28,6 +28,6 @@ Every candidate plan is normalized and appended to `PLANNER_DEBUG_LOG` (default 
 - `index`: 1-based sample order.
 - `score` and `tie_breaker`: numeric values produced by the scoring pass.
 - `rationale`: explanation strings backing each score component.
-- `response`: the normalized planner output, including the selected mode and plan steps.
+- `response`: the normalized planner output with the validated plan steps.
 
 The log is truncated at the start of each planner invocation to keep runs isolated. Use the file to audit why the winning plan beat the alternatives or to reproduce scoring decisions during development.

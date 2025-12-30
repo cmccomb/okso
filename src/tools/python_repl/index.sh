@@ -95,7 +95,7 @@ python_repl_wrap_query() {
 }
 
 python_repl_resolve_query() {
-	# Resolves the Python input text from TOOL_ARGS or TOOL_QUERY (deprecated).
+	# Resolves the Python input text from TOOL_ARGS.
 	local args_json text_key jq_error_file jq_error query
 	text_key="$(canonical_text_arg_key)"
 	args_json="${TOOL_ARGS:-}"
@@ -134,7 +134,7 @@ tool_python_repl() {
 	text_key="$(canonical_text_arg_key)"
 
 	if ! require_python3_available "python_repl tool"; then
-		log "ERROR" "python_repl requires python3" "TOOL_ARGS=${TOOL_ARGS:-${TOOL_QUERY:-}}" >&2
+		log "ERROR" "python_repl requires python3" "TOOL_ARGS=${TOOL_ARGS}" >&2
 		return 1
 	fi
 
@@ -143,7 +143,7 @@ tool_python_repl() {
 	fi
 
 	if [[ -z "${query}" ]]; then
-		log "ERROR" "Missing TOOL_ARGS.${text_key}" "${TOOL_ARGS:-${TOOL_QUERY:-}}"
+		log "ERROR" "Missing TOOL_ARGS.${text_key}" "${TOOL_ARGS}"
 		return 1
 	fi
 

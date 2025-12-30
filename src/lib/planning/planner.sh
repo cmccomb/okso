@@ -13,9 +13,9 @@
 #   PLANNER_MODEL_FILE (string): model file within the repository for planner inference.
 #   SEARCH_REPHRASER_MODEL_REPO (string): Hugging Face repository name for search rephrasing inference.
 #   SEARCH_REPHRASER_MODEL_FILE (string): model file within the repository for search rephrasing inference.
-#   REACT_MODEL_REPO (string): Hugging Face repository name for ReAct inference.
-#   REACT_MODEL_FILE (string): model file within the repository for ReAct inference.
-#   REACT_ENTRYPOINT (string): optional path override for the ReAct entrypoint script.
+#   EXECUTOR_MODEL_REPO (string): Hugging Face repository name for executor inference.
+#   EXECUTOR_MODEL_FILE (string): model file within the repository for executor inference.
+#   EXECUTOR_ENTRYPOINT (string): optional path override for the executor entrypoint script.
 #   TOOLS (array): optional array of tool names available to the planner.
 #   PLAN_ONLY, DRY_RUN (bool): control execution and preview behaviour.
 #   APPROVE_ALL, FORCE_CONFIRM (bool): confirmation toggles.
@@ -46,7 +46,7 @@ PLANNING_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # Planner architecture overview
 # -----------------------------
-# The planner performs a short, deterministic pass before the ReAct loop
+# The planner performs a short, deterministic pass before the executor loop
 # executes any tools. The high-level flow is:
 #   1. Tools and schemas are sourced so the planner understands which actions
 #      are available and how they should be called.
@@ -56,10 +56,10 @@ PLANNING_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 #      tool descriptions, and examples into a llama.cpp completion request.
 #   4. Raw model responses are normalized into the canonical planner schema
 #      and scored for safety + viability.
-#   5. The best candidate's plan and allowed tools are forwarded to the ReAct
+#   5. The best candidate's plan and allowed tools are forwarded to the executor
 #      loop, which handles execution, approvals, and final answers.
 #
-# This file owns steps (1)–(4); execution dispatch lives in ../react/react.sh.
+# This file owns steps (1)–(4); execution dispatch lives in ../executor/executor.sh.
 
 # shellcheck source=../core/errors.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/../core/errors.sh"
@@ -99,7 +99,7 @@ if [[ "${PLANNER_SKIP_TOOL_LOAD:-false}" != true ]]; then
 fi
 
 initialize_planner_models() {
-	# Hydrates planner and ReAct model specs when callers did not pass
+	# Hydrates planner and executor model specs when callers did not pass
 	# explicit repositories or filenames via the environment. This keeps
 	# downstream llama.cpp calls predictable regardless of how the planner
 	# was sourced (CLI invocation vs. tests).
@@ -240,13 +240,15 @@ generate_planner_response() {
 	local -a planner_tools=()
 	user_query="$1"
 
+	initialize_planner_models
+
 	if ! require_llama_available "planner generation"; then
 		log "ERROR" "Planner cannot generate steps without llama.cpp" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}" >&2
 		local fallback
 		fallback="LLM unavailable. Request received: ${user_query}"
 		jq -nc \
 			--arg answer "${fallback}" \
-			'{mode:"plan", plan:[{tool:"final_answer", args:{input:$answer}, thought:"Provide the direct response."}]}'
+			'{plan:[{tool:"final_answer", args:{input:$answer}, thought:"Provide the direct response."}]}'
 		return 0
 	fi
 
@@ -386,11 +388,7 @@ generate_plan_json() {
 		return 1
 	fi
 
-	if jq -e '.mode == "plan"' <<<"${response_json}" >/dev/null 2>&1; then
-		jq -c '.plan' <<<"${response_json}"
-	else
-		jq -c '.' <<<"${response_json}"
-	fi
+	jq -c '.plan // .' <<<"${response_json}"
 }
 
 tool_query_deriver() {
@@ -477,7 +475,7 @@ derive_allowed_tools_from_plan() {
 	seen=""
 	local -a required=()
 	local plan_contains_fallback=false
-	if jq -e '.[] | select(.tool == "react_fallback")' <<<"${plan_json}" >/dev/null 2>&1; then
+	if jq -e '.[] | select(.tool == "executor_fallback")' <<<"${plan_json}" >/dev/null 2>&1; then
 		plan_contains_fallback=true
 	fi
 
@@ -521,19 +519,62 @@ plan_json_to_entries() {
 		return 1
 	fi
 
-	printf '%s' "${plan_json}" | jq -cr '.[]'
+	printf '%s' "${plan_json}" # | jq -cr '.[]'
 }
 
-REACT_ENTRYPOINT=${REACT_ENTRYPOINT:-"${PLANNING_LIB_DIR}/../react/react.sh"}
+# Emits the next planned action for deterministic execution when llama.cpp is disabled.
+# Arguments:
+#   $1 - state prefix (string)
+#   $2 - variable name to populate with the selected action JSON
+select_next_action() {
+	local state_prefix output_var plan_entries_raw plan_entries plan_array plan_index next_action plan_length plan_json
+	state_prefix="$1"
+	output_var="$2"
+
+	plan_entries_raw="$(state_get "${state_prefix}" "plan_entries" 2>/dev/null || printf '')"
+	plan_entries="$(printf '%s' "${plan_entries_raw}" | jq -r '.' 2>/dev/null || printf '%s' "${plan_entries_raw}")"
+
+	if jq -e 'type == "array"' <<<"${plan_entries}" >/dev/null 2>&1; then
+		plan_json="${plan_entries}"
+	elif jq -e 'type == "object"' <<<"${plan_entries}" >/dev/null 2>&1; then
+		plan_json="[${plan_entries}]"
+	else
+		plan_json="$(printf '%s\n' "${plan_entries}" | jq -cs 'map(select(length > 0) | (try fromjson catch .))' 2>/dev/null || printf '[]')"
+	fi
+
+	if ! plan_array="$(normalize_planner_plan <<<"${plan_json}")"; then
+		return 1
+	fi
+
+	plan_index="$(state_get "${state_prefix}" "plan_index" 2>/dev/null || printf '0')"
+	if [[ -z "${plan_index}" || ! "${plan_index}" =~ ^[0-9]+$ ]]; then
+		plan_index=0
+	fi
+
+	plan_length="$(jq -r 'length' <<<"${plan_array}" 2>/dev/null || printf '0')"
+	if ((plan_index >= plan_length)); then
+		return 1
+	fi
+
+	next_action="$(jq -c --argjson idx "${plan_index}" '.[ $idx ]' <<<"${plan_array}" 2>/dev/null || printf '')"
+	if [[ -z "${next_action}" ]]; then
+		return 1
+	fi
+
+	state_set "${state_prefix}" "plan_index" $((plan_index + 1)) || return 1
+	printf -v "${output_var}" '%s' "${next_action}"
+}
+
+EXECUTOR_ENTRYPOINT=${EXECUTOR_ENTRYPOINT:-"${PLANNING_LIB_DIR}/../executor/executor.sh"}
 
 if [[ "${PLANNER_SKIP_TOOL_LOAD:-false}" == true ]]; then
-	log "DEBUG" "Skipping ReAct entrypoint load" "planner_skip_tool_load=true" >&2
+	log "DEBUG" "Skipping executor entrypoint load" "planner_skip_tool_load=true" >&2
 else
-	if [[ ! -f "${REACT_ENTRYPOINT}" ]]; then
-		log "ERROR" "ReAct entrypoint missing" "REACT_ENTRYPOINT=${REACT_ENTRYPOINT}" >&2
+	if [[ ! -f "${EXECUTOR_ENTRYPOINT}" ]]; then
+		log "ERROR" "Executor entrypoint missing" "EXECUTOR_ENTRYPOINT=${EXECUTOR_ENTRYPOINT}" >&2
 		return 1 2>/dev/null
 	fi
 
-	# shellcheck source=../react/react.sh disable=SC1091
-	source "${REACT_ENTRYPOINT}"
+	# shellcheck source=../executor/executor.sh disable=SC1091
+	source "${EXECUTOR_ENTRYPOINT}"
 fi

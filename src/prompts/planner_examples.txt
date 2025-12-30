@@ -1,80 +1,146 @@
-# Example 1 (1 step, plan-only)
-User request: "What does 'idempotent' mean in the context of a CLI tool?"
-Plan:
-- {"tool":"final_answer","args":{"input":"Define idempotence for CLI tools and note that repeated runs do not change the result after the first execution."},"thought":"Provide a concise definition."}
-
-# Example 2 (3 steps, notes → reminders workflow)
+# Example: preserve a note while creating reminders
 User request: "Turn my note titled 'LC-Guard action items' into reminders, and leave the note intact."
-Plan:
-- {"tool":"notes_read","args":{"title":"LC-Guard action items"},"thought":"Extract the tasks to convert into reminders."}
-- {"tool":"reminders_create","args":{"title":"<task title>","time":"<due date if specified>","notes":"Source: LC-Guard action items"},"thought":"Schedule one reminder per task."}
-- {"tool":"final_answer","args":{"input":"List the reminders created and confirm the source note stayed unchanged."},"thought":"Report back to the user."}
+Plan (JSON):
+{
+  "mode": "plan",
+  "plan": [
+    {
+      "thought": "Read the source note to extract tasks.",
+      "tool": "notes_read",
+      "args": {"title": "LC-Guard action items"},
+      "args_control": {"title": "locked"}
+    },
+    {
+      "thought": "Create one reminder per task without editing the note.",
+      "tool": "reminders_create",
+      "args": {"title": "<task title>", "time": "<due date>", "notes": "Source: LC-Guard action items"},
+      "args_control": {"title": "context", "time": "context", "notes": "locked"}
+    },
+    {
+      "thought": "Confirm reminders and note status to the user.",
+      "tool": "final_answer",
+      "args": {"input": "Listed reminders created from LC-Guard action items; note left unchanged."},
+      "args_control": {"input": "context"}
+    }
+  ]
+}
 
-# Example 3 (4 steps, inbox summarization)
+# Example: summarize inbox within a timeframe
 User request: "Summarize my inbox from the last 24 hours into 5 bullets."
-Plan:
-- {"tool":"mail_list_inbox","args":{"input":"List recent messages (metadata only)."},"thought":"Collect the most recent mail."}
-- {"tool":"mail_search","args":{"input":"Narrow to messages likely within the last 24 hours (subject/sender filters)."},"thought":"Focus the set to the requested window."}
-- {"tool":"python_repl","args":{"input":"Cluster messages by sender/thread keywords and draft five bullet themes."},"thought":"Turn the message set into themes."}
-- {"tool":"final_answer","args":{"input":"Provide five summary bullets plus the top five driving messages (sender + subject)."},"thought":"Share the summary."}
+Plan (JSON):
+{
+  "mode": "plan",
+  "plan": [
+    {
+      "thought": "List recent inbox messages to find the 24-hour window.",
+      "tool": "mail_list_inbox",
+      "args": {"input": "Fetch recent messages (metadata only)."},
+      "args_control": {"input": "context"}
+    },
+    {
+      "thought": "Filter to messages likely within the last day.",
+      "tool": "mail_search",
+      "args": {"input": "Narrow to messages from the last 24 hours using sender/subject filters."},
+      "args_control": {"input": "context"}
+    },
+    {
+      "thought": "Return a concise summary to the user.",
+      "tool": "final_answer",
+      "args": {"input": "Provide five bullets plus the top five driving messages (sender + subject)."},
+      "args_control": {"input": "context"}
+    }
+  ]
+}
 
-# Example 4 (6 steps, web_search → verify equation → values → calculation)
-User request: "What’s the Reynolds number for air over a 0.1 m plate at 15 m/s, using today’s standard sea-level properties?"
-Plan:
-- {"tool":"web_search","args":{"input":"reynolds number equation rho V L mu"},"thought":"Verify the correct formula and variable definitions."}
-- {"tool":"web_search","args":{"input":"sea level air density viscosity 15 C"},"thought":"Collect rho and mu (or nu) from a reputable source."}
-- {"tool":"web_fetch","args":{"input":"Fetch the property source page used to capture numeric values and units."},"thought":"Ground the properties."}
-- {"tool":"python_repl","args":{"input":"Compute Re = rho * V * L / mu with units and intermediate values."},"thought":"Calculate the Reynolds number."}
-- {"tool":"notes_create","args":{"title":"Reynolds number calculation","body":"Formula, inputs, source link, and result."},"thought":"Capture the work."}
-- {"tool":"final_answer","args":{"input":"Present Re with assumptions, verified equation, and property values used."},"thought":"Return the result."}
-
-# Example 5 (7 steps, broad → broad → broad, then narrow → narrower)
+# Example: multi-step research with capture
 User request: "Find authoritative guidance on how to cite software in academic papers (APA vs. IEEE), and give me a short, practical rule-of-thumb."
-Plan:
-- {"tool":"web_search","args":{"input":"how to cite software academic paper guidance"},"thought":"Identify major authorities (APA, IEEE, publishers, library guides)."}
-- {"tool":"web_search","args":{"input":"APA software citation guidance"},"thought":"Locate the canonical APA page or manual guidance."}
-- {"tool":"web_search","args":{"input":"IEEE reference format software citation"},"thought":"Locate IEEE-style guidance from a credible source."}
-- {"tool":"web_search","args":{"input":"site:apastyle.apa.org software citation examples"},"thought":"Land on concrete APA examples."}
-- {"tool":"web_search","args":{"input":"site:ieee.org reference software citation example"},"thought":"Find IEEE-endorsed examples (or closest credible source)."}
-- {"tool":"notes_create","args":{"title":"Software citation rules of thumb","body":"APA example + IEEE example + checklist."},"thought":"Capture the rule-of-thumb."}
-- {"tool":"final_answer","args":{"input":"Provide the rule-of-thumb and mention the note title for reuse."},"thought":"Deliver the guidance."}
+Plan (JSON):
+{
+  "mode": "plan",
+  "plan": [
+    {
+      "thought": "Identify credible sources for software citation guidance.",
+      "tool": "web_search",
+      "args": {"query": "how to cite software academic paper guidance", "num": 3},
+      "args_control": {"query": "locked", "num": "locked"}
+    },
+    {
+      "thought": "Locate official APA instructions.",
+      "tool": "web_search",
+      "args": {"query": "APA software citation guidance", "num": 3},
+      "args_control": {"query": "locked", "num": "locked"}
+    },
+    {
+      "thought": "Locate official IEEE instructions.",
+      "tool": "web_search",
+      "args": {"query": "IEEE reference format software citation", "num": 3},
+      "args_control": {"query": "locked", "num": "locked"}
+    },
+    {
+      "thought": "Capture reusable notes for the user.",
+      "tool": "notes_create",
+      "args": {"title": "Software citation rules of thumb", "body": "APA example + IEEE example + checklist."},
+      "args_control": {"title": "locked", "body": "locked"}
+    },
+    {
+      "thought": "Share the guidance and note title.",
+      "tool": "final_answer",
+      "args": {"input": "Provide the rule-of-thumb and mention the note title for reuse."},
+      "args_control": {"input": "context"}
+    }
+  ]
+}
 
-# Example 6 (5 steps, combine terminal + notes)
+# Example: repo analysis via executor tools
 User request: "Search this repo for todos and make me a note listing each file and count of todos per file."
-Plan:
-- {"tool":"terminal","args":{"command":"find-and-count-todos","args":[]},"thought":"Scan the repo for TODO occurrences."}
-- {"tool":"terminal","args":{"command":"format-todo-counts","args":[]},"thought":"Normalize into a 'file: count' list."}
-- {"tool":"python_repl","args":{"input":"Sort the list descending by count and compute total TODOs."},"thought":"Order the results."}
-- {"tool":"notes_create","args":{"title":"TODO inventory","body":"Sorted list + totals."},"thought":"Persist the summary."}
-- {"tool":"final_answer","args":{"input":"Share the top offenders and the note title."},"thought":"Report back."}
+Plan (JSON):
+{
+  "mode": "plan",
+  "plan": [
+    {
+      "thought": "Scan the repo for TODO occurrences using the executor's helper command.",
+      "tool": "terminal",
+      "args": {"command": "find-and-count-todos", "args": []},
+      "args_control": {"command": "locked", "args": "locked"}
+    },
+    {
+      "thought": "Format the counts for note storage.",
+      "tool": "terminal",
+      "args": {"command": "format-todo-counts", "args": []},
+      "args_control": {"command": "locked", "args": "locked"}
+    },
+    {
+      "thought": "Persist the summary for reuse.",
+      "tool": "notes_create",
+      "args": {"title": "TODO inventory", "body": "Sorted list + totals."},
+      "args_control": {"title": "locked", "body": "locked"}
+    },
+    {
+      "thought": "Report results back to the user.",
+      "tool": "final_answer",
+      "args": {"input": "Top TODO offenders and note location."},
+      "args_control": {"input": "context"}
+    }
+  ]
+}
 
-# Example 7 (2 steps, plan-only)
-User request: "Write a two-sentence status update I can paste into Slack about finishing a draft and waiting on feedback."
-Plan:
-- {"tool":"notes_create","args":{"title":"Status update draft","body":"Two-sentence Slack-ready status about finishing the draft and awaiting feedback."},"thought":"Capture the status for reuse."}
-- {"tool":"final_answer","args":{"input":"Share the two-sentence status update and mention the saved note title."},"thought":"Provide the ready-to-paste text."}
-
-# Example 8 (4 steps, web_search then local capture)
-User request: "What’s the latest stable Node.js version, and store it in a note for my setup checklist."
-Plan:
-- {"tool":"web_search","args":{"input":"latest stable Node.js version"},"thought":"Find the current release from the official source."}
-- {"tool":"web_fetch","args":{"input":"Fetch the official page used to capture the version number."},"thought":"Ground the version in the source."}
-- {"tool":"notes_create","args":{"title":"Dev environment versions","body":"Node.js: vX.Y.Z + source link + date."},"thought":"Store the version for reuse."}
-- {"tool":"final_answer","args":{"input":"Report the version and confirm the note title."},"thought":"Share the answer."}
-
-# Example 9 (2 steps)
+# Example: scoped calendar query
 User request: "List my upcoming calendar events that mention 'proposal' in the title."
-Plan:
-- {"tool":"calendar_search","args":{"input":"proposal"},"thought":"Match by title/location/description."}
-- {"tool":"final_answer","args":{"input":"List matches with date/time and location when present."},"thought":"Return the matches."}
-
-# Example 10 (7 steps, web_search → values → python_repl → artifact)
-User request: "Estimate the monthly cost to run a 600W server 24/7 in Pittsburgh using the current PA residential kWh rate."
-Plan:
-- {"tool":"web_search","args":{"input":"Pennsylvania residential electricity rate cents per kWh current"},"thought":"Find a reputable source and note the date."}
-- {"tool":"web_fetch","args":{"input":"Fetch the chosen page to capture the numeric rate and units."},"thought":"Ground the rate."}
-- {"tool":"python_repl","args":{"input":"Compute kWh/month from 0.6 kW * 24 * 30 (show math)."},"thought":"Translate power draw into energy."}
-- {"tool":"python_repl","args":{"input":"Compute cost = kWh/month * $/kWh and a ±10% sensitivity band."},"thought":"Estimate the spend."}
-- {"tool":"notes_create","args":{"title":"Server electricity estimate","body":"Assumptions, source link, outputs."},"thought":"Save the calculation."}
-- {"tool":"reminders_create","args":{"title":"Refresh electricity rate","time":"30 days from now","notes":"Revisit the rate with the same source."},"thought":"Schedule a refresh."}
-- {"tool":"final_answer","args":{"input":"Report the estimate, assumptions, and sensitivity band."},"thought":"Return the summary."}
+Plan (JSON):
+{
+  "mode": "plan",
+  "plan": [
+    {
+      "thought": "Search events matching the keyword.",
+      "tool": "calendar_search",
+      "args": {"input": "proposal"},
+      "args_control": {"input": "locked"}
+    },
+    {
+      "thought": "Return a concise list of matches.",
+      "tool": "final_answer",
+      "args": {"input": "List matches with date/time and location when present."},
+      "args_control": {"input": "context"}
+    }
+  ]
+}

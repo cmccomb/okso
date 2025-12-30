@@ -10,27 +10,27 @@
 #   - Build structured settings from defaults, config files, and CLI arguments.
 #   - Prepare the environment and tool registry using the provided settings.
 #   - Render plan output handling dry-run and plan-only flows.
-#   - Select the execution strategy (direct response vs. react loop).
+#   - Select the execution strategy (direct response vs. executor loop).
 #
 # Expected types (namespaced JSON scoped by a settings prefix):
 #   ${settings_prefix}_json.version (string): application version.
 #   ${settings_prefix}_json.llama_bin (string): llama.cpp binary path.
-#   ${settings_prefix}_json.default_model_file (string): default GGUF filename for ReAct.
+#   ${settings_prefix}_json.default_model_file (string): default GGUF filename for executor runs.
 #   ${settings_prefix}_json.default_planner_model_file (string): default GGUF filename for the planner.
 #   ${settings_prefix}_json.config_dir (string): directory for config file.
 #   ${settings_prefix}_json.config_file (string): path to the config file.
 #   ${settings_prefix}_json.cache_dir (string): base directory for prompt caches.
 #   ${settings_prefix}_json.planner_cache_file (string): prompt cache file used for planner calls.
-#   ${settings_prefix}_json.react_cache_file (string): prompt cache file used for ReAct calls.
-#   ${settings_prefix}_json.run_id (string): run identifier scoping ReAct caches.
+#   ${settings_prefix}_json.executor_cache_file (string): prompt cache file used for executor calls.
+#   ${settings_prefix}_json.run_id (string): run identifier scoping executor caches.
 #   ${settings_prefix}_json.planner_model_spec (string): HF repo[:file] spec for planner llama.cpp.
 #   ${settings_prefix}_json.planner_model_branch (string): branch or tag for planner downloads.
 #   ${settings_prefix}_json.planner_model_repo (string): parsed planner HF repo.
 #   ${settings_prefix}_json.planner_model_file (string): parsed planner HF file.
-#   ${settings_prefix}_json.react_model_spec (string): HF repo[:file] spec for ReAct llama.cpp.
-#   ${settings_prefix}_json.react_model_branch (string): branch or tag for ReAct downloads.
-#   ${settings_prefix}_json.react_model_repo (string): parsed ReAct HF repo.
-#   ${settings_prefix}_json.react_model_file (string): parsed ReAct HF file.
+#   ${settings_prefix}_json.executor_model_spec (string): HF repo[:file] spec for executor llama.cpp.
+#   ${settings_prefix}_json.executor_model_branch (string): branch or tag for executor downloads.
+#   ${settings_prefix}_json.executor_model_repo (string): parsed executor HF repo.
+#   ${settings_prefix}_json.executor_model_file (string): parsed executor HF file.
 #   ${settings_prefix}_json.approve_all (bool string): true to bypass prompts.
 #   ${settings_prefix}_json.force_confirm (bool string): true to force prompts.
 #   ${settings_prefix}_json.dry_run (bool string): true to avoid execution.
@@ -38,7 +38,7 @@
 #   ${settings_prefix}_json.verbosity (int string): log verbosity level.
 #   ${settings_prefix}_json.notes_dir (string): notes storage directory.
 #   ${settings_prefix}_json.llama_available (bool string): llama binary availability.
-#   ${settings_prefix}_json.use_react_llama (bool string): toggle react llama usage.
+#   ${settings_prefix}_json.use_executor_llama (bool string): toggle executor llama usage.
 #   ${settings_prefix}_json.is_macos (bool string): detected macOS flag.
 #   ${settings_prefix}_json.command (string): operational mode.
 #   ${settings_prefix}_json.user_query (string): provided user query.
@@ -57,6 +57,8 @@ RUNTIME_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${RUNTIME_LIB_DIR}/core/errors.sh"
 # shellcheck source=./formatting.sh disable=SC1091
 source "${RUNTIME_LIB_DIR}/formatting.sh"
+# shellcheck source=./tools/query.sh disable=SC1091
+source "${RUNTIME_LIB_DIR}/tools/query.sh"
 # shellcheck source=./core/settings.sh disable=SC1091
 source "${RUNTIME_LIB_DIR}/core/settings.sh"
 
@@ -81,46 +83,46 @@ config_dir CONFIG_DIR
 config_file CONFIG_FILE
 cache_dir CACHE_DIR
 planner_cache_file PLANNER_CACHE_FILE
-react_cache_file REACT_CACHE_FILE
+executor_cache_file EXECUTOR_CACHE_FILE
 rephraser_cache_file SEARCH_REPHRASER_CACHE_FILE
 run_id RUN_ID
 planner_model_spec PLANNER_MODEL_SPEC
 planner_model_branch PLANNER_MODEL_BRANCH
-react_model_spec REACT_MODEL_SPEC
-react_model_branch REACT_MODEL_BRANCH
+executor_model_spec EXECUTOR_MODEL_SPEC
+executor_model_branch EXECUTOR_MODEL_BRANCH
 rephraser_model_spec SEARCH_REPHRASER_MODEL_SPEC
 rephraser_model_branch SEARCH_REPHRASER_MODEL_BRANCH
 planner_model_repo PLANNER_MODEL_REPO
 planner_model_file PLANNER_MODEL_FILE
-react_model_repo REACT_MODEL_REPO
-react_model_file REACT_MODEL_FILE
+executor_model_repo EXECUTOR_MODEL_REPO
+executor_model_file EXECUTOR_MODEL_FILE
 rephraser_model_repo SEARCH_REPHRASER_MODEL_REPO
 rephraser_model_file SEARCH_REPHRASER_MODEL_FILE
 approve_all APPROVE_ALL
 verbosity VERBOSITY
 notes_dir NOTES_DIR
 llama_available LLAMA_AVAILABLE
-use_react_llama USE_REACT_LLAMA
+use_executor_llama USE_EXECUTOR_LLAMA
 is_macos IS_MACOS
 command COMMAND
 user_query USER_QUERY
 EOF
 }
 
-react_run_cache_dir() {
-	# Derives the directory that scopes the ReAct prompt cache for the current run.
+executor_run_cache_dir() {
+	# Derives the directory that scopes the executor prompt cache for the current run.
 	# Returns:
 	#   The directory path (string) or empty string when unset.
-	if [[ -z "${REACT_CACHE_FILE:-}" ]]; then
+	if [[ -z "${EXECUTOR_CACHE_FILE:-}" ]]; then
 		printf ''
 		return
 	fi
 
-	printf '%s' "$(dirname "${REACT_CACHE_FILE}")"
+	printf '%s' "$(dirname "${EXECUTOR_CACHE_FILE}")"
 }
 
-coerce_react_run_cache_path() {
-	# Ensures the ReAct prompt cache is scoped to the current run directory.
+coerce_executor_run_cache_path() {
+	# Ensures the executor prompt cache is scoped to the current run directory.
 	# Arguments:
 	#   $1 - settings namespace prefix
 	local settings_prefix cache_dir run_id cache_basename run_cache_dir coerced_path
@@ -128,7 +130,7 @@ coerce_react_run_cache_path() {
 
 	cache_dir="${CACHE_DIR:-$(settings_get "${settings_prefix}" "cache_dir")}" || cache_dir=""
 	run_id="${RUN_ID:-$(settings_get "${settings_prefix}" "run_id")}" || run_id=""
-	cache_basename="$(basename "${REACT_CACHE_FILE:-react.prompt-cache}")"
+	cache_basename="$(basename "${EXECUTOR_CACHE_FILE:-executor.prompt-cache}")"
 
 	if [[ -z "${cache_dir}" || -z "${run_id}" ]]; then
 		return
@@ -136,31 +138,31 @@ coerce_react_run_cache_path() {
 
 	run_cache_dir="${cache_dir}/runs/${run_id}"
 	coerced_path="${run_cache_dir}/${cache_basename}"
-	settings_set "${settings_prefix}" "react_cache_file" "${coerced_path}"
-	REACT_CACHE_FILE="${coerced_path}"
+	settings_set "${settings_prefix}" "executor_cache_file" "${coerced_path}"
+	EXECUTOR_CACHE_FILE="${coerced_path}"
 }
 
-ensure_react_run_cache_dir() {
-	# Ensures the run-scoped ReAct cache directory exists for llama.cpp caching.
+ensure_executor_run_cache_dir() {
+	# Ensures the run-scoped executor cache directory exists for llama.cpp caching.
 	local cache_dir
-	cache_dir="$(react_run_cache_dir)"
+	cache_dir="$(executor_run_cache_dir)"
 
 	if [[ -z "${cache_dir}" ]]; then
 		return
 	fi
 
 	mkdir -p "${cache_dir}"
-	REACT_RUN_CACHE_DIR="${cache_dir}"
-	log "INFO" "Prepared ReAct run cache" "path=${cache_dir}"
+	EXECUTOR_RUN_CACHE_DIR="${cache_dir}"
+	log "INFO" "Prepared executor run cache" "path=${cache_dir}"
 }
 
-cleanup_react_run_cache_dir() {
-	# Cleans up the run-scoped ReAct cache directory on success and retains it on failure.
+cleanup_executor_run_cache_dir() {
+	# Cleans up the run-scoped executor cache directory on success and retains it on failure.
 	# Arguments:
 	#   $1 - exit status to evaluate
 	local status cache_dir
 	status="${1:-0}"
-	cache_dir="${REACT_RUN_CACHE_DIR:-$(react_run_cache_dir)}"
+	cache_dir="${EXECUTOR_RUN_CACHE_DIR:-$(executor_run_cache_dir)}"
 
 	if [[ -z "${cache_dir}" || ! -d "${cache_dir}" ]]; then
 		return
@@ -168,11 +170,11 @@ cleanup_react_run_cache_dir() {
 
 	if [[ "${status}" -eq 0 ]]; then
 		rm -rf "${cache_dir}"
-		log "INFO" "Cleaned ReAct run cache" "path=${cache_dir}"
+		log "INFO" "Cleaned executor run cache" "path=${cache_dir}"
 		return
 	fi
 
-	log "INFO" "Retaining ReAct run cache for debugging" "path=${cache_dir} status=${status}"
+	log "INFO" "Retaining executor run cache for debugging" "path=${cache_dir} status=${status}"
 }
 
 apply_settings_to_globals() {
@@ -223,7 +225,6 @@ load_runtime_settings() {
 	parse_args "$@"
 	normalize_approval_flags
 	hydrate_model_specs
-	coerce_react_run_cache_path "${settings_prefix}"
 
 	capture_globals_into_settings "${settings_prefix}"
 }
@@ -281,61 +282,6 @@ render_plan_outputs() {
 	fi
 }
 
-execute_with_feedback_loop() {
-	# Executes the react loop and handles feedback-driven replanning.
-	# Arguments:
-	#   $1 - settings namespace prefix
-	#   $2 - required tools string
-	#   $3 - plan entries string
-	#   $4 - plan outline text
-	#   $5 - planner response JSON
-	#   $6 - user query (may include feedback from previous iteration)
-	local settings_prefix required_tools plan_entries plan_outline plan_response user_query
-	settings_prefix="$1"
-	required_tools="$2"
-	plan_entries="$3"
-	plan_outline="$4"
-	plan_response="$5"
-	user_query="${6:-$(settings_get "${settings_prefix}" "user_query")}"
-
-	local react_output feedback
-	local max_feedback_iterations=3
-	local feedback_iteration=0
-
-	while ((feedback_iteration < max_feedback_iterations)); do
-		# Run the react loop with current user query (may include feedback)
-		react_output="$(react_loop "${user_query}" "${required_tools}" "${plan_entries}" "${plan_outline}")"
-
-		# Check if the output indicates feedback was received
-		if printf '%s' "${react_output}" | jq -e '.status == "feedback_received"' >/dev/null 2>&1; then
-			feedback="$(printf '%s' "${react_output}" | jq -r '.feedback // empty')"
-			if [[ -n "${feedback}" ]]; then
-				log "INFO" "Feedback received; updating query and replanning" "feedback=${feedback}"
-				# Update user_query to include the feedback for the next planning iteration
-				user_query="${user_query} [User feedback: ${feedback}]"
-
-				# Regenerate the plan with the feedback-enhanced query
-				log "INFO" "Regenerating plan with user feedback" "${feedback}"
-				plan_response="$(generate_planner_response "${user_query}")"
-				plan_outline="$(plan_json_to_outline "${plan_response}")"
-				required_tools="$(derive_allowed_tools_from_plan "${plan_response}")"
-				plan_entries="$(plan_json_to_entries "${plan_response}")"
-
-				feedback_iteration=$((feedback_iteration + 1))
-				continue
-			fi
-		fi
-
-		# No feedback or max iterations reached; output the final result
-		printf '%s' "${react_output}"
-		return 0
-	done
-
-	log "WARN" "Max feedback iterations reached; returning last output" "iterations=${feedback_iteration}"
-	printf '%s' "${react_output}"
-	return 0
-}
-
 select_response_strategy() {
 	# Arguments:
 	#   $1 - settings namespace prefix
@@ -354,10 +300,5 @@ select_response_strategy() {
 
 	apply_settings_to_globals "${settings_prefix}"
 
-	if [[ -z "${required_tools}" ]]; then
-		log "ERROR" "Planner emitted an empty tool list" "${USER_QUERY}"
-		return 1
-	fi
-
-	execute_with_feedback_loop "${settings_prefix}" "${required_tools}" "${plan_entries}" "${plan_outline}" "${plan_response}" "${USER_QUERY}"
+	executor_loop "${USER_QUERY}" "${required_tools}" "${plan_entries}" "${plan_outline}"
 }

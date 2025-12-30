@@ -4,7 +4,7 @@ Prompt templates live alongside schema definitions so the assistant behaviour st
 
 ## Layout
 
-- `src/prompts/`: text templates used by the planner, ReAct loop, and response helpers (for example, `final_answer_fallback.txt`, `planner.txt`, and `react.txt`).
+- `src/prompts/`: text templates used by the planner, executor, and response helpers (for example, `final_answer_fallback.txt`, `planner.txt`, and `executor.txt`).
 - `src/lib/prompts.sh`: helper functions that load prompt files, substitute runtime variables, and pass the final strings to llama.cpp.
 - `src/schemas/`: JSON schemas that constrain planner output and tool arguments.
 
@@ -20,5 +20,5 @@ Prompt templates live alongside schema definitions so the assistant behaviour st
 ## Related resources
 
 - [Schemas](schemas.md): schema details for planner and tool outputs.
-- [Execution model](execution-model.md): how prompts feed into planning and the ReAct loop.
+- [Execution model](execution-model.md): how prompts feed into planning and the executor.
 - [Tools](tools.md): available handlers that consume prompt output.

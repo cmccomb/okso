@@ -29,22 +29,16 @@ SCRIPT
 	[[ "${output}" == *"unable to parse planner output"* ]]
 }
 
-@test "normalize_planner_plan handles structured plan with missing optional fields" {
+@test "normalize_planner_plan rejects missing thought fields" {
 	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/planner.sh
-raw_plan='[{"tool":"notes_create"}]'
+raw_plan='[{"tool":"notes_create","args":{"title":"t"}}]'
 normalize_planner_plan <<<"${raw_plan}"
 SCRIPT
 
-	[ "$status" -eq 0 ]
-	plan_tool=$(printf '%s' "${output}" | jq -r '.[0].tool')
-	plan_thought=$(printf '%s' "${output}" | jq -r '.[0].thought // ""')
-	args_type=$(printf '%s' "${output}" | jq -r '.[0].args | type')
-
-	[ "${plan_tool}" = "notes_create" ]
-	[ "${plan_thought}" = "" ]
-	[ "${args_type}" = "object" ]
+	[ "$status" -ne 0 ]
+	[[ "${output}" == *"unable to parse planner output"* ]]
 }
 
 @test "normalize_planner_plan rejects steps with non-object args" {
@@ -88,8 +82,8 @@ SCRIPT
 	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/planner.sh
-without_final=$(append_final_answer_step "[{\"tool\":\"terminal\",\"args\":{},\"thought\":\"list\"}]")
-with_final=$(append_final_answer_step "[{\"tool\":\"final_answer\",\"args\":{},\"thought\":\"done\"}]")
+        without_final=$(append_final_answer_step "[{\"tool\":\"terminal\",\"args\":{\"command\":\"ls\"},\"thought\":\"list\"}]")
+        with_final=$(append_final_answer_step "[{\"tool\":\"final_answer\",\"args\":{\"input\":\"done\"},\"thought\":\"done\"}]")
 printf "%s\n---\n%s\n" "${without_final}" "${with_final}"
 SCRIPT
 
@@ -107,7 +101,7 @@ SCRIPT
 set -euo pipefail
 source ./src/lib/planning/planner.sh
 tool_names() { printf "%s\n" terminal notes_create final_answer; }
-plan_json='[{"tool":"terminal","args":{},"thought":"choose"},{"tool":"notes_create","args":{},"thought":"capture"}]'
+plan_json='[{"tool":"terminal","args":{"command":"ls"},"thought":"choose"},{"tool":"notes_create","args":{"title":"t"},"thought":"capture"}]'
 tools=()
 while IFS= read -r line; do
         tools+=("$line")
@@ -126,7 +120,7 @@ SCRIPT
 set -euo pipefail
 source ./src/lib/planning/planner.sh
 tool_names() { printf "%s\n" terminal notes_create final_answer; }
-response='{"mode":"plan","plan":[{"tool":"terminal","args":{},"thought":"choose"}]}'
+response='{"plan":[{"tool":"terminal","args":{"command":"ls"},"thought":"choose"}]}'
 tools=()
 while IFS= read -r line; do
         tools+=("$line")
@@ -139,12 +133,12 @@ SCRIPT
 	[ "${lines[1]}" = "final_answer" ]
 }
 
-@test "derive_allowed_tools_from_plan expands react_fallback to available tools" {
+@test "derive_allowed_tools_from_plan expands executor_fallback to available tools" {
 	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/planner.sh
 tool_names() { printf "%s\n" terminal notes_create calendar_list; }
-plan_json='[{"tool":"react_fallback"},{"tool":"final_answer"}]'
+plan_json='[{"tool":"executor_fallback","args":{},"thought":"fallback"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"summarize"}]'
 tools=()
 while IFS= read -r line; do
         tools+=("$line")
@@ -176,7 +170,7 @@ set -euo pipefail
 export VERBOSITY=0
 source ./src/lib/planning/planner.sh
 tool_names() { printf "%s\n" terminal web_search final_answer; }
-plan_json='[{"tool":"web_search","args":{}},{"tool":"web_search","args":{}},{"tool":"final_answer","args":{}}]'
+plan_json='[{"tool":"web_search","args":{"query":"status"},"thought":"search"},{"tool":"web_search","args":{"query":"status"},"thought":"search"},{"tool":"final_answer","args":{"input":"done"},"thought":"wrap"}]'
 tools=()
 while IFS= read -r line; do
         tools+=("$line")
@@ -192,13 +186,15 @@ SCRIPT
 	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/planner.sh
-response='{"mode":"plan","plan":[{"tool":"terminal","args":{}},{"tool":"final_answer","args":{}}]}'
+response='{"plan":[{"tool":"terminal","args":{"command":"ls"},"thought":"list"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"done"}]}'
 plan_json_to_entries "${response}"
 SCRIPT
 
 	[ "$status" -eq 0 ]
-	[ "${lines[0]}" = '{"tool":"terminal","args":{}}' ]
-	[ "${lines[1]}" = '{"tool":"final_answer","args":{}}' ]
+	first_tool=$(printf '%s' "${output}" | jq -r '.[0].tool')
+	second_tool=$(printf '%s' "${output}" | jq -r '.[1].tool')
+	[ "${first_tool}" = "terminal" ]
+	[ "${second_tool}" = "final_answer" ]
 }
 
 @test "plan_json_to_entries errors on non-plan payloads" {
@@ -218,9 +214,9 @@ set -euo pipefail
 source ./src/lib/planning/planner.sh
 VERBOSITY=0
 state_prefix=state
-plan_entry=$(jq -nc --arg tool "terminal" --arg command "echo" --arg arg0 "hi" '{tool:$tool,args:{command:$command,args:[$arg0]}}')
+plan_entry=$(jq -nc --arg tool "terminal" --arg command "echo" --arg arg0 "hi" '{tool:$tool,args:{command:$command,args:[$arg0]},thought:"Following planned step"}')
 plan_outline=$'1. terminal -> echo hi\n2. final_answer -> summarize'
-initialize_react_state "${state_prefix}" "list files" $'terminal\nfinal_answer' "${plan_entry}" "${plan_outline}"
+initialize_executor_state "${state_prefix}" "list files" $'terminal\nfinal_answer' "${plan_entry}" "${plan_outline}"
 state_set "${state_prefix}" "max_steps" 2
 USE_REACT_LLAMA=false
 LLAMA_AVAILABLE=false

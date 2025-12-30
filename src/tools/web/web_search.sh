@@ -7,7 +7,7 @@
 #   source "${BASH_SOURCE[0]%/tools/web/web_search.sh}/tools/web/web_search.sh"
 #
 # Environment variables:
-#   TOOL_ARGS (JSON object): structured args with required `query` and optional `num`.
+#   TOOL_ARGS (JSON object): structured args with required `query` (or `input` alias) and optional `num`.
 #   GOOGLE_SEARCH_API_KEY (string): API key for Google Custom Search.
 #   GOOGLE_SEARCH_CX (string): Custom search engine identifier.
 #
@@ -39,6 +39,7 @@ web_search_parse_args() {
 
 	if ! err=$(jq -cer '
                 if (type != "object") then error("args must be object") end
+                | .query = (.query // .input)
                 | if (.query? == null) then error("missing query") end
                 | if (.query | type) != "string" or (.query | length) == 0 then error("query must be non-empty string") end
                 | if (.num? != null) then
@@ -47,7 +48,7 @@ web_search_parse_args() {
                 else
                         .num = 5
                 end
-                | if ((del(.query, .num) | length) != 0) then error("unexpected properties") end
+                | if ((del(.query, .input, .num) | length) != 0) then error("unexpected properties") end
                 | {query: .query, num: (.num // 1)}
         ' <<<"${args_json}" 2>&1); then
 		log "ERROR" "Invalid web_search arguments" "${err}" >&2
@@ -111,10 +112,14 @@ register_web_search() {
 
 	args_schema=$(jq -nc '{
                 type: "object",
-                required: ["query"],
+                anyOf: [
+                        {required: ["query"]},
+                        {required: ["input"]}
+                ],
                 additionalProperties: false,
                 properties: {
                         query: {type: "string", minLength: 1, maxLength: 200},
+                        input: {type: "string", minLength: 1, maxLength: 200},
                         num: {type: "integer", minimum: 1, maximum: 10}
                 }
         }')
