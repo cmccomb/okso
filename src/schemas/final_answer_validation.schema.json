@@ -1,0 +1,25 @@
+{
+  "title": "FinalAnswerValidation",
+  "type": "object",
+  "required": ["satisfied", "reasoning"],
+  "additionalProperties": false,
+  "properties": {
+    "satisfied": {
+      "type": "boolean",
+      "description": "Whether the final answer satisfies the original user query."
+    },
+    "reasoning": {
+      "type": "string",
+      "description": "Explanation of why the answer satisfies or does not satisfy the query.",
+      "minLength": 10,
+      "maxLength": 1000
+    },
+    "confidence": {
+      "type": "number",
+      "description": "Confidence score from 0.0 to 1.0 (optional).",
+      "minimum": 0.0,
+      "maximum": 1.0
+    }
+  }
+}
+

@@ -4,7 +4,7 @@ Defaults live in `${XDG_CONFIG_HOME:-~/.config}/okso/config.env`. Create or upda
 
 ```bash
 ./src/bin/okso init --planner-model bartowski/Qwen_Qwen3-8B-GGUF:Qwen_Qwen3-8B-Q4_K_M.gguf \
-  --react-model bartowski/Qwen_Qwen3-4B-GGUF:Qwen_Qwen3-4B-Q4_K_M.gguf \
+  --executor-model bartowski/Qwen_Qwen3-4B-GGUF:Qwen_Qwen3-4B-Q4_K_M.gguf \
   --model-branch main
 ```
 
@@ -16,11 +16,14 @@ Supported keys:
 ```
 PLANNER_MODEL_SPEC=bartowski/Qwen_Qwen3-8B-GGUF:Qwen_Qwen3-8B-Q4_K_M.gguf
 PLANNER_MODEL_BRANCH=main
-REACT_MODEL_SPEC=bartowski/Qwen_Qwen3-4B-GGUF:Qwen_Qwen3-4B-Q4_K_M.gguf
-REACT_MODEL_BRANCH=main
+EXECUTOR_MODEL_SPEC=bartowski/Qwen_Qwen3-4B-GGUF:Qwen_Qwen3-4B-Q4_K_M.gguf
+EXECUTOR_MODEL_BRANCH=main
+VALIDATOR_MODEL_SPEC=bartowski/Qwen_Qwen3-4B-GGUF:Qwen_Qwen3-4B-Q4_K_M.gguf
+VALIDATOR_MODEL_BRANCH=main
 OKSO_CACHE_DIR=${XDG_CACHE_HOME:-~/.cache}/okso
 OKSO_PLANNER_CACHE_FILE=${OKSO_CACHE_DIR}/planner.prompt-cache
-OKSO_REACT_CACHE_FILE=${OKSO_CACHE_DIR}/runs/${OKSO_RUN_ID}/react.prompt-cache
+OKSO_EXECUTOR_CACHE_FILE=${OKSO_CACHE_DIR}/runs/${OKSO_RUN_ID}/executor.prompt-cache
+OKSO_VALIDATOR_CACHE_FILE=${OKSO_CACHE_DIR}/runs/${OKSO_RUN_ID}/validator.prompt-cache
 OKSO_RUN_ID=20240101T000000Z
 VERBOSITY=1
 APPROVE_ALL=false
@@ -36,11 +39,14 @@ PLANNER_DEBUG_LOG=${TMPDIR:-/tmp}/okso_planner_candidates.log
 
 - `PLANNER_MODEL_SPEC`: Hugging Face `repo[:file]` identifier for the planning llama.cpp model (default: `bartowski/Qwen_Qwen3-8B-GGUF:Qwen_Qwen3-8B-Q4_K_M.gguf`).
 - `PLANNER_MODEL_BRANCH`: Optional branch or tag for the planner download (default: `main`).
-- `REACT_MODEL_SPEC`: Hugging Face `repo[:file]` identifier for the executor llama.cpp model (default: `bartowski/Qwen_Qwen3-4B-GGUF:Qwen_Qwen3-4B-Q4_K_M.gguf`).
-- `REACT_MODEL_BRANCH`: Optional branch or tag for the executor download (default: `main`).
+- `EXECUTOR_MODEL_SPEC`: Hugging Face `repo[:file]` identifier for the executor llama.cpp model (default: `bartowski/Qwen_Qwen3-4B-GGUF:Qwen_Qwen3-4B-Q4_K_M.gguf`).
+- `EXECUTOR_MODEL_BRANCH`: Optional branch or tag for the executor download (default: `main`).
+- `VALIDATOR_MODEL_SPEC`: Hugging Face `repo[:file]` identifier for the validator llama.cpp model (default: executor model).
+- `VALIDATOR_MODEL_BRANCH`: Optional branch or tag for the validator download (default: executor branch).
 - `OKSO_CACHE_DIR`: Base directory for llama.cpp prompt caches (default: `${XDG_CACHE_HOME:-~/.cache}/okso`).
 - `OKSO_PLANNER_CACHE_FILE`: Prompt cache for planner llama.cpp calls (default: `${OKSO_CACHE_DIR}/planner.prompt-cache`).
-- `OKSO_REACT_CACHE_FILE`: Prompt cache for the executor call (default: `${OKSO_CACHE_DIR}/runs/${OKSO_RUN_ID}/react.prompt-cache`).
+- `OKSO_EXECUTOR_CACHE_FILE`: Prompt cache for the executor call (default: `${OKSO_CACHE_DIR}/runs/${OKSO_RUN_ID}/executor.prompt-cache`).
+- `OKSO_VALIDATOR_CACHE_FILE`: Prompt cache for the validator call (default: `${OKSO_CACHE_DIR}/runs/${OKSO_RUN_ID}/validator.prompt-cache`).
 - `OKSO_RUN_ID`: Run identifier used to scope the executor prompt cache (default: UTC timestamp). Override to reuse a run-scoped cache across invocations.
 - `LLAMA_BIN`: Path to the llama.cpp binary used for scoring (default: `llama-cli`).
 - `LLAMA_DEFAULT_CONTEXT_SIZE`: Assumed default llama.cpp context window used when no override is requested (default: `4096`).

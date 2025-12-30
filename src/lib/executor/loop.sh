@@ -38,6 +38,8 @@ source "${EXECUTOR_LIB_DIR}/../prompt/templates.sh"
 source "${EXECUTOR_LIB_DIR}/schema.sh"
 # shellcheck source=./history.sh disable=SC1091
 source "${EXECUTOR_LIB_DIR}/history.sh"
+# shellcheck source=../validation/validation.sh disable=SC1091
+source "${EXECUTOR_LIB_DIR}/../validation/validation.sh"
 
 normalize_args_json() {
 	# Normalizes argument JSON into canonical form.
