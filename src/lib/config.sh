@@ -248,4 +248,3 @@ init_environment() {
 CONFIG_FILE="${CONFIG_FILE:-${XDG_CONFIG_HOME:-${HOME}/.config}/okso/config.env}"
 load_config
 init_environment
-
