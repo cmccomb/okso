@@ -10,9 +10,8 @@ Follow this JSON schema for a concise string response (do not wrap in an object)
 ${final_fallback_schema}
 
 # Context
-Current date: ${current_date}
-Current time: ${current_time} (local)
-Current weekday: ${current_weekday}
+It is ${current_time} (local time) on ${current_weekday}, ${current_date}.
+Use this temporal context when scheduling or sequencing tasks.
 
 Relevant context and agent trace:
 ${context}
