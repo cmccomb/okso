@@ -68,6 +68,7 @@ Based on the original query, the execution trace, and the final answer provided,
 2. Are the key information or actions the user asked for present?
 3. Is the answer complete and actionable?
 4. Is the answer accurate given the execution trace?
+5. Have all placeholders been filled in with real data?
 
 Provide your validation result in JSON format.
 EOF
