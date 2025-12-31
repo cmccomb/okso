@@ -285,7 +285,9 @@ append_final_answer_step() {
 		return 0
 	fi
 
-	updated_plan="$(jq -c '. + [{tool:"final_answer",thought:"Summarize the result for the user.",args:{input:"Summarize the result."}}]' <<<"${plan_clean}" 2>/dev/null || printf '%s' "${plan_json}")"
+	# Seed the final_answer step with an empty input so the executor is responsible
+	# for filling in concrete content from observations. Avoid placeholder text.
+	updated_plan="$(jq -c '. + [{tool:"final_answer",thought:"Summarize the result for the user.",args:{input:""}}]' <<<"${plan_clean}" 2>/dev/null || printf '%s' "${plan_json}")"
 	printf '%s' "${updated_plan}"
 }
 

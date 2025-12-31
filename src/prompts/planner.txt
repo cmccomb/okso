@@ -29,6 +29,8 @@ Each action must clearly indicate which tool will be used.
 If a query involves any kind of calculation or mathematical operation, recommend the python_repl tool.
 When describing tool usage, reference the structured argument fields each tool expects (for example terminal => {command, args}, notes_create => {title, body}, reminders_create => {title, time, notes}).
 For every argument, set an entry in `args_control` indicating whether the executor should fill it from context (`"context"`) or preserve the planner-specified value (`"locked"`). Ensure `args_control` keys exactly match the provided `args` keys.
+- For context-controlled args: seed with an empty string "" so the executor fills it from observations.
+- For locked args: provide the concrete value the executor must use.
 Never place `args_control` inside `args`; keep it as a sibling field that mirrors the `args` keys.
 Use the argument names specified by each tool's schema (for example web_search => {query, num}, terminal => {command}). Reserve `args.input` for tools that explicitly accept free-form text payloads.
 
@@ -36,6 +38,8 @@ Use the argument names specified by each tool's schema (for example web_search =
 - Keep every string argument to a single line under 200 characters; summarize or trim instead of pasting multiline content.
 - Do NOT include Markdown code fences or embedded code blocks in any argument fields.
 - Use concise labels and summaries for inputs; skip stack traces, logs, and other bulky payloads.
+- For args marked as context-controlled in args_control, always provide an empty string "" as the seed value. The executor will fill these from observations.
+- For args marked as locked, provide the concrete value the executor must use as-is.
 
 # Output Format
 Respond ONLY with a JSON object.
@@ -63,13 +67,13 @@ Plan (JSON):
     {
       "thought": "Create one reminder per task without editing the note.",
       "tool": "reminders_create",
-      "args": {"title": "<task title>", "time": "<due date>", "notes": "Source: LC-Guard action items"},
+      "args": {"title": "", "time": "", "notes": "Source: LC-Guard action items"},
       "args_control": {"title": "context", "time": "context", "notes": "locked"}
     },
     {
       "thought": "Confirm reminders and note status to the user.",
       "tool": "final_answer",
-      "args": {"input": "Listed reminders created from LC-Guard action items; note left unchanged."},
+      "args": {"input": ""},
       "args_control": {"input": "context"}
     }
   ]
@@ -84,19 +88,19 @@ Plan (JSON):
     {
       "thought": "List recent inbox messages to find the 24-hour window.",
       "tool": "mail_list_inbox",
-      "args": {"input": "Fetch recent messages (metadata only)."},
+      "args": {"input": ""},
       "args_control": {"input": "context"}
     },
     {
       "thought": "Filter to messages likely within the last day.",
       "tool": "mail_search",
-      "args": {"input": "Narrow to messages from the last 24 hours using sender/subject filters."},
+      "args": {"input": ""},
       "args_control": {"input": "context"}
     },
     {
       "thought": "Return a concise summary to the user.",
       "tool": "final_answer",
-      "args": {"input": "Provide five bullets plus the top five driving messages (sender + subject)."},
+      "args": {"input": ""},
       "args_control": {"input": "context"}
     }
   ]
@@ -135,7 +139,7 @@ Plan (JSON):
     {
       "thought": "Share the guidance and note title.",
       "tool": "final_answer",
-      "args": {"input": "Provide the rule-of-thumb and mention the note title for reuse."},
+      "args": {"input": ""},
       "args_control": {"input": "context"}
     }
   ]
@@ -168,7 +172,7 @@ Plan (JSON):
     {
       "thought": "Report results back to the user.",
       "tool": "final_answer",
-      "args": {"input": "Top TODO offenders and note location."},
+      "args": {"input": ""},
       "args_control": {"input": "context"}
     }
   ]
@@ -189,7 +193,7 @@ Plan (JSON):
     {
       "thought": "Return a concise list of matches.",
       "tool": "final_answer",
-      "args": {"input": "List matches with date/time and location when present."},
+      "args": {"input": ""},
       "args_control": {"input": "context"}
     }
   ]
