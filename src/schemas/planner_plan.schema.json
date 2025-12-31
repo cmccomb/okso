@@ -25,20 +25,8 @@
           },
           "args": {
             "type": "object",
-            "description": "Arguments for the chosen tool.",
-            "additionalProperties": true,
-            "propertyNames": {
-              "type": "string",
-              "not": { "const": "args_control" }
-            }
-          },
-          "args_control": {
-            "type": "object",
-            "description": "Per-argument fill hints: context (executor fills) or locked (planner provided).",
-            "additionalProperties": {
-              "type": "string",
-              "enum": ["context", "locked"]
-            }
+            "description": "Arguments for the chosen tool. Fill mode is inferred from seed presence: non-empty strings are used as-is; empty strings are filled by executor from observations.",
+            "additionalProperties": true
           }
         },
         "allOf": [
@@ -73,14 +61,12 @@
           {
             "tool": "terminal",
             "args": { "command": "pwd" },
-            "args_control": { "command": "locked" },
             "thought": "Inspect the working directory."
           },
           {
             "tool": "final_answer",
-            "args": { "input": "Summarize findings." },
-            "args_control": { "input": "context" },
-            "thought": "Share the result."
+            "args": { "input": "" },
+            "thought": "Share the result (executor fills from observations)."
           }
         ]
       }

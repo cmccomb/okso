@@ -70,14 +70,14 @@ format_action_context() {
 }
 
 apply_plan_arg_controls() {
-	# Applies planner-provided arg control metadata to the executor args using jq only.
+	# Applies planner-provided arg values and infers context-controlled fields from empty seeds.
 	# Arguments:
 	#   $1 - tool name
 	#   $2 - executor args JSON
 	#   $3 - planner plan entry JSON (optional)
 	#   $4 - user query text (unused; kept for API stability)
 	#   $5 - serialized history text (unused; kept for API stability)
-	local tool args_json plan_entry_json user_query history_text args_obj plan_args plan_controls jq_filter
+	local tool args_json plan_entry_json user_query history_text args_obj plan_args jq_filter
 	tool="$1"
 	args_json="$2"
 	plan_entry_json="$3"
@@ -86,21 +86,24 @@ apply_plan_arg_controls() {
 
 	args_obj="$(jq -ce 'if type=="object" then . else {} end' <<<"${args_json}" 2>/dev/null || printf '{}')"
 	plan_args="$(jq -ce '.args // {} | if type=="object" then . else {} end' <<<"${plan_entry_json}" 2>/dev/null || printf '{}')"
-	plan_controls="$(jq -ce '.args_control // {} | if type=="object" then . else {} end' <<<"${plan_entry_json}" 2>/dev/null || printf '{}')"
 
+	# Infer context-controlled fields: any field with empty string seed is context-controlled
 	jq_filter=$(
 		cat <<'JQ'
-reduce ($controls|to_entries[]) as $item (
-  {args:$args,context:[],seeds:{}};
-  if $item.value=="locked" then
-    if $planned[$item.key]!=null then .args[$item.key]=$planned[$item.key] else . end
-  elif $item.value=="context" then
-    (if $planned[$item.key]!=null then $planned[$item.key] else .args[$item.key] end) as $seed
-    | (if $seed!=null then .args[$item.key]=$seed else (.args|=del(.[$item.key])) end)
-    | (if ($seed!=null and ($seed|type)=="string") then .seeds[$item.key]=$seed else . end)
-    | (if (.context|index($item.key))==null then .context+=[ $item.key ] else . end)
-  else . end
-)
+# Planner provides plan args; executor starts with empty args
+# For each planner arg:
+#   - If it's an empty string "", mark it as context-controlled (executor fills)
+#   - Otherwise use the planner value as-is
+$planned as $p
+| reduce ($p|to_entries[]) as $item (
+    {args:$args, context:[], seeds:{}};
+    .args[$item.key] = $item.value
+    | if ($item.value == "") then
+        (.context += [$item.key])
+      else
+        (if ($item.value | type) == "string" then .seeds[$item.key] = $item.value else . end)
+      end
+  )
 | . as $state
 | $state.args
 | (if ($state.context|length>0) then .+{__context_controlled:$state.context} else . end)
@@ -108,7 +111,7 @@ reduce ($controls|to_entries[]) as $item (
 JQ
 	)
 
-	jq -c -n --argjson args "${args_obj}" --argjson planned "${plan_args}" --argjson controls "${plan_controls}" "${jq_filter}" 2>/dev/null
+	jq -c -n --argjson args "${args_obj}" --argjson planned "${plan_args}" "${jq_filter}" 2>/dev/null
 }
 
 validate_planner_action() {
@@ -117,7 +120,7 @@ validate_planner_action() {
 	#   $1 - raw action JSON
 	#   $2 - newline-delimited allowed tools
 	# Outputs validated JSON to stdout.
-	local raw_action allowed_tools err_log action_json tool args_json args_control_json tool_schema
+	local raw_action allowed_tools err_log action_json tool args_json tool_schema
 	raw_action="$1"
 	allowed_tools="$2"
 	err_log=$(mktemp)
@@ -141,14 +144,13 @@ validate_planner_action() {
 	fi
 
 	args_json="$(jq -c '.args // {}' <<<"${action_json}" 2>/dev/null || printf '{}')"
-	args_control_json="$(jq -c '.args_control // {}' <<<"${action_json}" 2>/dev/null || printf '{}')"
 	tool_schema="$(tool_args_schema "${tool}")"
 	if [[ -n "${tool_schema}" ]] && ! jq -e --argjson schema "${tool_schema}" '.args|. as $args|$schema as $s|$args|=.' <<<"${action_json}" >/dev/null 2>&1; then
 		log "WARN" "Unable to validate args schema; continuing" "${tool}" || true
 	fi
 
-	jq -c --argjson args "${args_json}" --argjson args_control "${args_control_json}" \
-		'{tool:.tool,args:$args,args_control:$args_control,thought:(.thought//"Planner provided no commentary")}' <<<"${action_json}"
+	# Output validated action without args_control (it's now inferred from seeds)
+	jq -c '{tool:.tool,args:$args,thought:(.thought//"Planner provided no commentary")}' --argjson args "${args_json}" <<<"${action_json}"
 }
 
 validate_required_args_present() {

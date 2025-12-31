@@ -45,18 +45,6 @@ SCRIPT
 	[ "${lines[1]}" = "false" ]
 }
 
-@test "normalize_planner_plan preserves valid arg controls" {
-	run bash <<'SCRIPT'
-set -euo pipefail
-source ./src/lib/planning/normalization.sh
-raw_plan='[{"tool":"notes_create","args":{"title":"t","body":"b"},"args_control":{"title":"context","body":"locked"},"thought":"capture"}]'
-normalize_planner_plan <<<"${raw_plan}" | jq -r '.[0].args_control.title,.[0].args_control.body'
-SCRIPT
-
-	[ "$status" -eq 0 ]
-	[ "${lines[0]}" = "context" ]
-	[ "${lines[1]}" = "locked" ]
-}
 
 @test "normalize_planner_plan rejects empty args for tools requiring parameters" {
 	run bash <<'SCRIPT'
@@ -70,29 +58,16 @@ SCRIPT
 	[[ "${output}" == *"steps missing required args"* ]]
 }
 
-@test "normalize_planner_plan enforces args_control matching arg keys" {
-	run bash <<'SCRIPT'
-set -euo pipefail
-source ./src/lib/planning/normalization.sh
-raw_plan='[{"tool":"terminal","args":{"command":"ls"},"args_control":{"unexpected":"locked"},"thought":"list"}]'
-normalize_planner_plan <<<"${raw_plan}"
-SCRIPT
-
-	[ "$status" -ne 0 ]
-	[[ "${output}" == *"args_control must mirror args keys"* ]]
-}
-
 @test "normalize_planner_plan allows parameterless tools without args" {
 	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/normalization.sh
 raw_plan='[{"tool":"notes_list","args":{},"thought":"list notes"}]'
-normalize_planner_plan <<<"${raw_plan}" | jq -r '.[0].tool,(.[0].args_control | type)'
+normalize_planner_plan <<<"${raw_plan}" | jq -r '.[0].tool'
 SCRIPT
 
 	[ "$status" -eq 0 ]
 	[ "${lines[0]}" = "notes_list" ]
-	[ "${lines[1]}" = "object" ]
 }
 
 @test "normalize_planner_response normalizes code alias inside plan" {

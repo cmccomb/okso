@@ -103,27 +103,11 @@ normalize_planner_plan() {
                                         $args
                                 end;
 
-                        def canonical_controls($controls):
-                                if ($controls | type) != "object" then
-                                        {}
-                                else
-                                        $controls
-                                        | to_entries
-                                        | map(select(.value == "context" or .value == "locked"))
-                                        | from_entries
-                                end;
-
                         def thought_valid($thought):
                                 ($thought | type == "string") and ($thought | length) > 0;
 
                         def requires_args($tool):
                                 ($parameterless.tools | index($tool)) == null;
-
-                        def args_match_controls($args; $controls):
-                                ($controls // {}) as $controls_safe
-                                | ($controls_safe | keys | sort) as $control_keys
-                                | ($args | keys | sort) as $arg_keys
-                                | $control_keys == $arg_keys;
 
                         if type != "array" then
                                 error("plan must be an array")
@@ -133,21 +117,16 @@ normalize_planner_plan() {
                                 or (["tool", "args", "thought"] - (keys) | length > 0)
                                 or (.tool | type != "string")
                                 or (.args | type != "object")
-                                or (thought_valid(.thought) | not)
-                                or ((.args_control | type) as $t | ($t != "object" and $t != "null"))) then
+                                or (thought_valid(.thought) | not)) then
                                 error("plan contains invalid steps")
                         else
                                 map({
                                         tool: .tool,
                                         args: canonical_args(.args),
-                                        args_control: canonical_controls(.args_control),
                                         thought: .thought
                                 })
                                 | (if any(.[]; (requires_args(.tool)) and ((.args | length) == 0)) then
                                         error("steps missing required args")
-                                   else . end)
-                                | (if any(.[]; (.args_control // {} | length) > 0 and (args_match_controls(.args; .args_control) | not)) then
-                                        error("args_control must mirror args keys")
                                    else . end)
                         end
                         ' <<<"${plan_candidate}" 2>"${normalized_error_file}" || true)
