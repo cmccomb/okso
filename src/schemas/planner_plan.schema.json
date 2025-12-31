@@ -16,7 +16,7 @@
           "thought": {
             "type": "string",
             "description": "Brief rationale for the step.",
-            "minLength": 1
+            "minLength": 5
           },
           "tool": {
             "type": "string",
