@@ -71,8 +71,6 @@ if [[ "${PLANNER_SKIP_TOOL_LOAD:-false}" != true ]]; then
 else
 	log "DEBUG" "Skipping tool suite load" "planner_skip_tool_load=true" >&2
 fi
-# shellcheck source=../assistant/respond.sh disable=SC1091
-source "${PLANNING_LIB_DIR}/../assistant/respond.sh"
 # shellcheck source=../prompt/build_planner.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/../prompt/build_planner.sh"
 # shellcheck source=../schema/schema.sh disable=SC1091

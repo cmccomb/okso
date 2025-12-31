@@ -6,7 +6,6 @@ Structured outputs keep planner interactions predictable. Schema files live in `
 
 - `planner_plan.schema.json`: JSON object with a `plan` array of tool steps and rationales; each step requires `tool`, `args`, and `thought`. Fill mode for executor is inferred from seed presence: non-empty arg values are used as-is, empty string values indicate the executor must fill from observations.
 - `react_action.schema.json`: executor action template; tool enums and per-tool args are injected during schema generation and consumed by the executor in `react/loop.sh` for validation and fallback selection. Planner output must include every required argument up front while planner-marked context-controlled fields can be enriched by the executor LLM when available.
-- `concise_response.schema.json`: short direct answers when no tools should run; used by `respond.sh` to constrain final-answer fallback summaries.
 
 Free-form text arguments always appear under `args.input` in planner payloads, keeping prompt templates and registry-driven
 schemas aligned on the same canonical field name. Planner normalization also maps common aliases like `args.code` to `args.input`

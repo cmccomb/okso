@@ -44,9 +44,6 @@ schema_path() {
 	planner_search_queries)
 		schema_file="planner_search_queries.schema.json"
 		;;
-	concise_response)
-		schema_file="concise_response.schema.json"
-		;;
 	final_answer_validation)
 		schema_file="final_answer_validation.schema.json"
 		;;

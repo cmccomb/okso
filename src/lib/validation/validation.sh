@@ -51,8 +51,8 @@ build_validation_prompt() {
 	final_answer="$2"
 	trace="${3:-}"
 
-	# Load prompt template from prompts/validation.txt and render substitutions
-	render_prompt_template "validation" \
+	# Load prompt template from prompts/final_answer_validation.txt and render substitutions
+	render_prompt_template "final_answer_validation" \
 		user_query "${user_query}" \
 		final_answer "${final_answer}" \
 		trace "${trace}"
