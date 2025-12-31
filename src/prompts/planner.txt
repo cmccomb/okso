@@ -48,7 +48,153 @@ ${tool_lines}
 # Planner examples
 The following examples illustrate the expected planning strategy.
 Adapt them to the user's request but be sure to follow the required format.
-${planner_examples}
+# Example: preserve a note while creating reminders
+User request: "Turn my note titled 'LC-Guard action items' into reminders, and leave the note intact."
+Plan (JSON):
+{
+  "mode": "plan",
+  "plan": [
+    {
+      "thought": "Read the source note to extract tasks.",
+      "tool": "notes_read",
+      "args": {"title": "LC-Guard action items"},
+      "args_control": {"title": "locked"}
+    },
+    {
+      "thought": "Create one reminder per task without editing the note.",
+      "tool": "reminders_create",
+      "args": {"title": "<task title>", "time": "<due date>", "notes": "Source: LC-Guard action items"},
+      "args_control": {"title": "context", "time": "context", "notes": "locked"}
+    },
+    {
+      "thought": "Confirm reminders and note status to the user.",
+      "tool": "final_answer",
+      "args": {"input": "Listed reminders created from LC-Guard action items; note left unchanged."},
+      "args_control": {"input": "context"}
+    }
+  ]
+}
+
+# Example: summarize inbox within a timeframe
+User request: "Summarize my inbox from the last 24 hours into 5 bullets."
+Plan (JSON):
+{
+  "mode": "plan",
+  "plan": [
+    {
+      "thought": "List recent inbox messages to find the 24-hour window.",
+      "tool": "mail_list_inbox",
+      "args": {"input": "Fetch recent messages (metadata only)."},
+      "args_control": {"input": "context"}
+    },
+    {
+      "thought": "Filter to messages likely within the last day.",
+      "tool": "mail_search",
+      "args": {"input": "Narrow to messages from the last 24 hours using sender/subject filters."},
+      "args_control": {"input": "context"}
+    },
+    {
+      "thought": "Return a concise summary to the user.",
+      "tool": "final_answer",
+      "args": {"input": "Provide five bullets plus the top five driving messages (sender + subject)."},
+      "args_control": {"input": "context"}
+    }
+  ]
+}
+
+# Example: multi-step research with capture
+User request: "Find authoritative guidance on how to cite software in academic papers (APA vs. IEEE), and give me a short, practical rule-of-thumb."
+Plan (JSON):
+{
+  "mode": "plan",
+  "plan": [
+    {
+      "thought": "Identify credible sources for software citation guidance.",
+      "tool": "web_search",
+      "args": {"query": "how to cite software academic paper guidance", "num": 3},
+      "args_control": {"query": "locked", "num": "locked"}
+    },
+    {
+      "thought": "Locate official APA instructions.",
+      "tool": "web_search",
+      "args": {"query": "APA software citation guidance", "num": 3},
+      "args_control": {"query": "locked", "num": "locked"}
+    },
+    {
+      "thought": "Locate official IEEE instructions.",
+      "tool": "web_search",
+      "args": {"query": "IEEE reference format software citation", "num": 3},
+      "args_control": {"query": "locked", "num": "locked"}
+    },
+    {
+      "thought": "Capture reusable notes for the user.",
+      "tool": "notes_create",
+      "args": {"title": "Software citation rules of thumb", "body": "APA example + IEEE example + checklist."},
+      "args_control": {"title": "locked", "body": "locked"}
+    },
+    {
+      "thought": "Share the guidance and note title.",
+      "tool": "final_answer",
+      "args": {"input": "Provide the rule-of-thumb and mention the note title for reuse."},
+      "args_control": {"input": "context"}
+    }
+  ]
+}
+
+# Example: repo analysis via executor tools
+User request: "Search this repo for todos and make me a note listing each file and count of todos per file."
+Plan (JSON):
+{
+  "mode": "plan",
+  "plan": [
+    {
+      "thought": "Scan the repo for TODO occurrences using the executor's helper command.",
+      "tool": "terminal",
+      "args": {"command": "find-and-count-todos", "args": []},
+      "args_control": {"command": "locked", "args": "locked"}
+    },
+    {
+      "thought": "Format the counts for note storage.",
+      "tool": "terminal",
+      "args": {"command": "format-todo-counts", "args": []},
+      "args_control": {"command": "locked", "args": "locked"}
+    },
+    {
+      "thought": "Persist the summary for reuse.",
+      "tool": "notes_create",
+      "args": {"title": "TODO inventory", "body": "Sorted list + totals."},
+      "args_control": {"title": "locked", "body": "locked"}
+    },
+    {
+      "thought": "Report results back to the user.",
+      "tool": "final_answer",
+      "args": {"input": "Top TODO offenders and note location."},
+      "args_control": {"input": "context"}
+    }
+  ]
+}
+
+# Example: scoped calendar query
+User request: "List my upcoming calendar events that mention 'proposal' in the title."
+Plan (JSON):
+{
+  "mode": "plan",
+  "plan": [
+    {
+      "thought": "Search events matching the keyword.",
+      "tool": "calendar_search",
+      "args": {"input": "proposal"},
+      "args_control": {"input": "locked"}
+    },
+    {
+      "thought": "Return a concise list of matches.",
+      "tool": "final_answer",
+      "args": {"input": "List matches with date/time and location when present."},
+      "args_control": {"input": "context"}
+    }
+  ]
+}
+
 
 # Context
 Current date: ${current_date}
