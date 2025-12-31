@@ -15,7 +15,7 @@ This document describes the iterative replanning capability that has been implem
 
 2. **Validation Schema** (`src/schemas/final_answer_validation.schema.json`)
    - Defines the output format for validation results
-   - Includes satisfaction boolean, reasoning, and optional confidence score
+   - Includes satisfaction boolean and reasoning string
 
 3. **Integration Points**
    - Executor history finalization (`src/lib/executor/history.sh`)
@@ -65,7 +65,6 @@ The validation output follows this JSON schema:
 {
   "satisfied": boolean,           // Whether answer satisfies query
   "reasoning": string,            // Explanation of validation result (required)
-  "confidence": number (0.0-1.0)  // Optional confidence score
 }
 ```
 
@@ -76,7 +75,6 @@ The validation output follows this JSON schema:
 {
   "satisfied": true,
   "reasoning": "The answer directly addresses the user's request to find the current time and includes the relevant timezone information.",
-  "confidence": 0.95
 }
 ```
 
@@ -85,7 +83,6 @@ The validation output follows this JSON schema:
 {
   "satisfied": false,
   "reasoning": "The user asked for a summary of the meeting agenda, but the final answer only provided attendee names without the actual agenda items.",
-  "confidence": 0.88
 }
 ```
 
@@ -244,7 +241,6 @@ export VALIDATOR_CACHE_FILE="/tmp/validator.cache"
 
 ## Future Enhancements
 
-1. **Confidence-based replanning**: Only replan if confidence < threshold
 2. **User feedback loop**: Allow user to provide feedback on validation
 3. **Multi-criteria validation**: Validate multiple aspects (accuracy, completeness, clarity)
 4. **Validation strategies**: Different validation approaches for different query types

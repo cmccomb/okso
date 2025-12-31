@@ -77,7 +77,6 @@ validate_final_answer_against_query() {
 	#   {
 	#     "satisfied": boolean,
 	#     "reasoning": string,
-	#     "confidence": number (0.0-1.0, optional)
 	#   }
 
 	local user_query final_answer trace output_var
@@ -127,13 +126,11 @@ validate_final_answer_against_query() {
 	fi
 
 	# Log the validation result
-	local satisfied reasoning confidence
+	local satisfied reasoning
 	satisfied="$(jq -r '.satisfied' <<<"${response}")"
 	reasoning="$(jq -r '.reasoning' <<<"${response}")"
-	confidence="$(jq -r '.confidence // "N/A"' <<<"${response}")"
 
-	log "INFO" "Validation result" "$(printf 'satisfied=%s confidence=%s' "${satisfied}" "${confidence}")" || true
-	log_pretty "INFO" "validation_reasoning" "${reasoning}" || true
+	log "INFO" "Validation result" "$(printf 'satisfied=%s, %s' "${satisfied}" "${reasoning}")" || true
 
 	# Output result
 	if [[ -n "${output_var}" ]]; then

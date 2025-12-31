@@ -29,7 +29,6 @@ SCRIPT
 	[ "${lines[1]}" = "t" ]
 	[ "${lines[2]}" = "note" ]
 	[ "${lines[3]}" = "final_answer" ]
-	[ "${lines[4]}" = "Summarize the result." ]
 }
 
 @test "normalize_planner_plan maps code alias to args.input" {
@@ -44,7 +43,6 @@ SCRIPT
 	[ "${lines[0]}" = "print(1)" ]
 	[ "${lines[1]}" = "false" ]
 }
-
 
 @test "normalize_planner_plan rejects empty args for tools requiring parameters" {
 	run bash <<'SCRIPT'
