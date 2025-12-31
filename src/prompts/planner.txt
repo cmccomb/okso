@@ -20,7 +20,7 @@ Nudge progress while keeping instructions crisp and supportive.
   - When choosing: state it plainly (“I’ll use X because Y.”).
 
 # General Rules
-Format the output as a JSON object shaped as `{"plan": [...]}` (each step shaped as {tool, args, args_control, thought}).
+Format the output as a JSON object shaped as `{"plan": [...]}` (each step shaped as {thought, tool, args}).
 Always return at least one plan step; the final step must use the `final_answer` tool.
 
 # Tool Selection Rules
@@ -31,7 +31,7 @@ When describing tool usage, reference the structured argument fields each tool e
 For every argument, provide either:
 - A concrete seed value (string): the executor will use this as-is, no LLM infill needed.
 - An empty string "": the executor will fill this from observations using LLM, no seed provided.
-Keep args lists compact: only include keys that have values or are required by the tool schema. Do not include an args_control field; fill mode is inferred from seed presence.
+Keep args lists compact: only include keys that have values or are required by the tool schema.
 Use the argument names specified by each tool's schema (for example web_search => {query, num}, terminal => {command}). Reserve `args.input` for tools that explicitly accept free-form text payloads.
 
 # Tool Argument Discipline
@@ -40,7 +40,6 @@ Use the argument names specified by each tool's schema (for example web_search =
 - Use concise labels and summaries for inputs; skip stack traces, logs, and other bulky payloads.
 - For arguments the planner can specify: provide concrete seed values (e.g., "query": "how to cite software").
 - For arguments the executor must fill from observations: seed with empty string "" (e.g., "input": "").
-- Do not provide args_control hints; fill mode is inferred automatically from seed presence.
 
 # Output Format
 Respond ONLY with a JSON object.
@@ -53,7 +52,8 @@ ${tool_lines}
 # Planner examples
 The following examples illustrate the expected planning strategy.
 Adapt them to the user's request but be sure to follow the required format.
-# Example: preserve a note while creating reminders
+
+## Example: preserve a note while creating reminders
 User request: "Turn my note titled 'LC-Guard action items' into reminders, and leave the note intact."
 Plan (JSON):
 {
@@ -77,7 +77,7 @@ Plan (JSON):
   ]
 }
 
-# Example: summarize inbox within a timeframe
+## Example: summarize inbox within a timeframe
 User request: "Summarize my inbox from the last 24 hours into 5 bullets."
 Plan (JSON):
 {
@@ -101,7 +101,7 @@ Plan (JSON):
   ]
 }
 
-# Example: multi-step research with capture
+## Example: multi-step research with capture
 User request: "Find authoritative guidance on how to cite software in academic papers (APA vs. IEEE), and give me a short, practical rule-of-thumb."
 Plan (JSON):
 {
@@ -111,24 +111,21 @@ Plan (JSON):
       "thought": "Identify credible sources for software citation guidance.",
       "tool": "web_search",
       "args": {"query": "how to cite software academic paper guidance", "num": 3},
-      "args_control": {"query": "locked", "num": "locked"}
     },
     {
       "thought": "Locate official APA instructions.",
       "tool": "web_search",
       "args": {"query": "APA software citation guidance", "num": 3},
-      "args_control": {"query": "locked", "num": "locked"}
     },
     {
       "thought": "Locate official IEEE instructions.",
       "tool": "web_search",
       "args": {"query": "IEEE reference format software citation", "num": 3},
-      "args_control": {"query": "locked", "num": "locked"}
     },
     {
       "thought": "Capture reusable notes for the user.",
       "tool": "notes_create",
-      "args": {"title": "Software citation rules of thumb", "body": "APA example + IEEE example + checklist."}
+      "args": {"title": "Software citation rules of thumb", "body": ""}
     },
     {
       "thought": "Share the guidance and note title.",
@@ -138,36 +135,7 @@ Plan (JSON):
   ]
 }
 
-# Example: repo analysis via executor tools
-User request: "Search this repo for todos and make me a note listing each file and count of todos per file."
-Plan (JSON):
-{
-  "mode": "plan",
-  "plan": [
-    {
-      "thought": "Scan the repo for TODO occurrences using the executor's helper command.",
-      "tool": "terminal",
-      "args": {"command": "find-and-count-todos", "args": []}
-    },
-    {
-      "thought": "Format the counts for note storage.",
-      "tool": "terminal",
-      "args": {"command": "format-todo-counts", "args": []}
-    },
-    {
-      "thought": "Persist the summary for reuse.",
-      "tool": "notes_create",
-      "args": {"title": "TODO inventory", "body": "Sorted list + totals."}
-    },
-    {
-      "thought": "Report results back to the user.",
-      "tool": "final_answer",
-      "args": {"input": ""}
-    }
-  ]
-}
-
-# Example: scoped calendar query
+## Example: scoped calendar query
 User request: "List my upcoming calendar events that mention 'proposal' in the title."
 Plan (JSON):
 {
