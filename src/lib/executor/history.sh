@@ -153,8 +153,21 @@ finalize_executor_result() {
 	# Finalizes and emits the executor run result.
 	# Arguments:
 	#   $1 - state prefix
-	local state_name history_formatted final_answer observation final_answer_action
+	local state_name history_formatted final_answer observation final_answer_action needs_replanning user_feedback
 	state_name="$1"
+
+	# Check if replanning is needed due to user feedback
+	needs_replanning="$(state_get "${state_name}" "needs_replanning" 2>/dev/null || echo "")"
+	if [[ "${needs_replanning}" == "true" ]]; then
+		user_feedback="$(state_get_json_document "${state_name}" | jq -r '.user_feedback // empty' 2>/dev/null || echo "")"
+		if [[ -n "${user_feedback}" ]]; then
+			log "INFO" "Replanning with user feedback" "feedback=${user_feedback}"
+			# Emit a special marker that signals replanning is needed
+			jq -nc --arg feedback "${user_feedback}" '{status: "feedback_received", feedback: $feedback}'
+			return 0
+		fi
+	fi
+
 	observation="$(state_get "${state_name}" "final_answer")"
 	final_answer_action="$(state_get "${state_name}" "final_answer_action")"
 	if [[ -z "${observation}" ]]; then
@@ -176,6 +189,12 @@ finalize_executor_result() {
 
 	state_set "${state_name}" "final_answer" "${final_answer}"
 
+	# Validate final answer against original query if enabled
+	if [[ "${ENABLE_ANSWER_VALIDATION:-true}" == "true" ]]; then
+		validate_and_optionally_replan "${state_name}" "${final_answer}"
+		return $?
+	fi
+
 	log_pretty "INFO" "Final answer" "${final_answer}"
 	if [[ -z "$(format_tool_history "$(state_get_history_lines "${state_name}")")" ]]; then
 		log "INFO" "Execution summary" "No tool runs"
@@ -189,3 +208,73 @@ finalize_executor_result() {
 		"$(state_get_history_lines "${state_name}")" \
 		"${final_answer}"
 }
+
+validate_and_optionally_replan() {
+	# Validates a final answer against the original query and optionally triggers replanning.
+	# Uses the 8B validator model to check if the answer satisfies the user's request.
+	# If validation fails, logs the reason and optionally signals for replanning.
+	#
+	# Arguments:
+	#   $1 - state prefix
+	#   $2 - final answer text
+	#
+	# Returns:
+	#   0 if validation passes, 1 if fails but continues, 2 on validation error
+	local state_name final_answer user_query history_text validation_result validation_status
+	state_name="$1"
+	final_answer="$2"
+	user_query="$(state_get "${state_name}" "user_query")"
+	history_text="$(state_get_history_lines "${state_name}")"
+
+	log "INFO" "Running final answer validation" || true
+
+	# Call the validation function with output to a variable
+	if ! validation_result="$(validate_final_answer_against_query "${user_query}" "${final_answer}" "${history_text}")"; then
+		validation_status=$?
+
+		if [[ ${validation_status} -eq 1 ]]; then
+			# Validation indicates answer does NOT satisfy query
+			log "WARN" "Final answer validation failed; answer may not satisfy query" || true
+
+			# Extract reasoning if available
+			local reasoning
+			reasoning="$(jq -r '.reasoning // "Unknown reason"' <<<"${validation_result}" 2>/dev/null || echo "Validation failed to provide reasoning")"
+
+			log "INFO" "Validation reasoning" "${reasoning}" || true
+			log_pretty "WARN" "validation_failure_reason" "${reasoning}" || true
+
+			# Log the failed validation result for debugging
+			log_pretty "DEBUG" "validation_result" "${validation_result}" || true
+
+			# Set a flag to indicate replanning may be beneficial
+			state_set "${state_name}" "answer_validation_failed" "true" || true
+			state_set "${state_name}" "validation_failure_reason" "${reasoning}" || true
+
+			# Continue with outputting the answer, but mark that it didn't pass validation
+			log "INFO" "Continuing with unvalidated answer; consider iterative replanning" || true
+		else
+			# Validation infrastructure error (not a validation failure)
+			log "WARN" "Answer validation check encountered an error; outputting answer as-is" || true
+		fi
+	else
+		# Validation passed
+		log "INFO" "Final answer passed validation" || true
+		log_pretty "INFO" "validation_result" "${validation_result}" || true
+	fi
+
+	# Output the final answer regardless of validation status
+	log_pretty "INFO" "Final answer" "${final_answer}"
+	if [[ -z "$(format_tool_history "${history_text}")" ]]; then
+		log "INFO" "Execution summary" "No tool runs"
+	else
+		log_pretty "INFO" "Execution summary" "$(format_tool_history "${history_text}")"
+	fi
+
+	emit_boxed_summary \
+		"${user_query}" \
+		"$(state_get "${state_name}" "plan_outline")" \
+		"${history_text}" \
+		"${final_answer}"
+}
+
+export -f validate_and_optionally_replan

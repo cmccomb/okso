@@ -19,10 +19,19 @@ ${history_text}
 Planner notes:
 ${planner_thought}
 
-Current args JSON:
+Current args JSON (context-controlled fields are seeded as empty strings):
 ${args_json}
 
 Args schema:
 ${args_schema}
 
-Update only the context-controlled fields based on the history context.
+Update only the context-controlled fields based on the history context. The planner seeds these with empty strings; you must fill them from observations.
+
+No placeholders rule:
+- Do NOT return any placeholder tokens such as "[insert]", "[insert summary here]", "TODO", "TBD", "__MISSING__", "<insert>", "<todo>", or "lorem ipsum".
+- Fill each context-controlled field from the history context.
+- You may explain limitations within the field value itself (e.g., "Observations did not contain sufficient content to summarize").
+
+Return ONLY valid JSON matching the args schema.
+
+

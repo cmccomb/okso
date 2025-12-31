@@ -1,0 +1,19 @@
+{
+  "title": "FinalAnswerValidation",
+  "type": "object",
+  "required": ["satisfied", "reasoning"],
+  "additionalProperties": false,
+  "properties": {
+    "satisfied": {
+      "type": "boolean",
+      "description": "Whether the final answer satisfies the original user query."
+    },
+    "reasoning": {
+      "type": "string",
+      "description": "Explanation of why the answer satisfies or does not satisfy the query.",
+      "minLength": 5,
+      "maxLength": 1000
+    }
+  }
+}
+

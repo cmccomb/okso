@@ -99,9 +99,6 @@ executor_model_file EXECUTOR_MODEL_FILE
 rephraser_model_repo SEARCH_REPHRASER_MODEL_REPO
 rephraser_model_file SEARCH_REPHRASER_MODEL_FILE
 approve_all APPROVE_ALL
-force_confirm FORCE_CONFIRM
-dry_run DRY_RUN
-plan_only PLAN_ONLY
 verbosity VERBOSITY
 notes_dir NOTES_DIR
 llama_available LLAMA_AVAILABLE
@@ -282,29 +279,6 @@ render_plan_outputs() {
 
 	if [[ -n "${plan_outline}" ]]; then
 		log_pretty "INFO" "Plan outline" "${plan_outline}"
-	fi
-
-	if [[ "$(settings_get "${settings_prefix}" "plan_only")" == true ]]; then
-		# plan-only short-circuits execution and dry-run emission; callers handle
-		# the resulting action_ref to exit early.
-		log_pretty "INFO" "Plan JSON" "${plan_json}"
-		set_by_name "${action_var}" "exit"
-		return 0
-	fi
-
-	if [[ "$(settings_get "${settings_prefix}" "dry_run")" == true ]]; then
-		# Dry run prints the intended commands for operator inspection while still
-		# providing the serialized JSON plan for automation.
-		log_pretty "INFO" "Dry run plan" "${plan_json}"
-		printf '%s\n' "${plan_entries}" | sed '/^[[:space:]]*$/d' | while IFS= read -r entry; do
-			local tool_name args_json planned_query
-			tool_name="$(printf '%s' "${entry}" | jq -r '.tool // empty' 2>/dev/null || printf '')"
-			args_json="$(printf '%s' "${entry}" | jq -c '.args // {}' 2>/dev/null || printf '{}')"
-			planned_query="$(extract_tool_query "${tool_name}" "${args_json}")"
-			[[ -z "${planned_query}" ]] && continue
-			log "INFO" "Planned query" "${planned_query}"
-		done
-		set_by_name "${action_var}" "exit"
 	fi
 }
 

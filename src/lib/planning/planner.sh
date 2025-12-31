@@ -103,7 +103,7 @@ initialize_planner_models() {
 	# explicit repositories or filenames via the environment. This keeps
 	# downstream llama.cpp calls predictable regardless of how the planner
 	# was sourced (CLI invocation vs. tests).
-	if [[ -z "${PLANNER_MODEL_REPO:-}" || -z "${PLANNER_MODEL_FILE:-}" || -z "${REACT_MODEL_REPO:-}" || -z "${REACT_MODEL_FILE:-}" ]]; then
+	if [[ -z "${PLANNER_MODEL_REPO:-}" || -z "${PLANNER_MODEL_FILE:-}" || -z "${EXECUTOR_MODEL_REPO:-}" || -z "${EXECUTOR_MODEL_FILE:-}" ]]; then
 		hydrate_model_specs
 	fi
 }

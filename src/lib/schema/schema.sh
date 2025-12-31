@@ -47,6 +47,9 @@ schema_path() {
 	concise_response)
 		schema_file="concise_response.schema.json"
 		;;
+	final_answer_validation)
+		schema_file="final_answer_validation.schema.json"
+		;;
 	*)
 		log "ERROR" "Unknown schema requested" "${schema_name}" || true
 		return 1

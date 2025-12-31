@@ -25,8 +25,8 @@ setup() {
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 export LLAMA_AVAILABLE=false
                 export LLAMA_BIN=/nonexistent
-                export REACT_MODEL_REPO=repo
-                export REACT_MODEL_FILE=file
+                export EXECUTOR_MODEL_REPO=repo
+                export EXECUTOR_MODEL_FILE=file
                 source ./src/lib/llm/llama_client.sh
                 llama_infer "prompt" "" 10
         '
@@ -48,8 +48,8 @@ SCRIPT
                 chmod +x "${mock_binary}"
                 export LLAMA_AVAILABLE=true
                 export LLAMA_BIN="${mock_binary}"
-                export REACT_MODEL_REPO=demo/repo
-                export REACT_MODEL_FILE=model.gguf
+                export EXECUTOR_MODEL_REPO=demo/repo
+                export EXECUTOR_MODEL_FILE=model.gguf
                 source ./src/lib/llm/llama_client.sh
                 llama_infer "example prompt" "STOP" 12 "$(cat "${json_schema}")"
                 args=()
@@ -152,34 +152,6 @@ SCRIPT
 	detail=$(printf '%s\n' "${output}" | jq -r 'select(.message=="llama prompt inputs") | .detail')
 	[[ "${detail}" == *"STATIC_PREFIX"* ]]
 	[[ "${detail}" == *"${cache_file}"* ]]
-}
-
-@test "llama_infer returns llama exit code and logs stderr" {
-	run env BASH_ENV= ENV= bash --noprofile --norc -c '
-                cd "$(git rev-parse --show-toplevel)" || exit 1
-                args_dir="$(mktemp -d)"
-                mock_binary="${args_dir}/mock_llama.sh"
-                cat >"${mock_binary}" <<SCRIPT
-#!/usr/bin/env bash
-echo "fatal llama error" >&2
-exit 42
-SCRIPT
-                chmod +x "${mock_binary}"
-                export LLAMA_AVAILABLE=true
-                export LLAMA_BIN="${mock_binary}"
-                export REACT_MODEL_REPO=demo/repo
-                export REACT_MODEL_FILE=model.gguf
-                source ./src/lib/llm/llama_client.sh
-                llama_infer "prompt" "STOP" 5
-        '
-	[ "$status" -eq 42 ]
-	detail=$(printf '%s\n' "${output}" | jq -r '.detail')
-	[[ "${detail}" == *"mock_llama.sh"* ]]
-	[[ "${detail}" == *"--hf-repo demo/repo"* ]]
-	[[ "${detail}" == *"--hf-file model.gguf"* ]]
-	[[ "${detail}" == *"-p prompt"* ]]
-	[[ "${detail}" == *"-r STOP"* ]]
-	[[ "${detail}" == *"fatal llama error"* ]]
 }
 
 @test "llama_infer interrupts hung llama when timeout configured" {

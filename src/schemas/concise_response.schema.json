@@ -3,9 +3,5 @@
   "type": "string",
   "minLength": 5,
   "maxLength": 500,
-  "description": "Short response text",
-  "examples": [
-    "Here is your answer.",
-    "Done."
-  ]
+  "description": "Short response text"
 }

@@ -12,19 +12,14 @@
 #   PLANNER_MODEL_BRANCH (string): HF branch for planner model downloads.
 #   EXECUTOR_MODEL_SPEC (string): HF repo[:file] spec for executor llama calls.
 #   EXECUTOR_MODEL_BRANCH (string): HF branch for executor model downloads.
+#   VALIDATOR_MODEL_SPEC (string): HF repo[:file] spec for validation llama calls.
+#   VALIDATOR_MODEL_BRANCH (string): HF branch for validator model downloads.
 #   SEARCH_REPHRASER_MODEL_SPEC (string): HF repo[:file] spec for search rephrasing llama calls.
 #   SEARCH_REPHRASER_MODEL_BRANCH (string): HF branch for search rephrasing model downloads.
 #   TESTING_PASSTHROUGH (bool): forces llama calls off during tests.
 #   APPROVE_ALL (bool): skip prompts when true.
-#   FORCE_CONFIRM (bool): always prompt when true.
 #   VERBOSITY (int): logging verbosity.
-#   DEFAULT_MODEL_FILE (string): fallback file name for parsing model spec.
-#   OKSO_GOOGLE_CSE_API_KEY (string): Google Custom Search API key; may be overridden by environment.
-#   OKSO_GOOGLE_CSE_ID (string): Google Custom Search Engine ID; may be overridden by environment.
 #   OKSO_CACHE_DIR (string): base directory for prompt caches (default: ${XDG_CACHE_HOME:-${HOME}/.cache}/okso).
-#   OKSO_PLANNER_CACHE_FILE (string): prompt cache file used for planning llama.cpp calls.
-#   OKSO_REPHRASER_CACHE_FILE (string): prompt cache file used for search rephrasing llama.cpp calls.
-#   OKSO_EXECUTOR_CACHE_FILE (string): run-scoped prompt cache file for executor llama.cpp calls.
 #   OKSO_RUN_ID (string): unique identifier for the current run used to scope caches.
 #
 # Dependencies:
@@ -40,29 +35,24 @@ CONFIG_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=./core/logging.sh disable=SC1091
 source "${CONFIG_LIB_DIR}/core/logging.sh"
 
-: "${DEFAULT_MODEL_REPO_BASE:=bartowski/Qwen_Qwen3-4B-GGUF}"
-: "${DEFAULT_MODEL_FILE_BASE:=Qwen_Qwen3-4B-Q4_K_M.gguf}"
-: "${DEFAULT_MODEL_SPEC_BASE:=${DEFAULT_MODEL_REPO_BASE}:${DEFAULT_MODEL_FILE_BASE}}"
-: "${DEFAULT_MODEL_BRANCH_BASE:=main}"
-: "${DEFAULT_EXECUTOR_MODEL_SPEC_BASE:=${DEFAULT_MODEL_SPEC_BASE}}"
-: "${DEFAULT_EXECUTOR_MODEL_BRANCH_BASE:=${DEFAULT_MODEL_BRANCH_BASE}}"
+# Model defaults
+: "${DEFAULT_EXECUTOR_MODEL_REPO:=bartowski/Qwen_Qwen3-4B-GGUF}"
+: "${DEFAULT_EXECUTOR_MODEL_FILE:=Qwen_Qwen3-4B-Q4_K_M.gguf}"
+: "${DEFAULT_EXECUTOR_MODEL_SPEC_BASE:=${DEFAULT_EXECUTOR_MODEL_REPO}:${DEFAULT_EXECUTOR_MODEL_FILE}}"
+: "${DEFAULT_EXECUTOR_MODEL_BRANCH_BASE:=main}"
 
-: "${DEFAULT_REPHRASER_MODEL_REPO_BASE:=bartowski/Qwen_Qwen3-1.7B-GGUF}"
-: "${DEFAULT_REPHRASER_MODEL_FILE_BASE:=Qwen_Qwen3-1.7B-Q4_K_M.gguf}"
-: "${DEFAULT_REPHRASER_MODEL_SPEC_BASE:=${DEFAULT_REPHRASER_MODEL_REPO_BASE}:${DEFAULT_REPHRASER_MODEL_FILE_BASE}}"
-: "${DEFAULT_REPHRASER_MODEL_BRANCH_BASE:=main}"
-
-: "${DEFAULT_PLANNER_MODEL_REPO_BASE:=bartowski/Qwen_Qwen3-8B-GGUF}"
-: "${DEFAULT_PLANNER_MODEL_FILE_BASE:=Qwen_Qwen3-8B-Q4_K_M.gguf}"
-: "${DEFAULT_PLANNER_MODEL_SPEC_BASE:=${DEFAULT_PLANNER_MODEL_REPO_BASE}:${DEFAULT_PLANNER_MODEL_FILE_BASE}}"
+: "${DEFAULT_PLANNER_MODEL_REPO:=bartowski/Qwen_Qwen3-8B-GGUF}"
+: "${DEFAULT_PLANNER_MODEL_FILE:=Qwen_Qwen3-8B-Q4_K_M.gguf}"
+: "${DEFAULT_PLANNER_MODEL_SPEC_BASE:=${DEFAULT_PLANNER_MODEL_REPO}:${DEFAULT_PLANNER_MODEL_FILE}}"
 : "${DEFAULT_PLANNER_MODEL_BRANCH_BASE:=main}"
 
-readonly DEFAULT_MODEL_REPO_BASE DEFAULT_MODEL_FILE_BASE DEFAULT_MODEL_SPEC_BASE DEFAULT_MODEL_BRANCH_BASE
-readonly DEFAULT_EXECUTOR_MODEL_SPEC_BASE DEFAULT_EXECUTOR_MODEL_BRANCH_BASE
-readonly DEFAULT_PLANNER_MODEL_REPO_BASE DEFAULT_PLANNER_MODEL_FILE_BASE
-readonly DEFAULT_PLANNER_MODEL_SPEC_BASE DEFAULT_PLANNER_MODEL_BRANCH_BASE
-readonly DEFAULT_REPHRASER_MODEL_REPO_BASE DEFAULT_REPHRASER_MODEL_FILE_BASE
-readonly DEFAULT_REPHRASER_MODEL_SPEC_BASE DEFAULT_REPHRASER_MODEL_BRANCH_BASE
+: "${DEFAULT_VALIDATOR_MODEL_SPEC_BASE:=${DEFAULT_EXECUTOR_MODEL_SPEC_BASE}}"
+: "${DEFAULT_VALIDATOR_MODEL_BRANCH_BASE:=${DEFAULT_EXECUTOR_MODEL_BRANCH_BASE}}"
+
+: "${DEFAULT_REPHRASER_MODEL_REPO:=bartowski/Qwen_Qwen3-1.7B-GGUF}"
+: "${DEFAULT_REPHRASER_MODEL_FILE:=Qwen_Qwen3-1.7B-Q4_K_M.gguf}"
+: "${DEFAULT_REPHRASER_MODEL_SPEC_BASE:=${DEFAULT_REPHRASER_MODEL_REPO}:${DEFAULT_REPHRASER_MODEL_FILE}}"
+: "${DEFAULT_REPHRASER_MODEL_BRANCH_BASE:=main}"
 
 default_run_id() {
 	# Generates a stable run identifier for cache scoping.
@@ -70,8 +60,7 @@ default_run_id() {
 }
 
 detect_config_file() {
-	# Parse the config path early so subsequent helpers can honor user-provided
-	# locations before any other arguments are interpreted.
+	# Parse the config path early so subsequent helpers can honor user-provided locations.
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
 		--config)
@@ -91,60 +80,51 @@ detect_config_file() {
 		esac
 	done
 }
+
 load_config() {
-	# 1) Source config file (if any). Whatever it sets wins over caller env.
+	# Load file-backed configuration, then apply environment variable overrides.
+
+	# Load from file if it exists
 	if [[ -f "${CONFIG_FILE}" ]]; then
 		# shellcheck source=/dev/null
 		source "${CONFIG_FILE}"
 	fi
 
-	# 2) Defaults (only fill if still unset).
-	: "${PLANNER_MODEL_SPEC:=bartowski/Qwen_Qwen3-8B-GGUF:Qwen_Qwen3-8B-Q4_K_M.gguf}"
-	: "${PLANNER_MODEL_BRANCH:=main}"
+	# Apply environment variable defaults
+	PLANNER_MODEL_SPEC=${PLANNER_MODEL_SPEC:-"${DEFAULT_PLANNER_MODEL_SPEC_BASE}"}
+	PLANNER_MODEL_BRANCH=${PLANNER_MODEL_BRANCH:-"${DEFAULT_PLANNER_MODEL_BRANCH_BASE}"}
 
-	: "${EXECUTOR_MODEL_SPEC:=bartowski/Qwen_Qwen3-4B-GGUF:Qwen_Qwen3-4B-Q4_K_M.gguf}"
-	: "${EXECUTOR_MODEL_BRANCH:=main}"
+	EXECUTOR_MODEL_SPEC=${EXECUTOR_MODEL_SPEC:-"${DEFAULT_EXECUTOR_MODEL_SPEC_BASE}"}
+	EXECUTOR_MODEL_BRANCH=${EXECUTOR_MODEL_BRANCH:-"${DEFAULT_EXECUTOR_MODEL_BRANCH_BASE}"}
 
-	: "${SEARCH_REPHRASER_MODEL_SPEC:=bartowski/Qwen_Qwen3-1.7B-GGUF:Qwen_Qwen3-1.7B-Q4_K_M.gguf}"
-	: "${SEARCH_REPHRASER_MODEL_BRANCH:=main}"
+	VALIDATOR_MODEL_SPEC=${VALIDATOR_MODEL_SPEC:-"${DEFAULT_VALIDATOR_MODEL_SPEC_BASE}"}
+	VALIDATOR_MODEL_BRANCH=${VALIDATOR_MODEL_BRANCH:-"${DEFAULT_VALIDATOR_MODEL_BRANCH_BASE}"}
 
-	: "${VERBOSITY:=1}"
-	: "${APPROVE_ALL:=false}"
-	: "${FORCE_CONFIRM:=false}"
+	SEARCH_REPHRASER_MODEL_SPEC=${SEARCH_REPHRASER_MODEL_SPEC:-"${DEFAULT_REPHRASER_MODEL_SPEC_BASE}"}
+	SEARCH_REPHRASER_MODEL_BRANCH=${SEARCH_REPHRASER_MODEL_BRANCH:-"${DEFAULT_REPHRASER_MODEL_BRANCH_BASE}"}
 
-	: "${OKSO_RUN_ID:=$(default_run_id)}"
+	# Core settings
+	VERBOSITY=${VERBOSITY:-1}
+	APPROVE_ALL=${APPROVE_ALL:-false}
+	FORCE_CONFIRM=${FORCE_CONFIRM:-false}
+	OKSO_RUN_ID=${OKSO_RUN_ID:-$(default_run_id)}
 
+	# Cache configuration
 	local default_cache_dir
 	default_cache_dir="${XDG_CACHE_HOME:-${HOME}/.cache}/okso"
-	: "${OKSO_CACHE_DIR:=${default_cache_dir}}"
-	CACHE_DIR="${OKSO_CACHE_DIR}"
+	CACHE_DIR="${OKSO_CACHE_DIR:-${default_cache_dir}}"
+	NOTES_DIR="${OKSO_NOTES_DIR:-${HOME}/.okso}"
 
-	: "${OKSO_PLANNER_CACHE_FILE:=${CACHE_DIR}/planner.prompt-cache}"
-	PLANNER_CACHE_FILE="${OKSO_PLANNER_CACHE_FILE}"
-
-	: "${OKSO_EXECUTOR_CACHE_FILE:=${CACHE_DIR}/runs/${OKSO_RUN_ID}/executor.prompt-cache}"
-	EXECUTOR_CACHE_FILE="${OKSO_EXECUTOR_CACHE_FILE}"
-
-	: "${OKSO_REPHRASER_CACHE_FILE:=${CACHE_DIR}/rephraser.prompt-cache}"
-	SEARCH_REPHRASER_CACHE_FILE="${OKSO_REPHRASER_CACHE_FILE}"
-
-	# Google search vars (keep simple)
-	GOOGLE_SEARCH_API_KEY="${GOOGLE_SEARCH_API_KEY:-${OKSO_GOOGLE_CSE_API_KEY:-}}"
-	GOOGLE_SEARCH_CX="${GOOGLE_SEARCH_CX:-${OKSO_GOOGLE_CSE_ID:-}}"
+	PLANNER_CACHE_FILE="${OKSO_PLANNER_CACHE_FILE:-${CACHE_DIR}/planner.prompt-cache}"
+	EXECUTOR_CACHE_FILE="${OKSO_EXECUTOR_CACHE_FILE:-${CACHE_DIR}/runs/${OKSO_RUN_ID}/executor.prompt-cache}"
+	VALIDATOR_CACHE_FILE="${OKSO_VALIDATOR_CACHE_FILE:-${CACHE_DIR}/runs/${OKSO_RUN_ID}/validator.prompt-cache}"
+	SEARCH_REPHRASER_CACHE_FILE="${OKSO_REPHRASER_CACHE_FILE:-${CACHE_DIR}/rephraser.prompt-cache}"
 }
 
 write_config_file() {
-	# Persist the current configuration in a shell-friendly format. Values are
-	# shell-escaped to preserve strings with spaces or special characters when the
-	# file is sourced later.
-	# Arguments:
-	#   CONFIG_FILE (string, global): destination path for the config file.
+	# Persist the current configuration in a shell-friendly format.
 	quote_config_value() {
-		# Arguments:
-		#   $1 - value to escape (string)
-		local value
-		value="$1"
-
+		local value="$1"
 		printf '%q' "${value}"
 	}
 
@@ -154,19 +134,22 @@ PLANNER_MODEL_SPEC=$(quote_config_value "${PLANNER_MODEL_SPEC}")
 PLANNER_MODEL_BRANCH=$(quote_config_value "${PLANNER_MODEL_BRANCH}")
 EXECUTOR_MODEL_SPEC=$(quote_config_value "${EXECUTOR_MODEL_SPEC}")
 EXECUTOR_MODEL_BRANCH=$(quote_config_value "${EXECUTOR_MODEL_BRANCH}")
+VALIDATOR_MODEL_SPEC=$(quote_config_value "${VALIDATOR_MODEL_SPEC}")
+VALIDATOR_MODEL_BRANCH=$(quote_config_value "${VALIDATOR_MODEL_BRANCH}")
 SEARCH_REPHRASER_MODEL_SPEC=$(quote_config_value "${SEARCH_REPHRASER_MODEL_SPEC}")
 SEARCH_REPHRASER_MODEL_BRANCH=$(quote_config_value "${SEARCH_REPHRASER_MODEL_BRANCH}")
-OKSO_CACHE_DIR=$(quote_config_value "${CACHE_DIR}")
-OKSO_PLANNER_CACHE_FILE=$(quote_config_value "${PLANNER_CACHE_FILE}")
-OKSO_EXECUTOR_CACHE_FILE=$(quote_config_value "${OKSO_EXECUTOR_CACHE_FILE}")
+CACHE_DIR=$(quote_config_value "${CACHE_DIR}")
+PLANNER_CACHE_FILE=$(quote_config_value "${PLANNER_CACHE_FILE}")
+EXECUTOR_CACHE_FILE=$(quote_config_value "${EXECUTOR_CACHE_FILE}")
+VALIDATOR_CACHE_FILE=$(quote_config_value "${VALIDATOR_CACHE_FILE}")
 VERBOSITY=${VERBOSITY}
 APPROVE_ALL=${APPROVE_ALL}
-FORCE_CONFIRM=${FORCE_CONFIRM}
 EOF_CONFIG
 	printf 'Wrote config to %s\n' "${CONFIG_FILE}"
 }
 
 parse_model_spec() {
+	# Parse model spec into repo[:file] components.
 	# Arguments:
 	#   $1 - model spec repo[:file]
 	#   $2 - default file fallback
@@ -178,8 +161,6 @@ parse_model_spec() {
 		repo="${spec%%:*}"
 		file="${spec#*:}"
 	else
-		# If no file component is provided we assume the default quantization file
-		# to keep CLI usage ergonomic.
 		repo="${spec}"
 		file="${default_file}"
 	fi
@@ -188,8 +169,7 @@ parse_model_spec() {
 }
 
 normalize_approval_flags() {
-	# Normalize approval toggles to strict booleans to avoid surprising behavior
-	# from varied casing or numeric inputs.
+	# Normalize approval toggles to strict booleans.
 	case "${APPROVE_ALL}" in
 	true | True | TRUE | 1)
 		APPROVE_ALL=true
@@ -202,25 +182,12 @@ normalize_approval_flags() {
 		APPROVE_ALL=false
 		;;
 	esac
-
-	case "${FORCE_CONFIRM}" in
-	true | True | TRUE | 1)
-		FORCE_CONFIRM=true
-		;;
-	false | False | FALSE | 0)
-		FORCE_CONFIRM=false
-		;;
-	*)
-		log "WARN" "Invalid confirm flag; defaulting to prompts" "${FORCE_CONFIRM}"
-		FORCE_CONFIRM=false
-		;;
-	esac
 }
 
 hydrate_model_spec_to_vars() {
-	# Normalizes a model spec into repo and file components for llama.cpp calls.
+	# Normalize a model spec into repo and file variables.
 	# Arguments:
-	#   $1 - model spec string
+	#   $1 - model spec string (repo[:file])
 	#   $2 - default file name
 	#   $3 - repo variable name to populate
 	#   $4 - file variable name to populate
@@ -238,36 +205,26 @@ hydrate_model_spec_to_vars() {
 }
 
 hydrate_model_specs() {
-	# Normalizes planner and executor model specs into repo and file components.
-	DEFAULT_PLANNER_MODEL_FILE=${DEFAULT_PLANNER_MODEL_FILE:-${DEFAULT_PLANNER_MODEL_FILE_BASE}}
-	DEFAULT_MODEL_FILE=${DEFAULT_MODEL_FILE:-${DEFAULT_MODEL_FILE_BASE}}
-
-	PLANNER_MODEL_SPEC=${PLANNER_MODEL_SPEC:-"${DEFAULT_PLANNER_MODEL_SPEC_BASE}"}
-	PLANNER_MODEL_BRANCH=${PLANNER_MODEL_BRANCH:-"${DEFAULT_PLANNER_MODEL_BRANCH_BASE}"}
-	EXECUTOR_MODEL_SPEC=${EXECUTOR_MODEL_SPEC:-"${DEFAULT_EXECUTOR_MODEL_SPEC_BASE}"}
-	EXECUTOR_MODEL_BRANCH=${EXECUTOR_MODEL_BRANCH:-"${DEFAULT_EXECUTOR_MODEL_BRANCH_BASE}"}
-	SEARCH_REPHRASER_MODEL_SPEC=${SEARCH_REPHRASER_MODEL_SPEC:-"${DEFAULT_REPHRASER_MODEL_SPEC_BASE}"}
-	SEARCH_REPHRASER_MODEL_BRANCH=${SEARCH_REPHRASER_MODEL_BRANCH:-"${DEFAULT_REPHRASER_MODEL_BRANCH_BASE}"}
-
+	# Normalize all model specs into repo and file components.
 	hydrate_model_spec_to_vars "${PLANNER_MODEL_SPEC}" "${DEFAULT_PLANNER_MODEL_FILE}" PLANNER_MODEL_REPO PLANNER_MODEL_FILE
-	hydrate_model_spec_to_vars "${EXECUTOR_MODEL_SPEC}" "${DEFAULT_MODEL_FILE}" EXECUTOR_MODEL_REPO EXECUTOR_MODEL_FILE
-	hydrate_model_spec_to_vars "${SEARCH_REPHRASER_MODEL_SPEC}" "${DEFAULT_REPHRASER_MODEL_FILE_BASE}" SEARCH_REPHRASER_MODEL_REPO SEARCH_REPHRASER_MODEL_FILE
-
+	hydrate_model_spec_to_vars "${EXECUTOR_MODEL_SPEC}" "${DEFAULT_EXECUTOR_MODEL_FILE}" EXECUTOR_MODEL_REPO EXECUTOR_MODEL_FILE
+	hydrate_model_spec_to_vars "${VALIDATOR_MODEL_SPEC}" "${DEFAULT_VALIDATOR_MODEL_SPEC_BASE##*:}" VALIDATOR_MODEL_REPO VALIDATOR_MODEL_FILE
+	hydrate_model_spec_to_vars "${SEARCH_REPHRASER_MODEL_SPEC}" "${DEFAULT_REPHRASER_MODEL_FILE}" SEARCH_REPHRASER_MODEL_REPO SEARCH_REPHRASER_MODEL_FILE
 }
 
 init_environment() {
+	# Initialize the runtime environment.
 	normalize_approval_flags
 	hydrate_model_specs
 
+	# Platform detection
 	if command -v uname >/dev/null 2>&1 && [[ "$(uname -s)" == "Darwin" ]]; then
-		# Downstream tools sometimes need macOS-specific flags; stash a boolean
-		# rather than repeatedly shelling out.
 		# shellcheck disable=SC2034
 		IS_MACOS=true
 	fi
 
+	# LLM availability
 	if [[ "${TESTING_PASSTHROUGH:-false}" == true ]]; then
-		# During bats runs we suppress llama.cpp invocation for determinism.
 		LLAMA_AVAILABLE=false
 	else
 		LLAMA_AVAILABLE=true
@@ -278,6 +235,16 @@ init_environment() {
 		LLAMA_AVAILABLE=false
 	fi
 
-	mkdir -p "${CACHE_DIR}" "$(dirname "${PLANNER_CACHE_FILE}")" "$(dirname "${EXECUTOR_CACHE_FILE}")" "$(dirname "${SEARCH_REPHRASER_CACHE_FILE}")"
-	mkdir -p "${NOTES_DIR}"
+	# Create required directories
+	mkdir -p "${CACHE_DIR}" \
+		"$(dirname "${PLANNER_CACHE_FILE}")" \
+		"$(dirname "${EXECUTOR_CACHE_FILE}")" \
+		"$(dirname "${VALIDATOR_CACHE_FILE}")" \
+		"$(dirname "${SEARCH_REPHRASER_CACHE_FILE}")" \
+		"${NOTES_DIR}"
 }
+
+# Auto-initialize configuration when module is sourced
+CONFIG_FILE="${CONFIG_FILE:-${XDG_CONFIG_HOME:-${HOME}/.config}/okso/config.env}"
+load_config
+init_environment

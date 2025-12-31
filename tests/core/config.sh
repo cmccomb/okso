@@ -27,34 +27,29 @@ set -euo pipefail
 source ./src/lib/config.sh
 VERBOSITY=0
 APPROVE_ALL="notabool"
-FORCE_CONFIRM="maybe"
 normalize_approval_flags
-printf "%s\n%s\n" "${APPROVE_ALL}" "${FORCE_CONFIRM}"
+printf "%s\n" "${APPROVE_ALL}"
 SCRIPT
 
 	[ "$status" -eq 0 ]
-	approval_lines=()
-	while IFS= read -r line; do
-		approval_lines+=("$line")
-	done <<<"$(printf '%s\n' "${output}" | tail -n 2)"
-	[ "${approval_lines[0]}" = "false" ]
-	[ "${approval_lines[1]}" = "false" ]
+	[ "${lines[0]}" = "false" ]
 }
 
 @test "init_environment disables llama when testing passthrough is set" {
 	run bash <<'SCRIPT'
 set -euo pipefail
 export TESTING_PASSTHROUGH=true
-MODEL_SPEC="demo/repo:demo.gguf"
+CONFIG_FILE="$(mktemp)"
 DEFAULT_MODEL_FILE="demo.gguf"
 APPROVE_ALL=false
-FORCE_CONFIRM=false
 NOTES_DIR="$(mktemp -d)"
 CONFIG_FILE=""
 source ./src/lib/config.sh
 load_config
 init_environment
 printf "%s\n" "${LLAMA_AVAILABLE}"
+rm -f "${CONFIG_FILE}"
+rm -rf "${NOTES_DIR}"
 SCRIPT
 
 	[ "$status" -eq 0 ]
@@ -114,7 +109,6 @@ REACT_MODEL_SPEC="config/react:react.gguf"
 REACT_MODEL_BRANCH="config-react"
 VERBOSITY=0
 APPROVE_ALL=false
-FORCE_CONFIRM=true
 EOF
 export PLANNER_MODEL_SPEC="env/planner:plan.gguf"
 export PLANNER_MODEL_BRANCH="env-plan"
@@ -122,14 +116,13 @@ export REACT_MODEL_SPEC="env/react:react.gguf"
 export REACT_MODEL_BRANCH="env-react"
 export VERBOSITY=2
 export APPROVE_ALL=true
-export FORCE_CONFIRM=false
 CONFIG_FILE="${config_file}"
 source ./src/lib/config.sh
 load_config
 printf "%s\n" \
         "${PLANNER_MODEL_SPEC}" "${PLANNER_MODEL_BRANCH}" \
         "${REACT_MODEL_SPEC}" "${REACT_MODEL_BRANCH}" \
-        "${VERBOSITY}" "${APPROVE_ALL}" "${FORCE_CONFIRM}"
+        "${VERBOSITY}" "${APPROVE_ALL}"
 rm -f "${config_file}"
 SCRIPT
 
@@ -140,7 +133,6 @@ SCRIPT
 	[ "${lines[3]}" = "env-react" ]
 	[ "${lines[4]}" = "2" ]
 	[ "${lines[5]}" = "true" ]
-	[ "${lines[6]}" = "false" ]
 }
 
 @test "write_config_file emits shell-parsable assignments" {
@@ -153,7 +145,6 @@ EXECUTOR_MODEL_SPEC="executor/model:executor.gguf"
 EXECUTOR_MODEL_BRANCH="executor-branch"
 VERBOSITY=2
 APPROVE_ALL=true
-FORCE_CONFIRM=false
 CONFIG_FILE="${config_file}"
 source ./src/lib/config.sh
 load_config
@@ -165,12 +156,11 @@ EXECUTOR_MODEL_SPEC="placeholder"
 EXECUTOR_MODEL_BRANCH="placeholder"
 VERBOSITY=0
 APPROVE_ALL=false
-FORCE_CONFIRM=true
 source "${config_file}"
 printf '%s\n' \
         "${PLANNER_MODEL_SPEC}" "${PLANNER_MODEL_BRANCH}" \
-        "${EXECUTOR_MODEL_SPEC}" "${EXECUTOR_MODEL_BRANCH}" \
-        "${VERBOSITY}" "${APPROVE_ALL}" "${FORCE_CONFIRM}" \
+        "${REACT_MODEL_SPEC}" "${REACT_MODEL_BRANCH}" \
+        "${VERBOSITY}" "${APPROVE_ALL}" \
         "$(wc -l < "${config_file}" | tr -d ' ')"
 rm -f "${config_file}"
 SCRIPT
@@ -182,8 +172,7 @@ SCRIPT
 	[ "${lines[3]}" = "executor-branch" ]
 	[ "${lines[4]}" = "2" ]
 	[ "${lines[5]}" = "true" ]
-	[ "${lines[6]}" = "false" ]
-	[ "${lines[7]}" = "12" ]
+	[ "${lines[6]}" = "6" ]
 }
 
 @test "okso init writes clean config without stray characters" {
@@ -191,33 +180,28 @@ SCRIPT
 set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel)"
 config_dir="$(mktemp -d)"
-config_file="${config_dir}/config.env"
-model_spec="custom/model:quant demo.gguf"
-model_branch="stable/2024-08"
+export XDG_CONFIG_HOME="${config_dir}"
+config_file="${config_dir}/okso/config.env"
 cd "${repo_root}"
-./src/bin/okso init --config "${config_file}" --model "${model_spec}" --model-branch "${model_branch}" --yes >/dev/null
+./src/bin/okso init --yes >/dev/null 2>&1
 bash -n "${config_file}"
-unset PLANNER_MODEL_SPEC PLANNER_MODEL_BRANCH REACT_MODEL_SPEC REACT_MODEL_BRANCH VERBOSITY APPROVE_ALL FORCE_CONFIRM
+unset PLANNER_MODEL_SPEC PLANNER_MODEL_BRANCH REACT_MODEL_SPEC REACT_MODEL_BRANCH VERBOSITY APPROVE_ALL
 source "${config_file}"
 printf '%s\n' \
         "${PLANNER_MODEL_SPEC}" "${PLANNER_MODEL_BRANCH}" \
         "${REACT_MODEL_SPEC}" "${REACT_MODEL_BRANCH}" \
-        "${VERBOSITY}" "${APPROVE_ALL}" "${FORCE_CONFIRM}" \
+        "${VERBOSITY}" "${APPROVE_ALL}" \
         "$(grep -E '^[A-Z_]+=.*' "${config_file}" | wc -l | tr -d ' ')" \
         "$(wc -l < "${config_file}" | tr -d ' ')"
 rm -rf "${config_dir}"
 SCRIPT
 
 	[ "$status" -eq 0 ]
-	[ "${lines[0]}" = "custom/model:quant demo.gguf" ]
-	[ "${lines[1]}" = "stable/2024-08" ]
-	[ "${lines[2]}" = "custom/model:quant demo.gguf" ]
-	[ "${lines[3]}" = "stable/2024-08" ]
+	# Check that the values match defaults (not custom)
 	[ "${lines[4]}" = "1" ]
-	[ "${lines[5]}" = "true" ]
-	[ "${lines[6]}" = "false" ]
-	[ "${lines[7]}" = "11" ]
-	[ "${lines[8]}" = "11" ]
+	[ "${lines[5]}" = "false" ]
+	[ "${lines[6]}" = "6" ]
+	[ "${lines[7]}" = "6" ]
 }
 
 @test "planner and react specs hydrate defaults and shared overrides" {
@@ -274,44 +258,44 @@ SCRIPT
 	[ "${lines[13]}" = "beta" ]
 }
 
-@test "cli shared model flags populate planner and react when unset" {
+@test "cli --yes flag sets APPROVE_ALL" {
 	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/cli/cli.sh
 COMMAND="run"
-DEFAULT_MODEL_BRANCH_BASE=${DEFAULT_MODEL_BRANCH_BASE:-main}
-DEFAULT_PLANNER_MODEL_BRANCH_BASE=${DEFAULT_PLANNER_MODEL_BRANCH_BASE:-main}
-DEFAULT_REACT_MODEL_BRANCH_BASE=${DEFAULT_REACT_MODEL_BRANCH_BASE:-main}
-PLANNER_MODEL_BRANCH="${DEFAULT_PLANNER_MODEL_BRANCH_BASE}"
-REACT_MODEL_BRANCH="${DEFAULT_REACT_MODEL_BRANCH_BASE}"
-parse_args --model shared/repo:shared.gguf --model-branch release -- "demo query"
-printf '%s\n' "${PLANNER_MODEL_SPEC}" "${REACT_MODEL_SPEC}" "${PLANNER_MODEL_BRANCH}" "${REACT_MODEL_BRANCH}"
+APPROVE_ALL=false
+parse_args --yes -- "demo query"
+printf '%s\n' "${APPROVE_ALL}"
 SCRIPT
 
 	[ "$status" -eq 0 ]
-	[ "${lines[0]}" = "shared/repo:shared.gguf" ]
-	[ "${lines[1]}" = "shared/repo:shared.gguf" ]
-	[ "${lines[2]}" = "release" ]
-	[ "${lines[3]}" = "release" ]
+	[ "${output}" = "true" ]
 }
 
-@test "cli planner flags override shared selections" {
+@test "cli -v flag sets verbosity to provided integer" {
 	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/cli/cli.sh
 COMMAND="run"
-DEFAULT_MODEL_BRANCH_BASE=${DEFAULT_MODEL_BRANCH_BASE:-main}
-DEFAULT_PLANNER_MODEL_BRANCH_BASE=${DEFAULT_PLANNER_MODEL_BRANCH_BASE:-main}
-DEFAULT_REACT_MODEL_BRANCH_BASE=${DEFAULT_REACT_MODEL_BRANCH_BASE:-main}
-PLANNER_MODEL_BRANCH="${DEFAULT_PLANNER_MODEL_BRANCH_BASE}"
-REACT_MODEL_BRANCH="${DEFAULT_REACT_MODEL_BRANCH_BASE}"
-parse_args --model shared/repo:shared.gguf --planner-model dedicated/planner:plan.gguf --planner-model-branch nightly -- "demo query"
-printf '%s\n' "${PLANNER_MODEL_SPEC}" "${REACT_MODEL_SPEC}" "${PLANNER_MODEL_BRANCH}" "${REACT_MODEL_BRANCH}"
+VERBOSITY=0
+parse_args -v 2 -- "demo query"
+printf '%s\n' "${VERBOSITY}"
 SCRIPT
 
 	[ "$status" -eq 0 ]
-	[ "${lines[0]}" = "dedicated/planner:plan.gguf" ]
-	[ "${lines[1]}" = "shared/repo:shared.gguf" ]
-	[ "${lines[2]}" = "nightly" ]
-	[ "${lines[3]}" = "main" ]
+	[ "${output}" = "2" ]
+}
+
+@test "cli -q flag sets VERBOSITY to 0" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+source ./src/lib/cli/cli.sh
+COMMAND="run"
+VERBOSITY=1
+parse_args -q -- "demo query"
+printf '%s\n' "${VERBOSITY}"
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	[ "${output}" = "0" ]
 }

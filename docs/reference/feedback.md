@@ -2,6 +2,8 @@
 
 Use the bundled `feedback` tool to record ratings for each plan item. Feedback events help tune prompts and surface regressions without storing raw transcripts.
 
+Additionally, during tool permission requests, you can provide feedback instead of a simple yes/no response to trigger replanning with your guidance.
+
 ## Quick start
 
 Provide a JSON context payload describing the current plan item and any prior observations, then supply the score and optional notes:
@@ -23,6 +25,24 @@ When interactive mode is enabled, the tool will:
 3. Optionally collect a short free-form note.
 
 Use `FEEDBACK_NONINTERACTIVE_INPUT` to pre-fill both fields when running in CI or other unattended environments (`rating|note`).
+
+## Tool permission feedback
+
+When okso requests confirmation to execute a tool during the ReAct loop, you can provide feedback to guide replanning instead of simply accepting or declining:
+
+```
+Execute tool "terminal"?
+Search for TODO items in the project [y/N/feedback]: I'd prefer using Python to search, it's faster
+```
+
+When you provide feedback (any text other than y/Y/n/N):
+
+1. The system captures your feedback and exits the current execution plan.
+2. A new planning round begins, incorporating your feedback in the user query.
+3. The planner regenerates the tool plan and strategy based on your guidance.
+4. A new ReAct loop executes with the updated plan.
+
+This allows you to steer the assistant's approach in real-time without starting over completely.
 
 ## Additional controls
 

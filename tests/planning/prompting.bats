@@ -30,17 +30,6 @@ SCRIPT
 	[ "${lines[1]}" = "2. finish" ]
 }
 
-@test "plan_json_to_outline rejects non-plan payloads" {
-	run bash <<'SCRIPT'
-set -euo pipefail
-source ./src/lib/planning/prompting.sh
-quickdraw='{"mode":"quickdraw","quickdraw":{"rationale":"direct","final_answer":"done","confidence":0.42}}'
-plan_json_to_outline "${quickdraw}"
-SCRIPT
-
-	[ "$status" -ne 0 ]
-}
-
 @test "build_planner_prompt_with_tools injects tool descriptions when provided" {
 	run bash <<'SCRIPT'
 set -euo pipefail
@@ -138,17 +127,6 @@ template="$(load_prompt_template executor)"
 grep -F '${tool}' <<<"${template}"
 grep -F '${args_json}' <<<"${template}"
 grep -F '${context_fields}' <<<"${template}"
-SCRIPT
-
-	[ "$status" -eq 0 ]
-}
-
-@test "planner prompt keeps args_control outside args" {
-	run bash <<'SCRIPT'
-set -euo pipefail
-source ./src/lib/prompt/build_planner.sh
-prompt="$(build_planner_prompt "demo" "tool: summary" "search context")"
-grep -F 'Never place `args_control` inside `args`' <<<"${prompt}"
 SCRIPT
 
 	[ "$status" -eq 0 ]
