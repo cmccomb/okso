@@ -29,7 +29,7 @@ Update only the context-controlled fields based on the history context. The plan
 
 No placeholders rule:
 - Do NOT return any placeholder tokens such as "[insert]", "[insert summary here]", "TODO", "TBD", "__MISSING__", "<insert>", "<todo>", or "lorem ipsum".
-- Fill each context-controlled field from the history context. If observations are insufficient, prefer returning an empty string.
+- Fill each context-controlled field from the history context.
 - You may explain limitations within the field value itself (e.g., "Observations did not contain sufficient content to summarize").
 
 Return ONLY valid JSON matching the args schema.
