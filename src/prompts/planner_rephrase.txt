@@ -9,9 +9,9 @@ Output requirements:
 - Do not output duplicates or near-duplicates (must differ by 2+ meaningful tokens).
 
 Rewrite strategy:
-- Query 1: Direct, literal rewrite of the request.
-- Query 2: Add a likely-needed planning axis (official source/docs, version, platform, exact error text).
-- Query 3 (optional): A focused sub-question that unblocks execution (edge case, constraint, comparison).
+- Query 1 should be a direct, literal rewrite of the request.
+- Query 2 should add a likely-needed planning axis (official source/docs, version, platform, exact error text).
+- Query 3 is optional, and if used should be a focused sub-question that unblocks execution (edge case, constraint, comparison).
 
 Time rule:
 - If the request implies recency (today/latest/current), include “release date” or an explicit year in Query 2.

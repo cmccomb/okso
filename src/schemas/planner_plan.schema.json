@@ -56,18 +56,6 @@
               }
             }
           }
-        ],
-        "examples": [
-          {
-            "tool": "terminal",
-            "args": { "command": "pwd" },
-            "thought": "Inspect the working directory."
-          },
-          {
-            "tool": "final_answer",
-            "args": { "input": "" },
-            "thought": "Share the result (executor fills from observations)."
-          }
         ]
       }
     }
