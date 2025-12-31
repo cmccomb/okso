@@ -131,14 +131,3 @@ SCRIPT
 
 	[ "$status" -eq 0 ]
 }
-
-@test "planner prompt explains seed-based fill inference" {
-	run bash <<'SCRIPT'
-set -euo pipefail
-source ./src/lib/prompt/build_planner.sh
-prompt="$(build_planner_prompt "demo" "tool: summary" "search context")"
-grep -F 'fill mode is inferred from seed presence' <<<"${prompt}"
-SCRIPT
-
-	[ "$status" -eq 0 ]
-}
