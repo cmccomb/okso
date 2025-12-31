@@ -178,6 +178,51 @@ terminal_allowed() {
 	return 1
 }
 
+terminal_expand_tilde() {
+	# Expands leading ~ and ~user in a single argument.
+	# Supports opt-out: "\~" => literal "~".
+	local s prefix rest expanded
+
+	s="$1"
+
+	# Opt-out: literal ~
+	if [[ "${s}" == '\~'* ]]; then
+		printf '%s\n' "${s#\\}"
+		return 0
+	fi
+
+	# shellcheck disable=SC2088
+	case "${s}" in
+	"~" | "~/"*)
+		printf '%s\n' "${HOME}${s:1}"
+		return 0
+		;;
+	"~"*)
+		# ~user or ~user/path (guarded; no eval on unsafe strings)
+		if [[ "${s}" =~ ^~[A-Za-z0-9._-]+(/.*)?$ ]]; then
+			prefix="${s%%/*}" # "~user"
+			rest=""
+			[[ "${s}" == */* ]] && rest="/${s#*/}"
+
+			# Safe eval: prefix contains only "~" + allowed username chars.
+			expanded="$(eval "printf '%s' ${prefix}")" || expanded=""
+			if [[ -n "${expanded}" ]]; then
+				printf '%s\n' "${expanded}${rest}"
+				return 0
+			fi
+		fi
+
+		# If it doesn't match the safe pattern, leave unchanged.
+		printf '%s\n' "${s}"
+		return 0
+		;;
+	*)
+		printf '%s\n' "${s}"
+		return 0
+		;;
+	esac
+}
+
 terminal_change_dir() {
 	# Arguments:
 	#   $@ - path components to join (array)
@@ -219,6 +264,16 @@ tool_terminal() {
 		args=()
 	else
 		args=("${TERMINAL_CMD_ARGS[@]}")
+	fi
+
+	# Expand leading ~ in args (because we are not invoking a shell).
+	if [[ ${#args[@]} -gt 0 ]]; then
+		local -a expanded_args
+		expanded_args=()
+		for arg in "${args[@]}"; do
+			expanded_args+=("$(terminal_expand_tilde "${arg}")")
+		done
+		args=("${expanded_args[@]}")
 	fi
 
 	if ! terminal_allowed "${command}"; then
