@@ -13,8 +13,16 @@ Rewrite strategy:
 - Query 2 should add a likely-needed planning axis (official source/docs, version, platform, exact error text).
 - Query 3 is optional, and if used should be a focused sub-question that unblocks execution (edge case, constraint, comparison).
 
+Examples:
+1. User request: "How do I convert XML files to JSON from the command line?"
+   Output: ["convert xml to json command line", "xmllint alternative format xml"]
+2. User request: "What are the best practices for securing a REST API in Node.js?"
+   Output: ["best practices securing REST API Node.js", "Node.js REST API security official documentation", "common vulnerabilities REST API Node.js"]
+3. User request: "Why is my iPhone 12 battery draining so fast after the iOS 14 update?"
+   Output: ["iPhone 12 battery draining fast iOS 14", "iPhone 12 iOS 14 battery issues official Apple support", "optimize battery life iPhone 12 iOS 14"]
+
 Time rule:
-- If the request implies recency (today/latest/current), include “release date” or an explicit year in Query 2.
+- If the request implies recency (today/latest/current), include "release date" or an explicit year in Query 2.
 
 JSON schema for the response:
 ${PLANNER_SEARCH_SCHEMA}
