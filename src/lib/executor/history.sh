@@ -213,6 +213,9 @@ validate_and_optionally_replan() {
 
 	# Call the validation function with output to a variable
 	if ! validation_result="$(validate_final_answer_against_query "${user_query}" "${final_answer}" "${history_text}")"; then
+
+		log "INFO" "Validation results" "${validation_result}"
+
 		validation_status=$?
 
 		if [[ ${validation_status} -eq 1 ]]; then
