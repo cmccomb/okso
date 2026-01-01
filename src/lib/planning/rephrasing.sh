@@ -71,7 +71,7 @@ planner_generate_search_queries() {
 		return 0
 	}
 
-	if ! raw="$(LLAMA_TEMPERATURE=0 llama_infer "${prompt}" '' "${max_generation_tokens}" "${schema_json}" "${SEARCH_REPHRASER_MODEL_REPO:-}" "${SEARCH_REPHRASER_MODEL_FILE:-}" "${SEARCH_REPHRASER_CACHE_FILE:-}" "${prompt}")"; then
+	if ! raw="$(LLAMA_TEMPERATURE=0.7 llama_infer "${prompt}" '' "${max_generation_tokens}" "${schema_json}" "${SEARCH_REPHRASER_MODEL_REPO:-}" "${SEARCH_REPHRASER_MODEL_FILE:-}" "${SEARCH_REPHRASER_CACHE_FILE:-}" "${prompt}")"; then
 		log "WARN" "Rephrase model invocation failed; falling back to user query" "pre_planner_search_terms_infer_failed" >&2
 		jq -nc --arg query "${user_query}" '[ $query ]'
 		return 0
