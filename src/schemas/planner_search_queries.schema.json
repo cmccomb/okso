@@ -1,6 +1,7 @@
 {
   "title": "PlannerSearchQueries",
   "type": "array",
+  "uniqueItems": true,
   "minItems": 1,
   "maxItems": 3,
   "items": {
