@@ -32,7 +32,7 @@ SYSTEM_PROFILE_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 model_repo_for_size() {
 	# Arguments:
-	#   $1 - model size label (e.g., 0.6B, 1.6B, 4B)
+	#   $1 - model size label (e.g., 0.6B, 1.7B, 4B)
 	local size
 	size="$1"
 
@@ -41,7 +41,7 @@ model_repo_for_size() {
 
 model_file_for_size() {
 	# Arguments:
-	#   $1 - model size label (e.g., 0.6B, 1.6B, 4B)
+	#   $1 - model size label (e.g., 0.6B, 1.7B, 4B)
 	local size
 	size="$1"
 
@@ -168,15 +168,24 @@ headroom_ratio_from_vm_stat() {
 	local output page_size free_pages speculative_pages page_size_bytes free_bytes
 	output="$1"
 
-	page_size_bytes=$(printf '%s' "${output}" | awk '/page size of/ {match($0, /([0-9]+)/, m); if (m[1] != "") { print m[1]; exit }}')
+	page_size_bytes=$(printf '%s' "${output}" | awk '/page size of/ { if (match($0, /[0-9]+/)) { print substr($0, RSTART, RLENGTH); exit } }')
 	if [[ -z "${page_size_bytes}" || ! "${page_size_bytes}" =~ ^[0-9]+$ ]]; then
 		printf ''
 		return
 	fi
+	free_pages=$(
+		printf '%s' "$output" |
+			awk '/Pages free/ {
+      if (match($0, /[0-9]+/)) { print substr($0, RSTART, RLENGTH); exit }
+    }'
+	)
 
-	free_pages=$(printf '%s' "${output}" | awk '/Pages free/ {match($0, /([0-9]+)/, m); if (m[1] != "") { print m[1]; exit }}')
-	speculative_pages=$(printf '%s' "${output}" | awk '/Pages speculative/ {match($0, /([0-9]+)/, m); if (m[1] != "") { print m[1]; exit }}')
-
+	speculative_pages=$(
+		printf '%s' "$output" |
+			awk '/Pages speculative/ {
+      if (match($0, /[0-9]+/)) { print substr($0, RSTART, RLENGTH); exit }
+    }'
+	)
 	free_pages=${free_pages:-0}
 	speculative_pages=${speculative_pages:-0}
 
@@ -289,22 +298,22 @@ map_tier_to_models() {
 
 	case "${tier}" in
 	ci | tiny)
-		printf '0.6B\n1.6B\n1.6B'
+		printf '0.6B\n0.6B\n0.6B'
 		;;
 	small)
-		printf '0.6B\n1.6B\n4B'
+		printf '0.6B\n1.7B\n4B'
 		;;
 	default)
-		printf '1.6B\n4B\n8B'
+		printf '1.7B\n4B\n8B'
 		;;
 	large)
-		printf '1.6B\n8B\n14B'
+		printf '1.7B\n8B\n14B'
 		;;
 	xlarge)
 		printf '4B\n14B\n32B'
 		;;
 	*)
-		printf '1.6B\n4B\n8B'
+		printf '1.7B\n4B\n8B'
 		;;
 	esac
 }

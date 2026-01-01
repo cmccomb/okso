@@ -44,7 +44,7 @@
                 printf "%s|%s|%s" "${sizes[0]}" "${sizes[1]}" "${sizes[2]}"
         '
 	[ "$status" -eq 0 ]
-	[ "$output" = "1.6B|4B|8B" ]
+	[ "$output" = "1.7B|4B|8B" ]
 }
 
 @test "detect_pressure_level parses memory_pressure output" {
