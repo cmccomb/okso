@@ -23,211 +23,89 @@ source "${PLANNING_NORMALIZATION_DIR}/../core/logging.sh"
 # shellcheck source=../dependency_guards/dependency_guards.sh disable=SC1091
 source "${PLANNING_NORMALIZATION_DIR}/../dependency_guards/dependency_guards.sh"
 
-PLANNER_PARAMETERLESS_TOOLS=(
-	calendar_list
-	mail_list_inbox
-	mail_list_unread
-	notes_list
-	executor_fallback
-	reminders_list
-)
-
-parse_planner_payload() {
-	local raw allowed_types
-	raw="${1:-}"
-	allowed_types="${3:-}"
-
-	RAW_INPUT="${raw}" ALLOWED_TYPES="${allowed_types}" python3 - <<'PYTHON'
-import json
-import os
-import sys
-from typing import Any
-
-raw_input = os.environ.get("RAW_INPUT", "")
-allowed_type_names = [name for name in os.environ.get("ALLOWED_TYPES", "").split(",") if name]
-
-TYPE_MAPPING = {"array": list, "object": dict}
-
-
-def is_allowed(value: Any) -> bool:
-    if not allowed_type_names:
-        return True
-    return any(isinstance(value, TYPE_MAPPING[name]) for name in allowed_type_names if name in TYPE_MAPPING)
-
-
-try:
-    candidate = json.loads(raw_input)
-except json.JSONDecodeError:
-    sys.exit(1)
-
-if not is_allowed(candidate):
-    sys.exit(1)
-
-json.dump(candidate, sys.stdout)
-PYTHON
-}
-
-# Normalize noisy planner output into a clean PlannerPlan JSON array of objects.
-# Reads from stdin, writes clean JSON array to stdout. This sits between the raw
-# llama.cpp stream and the scoring/execution layers so downstream components can
-# rely on a consistent schema regardless of how the model formats responses.
+# Normalize planner output into a clean PlannerPlan JSON array of objects. Minimal
+# guards remain to weed out empty llama responses while letting schema validation
+# occur inside llama.cpp.
 normalize_planner_plan() {
-	local raw plan_candidate normalized parameterless_json normalized_error_file normalized_error_message
+	local raw normalized
 
 	raw="$(cat)"
 
-	parameterless_json=$(jq -nc --argjson tools "$(printf '%s\n' "${PLANNER_PARAMETERLESS_TOOLS[@]}" | jq -R . | jq -sc '.')" '{tools:$tools}')
-
-	if ! require_python3_available "planner output normalization"; then
-		log "ERROR" "normalize_planner_plan: python3 unavailable" "${raw}" >&2
+	if [[ -z "${raw}" ]]; then
+		log "WARN" "normalize_planner_plan: received empty planner output" "planner_output_empty" >&2
 		return 1
 	fi
 
-	if ! plan_candidate="$(
-		parse_planner_payload "${raw}" "" "array"
-	)"; then
-		log "ERROR" "normalize_planner_plan: expected planner output to be a JSON array" "${raw}" >&2
-		return 1
-	fi
-
-	normalized_error_file="$(mktemp)"
-	normalized=$(jq -ec --argjson parameterless "${parameterless_json}" '
-                        def canonical_args($args):
-                                if ($args | type) != "object" then
-                                        error("args must be an object")
-                                elif ($args | has("input")) then
-                                        $args
-                                elif ($args | has("code")) then
-                                        ($args + {input: $args.code} | del(.code))
-                                else
-                                        $args
-                                end;
-
-                        def thought_valid($thought):
-                                ($thought | type == "string") and ($thought | length) > 0;
-
-                        def requires_args($tool):
-                                ($parameterless.tools | index($tool)) == null;
-
-                        if type != "array" then
-                                error("plan must be an array")
-                        elif length == 0 then
-                                error("plan must contain at least one step")
-                        elif any(.[]; (type != "object")
-                                or (["tool", "args", "thought"] - (keys) | length > 0)
-                                or (.tool | type != "string")
-                                or (.args | type != "object")
-                                or (thought_valid(.thought) | not)) then
-                                error("plan contains invalid steps")
+	if ! normalized=$(jq -c '
+                        if (type == "array") then
+                                map(
+                                        . as $step |
+                                        {
+                                                tool: ($step.tool // ""),
+                                                args: (if ($step.args // {} | type == "object") then
+                                                                (if ($step.args.code != null) then
+                                                                        ($step.args + {input: $step.args.code} | del(.code))
+                                                                else
+                                                                        ($step.args // {})
+                                                                end)
+                                                        else
+                                                                {}
+                                                        end),
+                                                thought: ($step.thought // "")
+                                        }
+                                )
                         else
-                                map({
-                                        tool: .tool,
-                                        args: canonical_args(.args),
-                                        thought: .thought
-                                })
-                                | (if any(.[]; (requires_args(.tool)) and ((.args | length) == 0)) then
-                                        error("steps missing required args")
-                                   else . end)
+                                .
                         end
-                        ' <<<"${plan_candidate}" 2>"${normalized_error_file}" || true)
-	normalized_error_message="$(
-		cat -- "$normalized_error_file" 2>/dev/null || true
-	)"
-	rm -f "${normalized_error_file}" 2>/dev/null || true
-
-	if [[ -n "${normalized}" && "${normalized}" != "[]" ]]; then
-		printf '%s' "${normalized}"
-		return 0
+                ' <<<"${raw}" 2>/dev/null); then
+		log "WARN" "normalize_planner_plan: failed to parse planner output" "planner_output_parse_failed" >&2
+		return 1
 	fi
 
-	if [[ -z "${normalized_error_message}" ]]; then
-		normalized_error_message="planner output must be a non-empty JSON array of steps"
-	fi
-
-	log "ERROR" "normalize_planner_plan: ${normalized_error_message}" "${raw}" >&2
-	return 1
+	printf '%s' "${normalized}"
 }
 
+# Normalizes any planner output into a canonical object that the scoring and
+# execution layers understand.
 normalize_planner_response() {
-	# Normalizes any planner output into a canonical object that the
-	# scoring and execution layers understand. The helper expects either a
-	# bare plan array or a canonical object containing the plan array and
-	# rejects log-wrapped or legacy mode-prefixed payloads.
-	local raw candidate normalized plan_clean normalized_error_file normalized_error_message
+	local raw candidate normalized plan_json plan_clean
 	raw="$(cat)"
 
-	if ! require_python3_available "planner output normalization"; then
-		log "ERROR" "normalize_planner_response: python3 unavailable" "${raw}" >&2
+	if [[ -z "${raw}" ]]; then
+		log "WARN" "normalize_planner_response: received empty planner output" "planner_output_empty" >&2
 		return 1
 	fi
 
-	if ! candidate="$(
-		parse_planner_payload "${raw}" "" "object,array"
-	)"; then
-		log "ERROR" "normalize_planner_response: expected a bare JSON array or object with a plan array" "${raw}" >&2
+	if ! candidate=$(jq -c '.' <<<"${raw}" 2>/dev/null); then
+		log "WARN" "normalize_planner_response: failed to parse llama output" "planner_output_parse_failed" >&2
 		return 1
 	fi
 
-	if jq -e 'type == "object" and (.mode != null)' <<<"${candidate}" >/dev/null 2>&1; then
-		log "ERROR" "normalize_planner_response: planner payload must omit legacy mode wrappers" "${raw}" >&2
-		return 1
+	if jq -e 'type == "array"' <<<"${candidate}" >/dev/null 2>&1; then
+		normalized="$(jq -c '{plan: .}' <<<"${candidate}" 2>/dev/null || printf '{}')"
+	else
+		normalized="${candidate}"
 	fi
 
-	if ! jq -e 'type == "array" or (type == "object" and (.plan | (type == "array" or type == "string")))' <<<"${candidate}" >/dev/null 2>&1; then
-		log "ERROR" "normalize_planner_response: planner payload must include a plan array" "${raw}" >&2
-		return 1
-	fi
+	plan_json=$(jq -c '
+                        if (.plan | type == "string") then
+                                (try (.plan | fromjson) catch [])
+                        else
+                                (.plan // [])
+                        end
+                ' <<<"${normalized}" 2>/dev/null || printf '[]')
 
-	normalized_error_file="$(mktemp)"
-	normalized=$(jq -ec '
-  def normalize_plan($plan):
-    if ($plan | type) == "string" then
-      ($plan | fromjson)
-    else
-      $plan
-    end;
-
-  if (type == "array") then
-    {plan: (normalize_plan(.))}
-  elif (type == "object") then
-    if (.mode != null) then
-      error("planner payload must omit legacy mode wrappers")
-    elif (.plan | (type == "array" or type == "string")) then
-      {plan: (normalize_plan(.plan))}
-    else
-      error("planner payload must include a plan array")
-    end
-  else
-    error("planner payload must be a plan array or object containing one")
-  end
-' <<<"${candidate}" 2>"${normalized_error_file}" || true)
-
-	normalized_error_message="$(
-		cat -- "$normalized_error_file" 2>/dev/null || true
-	)"
-	rm -f "${normalized_error_file}" 2>/dev/null || true
-
-	if [[ -z "${normalized}" ]]; then
-		if [[ -z "${normalized_error_message}" ]]; then
-			normalized_error_message="planner payload did not match expected schema"
-		fi
-		log "ERROR" "normalize_planner_response: ${normalized_error_message}" "${raw}" >&2
-		return 1
-	fi
-
-	plan_clean="$(jq -ce '.plan' <<<"${normalized}" | normalize_planner_plan)" || {
-		log "ERROR" "normalize_planner_response: unable to parse plan array" "${raw}" >&2
+	plan_clean="$(normalize_planner_plan <<<"${plan_json}")" || {
+		log "WARN" "normalize_planner_response: unable to normalize plan array" "${raw}" >&2
 		return 1
 	}
 
 	plan_clean="$(append_final_answer_step "${plan_clean}")" || {
-		log "ERROR" "normalize_planner_response: unable to ensure final_answer step" "${raw}" >&2
+		log "WARN" "normalize_planner_response: unable to ensure final_answer step" "${raw}" >&2
 		return 1
 	}
 
-	normalized="$(jq --argjson plan "${plan_clean}" '.plan = $plan' <<<"${normalized}" 2>/dev/null || true)"
-
-	printf '%s' "${normalized}"
+	jq --argjson plan "${plan_clean}" '.plan = $plan' <<<"${normalized}" 2>/dev/null || printf '%s' "${normalized}"
 }
 
 extract_plan_array() {
@@ -264,8 +142,6 @@ append_final_answer_step() {
 		return 0
 	fi
 
-	# Seed the final_answer step with an empty input so the executor is responsible
-	# for filling in concrete content from observations. Avoid placeholder text.
 	updated_plan="$(jq -c '. + [{tool:"final_answer",thought:"Summarize the result for the user.",args:{input:""}}]' <<<"${plan_clean}" 2>/dev/null || printf '%s' "${plan_json}")"
 	printf '%s' "${updated_plan}"
 }

@@ -7,6 +7,7 @@ setup() {
 @test "normalize_planner_plan retains structured planner output" {
 	run bash <<'SCRIPT'
 set -euo pipefail
+export PLANNER_SKIP_TOOL_LOAD=true
 source ./src/lib/planning/planner.sh
 raw_plan='[{"tool":"terminal","args":{"command":"ls"},"thought":"list"}]'
 normalize_planner_plan <<<"${raw_plan}" | jq -r '.[0].tool,.[0].args.command,.[0].thought'
@@ -18,69 +19,22 @@ SCRIPT
 	[ "${lines[2]}" = "list" ]
 }
 
-@test "normalize_planner_plan rejects unstructured outline text" {
-	run bash <<'SCRIPT'
-set -euo pipefail
-source ./src/lib/planning/planner.sh
-normalize_planner_plan <<<"1) first step\n- second step"
-SCRIPT
-
-	[ "$status" -ne 0 ]
-	[[ "${output}" == *"unable to parse planner output"* ]]
-}
-
-@test "normalize_planner_plan rejects missing thought fields" {
-	run bash <<'SCRIPT'
-set -euo pipefail
-source ./src/lib/planning/planner.sh
-raw_plan='[{"tool":"notes_create","args":{"title":"t"}}]'
-normalize_planner_plan <<<"${raw_plan}"
-SCRIPT
-
-	[ "$status" -ne 0 ]
-	[[ "${output}" == *"unable to parse planner output"* ]]
-}
-
-@test "normalize_planner_plan rejects steps with non-object args" {
-	run bash <<'SCRIPT'
-set -euo pipefail
-source ./src/lib/planning/planner.sh
-raw_plan='[{"tool":"notes_create","args":"title"}]'
-normalize_planner_plan <<<"${raw_plan}"
-SCRIPT
-
-	[ "$status" -ne 0 ]
-	[[ "${output}" == *"unable to parse planner output"* ]]
-}
-
-@test "normalize_planner_plan extracts JSON arrays from mixed text output" {
-	run bash <<'SCRIPT'
-set -euo pipefail
-source ./src/lib/planning/planner.sh
-raw_plan=$'Here is the plan:\n[{"tool":"terminal","args":{"command":"pwd"},"thought":"check"}]\nThanks!'
-normalize_planner_plan <<<"${raw_plan}" | jq -r '.[0].tool,.[0].args.command,.[0].thought'
-SCRIPT
-
-	[ "$status" -eq 0 ]
-	[ "${lines[0]}" = "terminal" ]
-	[ "${lines[1]}" = "pwd" ]
-	[ "${lines[2]}" = "check" ]
-}
-
 @test "normalize_planner_plan fails on empty planner output" {
 	run bash <<'SCRIPT'
 set -euo pipefail
+export PLANNER_SKIP_TOOL_LOAD=true
 source ./src/lib/planning/planner.sh
 normalize_planner_plan <<<""
 SCRIPT
 
 	[ "$status" -ne 0 ]
-	[[ "${output}" == *"unable to parse planner output"* ]]
+	[[ "${output}" == *"planner_output_empty"* ]]
 }
 
 @test "append_final_answer_step adds missing summary step without duplication" {
 	run bash <<'SCRIPT'
 set -euo pipefail
+export PLANNER_SKIP_TOOL_LOAD=true
 source ./src/lib/planning/planner.sh
         without_final=$(append_final_answer_step "[{\"tool\":\"terminal\",\"args\":{\"command\":\"ls\"},\"thought\":\"list\"}]")
         with_final=$(append_final_answer_step "[{\"tool\":\"final_answer\",\"args\":{\"input\":\"done\"},\"thought\":\"done\"}]")
@@ -99,6 +53,7 @@ SCRIPT
 @test "derive_allowed_tools_from_plan gathers unique tools and ensures summary" {
 	run bash <<'SCRIPT'
 set -euo pipefail
+export PLANNER_SKIP_TOOL_LOAD=true
 source ./src/lib/planning/planner.sh
 tool_names() { printf "%s\n" terminal notes_create final_answer; }
 plan_json='[{"tool":"terminal","args":{"command":"ls"},"thought":"choose"},{"tool":"notes_create","args":{"title":"t"},"thought":"capture"}]'
@@ -118,6 +73,7 @@ SCRIPT
 @test "derive_allowed_tools_from_plan unwraps planner response objects" {
 	run bash <<'SCRIPT'
 set -euo pipefail
+export PLANNER_SKIP_TOOL_LOAD=true
 source ./src/lib/planning/planner.sh
 tool_names() { printf "%s\n" terminal notes_create final_answer; }
 response='{"plan":[{"tool":"terminal","args":{"command":"ls"},"thought":"choose"}]}'
@@ -136,6 +92,7 @@ SCRIPT
 @test "derive_allowed_tools_from_plan expands executor_fallback to available tools" {
 	run bash <<'SCRIPT'
 set -euo pipefail
+export PLANNER_SKIP_TOOL_LOAD=true
 source ./src/lib/planning/planner.sh
 tool_names() { printf "%s\n" terminal notes_create calendar_list; }
 plan_json='[{"tool":"executor_fallback","args":{},"thought":"fallback"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"summarize"}]'
@@ -153,21 +110,24 @@ SCRIPT
 	[ "${lines[3]}" = "final_answer" ]
 }
 
-@test "derive_allowed_tools_from_plan rejects non-plan payloads" {
+@test "derive_allowed_tools_from_plan falls back to summary on non-plan payloads" {
 	run bash <<'SCRIPT'
 set -euo pipefail
+export PLANNER_SKIP_TOOL_LOAD=true
 source ./src/lib/planning/planner.sh
 invalid='{"mode":"quickdraw","quickdraw":{"final_answer":"done","rationale":"direct"}}'
-derive_allowed_tools_from_plan "${invalid}" >/dev/null
+derive_allowed_tools_from_plan "${invalid}"
 SCRIPT
 
-	[ "$status" -ne 0 ]
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "final_answer" ]
 }
 
 @test "derive_allowed_tools_from_plan de-duplicates web_search entries" {
 	run bash <<'SCRIPT'
 set -euo pipefail
 export VERBOSITY=0
+export PLANNER_SKIP_TOOL_LOAD=true
 source ./src/lib/planning/planner.sh
 tool_names() { printf "%s\n" terminal web_search final_answer; }
 plan_json='[{"tool":"web_search","args":{"query":"status"},"thought":"search"},{"tool":"web_search","args":{"query":"status"},"thought":"search"},{"tool":"final_answer","args":{"input":"done"},"thought":"wrap"}]'
@@ -185,6 +145,7 @@ SCRIPT
 @test "plan_json_to_entries unwraps planner response objects" {
 	run bash <<'SCRIPT'
 set -euo pipefail
+export PLANNER_SKIP_TOOL_LOAD=true
 source ./src/lib/planning/planner.sh
 response='{"plan":[{"tool":"terminal","args":{"command":"ls"},"thought":"list"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"done"}]}'
 plan_json_to_entries "${response}"
@@ -197,27 +158,31 @@ SCRIPT
 	[ "${second_tool}" = "final_answer" ]
 }
 
-@test "plan_json_to_entries errors on non-plan payloads" {
+@test "plan_json_to_entries returns fallback entry on non-plan payloads" {
 	run bash <<'SCRIPT'
 set -euo pipefail
+export PLANNER_SKIP_TOOL_LOAD=true
 source ./src/lib/planning/planner.sh
 invalid='{"mode":"quickdraw","quickdraw":{"final_answer":"done","rationale":"direct"}}'
 plan_json_to_entries "${invalid}"
 SCRIPT
 
-	[ "$status" -ne 0 ]
+	[ "$status" -eq 0 ]
+	fallback_tool=$(printf '%s' "${output}" | jq -r '.[0].tool')
+	[ "${fallback_tool}" = "final_answer" ]
 }
 
 @test "select_next_action uses deterministic plan when llama disabled" {
 	run bash <<'SCRIPT'
 set -euo pipefail
+export PLANNER_SKIP_TOOL_LOAD=true
 source ./src/lib/planning/planner.sh
+source ./src/lib/core/state.sh
 VERBOSITY=0
 state_prefix=state
 plan_entry=$(jq -nc --arg tool "terminal" --arg command "echo" --arg arg0 "hi" '{tool:$tool,args:{command:$command,args:[$arg0]},thought:"Following planned step"}')
-plan_outline=$'1. terminal -> echo hi\n2. final_answer -> summarize'
-initialize_executor_state "${state_prefix}" "list files" $'terminal\nfinal_answer' "${plan_entry}" "${plan_outline}"
-state_set "${state_prefix}" "max_steps" 2
+state_set "${state_prefix}" "plan_entries" "${plan_entry}"
+state_set "${state_prefix}" "plan_index" 0
 USE_REACT_LLAMA=false
 LLAMA_AVAILABLE=false
 select_next_action "${state_prefix}" action_json
