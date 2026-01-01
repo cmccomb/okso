@@ -36,8 +36,6 @@ source "${EXECUTOR_LIB_DIR}/../tools/query.sh"
 source "${EXECUTOR_LIB_DIR}/../prompt/templates.sh"
 # shellcheck source=./history.sh disable=SC1091
 source "${EXECUTOR_LIB_DIR}/history.sh"
-# shellcheck source=../validation/validation.sh disable=SC1091
-source "${EXECUTOR_LIB_DIR}/../validation/validation.sh"
 
 normalize_args_json() {
 	# Normalizes argument JSON into canonical form.
@@ -110,61 +108,6 @@ JQ
 	)
 
 	jq -c -n --argjson args "${args_obj}" --argjson planned "${plan_args}" "${jq_filter}" 2>/dev/null
-}
-
-validate_required_args_present() {
-	# Ensures required args are present, optionally allowing context-controlled gaps.
-	# Arguments:
-	#   $1 - args JSON
-	#   $2 - args schema JSON
-	#   $3 - JSON array of context-controlled keys
-	#   $4 - allow missing context fields flag (bool; default true)
-	local args_json schema_json context_fields_json allow_context_missing
-	args_json="$1"
-	schema_json="$2"
-	context_fields_json="$3"
-	allow_context_missing=${4:-true}
-
-        if ! command -v jq >/dev/null 2>&1; then
-                log "WARN" "jq unavailable; skipping required arg validation" "${schema_json}" || true
-                return 0
-        fi
-
-        if ! validation_result=$(jq -n \
-                --argjson args "${args_json:-{}}" \
-                --argjson schema "${schema_json:-{}}" \
-                --argjson context "${context_fields_json:-[]}" \
-                --arg allow_missing "${allow_context_missing:-true}" \
-                '
-                def bool($value): ($value | tostring | ascii_downcase) == "true";
-                def required_keys($schema): ($schema.required // []) | map(select(type == "string"));
-                def missing_keys($required; $args; $context; $allow_context):
-                        [ $required[]
-                        | select(
-                                ($args | has(.)) | not
-                                and (not ($allow_context and (. as $key | $context | index($key))))
-                        )
-                        ];
-
-                ($args | type == "object") as $valid_args
-                        | if $valid_args then empty else halt_error(1; "Args JSON invalid") end;
-                ($schema | type == "object") as $valid_schema
-                        | if $valid_schema then empty else halt_error(1; "Schema JSON invalid") end;
-                ($context | type == "array") as $valid_context
-                        | if $valid_context then empty else halt_error(1; "Context fields invalid") end;
-
-                $required := required_keys($schema);
-                $missing := missing_keys($required; $args; $context; bool($allow_missing));
-
-                if ($missing | length) > 0 then
-                        halt_error(1; "Missing required args: " + ($missing | sort | join(", ")))
-                else
-                        "ok"
-                end
-                ' 2>&1); then
-                printf '%s\n' "${validation_result}" >&2
-                return 1
-        fi
 }
 
 fill_missing_args_with_llm() {
@@ -241,7 +184,7 @@ extract_context_controls() {
 }
 
 resolve_action_args() {
-	# Applies planner controls, validates required args, fills context fields, and normalizes the final JSON.
+	# Applies planner controls, fills context fields, and normalizes the final JSON.
 	# Arguments:
 	#   $1 - tool name
 	#   $2 - args JSON
@@ -272,11 +215,6 @@ resolve_action_args() {
 	resolved_args="$(jq -c '.args' <<<"${context_metadata}")"
 
 	schema="$(tool_args_schema "${tool}")"
-	if [[ -n "${schema}" ]]; then
-		if ! validate_required_args_present "${resolved_args}" "${schema}" "${context_fields_json}" true; then
-			return 1
-		fi
-	fi
 
 	if [[ "${context_fields_json}" == "[]" ]]; then
 		normalize_args_json "${resolved_args}"
@@ -292,12 +230,6 @@ resolve_action_args() {
 	fi
 
 	resolved_args="$(fill_missing_args_with_llm "${tool}" "${resolved_args}" "${user_query}" "${plan_outline}" "${planner_thought}" "${history_for_prompt}" "${context_fields_json}")"
-
-	if [[ -n "${schema}" ]]; then
-		if ! validate_required_args_present "${resolved_args}" "${schema}" "${context_fields_json}" false; then
-			return 1
-		fi
-	fi
 
 	normalize_args_json "${resolved_args}"
 }
@@ -387,7 +319,6 @@ executor_loop() {
 
 export -f executor_loop
 export -f apply_plan_arg_controls
-export -f validate_required_args_present
 export -f fill_missing_args_with_llm
 export -f execute_planned_action
 export -f resolve_action_args
