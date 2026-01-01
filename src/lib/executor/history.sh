@@ -141,7 +141,7 @@ finalize_executor_result() {
 	# Finalizes and emits the executor run result.
 	# Arguments:
 	#   $1 - state prefix
-	local state_name history_formatted final_answer observation final_answer_action needs_replanning user_feedback
+	local state_name final_answer observation final_answer_action needs_replanning user_feedback
 	state_name="$1"
 
 	# Check if replanning is needed due to user feedback
