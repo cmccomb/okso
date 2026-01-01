@@ -125,39 +125,46 @@ validate_required_args_present() {
 	context_fields_json="$3"
 	allow_context_missing=${4:-true}
 
-	if ! command -v python3 >/dev/null 2>&1; then
-		log "WARN" "python3 unavailable; skipping required arg validation" "${schema_json}" || true
-		return 0
-	fi
+        if ! command -v jq >/dev/null 2>&1; then
+                log "WARN" "jq unavailable; skipping required arg validation" "${schema_json}" || true
+                return 0
+        fi
 
-	python3 - "${args_json}" "${schema_json}" "${context_fields_json}" "${allow_context_missing}" <<'PY'
-import json
-import sys
+        if ! validation_result=$(jq -n \
+                --argjson args "${args_json:-{}}" \
+                --argjson schema "${schema_json:-{}}" \
+                --argjson context "${context_fields_json:-[]}" \
+                --arg allow_missing "${allow_context_missing:-true}" \
+                '
+                def bool($value): ($value | tostring | ascii_downcase) == "true";
+                def required_keys($schema): ($schema.required // []) | map(select(type == "string"));
+                def missing_keys($required; $args; $context; $allow_context):
+                        [ $required[]
+                        | select(
+                                ($args | has(.)) | not
+                                and (not ($allow_context and (. as $key | $context | index($key))))
+                        )
+                        ];
 
-args_raw, schema_raw, context_raw, allow_missing = sys.argv[1:]
-try:
-    args = json.loads(args_raw or "{}")
-except Exception:  # noqa: BLE001
-    sys.stderr.write("Args JSON invalid\n")
-    sys.exit(1)
+                ($args | type == "object") as $valid_args
+                        | if $valid_args then empty else halt_error(1; "Args JSON invalid") end;
+                ($schema | type == "object") as $valid_schema
+                        | if $valid_schema then empty else halt_error(1; "Schema JSON invalid") end;
+                ($context | type == "array") as $valid_context
+                        | if $valid_context then empty else halt_error(1; "Context fields invalid") end;
 
-schema = json.loads(schema_raw or "{}")
-context_fields = json.loads(context_raw or "[]")
-allow_context = allow_missing.lower() == "true"
-required = [k for k in schema.get("required", []) if isinstance(k, str)]
+                $required := required_keys($schema);
+                $missing := missing_keys($required; $args; $context; bool($allow_missing));
 
-missing = []
-for key in required:
-    if key in args:
-        continue
-    if allow_context and key in context_fields:
-        continue
-    missing.append(key)
-
-if missing:
-    sys.stderr.write(f"Missing required args: {', '.join(sorted(missing))}\n")
-    sys.exit(1)
-PY
+                if ($missing | length) > 0 then
+                        halt_error(1; "Missing required args: " + ($missing | sort | join(", ")))
+                else
+                        "ok"
+                end
+                ' 2>&1); then
+                printf '%s\n' "${validation_result}" >&2
+                return 1
+        fi
 }
 
 fill_missing_args_with_llm() {

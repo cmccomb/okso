@@ -33,7 +33,6 @@ stable even when upstream planners emit inconsistent metadata.
 
 - bash 3.2+
 - jq
-- python3 (for rich history formatting)
 - llama.cpp binaries and model assets configured via the planner (loaded through
   `llm/llama_client.sh`)
 

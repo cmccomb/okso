@@ -41,31 +41,24 @@ fi
 user_request_lower=$(to_lowercase "${user_request}")
 
 if [[ "${prompt_lower}" == *"final answer"* && "${prompt_lower}" == *"agent trace"* ]]; then
-	request=${prompt#*USER REQUEST: }
-	request=${request%%.*}
-	printf 'Responding directly to: %s\n' "${request}"
-	exit 0
+        request=${prompt#*USER REQUEST: }
+        request=${request%%.*}
+        printf 'Responding directly to: %s\n' "${request}"
+        exit 0
 fi
 
 if [[ "${prompt_lower}" == *"action schema"* ]]; then
-	python3 - "$user_request" <<'PY'
-import json
-import sys
+        tool="final_answer"
+        if [[ "${user_request_lower}" == *"file"* || "${user_request_lower}" == *"folder"* || "${user_request_lower}" == *"todo"* ]]; then
+                tool="terminal"
+        elif [[ "${user_request_lower}" == *"note"* ]]; then
+                tool="notes_create"
+        elif [[ "${user_request_lower}" == *"remind"* ]]; then
+                tool="reminders_create"
+        fi
 
-user_request = sys.argv[1]
-request_lower = user_request.lower()
-
-tool = "final_answer"
-if "file" in request_lower or "folder" in request_lower or "todo" in request_lower:
-    tool = "terminal"
-elif "note" in request_lower:
-    tool = "notes_create"
-elif "remind" in request_lower:
-    tool = "reminders_create"
-
-print(json.dumps({"type": "tool", "tool": tool, "query": user_request}))
-PY
-	exit 0
+        jq -nc --arg query "${user_request}" --arg tool "${tool}" '{type: "tool", tool: $tool, query: $query}'
+        exit 0
 fi
 
 if [[ "${prompt_lower}" == *"json array of strings"* || "${prompt_lower}" == *"available tools"* ]]; then

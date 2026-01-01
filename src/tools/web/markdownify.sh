@@ -12,6 +12,7 @@
 #   - bash 3.2+
 #   - pandoc (for HTML and text conversion)
 #   - xmllint (for XML pretty-printing)
+#   - jq (for JSON formatting and output)
 #
 # Exit codes:
 #   0 - conversion succeeded
@@ -92,23 +93,20 @@ convert_html() {
 convert_json() {
 	# Arguments:
 	#   $1 - body path
-	local body_path formatted
-	body_path=$1
-	if ! formatted=$(
-		python3 - "${body_path}" <<'PY'
-import json
-import sys
+        local body_path formatted
+        body_path=$1
 
-path = sys.argv[1]
-with open(path, "r", encoding="utf-8") as handle:
-    data = json.load(handle)
-print(json.dumps(data, indent=2, ensure_ascii=False))
-PY
-	); then
-		printf '%s\n' "invalid JSON" >&2
-		return 1
-	fi
-	printf '%s\n%s\n%s\n' '```json' "${formatted}" '```'
+        if ! command -v jq >/dev/null 2>&1; then
+                printf '%s\n' "jq not available" >&2
+                return 1
+        fi
+
+        if ! formatted=$(jq '.' "${body_path}" 2>/dev/null); then
+                printf '%s\n' "invalid JSON" >&2
+                return 1
+        fi
+
+        printf '%s\n%s\n%s\n' '```json' "${formatted}" '```'
 }
 
 convert_xml() {
@@ -212,16 +210,21 @@ parse_args() {
 }
 
 main() {
-	local parsed path content_type limit markdown preview
+        local parsed path content_type limit markdown preview
 
-	if ! parsed=$(parse_args "$@"); then
-		return 1
-	fi
+        if ! parsed=$(parse_args "$@"); then
+                return 1
+        fi
 
-	path=${parsed%%|*}
-	content_type=${parsed#*|}
-	content_type=${content_type%%|*}
-	limit=${parsed##*|}
+        if ! command -v jq >/dev/null 2>&1; then
+                printf '%s\n' "jq not available" >&2
+                return 2
+        fi
+
+        path=${parsed%%|*}
+        content_type=${parsed#*|}
+        content_type=${content_type%%|*}
+        limit=${parsed##*|}
 
 	if ! markdown=$(convert_body "${path}" "${content_type}"); then
 		return 2
@@ -231,15 +234,7 @@ main() {
 		return 2
 	fi
 
-	python3 - "${markdown}" "${preview}" <<'PY'
-import json
-import sys
-
-markdown = sys.argv[1]
-preview = sys.argv[2]
-
-print(json.dumps({"markdown": markdown, "preview": preview}, ensure_ascii=False))
-PY
+        jq -nc --arg markdown "${markdown}" --arg preview "${preview}" '{markdown: $markdown, preview: $preview}'
 }
 
 main "$@"

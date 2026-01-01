@@ -24,8 +24,6 @@ source "${EXECUTOR_LIB_DIR}/../core/logging.sh"
 source "${EXECUTOR_LIB_DIR}/../core/state.sh"
 # shellcheck source=../formatting.sh disable=SC1091
 source "${EXECUTOR_LIB_DIR}/../formatting.sh"
-# shellcheck source=../dependency_guards/dependency_guards.sh disable=SC1091
-source "${EXECUTOR_LIB_DIR}/../dependency_guards/dependency_guards.sh"
 
 initialize_executor_state() {
 	# Initializes the executor state document with user query, tools, and plan.
@@ -88,63 +86,52 @@ state_get_history_lines() {
 }
 
 record_tool_execution() {
-	# Records a tool execution into history.
-	# Arguments:
-	#   $1 - state prefix
-	#   $2 - tool name
-	#   $3 - thought text
-	#   $4 - args JSON
-	#   $5 - observation text
-	#   $6 - step index
-	local state_name
-	local tool thought args_json observation step_index entry
-	state_name="$1"
-	tool="$2"
-	thought="$3"
-	args_json="$4"
-	observation="$5"
-	step_index="$6"
-	if [[ -z "${args_json}" ]]; then
-		args_json="{}"
-	fi
-	args_json="$(jq -cS '.' <<<"${args_json}" 2>/dev/null || printf '{}')"
+        # Records a tool execution into history.
+        # Arguments:
+        #   $1 - state prefix
+        #   $2 - tool name
+        #   $3 - thought text
+        #   $4 - args JSON
+        #   $5 - observation text
+        #   $6 - step index
+        local state_name
+        local tool thought args_json observation step_index entry observation_json
+        state_name="$1"
+        tool="$2"
+        thought="$3"
+        args_json="$4"
+        observation="$5"
+        step_index="$6"
 
-	if ! require_python3_available "Executor history serialization"; then
-		log "ERROR" "Failed to record tool execution; python3 missing" "${tool}" >&2
-		return 1
-	fi
+        if [[ -z "${args_json}" ]]; then
+                args_json="{}"
+        fi
 
-	entry=$(
-		python3 - "$step_index" "$thought" "$tool" "$args_json" "$observation" <<'PY'
-import json
-import sys
+        args_json="$(jq -cS '.' <<<"${args_json}" 2>/dev/null || printf '{}')"
 
-step = int(sys.argv[1])
-thought = sys.argv[2]
-tool = sys.argv[3]
-args_raw = sys.argv[4]
-observation = sys.argv[5]
+        if observation_json=$(jq -c '.' <<<"${observation}" 2>/dev/null); then
+                observation_json_value="${observation_json}"
+        else
+                observation_json_value="null"
+        fi
 
-try:
-    args = json.loads(args_raw)
-except Exception:  # noqa: BLE001
-    args = {}
+        entry=$(jq -c -n \
+                --arg step "${step_index}" \
+                --arg thought "${thought}" \
+                --arg tool "${tool}" \
+                --argjson args "${args_json}" \
+                --arg observation_raw "${observation}" \
+                --argjson observation_json "${observation_json_value}" \
+                '{
+                  step: ($step | tonumber // 0),
+                  thought: $thought,
+                  action: {tool: $tool, args: $args},
+                  observation: (if ($observation_json | type) == "null" then $observation_raw else $observation_json end)
+                }'
+        ) || return 1
 
-try:
-    obs_payload = json.loads(observation)
-except Exception:  # noqa: BLE001
-    obs_payload = observation
-
-print(json.dumps({
-    "step": step,
-    "thought": thought,
-    "action": {"tool": tool, "args": args},
-    "observation": obs_payload,
-}, separators=(",", ":")))
-PY
-	)
-	record_history "${state_name}" "${entry}"
-	log "INFO" "Recorded tool execution" "$(printf 'step=%s tool=%s' "${step_index}" "${tool}")"
+        record_history "${state_name}" "${entry}"
+        log "INFO" "Recorded tool execution" "$(printf 'step=%s tool=%s' "${step_index}" "${tool}")"
 }
 
 finalize_executor_result() {
