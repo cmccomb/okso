@@ -10,8 +10,8 @@
 #   - bash 3.2+
 
 @test "fill_missing_args_with_llm renders executor template" {
-        script=$(
-                cat <<'INNERSCRIPT'
+	script=$(
+		cat <<'INNERSCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 
