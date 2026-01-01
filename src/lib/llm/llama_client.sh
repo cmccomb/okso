@@ -98,9 +98,9 @@ llama_infer() {
 		return 1
 	fi
 
-	local llama_args llama_arg_string stderr_file exit_code llama_stderr start_time_ns end_time_ns elapsed_ms llama_output
-	local default_context_size context_cap margin_percent prompt_tokens total_tokens computed_context target_context
-	local rope_freq_base rope_freq_scale template_descriptor prompt_context_detail
+        local llama_args llama_arg_string stderr_file exit_code llama_stderr start_time_ns end_time_ns elapsed_ms llama_output
+        local default_context_size context_cap margin_percent prompt_tokens total_tokens computed_context target_context
+        local rope_freq_base rope_freq_scale template_descriptor prompt_context_detail
 	llama_args=(
 		"${LLAMA_BIN}"
 		--hf-repo "${repo_override}"
@@ -164,9 +164,14 @@ llama_infer() {
 		llama_args+=(--grammar "${LLAMA_GRAMMAR}")
 	fi
 
-	if [[ -n "${cache_file}" ]]; then
-		llama_args+=(--prompt-cache "${cache_file}")
-	fi
+        if [[ -n "${cache_file}" ]]; then
+                if [[ "${cache_file}" == prompt_context=* ]]; then
+                        log "ERROR" "invalid prompt cache value" "cache_file=${cache_file}"
+                        return 1
+                fi
+
+                llama_args+=(--prompt-cache "${cache_file}")
+        fi
 
 	prompt_context_detail=$(jq -nc \
 		--arg cache_file "${cache_file}" \

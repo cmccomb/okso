@@ -47,6 +47,8 @@ PLANNER_DEBUG_LOG=${TMPDIR:-/tmp}/okso_planner_candidates.log
 - `OKSO_PLANNER_CACHE_FILE`: Prompt cache for planner llama.cpp calls (default: `${OKSO_CACHE_DIR}/planner.prompt-cache`).
 - `OKSO_EXECUTOR_CACHE_FILE`: Prompt cache for the executor call (default: `${OKSO_CACHE_DIR}/runs/${OKSO_RUN_ID}/executor.prompt-cache`).
 - `OKSO_VALIDATOR_CACHE_FILE`: Prompt cache for the validator call (default: `${OKSO_CACHE_DIR}/runs/${OKSO_RUN_ID}/validator.prompt-cache`).
+
+Prompt cache settings must be filesystem paths. The CLI validates these values to prevent accidental injection of serialized prompt context or other non-path data into llama.cpp arguments.
 - `OKSO_RUN_ID`: Run identifier used to scope the executor prompt cache (default: UTC timestamp). Override to reuse a run-scoped cache across invocations.
 - `LLAMA_BIN`: Path to the llama.cpp binary used for scoring (default: `llama-cli`).
 - `LLAMA_DEFAULT_CONTEXT_SIZE`: Assumed default llama.cpp context window used when no override is requested (default: `4096`).
