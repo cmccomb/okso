@@ -44,8 +44,8 @@ schema_path() {
 	pre_planner_search_terms)
 		schema_file="pre_planner_search_terms.schema.json"
 		;;
-	final_answer_validation)
-		schema_file="final_answer_validation.schema.json"
+	final_answer_verification)
+		schema_file="final_answer_verification.schema.json"
 		;;
 	*)
 		log "ERROR" "Unknown schema requested" "${schema_name}" || true

@@ -51,12 +51,12 @@ build_validation_prompt() {
 	final_answer="$2"
 	trace="${3:-}"
 
-	# Load prompt template from prompts/final_answer_validation.txt and render substitutions
-	render_prompt_template "final_answer_validation" \
+	# Load prompt template from prompts/final_answer_verification.txt and render substitutions
+	render_prompt_template "final_answer_verification" \
 		user_query "${user_query}" \
 		final_answer "${final_answer}" \
 		trace "${trace}" \
-		verification_schema "$(load_schema_text "final_answer_validation")"
+		verification_schema "$(load_schema_text "final_answer_verification")"
 }
 
 validate_final_answer_against_query() {
@@ -95,7 +95,7 @@ validate_final_answer_against_query() {
 	validation_prompt="$(build_validation_prompt "${user_query}" "${final_answer}" "${trace}")"
 
 	local schema_text
-	schema_text="$(load_schema_text "final_answer_validation")" || {
+	schema_text="$(load_schema_text "final_answer_verification")" || {
 		log "ERROR" "Failed to load validation schema text" || true
 		return 2
 	}
