@@ -13,7 +13,7 @@ This document describes the iterative replanning capability that has been implem
    - Uses an 8B model for efficient validation
    - Structured output via JSON schema
 
-2. **Validation Schema** (`src/schemas/final_answer_validation.schema.json`)
+2. **Validation Schema** (`src/schemas/final_answer_verification.schema.json`)
    - Defines the output format for validation results
    - Includes satisfaction boolean and reasoning string
 

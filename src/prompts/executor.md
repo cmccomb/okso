@@ -1,38 +1,45 @@
 You are enriching context-controlled fields for a tool call.
 ===
 
-# Tool:
+## Inputs
+
+### Tool
 ${tool}
 
-# Context-controlled fields:
+### Context-Controlled Fields
 ${context_fields}
 
-# User request:
+### User Query
 ${user_query}
 
-# Plan outline:
+### Plan Outline
 ${plan_outline}
 
-# History of Plan Execution So Far:
+### Execution History
 ${history_text}
 
-# Planner notes:
+### Planner Notes
 ${planner_thought}
 
-# Current args JSON (context-controlled fields are seeded as empty strings):
+### Current Args JSON
+(Context-controlled fields are seeded as empty strings)
 ${args_json}
 
-# Args schema:
+### Args Schema
 ${args_schema}
 
-Update only the context-controlled fields based on the history context. The planner seeds these with empty strings; you must fill them from observations.
+## Task Rules
+- Update ONLY the context-controlled fields.
+- Do NOT add or remove keys.
+- Populate fields using information from the execution history.
+- Do NOT include placeholder tokens such as:
+  `TODO`, `TBD`, `__MISSING__`, `[insert]`, `<todo>`, `lorem ipsum`.
+- If required information is missing, explain the limitation directly in the field value.
 
-No placeholders rule:
-- Do NOT return any placeholder tokens such as "[insert]", "[insert summary here]", "TODO", "TBD", "__MISSING__", "<insert>", "<todo>", or "lorem ipsum".
-- Fill each context-controlled field from the history context.
-- You may explain limitations within the field value itself (e.g., "Observations did not contain sufficient content to summarize").
+## Output Contract
+Respond using the following JSON schema:
+${args_schema}
 
-Return ONLY valid JSON matching the args schema.
+Return ONLY valid JSON matching the schema.
 
-# Tool call:
-
+## Tool Call
