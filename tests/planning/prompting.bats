@@ -63,8 +63,8 @@ SCRIPT
 	[[ "${output}" == *'Args Schema: {"type":"object","properties":{"input"'* ]]
 }
 
-@test "planner prompt static prefix stays constant across invocations" {
-	run bash <<'SCRIPT'
+@test "planner prompt prefix tracks rendered runtime fields across invocations" {
+        run bash <<'SCRIPT'
 set -euo pipefail
 real_date="$(command -v date)"
 mock_bin_dir="$(mktemp -d)"
@@ -96,27 +96,83 @@ DATE
 chmod +x "${mock_bin_dir}/date"
 export PATH="${mock_bin_dir}:${PATH}"
 source ./src/lib/prompt/build_planner.sh
-prefix="$(build_planner_prompt_static_prefix)"
 MOCK_SLOT=first
 export MOCK_SLOT
+prefix_first="$(build_planner_prompt_static_prefix "demo" "tool: summary" "seeded search context")"
 first_prompt="$(build_planner_prompt "demo" "tool: summary" "seeded search context")"
 MOCK_SLOT=second
 export MOCK_SLOT
+prefix_second="$(build_planner_prompt_static_prefix "demo" "tool: summary" "seeded search context")"
 second_prompt="$(build_planner_prompt "demo" "tool: summary" "seeded search context")"
-if [[ "${first_prompt}" != "${prefix}"* ]]; then
+if [[ "${first_prompt}" != "${prefix_first}"* ]]; then
         exit 1
 fi
-if [[ "${second_prompt}" != "${prefix}"* ]]; then
+if [[ "${second_prompt}" != "${prefix_second}"* ]]; then
         exit 1
 fi
-if [[ "${first_prompt}" == "${second_prompt}" ]]; then
+if [[ "${prefix_first}" == "${prefix_second}" ]]; then
         exit 1
 fi
 printf 'ok\n'
 SCRIPT
 
-	[ "$status" -eq 0 ]
-	[ "${output}" = "ok" ]
+        [ "$status" -eq 0 ]
+        [ "${output}" = "ok" ]
+}
+
+@test "planner prompt prefix matches rendered prompt start and survives suffix changes" {
+        run bash <<'SCRIPT'
+set -euo pipefail
+real_date="$(command -v date)"
+mock_bin_dir="$(mktemp -d)"
+  cat >"${mock_bin_dir}/date" <<'DATE'
+  #!/usr/bin/env bash
+  fmt="${1-}"
+  if [[ "${fmt}" == "-u" ]]; then
+          fmt="${2-}"
+  fi
+
+  if [[ "${fmt}" == "+%Y-%m-%d" ]]; then
+          printf '2024-03-03\n'
+  elif [[ "${fmt}" == "+%H:%M:%S" ]]; then
+          printf '00:00:03\n'
+  elif [[ "${fmt}" == "+%A" ]]; then
+          printf 'Sunday\n'
+  else
+          exec "${real_date}" "$@"
+  fi
+DATE
+chmod +x "${mock_bin_dir}/date"
+export PATH="${mock_bin_dir}:${PATH}"
+source ./src/lib/prompt/build_planner.sh
+
+tool_lines="tool: summary"
+search_one="seeded search context"
+search_two="updated search context"
+
+prefix_one="$(build_planner_prompt_static_prefix "demo" "${tool_lines}" "${search_one}")"
+prompt_one="$(build_planner_prompt "demo" "${tool_lines}" "${search_one}")"
+
+if [[ "${prompt_one}" != "${prefix_one}"* ]]; then
+        exit 1
+fi
+
+prefix_two="$(build_planner_prompt_static_prefix "changed" "${tool_lines}" "${search_two}")"
+prompt_two="$(build_planner_prompt "changed" "${tool_lines}" "${search_two}")"
+
+if [[ "${prompt_two}" != "${prefix_two}"* ]]; then
+        exit 1
+fi
+
+if [[ "${prefix_one}" != "${prefix_two}" ]]; then
+        exit 1
+fi
+
+printf 'ok\n'
+SCRIPT
+
+        [ "$status" -eq 0 ]
+        [ "${output}" = "ok" ]
 }
 
 @test "executor prompt template exposes infill placeholders" {
