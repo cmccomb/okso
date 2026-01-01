@@ -6,25 +6,22 @@ on:
   pull_request:
 
 jobs:
-  installer:
+  homebrew:
     runs-on: macos-latest
-    env:
-      INSTALL_PREFIX: /tmp/okso-ci
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Install dependencies
-        run: |
-          brew update
-          brew install shellcheck shfmt bats-core
 
-      - name: Lint installer
-        run: |
-          shfmt -d scripts/install.sh
-          shellcheck scripts/install.sh
+      - name: Update Homebrew
+        run: brew update
 
-      - name: Install from bundle
+      - name: Build from source
+        run: brew install --build-from-source ./Formula/okso.rb
+
+      - name: Run formula tests
         run: |
-          set -o pipefail
-          scripts/install.sh --prefix "$INSTALL_PREFIX" 2>&1
+          brew test okso
+          okso --version
+
+      - name: Uninstall formula
+        run: brew uninstall okso

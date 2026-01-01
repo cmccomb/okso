@@ -1,9 +1,8 @@
 class Okso < Formula
   desc "Local assistant harness"
   homepage "https://github.com/cmccomb/okso"
-  version "0.0.0-main"
-  url "https://github.com/cmccomb/okso/archive/refs/heads/main.tar.gz"
-  sha256 "d644d11f5d35343fcf9864b7c4517cb721ace2a529ad71815157c6302d808739"
+  url "https://github.com/cmccomb/okso/archive/refs/tags/v0.0.1.tar.gz"
+  sha256 "3d21414737243c357bee91a2615e23e87d07f7128e925d7fb62ee8c68e1c4f09"
   license "MIT"
 
   depends_on "llama.cpp"
@@ -26,6 +25,6 @@ class Okso < Formula
   end
 
   test do
-    assert_predicate bin/"okso", :exist?
+    assert_match version.to_s, shell_output("#{bin}/okso --version")
   end
 end
