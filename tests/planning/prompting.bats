@@ -64,7 +64,7 @@ SCRIPT
 }
 
 @test "planner prompt prefix tracks rendered runtime fields across invocations" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 real_date="$(command -v date)"
 mock_bin_dir="$(mktemp -d)"
@@ -116,12 +116,12 @@ fi
 printf 'ok\n'
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ "${output}" = "ok" ]
+	[ "$status" -eq 0 ]
+	[ "${output}" = "ok" ]
 }
 
 @test "planner prompt prefix matches rendered prompt start and survives suffix changes" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 real_date="$(command -v date)"
 mock_bin_dir="$(mktemp -d)"
@@ -171,8 +171,8 @@ fi
 printf 'ok\n'
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        [ "${output}" = "ok" ]
+	[ "$status" -eq 0 ]
+	[ "${output}" = "ok" ]
 }
 
 @test "executor prompt template exposes infill placeholders" {
