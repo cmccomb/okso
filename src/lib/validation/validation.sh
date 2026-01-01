@@ -114,17 +114,6 @@ validate_final_answer_against_query() {
 		return 2
 	fi
 
-	# Validate response format
-	if ! jq -e '.satisfied | type == "boolean"' <<<"${response}" >/dev/null 2>&1; then
-		log "ERROR" "Validation response missing or invalid 'satisfied' field" "${response}" || true
-		return 2
-	fi
-
-	if ! jq -e '.reasoning | type == "string"' <<<"${response}" >/dev/null 2>&1; then
-		log "ERROR" "Validation response missing or invalid 'reasoning' field" "${response}" || true
-		return 2
-	fi
-
 	# Log the validation result
 	local satisfied reasoning
 	satisfied="$(jq -r '.satisfied' <<<"${response}")"
