@@ -27,6 +27,7 @@
 # Exit codes:
 #   Functions emit non-zero status on argument errors; detection helpers are best-effort.
 
+# shellcheck disable=SC2034
 SYSTEM_PROFILE_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 model_repo_for_size() {
