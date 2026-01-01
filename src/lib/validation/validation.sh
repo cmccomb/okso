@@ -107,28 +107,17 @@ validate_final_answer_against_query() {
 	validator_model_file="${VALIDATOR_MODEL_FILE:-${EXECUTOR_MODEL_FILE:-}}"
 	validator_cache_file="${VALIDATOR_CACHE_FILE:-${EXECUTOR_CACHE_FILE:-}}"
 
-	response="$(llama_infer "${validation_prompt}" "" 512 "${schema_text}" "${validator_model_repo}" "${validator_model_file}" "${validator_cache_file}")"
+        response="$(llama_infer "${validation_prompt}" "" 512 "${schema_text}" "${validator_model_repo}" "${validator_model_file}" "${validator_cache_file}")"
 
-	if [[ -z "${response}" ]]; then
-		log "ERROR" "Validation inference returned empty response" || true
-		return 2
-	fi
+        if [[ -z "${response}" ]]; then
+                log "ERROR" "Validation inference returned empty response" || true
+                return 2
+        fi
 
-	# Validate response format
-	if ! jq -e '.satisfied | type == "boolean"' <<<"${response}" >/dev/null 2>&1; then
-		log "ERROR" "Validation response missing or invalid 'satisfied' field" "${response}" || true
-		return 2
-	fi
-
-	if ! jq -e '.reasoning | type == "string"' <<<"${response}" >/dev/null 2>&1; then
-		log "ERROR" "Validation response missing or invalid 'reasoning' field" "${response}" || true
-		return 2
-	fi
-
-	# Log the validation result
-	local satisfied reasoning
-	satisfied="$(jq -r '.satisfied' <<<"${response}")"
-	reasoning="$(jq -r '.reasoning' <<<"${response}")"
+        # Log the validation result
+        local satisfied reasoning
+        satisfied="$(jq -r '.satisfied' <<<"${response}")"
+        reasoning="$(jq -r '.reasoning' <<<"${response}")"
 
 	log "INFO" "Validation result" "$(printf 'satisfied=%s, %s' "${satisfied}" "${reasoning}")" || true
 
