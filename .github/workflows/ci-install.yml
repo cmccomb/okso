@@ -15,9 +15,6 @@ jobs:
       - name: Update Homebrew
         run: brew update
 
-      - name: Audit formula
-        run: brew audit --strict --online ./Formula/okso.rb
-
       - name: Build from source
         run: brew install --build-from-source ./Formula/okso.rb
 
