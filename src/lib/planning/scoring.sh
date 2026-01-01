@@ -172,37 +172,6 @@ planner_step_has_side_effects() {
 	return 1
 }
 
-planner_args_satisfiable() {
-	local schema_json args_json
-	schema_json=${1:-"{}"}
-	args_json=${2:-"{}"}
-
-	# Empty schema => accept.
-	if jq -e 'type=="object" and length==0' >/dev/null 2>&1 <<<"${schema_json}"; then
-		return 0
-	fi
-
-	if ! require_jsonschema_cli_available "planner argument validation"; then
-		log "WARN" "planner_args_satisfiable: jsonschema CLI missing; skipping validation" "planner_args_schema_missing_jsonschema" >&2
-		return 0
-	fi
-
-	schema_tmp=$(mktemp)
-	args_tmp=$(mktemp)
-	err_log=$(mktemp)
-
-	printf '%s\n' "${schema_json}" >"${schema_tmp}"
-	printf '%s\n' "${args_json}" >"${args_tmp}"
-
-	if jsonschema_cli validate --json --default-dialect https://json-schema.org/draft/2020-12/schema "${schema_tmp}" "${args_tmp}" >/dev/null 2>"${err_log}"; then
-		rm -f "${schema_tmp}" "${args_tmp}" "${err_log}"
-		return 0
-	fi
-
-	cat "${err_log}" >&2
-	rm -f "${schema_tmp}" "${args_tmp}" "${err_log}"
-	return 1
-}
 
 score_planner_candidate() {
 	# Scores a normalized planner response for downstream selection.
@@ -270,10 +239,6 @@ score_planner_candidate() {
 			fi
 		fi
 
-		if [[ -n "${schema}" ]] && ! planner_args_satisfiable "${schema}" "${args}"; then
-			invalid_args=$((invalid_args + 1))
-		fi
-
 		if ((side_effect_index < 0)) && planner_step_has_side_effects "${tool}" "${args}"; then
 			side_effect_index=${idx}
 		fi
@@ -314,7 +279,6 @@ score_planner_candidate() {
 	jq -nc --argjson score "${score}" --argjson tie_breaker "${tie_breaker}" --argjson plan_length "${plan_length}" --argjson max_steps "${max_steps}" --argjson rationale "${rationale_json}" '{score:$score,tie_breaker:$tie_breaker,plan_length:$plan_length,max_steps:$max_steps,rationale:$rationale}'
 }
 
-export -f planner_args_satisfiable
 export -f planner_is_tool_available
 export -f planner_step_has_side_effects
 export -f planner_terminal_command_has_side_effects
