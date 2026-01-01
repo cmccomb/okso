@@ -112,9 +112,7 @@ log_model_autotune_summary() {
 		mem_fragment="physmem=unknown"
 	fi
 
-	if [[ -n "${DETECTED_IS_GHA:-}" ]]; then
-		gha_fragment="github_actions=${DETECTED_IS_GHA}"
-	fi
+	gha_fragment="${DETECTED_IS_GHA:+github_actions=${DETECTED_IS_GHA}}"
 
 	fragments=()
 	fragments+=("${mem_fragment}")
@@ -322,5 +320,7 @@ init_environment() {
 
 # Auto-initialize configuration when module is sourced
 CONFIG_FILE="${CONFIG_FILE:-${XDG_CONFIG_HOME:-${HOME}/.config}/okso/config.env}"
+
+set_autotuned_model_defaults
 load_config
 init_environment
