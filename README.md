@@ -20,8 +20,8 @@ okso is a command-line interface that:
 Install the Homebrew tap and formula to pull in dependencies and place the `okso` CLI on your `PATH`:
 
 ```bash
-brew tap cmccomb/okso
-brew install okso
+brew tap cmccomb/okso https://github.com/cmccomb/okso
+brew install --HEAD cmccomb/okso/okso
 ```
 
 Upgrade or remove the CLI with:
@@ -30,10 +30,6 @@ Upgrade or remove the CLI with:
 brew upgrade okso
 brew uninstall okso
 ```
-
-Users who previously relied on the curl installer should migrate to the tap. The
-installer bundle is no longer published; the tap hosts the maintained formula
-for tagged releases.
 
 See [docs/user-guides/installation.md](docs/user-guides/installation.md) for additional options and manual setup notes.
 
