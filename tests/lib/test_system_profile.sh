@@ -38,11 +38,16 @@
 
 @test "map_tier_to_models returns expected sizes" {
 	run bash -lc '
-                set -euo pipefail
-                source ./src/lib/system_profile.sh
-                mapfile -t sizes < <(map_tier_to_models default)
-                printf "%s|%s|%s" "${sizes[0]}" "${sizes[1]}" "${sizes[2]}"
-        '
+		set -euo pipefail
+		source ./src/lib/system_profile.sh
+
+		sizes=()
+		while IFS= read -r line; do
+			sizes+=("$line")
+		done < <(map_tier_to_models default)
+
+		printf "%s|%s|%s" "${sizes[0]}" "${sizes[1]}" "${sizes[2]}"
+	'
 	[ "$status" -eq 0 ]
 	[ "$output" = "1.7B|4B|8B" ]
 }
