@@ -21,3 +21,5 @@ ${PLANNER_SEARCH_SCHEMA}
 
 User request:
 ${USER_QUERY}
+
+Query array:
