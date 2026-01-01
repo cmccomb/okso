@@ -319,10 +319,15 @@ generate_planner_response() {
 		# selection. Any failure to normalize or score results in the
 		# candidate being skipped, which keeps downstream selection
 		# deterministic and safe.
-		raw_plan="$(LLAMA_TEMPERATURE="${temperature}" llama_infer "${prompt}" '' "${max_generation_tokens}" "${planner_schema_text}" "${PLANNER_MODEL_REPO:-}" "${PLANNER_MODEL_FILE:-}" "${PLANNER_CACHE_FILE:-}" "${planner_prompt_prefix}")" || raw_plan="[]"
+		raw_plan="$(LLAMA_TEMPERATURE="${temperature}" llama_infer "${prompt}" '' "${max_generation_tokens}" "${planner_schema_text}" "${PLANNER_MODEL_REPO:-}" "${PLANNER_MODEL_FILE:-}" "${PLANNER_CACHE_FILE:-}" "${planner_prompt_prefix}")" || raw_plan=""
+
+		if [[ -z "${raw_plan}" ]]; then
+			log "WARN" "Planner returned empty response from llama.cpp" "planner_llama_empty" >&2
+			continue
+		fi
 
 		if ! normalized_plan="$(normalize_planner_response <<<"${raw_plan}")"; then
-			log "ERROR" "Planner output failed validation; request regeneration" "${raw_plan}" >&2
+			log "WARN" "Planner output unusable from llama.cpp" "${raw_plan}" >&2
 			continue
 		fi
 
@@ -362,7 +367,7 @@ generate_planner_response() {
 	done
 
 	if [[ -z "${best_plan}" ]]; then
-		log "ERROR" "Planner output failed validation; request regeneration" "no_valid_candidates" >&2
+		log "ERROR" "Planner produced no usable candidates; request llama regeneration" "no_valid_candidates" >&2
 		return 1
 	fi
 
