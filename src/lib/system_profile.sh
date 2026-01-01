@@ -358,25 +358,43 @@ DETECTED_PROFILE_DATE="${DETECTED_PROFILE_DATE}"
 EOC
 	fi
 }
-
 resolve_autotune_model_sizes() {
 	# Arguments:
 	#   $1 - tier to resolve
 	#   $2 - name of variable to receive task size
 	#   $3 - name of variable to receive default size
 	#   $4 - name of variable to receive heavy size
-	local tier task_var default_var heavy_var sizes
+	local tier task_var default_var heavy_var task_size default_size heavy_size i line
 	tier="$1"
 	task_var="$2"
 	default_var="$3"
 	heavy_var="$4"
 
-	mapfile -t sizes < <(map_tier_to_models "${tier}")
-	printf -v "${task_var}" '%s' "${sizes[0]}"
-	printf -v "${default_var}" '%s' "${sizes[1]}"
-	printf -v "${heavy_var}" '%s' "${sizes[2]}"
-}
+	# Read the three newline-delimited size labels from map_tier_to_models.
+	i=0
+	task_size=""
+	default_size=""
+	heavy_size=""
 
+	while IFS= read -r line; do
+		case "${i}" in
+		0) task_size="${line}" ;;
+		1) default_size="${line}" ;;
+		2) heavy_size="${line}" ;;
+		*) break ;;
+		esac
+		i=$((i + 1))
+	done < <(map_tier_to_models "${tier}")
+
+	# Defensive defaults (shouldn't happen unless map_tier_to_models misbehaves).
+	: "${task_size:=1.7B}"
+	: "${default_size:=4B}"
+	: "${heavy_size:=8B}"
+
+	printf -v "${task_var}" '%s' "${task_size}"
+	printf -v "${default_var}" '%s' "${default_size}"
+	printf -v "${heavy_var}" '%s' "${heavy_size}"
+}
 export -f model_repo_for_size
 export -f model_file_for_size
 export -f detect_physical_memory_bytes
