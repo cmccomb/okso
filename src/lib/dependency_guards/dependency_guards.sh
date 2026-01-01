@@ -76,7 +76,6 @@ require_python3_available() {
 	return 1
 }
 
-
 export -f require_llama_available
 export -f require_macos_capable_terminal
 export -f require_python3_available

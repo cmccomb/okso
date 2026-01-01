@@ -172,7 +172,6 @@ planner_step_has_side_effects() {
 	return 1
 }
 
-
 score_planner_candidate() {
 	# Scores a normalized planner response for downstream selection.
 	# Arguments:
@@ -226,10 +225,9 @@ score_planner_candidate() {
 
 	local idx=0 valid_tools=0 missing_tools=0 invalid_args=0 side_effect_index=-1
 	while IFS= read -r step; do
-		local tool args schema
+		local tool args
 		tool=$(jq -r '.tool // ""' <<<"${step}")
 		args=$(jq -c '.args // {}' <<<"${step}")
-		schema="$(tool_args_schema "${tool}")"
 
 		if [[ "${availability_known}" == true ]]; then
 			if planner_is_tool_available "${tool}" "${available_tools}"; then
