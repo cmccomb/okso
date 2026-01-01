@@ -34,8 +34,6 @@ source "${EXECUTOR_LIB_DIR}/../core/state.sh"
 source "${EXECUTOR_LIB_DIR}/../tools/query.sh"
 # shellcheck source=../prompt/templates.sh disable=SC1091
 source "${EXECUTOR_LIB_DIR}/../prompt/templates.sh"
-# shellcheck source=./schema.sh disable=SC1091
-source "${EXECUTOR_LIB_DIR}/schema.sh"
 # shellcheck source=./history.sh disable=SC1091
 source "${EXECUTOR_LIB_DIR}/history.sh"
 # shellcheck source=../validation/validation.sh disable=SC1091
@@ -112,45 +110,6 @@ JQ
 	)
 
 	jq -c -n --argjson args "${args_obj}" --argjson planned "${plan_args}" "${jq_filter}" 2>/dev/null
-}
-
-validate_planner_action() {
-	# Validates a planner-provided action against allowed tools and schemas.
-	# Arguments:
-	#   $1 - raw action JSON
-	#   $2 - newline-delimited allowed tools
-	# Outputs validated JSON to stdout.
-	local raw_action allowed_tools err_log action_json tool args_json tool_schema
-	raw_action="$1"
-	allowed_tools="$2"
-	err_log=$(mktemp)
-
-	if ! action_json=$(jq -ce '.' <<<"${raw_action}" 2>"${err_log}"); then
-		printf 'Invalid JSON: %s\n' "$(<"${err_log}")" >&2
-		rm -f "${err_log}"
-		return 1
-	fi
-	rm -f "${err_log}"
-
-	tool="$(jq -r '.tool // empty' <<<"${action_json}" 2>/dev/null || printf '')"
-	if [[ -z "${tool}" ]]; then
-		printf 'Missing tool name\n' >&2
-		return 1
-	fi
-
-	if [[ -n "${allowed_tools}" ]] && ! grep -Fxq "${tool}" <<<"${allowed_tools}"; then
-		printf 'Tool "%s" not permitted\n' "${tool}" >&2
-		return 1
-	fi
-
-	args_json="$(jq -c '.args // {}' <<<"${action_json}" 2>/dev/null || printf '{}')"
-	tool_schema="$(tool_args_schema "${tool}")"
-	if [[ -n "${tool_schema}" ]] && ! jq -e --argjson schema "${tool_schema}" '.args|. as $args|$schema as $s|$args|=.' <<<"${action_json}" >/dev/null 2>&1; then
-		log "WARN" "Unable to validate args schema; continuing" "${tool}" || true
-	fi
-
-	# Output validated action without args_control (it's now inferred from seeds)
-	jq -c '{tool:.tool,args:$args,thought:(.thought//"Planner provided no commentary")}' --argjson args "${args_json}" <<<"${action_json}"
 }
 
 validate_required_args_present() {
@@ -374,9 +333,9 @@ executor_loop() {
 	# Arguments:
 	#   $1 - user query
 	#   $2 - allowed tools (newline delimited)
-	#   $3 - planner plan entries (newline-delimited JSON)
+	#   $3 - planner plan entries as JSON array
 	#   $4 - plan outline text
-	local user_query allowed_tools plan_entries plan_outline state_prefix max_steps plan_entry step_index validated_action observation
+	local user_query allowed_tools plan_entries plan_outline state_prefix max_steps plan_entry step_index
 	user_query="$1"
 	allowed_tools="$2"
 	plan_entries="$3"
@@ -394,23 +353,13 @@ executor_loop() {
 	fi
 
 	step_index=0
-	normalize_plan_json() {
-		local raw="$1" normalized
 
-		if printf '%s' "$raw" | jq -e . >/dev/null 2>&1; then
-			printf '%s' "$raw"
-			return 0
-		fi
-
-		normalized=$(printf '%s' "$raw" | sed 's/\\"/"/g; s/\\\\\\\\/\\\\/g')
-		printf '%s' "$normalized" | jq -e . >/dev/null 2>&1 || return 1
-		printf '%s' "$normalized"
-	}
-
-	plan_json=$(normalize_plan_json "${plan_entries}") || {
-		log "ERROR" "Plan JSON invalid/unparseable" "${plan_entries}" >&2
-		exit 1
-	}
+	if ! jq -e 'type == "array" and (length > 0)' <<<"${plan_entries}" >/dev/null 2>&1; then
+		log "ERROR" "Planner returned no actionable steps" "${plan_entries}" >&2
+		state_set "${state_prefix}" "final_answer" "Planner did not provide any executable steps."
+		finalize_executor_result "${state_prefix}"
+		return 1
+	fi
 
 	while IFS= read -r plan_entry || [[ -n "$plan_entry" ]]; do
 		((++step_index))
@@ -419,27 +368,18 @@ executor_loop() {
 			break
 		fi
 
-		if ! validated_action=$(validate_planner_action "${plan_entry}" "${allowed_tools}" 2>&1); then
-			log "ERROR" "Planner action invalid" "$(printf 'step=%s error=%s' "${step_index}" "${validated_action}")" >&2
-			observation=$(jq -nc --arg error "${validated_action}" '{output:"",error:$error,exit_code:1}')
-			record_tool_execution "${state_prefix}" "planner_validation" "Validation failed" "${plan_entry}" "${observation}" "${step_index}"
-			state_set "${state_prefix}" "final_answer" "Planner produced an invalid action at step ${step_index}: ${validated_action}"
-			break
-		fi
-
-		execute_planned_action "${state_prefix}" "${step_index}" "${validated_action}"
+		execute_planned_action "${state_prefix}" "${step_index}" "${plan_entry}"
 
 		if [[ -n "$(state_get "${state_prefix}" "final_answer")" ]]; then
 			break
 		fi
-	done < <(jq -c '.[]' <<<"$plan_json")
+	done < <(jq -c '.[]' <<<"${plan_entries}")
 
 	finalize_executor_result "${state_prefix}"
 }
 
 export -f executor_loop
 export -f apply_plan_arg_controls
-export -f validate_planner_action
 export -f validate_required_args_present
 export -f fill_missing_args_with_llm
 export -f execute_planned_action

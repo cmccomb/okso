@@ -21,8 +21,6 @@
 
 EXECUTOR_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# shellcheck source=./schema.sh disable=SC1091
-source "${EXECUTOR_LIB_DIR}/schema.sh"
 # shellcheck source=./history.sh disable=SC1091
 source "${EXECUTOR_LIB_DIR}/history.sh"
 # shellcheck source=./loop.sh disable=SC1091
