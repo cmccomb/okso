@@ -270,7 +270,7 @@ generate_planner_response() {
 
 	tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_line)"
 	search_context="$(planner_fetch_search_context "${user_query}")"
-	planner_prompt_prefix="$(build_planner_prompt_static_prefix)"
+	planner_prompt_prefix="$(build_planner_prompt_static_prefix "${user_query}" "${tool_lines}" "${search_context}")"
 	planner_suffix="$(build_planner_prompt_dynamic_suffix "${user_query}" "${tool_lines}" "${search_context}")"
 	prompt="${planner_prompt_prefix}${planner_suffix}"
 	log "DEBUG" "Generated planner prompt" "${prompt}" >&2
