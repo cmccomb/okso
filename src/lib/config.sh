@@ -34,25 +34,98 @@ CONFIG_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck source=./core/logging.sh disable=SC1091
 source "${CONFIG_LIB_DIR}/core/logging.sh"
+# shellcheck source=./system_profile.sh disable=SC1091
+source "${CONFIG_LIB_DIR}/system_profile.sh"
 
-# Model defaults
-: "${DEFAULT_EXECUTOR_MODEL_REPO:=bartowski/Qwen_Qwen3-4B-GGUF}"
-: "${DEFAULT_EXECUTOR_MODEL_FILE:=Qwen_Qwen3-4B-Q4_K_M.gguf}"
-: "${DEFAULT_EXECUTOR_MODEL_SPEC_BASE:=${DEFAULT_EXECUTOR_MODEL_REPO}:${DEFAULT_EXECUTOR_MODEL_FILE}}"
+# Model defaults (populated via autotune to ensure deterministic sizing)
+: "${DEFAULT_EXECUTOR_MODEL_REPO:=}"
+: "${DEFAULT_EXECUTOR_MODEL_FILE:=}"
+: "${DEFAULT_EXECUTOR_MODEL_SPEC_BASE:=}"
 : "${DEFAULT_EXECUTOR_MODEL_BRANCH_BASE:=main}"
 
-: "${DEFAULT_PLANNER_MODEL_REPO:=bartowski/Qwen_Qwen3-8B-GGUF}"
-: "${DEFAULT_PLANNER_MODEL_FILE:=Qwen_Qwen3-8B-Q4_K_M.gguf}"
-: "${DEFAULT_PLANNER_MODEL_SPEC_BASE:=${DEFAULT_PLANNER_MODEL_REPO}:${DEFAULT_PLANNER_MODEL_FILE}}"
+: "${DEFAULT_PLANNER_MODEL_REPO:=}"
+: "${DEFAULT_PLANNER_MODEL_FILE:=}"
+: "${DEFAULT_PLANNER_MODEL_SPEC_BASE:=}"
 : "${DEFAULT_PLANNER_MODEL_BRANCH_BASE:=main}"
 
-: "${DEFAULT_VALIDATOR_MODEL_SPEC_BASE:=${DEFAULT_EXECUTOR_MODEL_SPEC_BASE}}"
-: "${DEFAULT_VALIDATOR_MODEL_BRANCH_BASE:=${DEFAULT_EXECUTOR_MODEL_BRANCH_BASE}}"
+: "${DEFAULT_VALIDATOR_MODEL_SPEC_BASE:=}"
+: "${DEFAULT_VALIDATOR_MODEL_BRANCH_BASE:=main}"
 
-: "${DEFAULT_REPHRASER_MODEL_REPO:=bartowski/Qwen_Qwen3-1.7B-GGUF}"
-: "${DEFAULT_REPHRASER_MODEL_FILE:=Qwen_Qwen3-1.7B-Q4_K_M.gguf}"
-: "${DEFAULT_REPHRASER_MODEL_SPEC_BASE:=${DEFAULT_REPHRASER_MODEL_REPO}:${DEFAULT_REPHRASER_MODEL_FILE}}"
+: "${DEFAULT_REPHRASER_MODEL_REPO:=}"
+: "${DEFAULT_REPHRASER_MODEL_FILE:=}"
+: "${DEFAULT_REPHRASER_MODEL_SPEC_BASE:=}"
 : "${DEFAULT_REPHRASER_MODEL_BRANCH_BASE:=main}"
+
+: "${MODEL_AUTOTUNE_BASE_TIER:=}"
+: "${MODEL_AUTOTUNE_EFFECTIVE_TIER:=}"
+: "${MODEL_AUTOTUNE_PRESSURE_LEVEL:=}"
+: "${MODEL_AUTOTUNE_HEADROOM_CLASS:=}"
+
+set_autotuned_model_defaults() {
+	local pressure_level headroom_class effective_tier task_size default_size heavy_size
+
+	load_or_detect_system_profile
+
+	pressure_level="$(detect_pressure_level)"
+	headroom_class="$(estimate_headroom_class)"
+	MODEL_AUTOTUNE_PRESSURE_LEVEL="${pressure_level}"
+	MODEL_AUTOTUNE_HEADROOM_CLASS="${headroom_class}"
+
+	if [[ -z "${DETECTED_BASE_TIER:-}" ]]; then
+		DETECTED_BASE_TIER="default"
+	fi
+
+	effective_tier=$(cap_tier_for_pressure "${DETECTED_BASE_TIER}" "${pressure_level}" "${headroom_class}")
+	MODEL_AUTOTUNE_BASE_TIER="${DETECTED_BASE_TIER}"
+	MODEL_AUTOTUNE_EFFECTIVE_TIER="${effective_tier}"
+
+	resolve_autotune_model_sizes "${effective_tier}" task_size default_size heavy_size
+
+	DEFAULT_REPHRASER_MODEL_REPO="$(model_repo_for_size "${task_size}")"
+	DEFAULT_REPHRASER_MODEL_FILE="$(model_file_for_size "${task_size}")"
+	DEFAULT_REPHRASER_MODEL_SPEC_BASE="${DEFAULT_REPHRASER_MODEL_REPO}:${DEFAULT_REPHRASER_MODEL_FILE}"
+
+	DEFAULT_EXECUTOR_MODEL_REPO="$(model_repo_for_size "${default_size}")"
+	DEFAULT_EXECUTOR_MODEL_FILE="$(model_file_for_size "${default_size}")"
+	DEFAULT_EXECUTOR_MODEL_SPEC_BASE="${DEFAULT_EXECUTOR_MODEL_REPO}:${DEFAULT_EXECUTOR_MODEL_FILE}"
+
+	DEFAULT_PLANNER_MODEL_REPO="$(model_repo_for_size "${heavy_size}")"
+	DEFAULT_PLANNER_MODEL_FILE="$(model_file_for_size "${heavy_size}")"
+	DEFAULT_PLANNER_MODEL_SPEC_BASE="${DEFAULT_PLANNER_MODEL_REPO}:${DEFAULT_PLANNER_MODEL_FILE}"
+
+	DEFAULT_VALIDATOR_MODEL_REPO="$(model_repo_for_size "${heavy_size}")"
+	DEFAULT_VALIDATOR_MODEL_FILE="$(model_file_for_size "${heavy_size}")"
+	DEFAULT_VALIDATOR_MODEL_SPEC_BASE="${DEFAULT_VALIDATOR_MODEL_REPO}:${DEFAULT_VALIDATOR_MODEL_FILE}"
+}
+
+log_model_autotune_summary() {
+	local base effective pressure headroom mem_fragment gha_fragment fragments summary_detail
+	base="${MODEL_AUTOTUNE_BASE_TIER:-${DETECTED_BASE_TIER:-unknown}}"
+	effective="${MODEL_AUTOTUNE_EFFECTIVE_TIER:-${base}}"
+	pressure="${MODEL_AUTOTUNE_PRESSURE_LEVEL:-unknown}"
+	headroom="${MODEL_AUTOTUNE_HEADROOM_CLASS:-unknown}"
+
+	if [[ -n "${DETECTED_PHYS_MEM_GB:-}" ]]; then
+		mem_fragment="physmem=${DETECTED_PHYS_MEM_GB}GB"
+	elif [[ -n "${DETECTED_PHYS_MEM_BYTES:-}" ]]; then
+		mem_fragment="physmem_bytes=${DETECTED_PHYS_MEM_BYTES}"
+	else
+		mem_fragment="physmem=unknown"
+	fi
+
+	gha_fragment="${DETECTED_IS_GHA:+github_actions=${DETECTED_IS_GHA}}"
+
+	fragments=()
+	fragments+=("${mem_fragment}")
+	[[ -n "${gha_fragment}" ]] && fragments+=("${gha_fragment}")
+	fragments+=("pressure=${pressure}" "headroom=${headroom}")
+
+	summary_detail=$(
+		IFS=','
+		printf '%s' "${fragments[*]}"
+	)
+	log "INFO" "model autotune: base=${base} eff=${effective}" "${summary_detail}"
+}
 
 default_run_id() {
 	# Generates a stable run identifier for cache scoping.
@@ -119,6 +192,8 @@ load_config() {
 	EXECUTOR_CACHE_FILE="${OKSO_EXECUTOR_CACHE_FILE:-${CACHE_DIR}/runs/${OKSO_RUN_ID}/executor.prompt-cache}"
 	VALIDATOR_CACHE_FILE="${OKSO_VALIDATOR_CACHE_FILE:-${CACHE_DIR}/runs/${OKSO_RUN_ID}/validator.prompt-cache}"
 	SEARCH_REPHRASER_CACHE_FILE="${OKSO_REPHRASER_CACHE_FILE:-${CACHE_DIR}/rephraser.prompt-cache}"
+
+	log_model_autotune_summary
 }
 
 write_config_file() {
@@ -246,5 +321,7 @@ init_environment() {
 
 # Auto-initialize configuration when module is sourced
 CONFIG_FILE="${CONFIG_FILE:-${XDG_CONFIG_HOME:-${HOME}/.config}/okso/config.env}"
+
+set_autotuned_model_defaults
 load_config
 init_environment

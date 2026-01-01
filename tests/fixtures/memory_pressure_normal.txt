@@ -1,0 +1,2 @@
+System-wide memory free percentage: 36%
+System-wide memory pressure level: normal

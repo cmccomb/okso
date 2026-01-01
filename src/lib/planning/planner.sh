@@ -153,7 +153,7 @@ planner_fetch_search_context() {
 	fi
 
 	if ! queries_json="$(planner_generate_search_queries "${user_query}")"; then
-		log "WARN" "Failed to derive search queries; defaulting to raw query" "planner_rephrase_failed" >&2
+		log "WARN" "Failed to derive search queries; defaulting to raw query" "pre_planner_search_terms_failed" >&2
 		queries_json="$(jq -nc --arg query "${user_query}" '[ $query ]' 2>/dev/null || printf '["%s"]' "${user_query}")"
 	fi
 
@@ -277,7 +277,7 @@ generate_planner_response() {
 
 	local sample_count temperature debug_log_dir debug_log_file max_generation_tokens
 	sample_count="$(validate_positive_int "${PLANNER_SAMPLE_COUNT:-3}" 3 "PLANNER_SAMPLE_COUNT")"
-	temperature="$(validate_temperature "${PLANNER_TEMPERATURE:-0.2}" 0.2)"
+	temperature="$(validate_temperature "${PLANNER_TEMPERATURE:-0.7}" 0.7)"
 	max_generation_tokens="$(validate_positive_int "${PLANNER_MAX_OUTPUT_TOKENS:-1024}" 1024 "PLANNER_MAX_OUTPUT_TOKENS")"
 	# Capture the sampling configuration early so operators can verify the
 	# breadth of exploration before generation begins. This also doubles as

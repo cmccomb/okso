@@ -24,6 +24,8 @@ source "${EXECUTOR_LIB_DIR}/../core/logging.sh"
 source "${EXECUTOR_LIB_DIR}/../core/state.sh"
 # shellcheck source=../formatting.sh disable=SC1091
 source "${EXECUTOR_LIB_DIR}/../formatting.sh"
+# shellcheck source=../validation/validation.sh disable=SC1091
+source "${EXECUTOR_LIB_DIR}/../validation/validation.sh"
 
 initialize_executor_state() {
 	# Initializes the executor state document with user query, tools, and plan.
@@ -139,7 +141,7 @@ finalize_executor_result() {
 	# Finalizes and emits the executor run result.
 	# Arguments:
 	#   $1 - state prefix
-	local state_name history_formatted final_answer observation final_answer_action needs_replanning user_feedback
+	local state_name final_answer observation final_answer_action needs_replanning user_feedback
 	state_name="$1"
 
 	# Check if replanning is needed due to user feedback
@@ -159,11 +161,6 @@ finalize_executor_result() {
 	if [[ -z "${observation}" ]]; then
 		if [[ -n "${final_answer_action}" ]]; then
 			final_answer="${final_answer_action}"
-		else
-			log "ERROR" "Final answer missing; generating fallback" "${state_name}"
-			history_formatted="$(format_tool_history "$(state_get_history_lines "${state_name}")")"
-			final_answer="$(respond_text "$(state_get "${state_name}" "user_query")" 1000 "${history_formatted}")"
-			state_set "${state_name}" "final_answer" "${final_answer}"
 		fi
 	else
 		if jq -e '.output != null and .exit_code != null' <<<"${observation}" >/dev/null 2>&1; then
@@ -216,6 +213,9 @@ validate_and_optionally_replan() {
 
 	# Call the validation function with output to a variable
 	if ! validation_result="$(validate_final_answer_against_query "${user_query}" "${final_answer}" "${history_text}")"; then
+
+		log "INFO" "Validation results" "${validation_result}"
+
 		validation_status=$?
 
 		if [[ ${validation_status} -eq 1 ]]; then

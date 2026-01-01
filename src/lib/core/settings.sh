@@ -109,15 +109,19 @@ create_default_settings() {
 	settings_prefix="$1"
 	overrides="${2:-}"
 
+	if declare -f set_autotuned_model_defaults >/dev/null 2>&1; then
+		set_autotuned_model_defaults
+	fi
+
 	config_dir="${XDG_CONFIG_HOME:-${HOME}/.config}/okso"
 	cache_dir="${OKSO_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/okso}"
 	run_id="${OKSO_RUN_ID:-$(date -u +"%Y%m%dT%H%M%SZ")}"
-	default_model_file="${DEFAULT_MODEL_FILE_BASE:-Qwen_Qwen3-4B-Q4_K_M.gguf}"
-	default_planner_model_file="${DEFAULT_PLANNER_MODEL_FILE_BASE:-Qwen_Qwen3-8B-Q4_K_M.gguf}"
+	default_model_file="${DEFAULT_MODEL_FILE_BASE:-${DEFAULT_EXECUTOR_MODEL_FILE:-Qwen_Qwen3-4B-Q4_K_M.gguf}}"
+	default_planner_model_file="${DEFAULT_PLANNER_MODEL_FILE_BASE:-${DEFAULT_PLANNER_MODEL_FILE:-Qwen_Qwen3-8B-Q4_K_M.gguf}}"
 	config_file="${config_dir}/config.env"
 	planner_model_spec="${DEFAULT_PLANNER_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-8B-GGUF:${default_planner_model_file}}"
 	executor_model_spec="${EXECUTOR_MODEL_SPEC:-${DEFAULT_EXECUTOR_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-4B-GGUF:${default_model_file}}}"
-	rephraser_model_spec="${DEFAULT_REPHRASER_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-1.7B-GGUF:${DEFAULT_REPHRASER_MODEL_FILE_BASE:-Qwen_Qwen3-1.7B-Q4_K_M.gguf}}"
+	rephraser_model_spec="${DEFAULT_REPHRASER_MODEL_SPEC_BASE:-bartowski/Qwen_Qwen3-1.7B-GGUF:${DEFAULT_REPHRASER_MODEL_FILE:-Qwen_Qwen3-1.7B-Q4_K_M.gguf}}"
 	planner_cache_file="${OKSO_PLANNER_CACHE_FILE:-${cache_dir}/planner.prompt-cache}"
 	executor_cache_file="${OKSO_EXECUTOR_CACHE_FILE:-${cache_dir}/runs/${run_id}/executor.prompt-cache}"
 	rephraser_cache_file="${OKSO_REPHRASER_CACHE_FILE:-${cache_dir}/rephraser.prompt-cache}"

@@ -27,7 +27,7 @@ load_prompt_template() {
 	#   The content of the prompt template (string).
 	local prompt_name prompt_path
 	prompt_name="$1"
-	prompt_path="${PROMPTS_DIR}/${prompt_name}.txt"
+	prompt_path="${PROMPTS_DIR}/${prompt_name}.md"
 
 	if [[ ! -f "${prompt_path}" ]]; then
 		log "ERROR" "prompt template missing" "${prompt_path}" || true

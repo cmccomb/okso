@@ -62,7 +62,9 @@ planner_fetch_search_context "original" || true
 SCRIPT
 
 	[ "$status" -eq 0 ]
+	# shellcheck disable=SC2126
 	first_section=$(printf '%s\n' "${output}" | grep -n "first topic" | wc -l)
+	# shellcheck disable=SC2126
 	second_section=$(printf '%s\n' "${output}" | grep -n "second topic" | wc -l)
 	[ "${first_section}" -ge 1 ]
 	[ "${second_section}" -ge 1 ]

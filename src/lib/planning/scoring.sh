@@ -87,7 +87,7 @@ python_repl_has_side_effects() {
 	# Arguments:
 	#   $1 - python_repl args JSON (string)
 	# Returns 0 when side effects are likely; 1 otherwise.
-	local args_json snippet
+	local args_json snippet pattern
 	args_json=${1:-"{}"}
 	snippet=$(jq -r '.code // .snippet // .text // ""' <<<"${args_json}" 2>/dev/null)
 
@@ -96,8 +96,12 @@ python_repl_has_side_effects() {
 		return 0
 	fi
 
-	local -a patterns=()
-	mapfile -t patterns <<'EOF'
+	while IFS= read -r pattern; do
+		[[ -z "${pattern}" ]] && continue
+		if grep -Eqi -- "${pattern}" <<<"${snippet}"; then
+			return 0
+		fi
+	done <<'EOF'
 open\([^)]*["'](w|a|x)[^"']*["']
 open\([^)]*["'][^"']*\+[^"']*["']
 Path\([^)]*\)\.write_text\(
@@ -125,13 +129,6 @@ socket
 requests\.(get|post|put|delete|head|patch|options)\(
 os\.environ\[
 EOF
-
-	local pattern
-	for pattern in "${patterns[@]}"; do
-		if grep -Eqi -- "${pattern}" <<<"${snippet}"; then
-			return 0
-		fi
-	done
 
 	return 1
 }

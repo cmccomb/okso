@@ -44,3 +44,42 @@ See [docs/user-guides/usage.md](docs/user-guides/usage.md) for task-based walkth
 - [Prompt assets](docs/reference/prompts.md): where prompts live and how they load.
 - [Architecture overview](docs/reference/architecture.md): deeper look at the planner pass, executor loop, llama.cpp fallbacks, and tool ranking.
 
+
+## Model autotuning
+
+Model selection always runs through a deterministic autotune pipeline on macOS:
+
+1. Detect stable resources (physical RAM via `sysctl -n hw.memsize`, GitHub Actions via `GITHUB_ACTIONS=true`).
+2. Map resources → baseline tier (CI always maps to `ci`).
+3. Sample runtime pressure signals (`memory_pressure`, `vm_stat`) to compute headroom.
+4. Cap the baseline tier based on pressure/headroom and resolve models for each role.
+
+Baseline tier mapping:
+
+| Resources (macOS) | Baseline tier |
+| --- | --- |
+| `GITHUB_ACTIONS=true` | `ci` |
+| `< 8 GB` | `tiny` |
+| `8–16 GB` | `small` |
+| `16–24 GB` | `default` |
+| `24–48 GB` | `large` |
+| `>= 48 GB` | `xlarge` |
+
+Tier → model (Qwen3 GGUF Q4_K_M):
+
+| Tier | task | default    | heavy      |
+| --- | --- |------------|------------|
+| `ci` / `tiny` | Qwen3-0.6B | Qwen3-0.6B | Qwen3-0.6B |
+| `small` | Qwen3-0.6B | Qwen3-1.7B | Qwen3-4B   |
+| `default` | Qwen3-1.7B | Qwen3-4B   | Qwen3-8B   |
+| `large` | Qwen3-1.7B | Qwen3-8B   | Qwen3-14B  |
+| `xlarge` | Qwen3-4B | Qwen3-14B  | Qwen3-32B  |
+
+Runtime pressure caps ambition instead of shifting one tier at a time:
+
+- `critical` pressure or `starved` headroom → cap at `tiny` (or `ci`).
+- `warning` pressure or `tight` headroom → cap at `small` (or the smallest available tier).
+- `normal` pressure and `comfortable` headroom → keep the baseline tier.
+- Unknown signals fall back to the baseline tier.
+
+Each run logs a concise summary, e.g. `model autotune: base=default eff=small (physmem=16GB, pressure=warning, headroom=tight)`.

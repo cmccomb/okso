@@ -41,11 +41,11 @@ schema_path() {
 	planner_plan)
 		schema_file="planner_plan.schema.json"
 		;;
-	planner_search_queries)
-		schema_file="planner_search_queries.schema.json"
+	pre_planner_search_terms)
+		schema_file="pre_planner_search_terms.schema.json"
 		;;
-	final_answer_validation)
-		schema_file="final_answer_validation.schema.json"
+	final_answer_verification)
+		schema_file="final_answer_verification.schema.json"
 		;;
 	*)
 		log "ERROR" "Unknown schema requested" "${schema_name}" || true
