@@ -1,6 +1,5 @@
 [![CI - Unit](https://github.com/cmccomb/okso/actions/workflows/ci-unit.yml/badge.svg)](https://github.com/cmccomb/okso/actions/workflows/ci-unit.yml)
 [![CI - Install](https://github.com/cmccomb/okso/actions/workflows/ci-install.yml/badge.svg)](https://github.com/cmccomb/okso/actions/workflows/ci-install.yml)
-[![Deploy Installer](https://github.com/cmccomb/okso/actions/workflows/deploy_installer.yml/badge.svg)](https://github.com/cmccomb/okso/actions/workflows/deploy_installer.yml)
 
 # `okso`, let's go to work
 
@@ -18,21 +17,23 @@ okso is a command-line interface that:
 
 ## Installation
 
-Use the macOS installer from the repository root to set up dependencies and place the `okso` CLI on your `PATH`:
+Install the Homebrew tap and formula to pull in dependencies and place the `okso` CLI on your `PATH`:
 
 ```bash
-./scripts/install.sh [--prefix /custom/path] [--upgrade | --uninstall]
+brew tap cmccomb/okso
+brew install okso
 ```
 
-You can also install directly from the hosted script:
+Upgrade or remove the CLI with:
 
 ```bash
-curl -fsSL https://cmccomb.github.io/okso/install.sh | bash
+brew upgrade okso
+brew uninstall okso
 ```
 
-For offline deployments, set `OKSO_INSTALLER_ASSUME_OFFLINE=true` and point
-`OKSO_INSTALLER_BASE_URL` to a directory or URL containing `okso.tar.gz`; the
-installer will expand the archive instead of cloning the repository.
+Users who previously relied on the curl installer should migrate to the tap. The
+installer bundle is no longer published; the tap hosts the maintained formula
+for tagged releases.
 
 See [docs/user-guides/installation.md](docs/user-guides/installation.md) for additional options and manual setup notes.
 
