@@ -38,9 +38,9 @@ render_rephrase_prompt() {
 	local user_query schema_json
 	user_query="$1"
 
-	schema_json="$(load_schema_text planner_search_queries 2>/dev/null || true)"
+	schema_json="$(load_schema_text pre_planner_search_terms 2>/dev/null || true)"
 
-	render_prompt_template "planner_rephrase" USER_QUERY "${user_query}" PLANNER_SEARCH_SCHEMA "${schema_json}"
+	render_prompt_template "pre_planner_search_terms" USER_QUERY "${user_query}" PLANNER_SEARCH_SCHEMA "${schema_json}"
 }
 
 planner_generate_search_queries() {
@@ -53,7 +53,7 @@ planner_generate_search_queries() {
 	user_query="$1"
 	max_generation_tokens=${REPHRASER_MAX_OUTPUT_TOKENS:-256}
 
-	schema_json="$(load_schema_text planner_search_queries 2>/dev/null || true)"
+	schema_json="$(load_schema_text pre_planner_search_terms 2>/dev/null || true)"
 
 	if ! [[ "${max_generation_tokens}" =~ ^[0-9]+$ ]] || ((max_generation_tokens < 1)); then
 		max_generation_tokens=256
@@ -66,19 +66,19 @@ planner_generate_search_queries() {
 	fi
 
 	prompt="$(render_rephrase_prompt "${user_query}")" || {
-		log "ERROR" "Failed to render rephrase prompt" "planner_rephrase_prompt_render_failed" >&2
+		log "ERROR" "Failed to render rephrase prompt" "pre_planner_search_terms_prompt_render_failed" >&2
 		jq -nc --arg query "${user_query}" '[ $query ]'
 		return 0
 	}
 
 	if ! raw="$(LLAMA_TEMPERATURE=0 llama_infer "${prompt}" '' "${max_generation_tokens}" "${schema_json}" "${SEARCH_REPHRASER_MODEL_REPO:-}" "${SEARCH_REPHRASER_MODEL_FILE:-}" "${SEARCH_REPHRASER_CACHE_FILE:-}" "${prompt}")"; then
-		log "WARN" "Rephrase model invocation failed; falling back to user query" "planner_rephrase_infer_failed" >&2
+		log "WARN" "Rephrase model invocation failed; falling back to user query" "pre_planner_search_terms_infer_failed" >&2
 		jq -nc --arg query "${user_query}" '[ $query ]'
 		return 0
 	fi
 
 	if [[ -z "${raw}" ]]; then
-		log "WARN" "Rephrase model returned empty output" "planner_rephrase_empty" >&2
+		log "WARN" "Rephrase model returned empty output" "pre_planner_search_terms_empty" >&2
 		jq -nc --arg query "${user_query}" '[ $query ]'
 		return 0
 	fi

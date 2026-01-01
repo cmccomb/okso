@@ -1,28 +1,28 @@
 You are enriching context-controlled fields for a tool call.
-Return ONLY a JSON object for the tool args. Do not add or remove keys beyond the context-controlled list.
+===
 
-Tool:
+# Tool:
 ${tool}
 
-Context-controlled fields:
+# Context-controlled fields:
 ${context_fields}
 
-User request:
+# User request:
 ${user_query}
 
-Plan outline:
+# Plan outline:
 ${plan_outline}
 
-History of Plan Execution So Far:
+# History of Plan Execution So Far:
 ${history_text}
 
-Planner notes:
+# Planner notes:
 ${planner_thought}
 
-Current args JSON (context-controlled fields are seeded as empty strings):
+# Current args JSON (context-controlled fields are seeded as empty strings):
 ${args_json}
 
-Args schema:
+# Args schema:
 ${args_schema}
 
 Update only the context-controlled fields based on the history context. The planner seeds these with empty strings; you must fill them from observations.
@@ -34,4 +34,5 @@ No placeholders rule:
 
 Return ONLY valid JSON matching the args schema.
 
+# Tool call:
 

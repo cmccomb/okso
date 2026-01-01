@@ -55,7 +55,8 @@ build_validation_prompt() {
 	render_prompt_template "final_answer_validation" \
 		user_query "${user_query}" \
 		final_answer "${final_answer}" \
-		trace "${trace}"
+		trace "${trace}" \
+		verification_schema "$(load_schema_text "final_answer_validation")"
 }
 
 validate_final_answer_against_query() {
