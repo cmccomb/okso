@@ -86,52 +86,53 @@ state_get_history_lines() {
 }
 
 record_tool_execution() {
-        # Records a tool execution into history.
-        # Arguments:
-        #   $1 - state prefix
-        #   $2 - tool name
-        #   $3 - thought text
-        #   $4 - args JSON
-        #   $5 - observation text
-        #   $6 - step index
-        local state_name
-        local tool thought args_json observation step_index entry observation_json
-        state_name="$1"
-        tool="$2"
-        thought="$3"
-        args_json="$4"
-        observation="$5"
-        step_index="$6"
+	# Records a tool execution into history.
+	# Arguments:
+	#   $1 - state prefix
+	#   $2 - tool name
+	#   $3 - thought text
+	#   $4 - args JSON
+	#   $5 - observation text
+	#   $6 - step index
+	local state_name
+	local tool thought args_json observation step_index entry observation_json
+	state_name="$1"
+	tool="$2"
+	thought="$3"
+	args_json="$4"
+	observation="$5"
+	step_index="$6"
 
-        if [[ -z "${args_json}" ]]; then
-                args_json="{}"
-        fi
+	if [[ -z "${args_json}" ]]; then
+		args_json="{}"
+	fi
 
-        args_json="$(jq -cS '.' <<<"${args_json}" 2>/dev/null || printf '{}')"
+	args_json="$(jq -cS '.' <<<"${args_json}" 2>/dev/null || printf '{}')"
 
-        if observation_json=$(jq -c '.' <<<"${observation}" 2>/dev/null); then
-                observation_json_value="${observation_json}"
-        else
-                observation_json_value="null"
-        fi
+	if observation_json=$(jq -c '.' <<<"${observation}" 2>/dev/null); then
+		observation_json_value="${observation_json}"
+	else
+		observation_json_value="null"
+	fi
 
-        entry=$(jq -c -n \
-                --arg step "${step_index}" \
-                --arg thought "${thought}" \
-                --arg tool "${tool}" \
-                --argjson args "${args_json}" \
-                --arg observation_raw "${observation}" \
-                --argjson observation_json "${observation_json_value}" \
-                '{
+	entry=$(
+		jq -c -n \
+			--arg step "${step_index}" \
+			--arg thought "${thought}" \
+			--arg tool "${tool}" \
+			--argjson args "${args_json}" \
+			--arg observation_raw "${observation}" \
+			--argjson observation_json "${observation_json_value}" \
+			'{
                   step: ($step | tonumber // 0),
                   thought: $thought,
                   action: {tool: $tool, args: $args},
                   observation: (if ($observation_json | type) == "null" then $observation_raw else $observation_json end)
                 }'
-        ) || return 1
+	) || return 1
 
-        record_history "${state_name}" "${entry}"
-        log "INFO" "Recorded tool execution" "$(printf 'step=%s tool=%s' "${step_index}" "${tool}")"
+	record_history "${state_name}" "${entry}"
+	log "INFO" "Recorded tool execution" "$(printf 'step=%s tool=%s' "${step_index}" "${tool}")"
 }
 
 finalize_executor_result() {

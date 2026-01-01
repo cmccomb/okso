@@ -41,24 +41,24 @@ fi
 user_request_lower=$(to_lowercase "${user_request}")
 
 if [[ "${prompt_lower}" == *"final answer"* && "${prompt_lower}" == *"agent trace"* ]]; then
-        request=${prompt#*USER REQUEST: }
-        request=${request%%.*}
-        printf 'Responding directly to: %s\n' "${request}"
-        exit 0
+	request=${prompt#*USER REQUEST: }
+	request=${request%%.*}
+	printf 'Responding directly to: %s\n' "${request}"
+	exit 0
 fi
 
 if [[ "${prompt_lower}" == *"action schema"* ]]; then
-        tool="final_answer"
-        if [[ "${user_request_lower}" == *"file"* || "${user_request_lower}" == *"folder"* || "${user_request_lower}" == *"todo"* ]]; then
-                tool="terminal"
-        elif [[ "${user_request_lower}" == *"note"* ]]; then
-                tool="notes_create"
-        elif [[ "${user_request_lower}" == *"remind"* ]]; then
-                tool="reminders_create"
-        fi
+	tool="final_answer"
+	if [[ "${user_request_lower}" == *"file"* || "${user_request_lower}" == *"folder"* || "${user_request_lower}" == *"todo"* ]]; then
+		tool="terminal"
+	elif [[ "${user_request_lower}" == *"note"* ]]; then
+		tool="notes_create"
+	elif [[ "${user_request_lower}" == *"remind"* ]]; then
+		tool="reminders_create"
+	fi
 
-        jq -nc --arg query "${user_request}" --arg tool "${tool}" '{type: "tool", tool: $tool, query: $query}'
-        exit 0
+	jq -nc --arg query "${user_request}" --arg tool "${tool}" '{type: "tool", tool: $tool, query: $query}'
+	exit 0
 fi
 
 if [[ "${prompt_lower}" == *"json array of strings"* || "${prompt_lower}" == *"available tools"* ]]; then

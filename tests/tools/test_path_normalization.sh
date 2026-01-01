@@ -6,7 +6,7 @@
 #   bats tests/tools/test_path_normalization.sh
 
 @test "tools_normalize_path falls back when realpath lacks -m support" {
-        run bash --noprofile --norc <<'SCRIPT'
+	run bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
 
 unset -f chpwd _mise_hook __zsh_like_cd cd 2>/dev/null || true
@@ -34,11 +34,11 @@ PATH="${tmpdir}:${base_path}" bash --noprofile --norc -c "
 diff -u <(printf "%s\n" "${expected}") "${tmpdir}/actual"
 SCRIPT
 
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "tools_normalize_path does not depend on python when realpath is absent" {
-        run bash --noprofile --norc <<'SCRIPT'
+	run bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
 
 unset -f chpwd _mise_hook __zsh_like_cd cd 2>/dev/null || true
@@ -68,5 +68,5 @@ PATH="${tmpdir}:${base_path}" bash --noprofile --norc -c "
 "
 SCRIPT
 
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }

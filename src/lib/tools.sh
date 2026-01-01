@@ -55,47 +55,50 @@ source "${TOOLS_DIR}/feedback/index.sh"
 source "${TOOLS_DIR}/web/index.sh"
 
 tools_normalize_path() {
-        # Returns a normalized absolute path for allowlist checks.
-        # Arguments:
-        #   $1 - path to normalize (string)
-        local input_path directory basename_part normalized_parts
-        input_path="$1"
+	# Returns a normalized absolute path for allowlist checks.
+	# Arguments:
+	#   $1 - path to normalize (string)
+	local input_path directory basename_part normalized_parts
+	input_path="$1"
 
-        if command -v realpath >/dev/null 2>&1 && realpath -m / >/dev/null 2>&1; then
-                realpath -m "${input_path}"
-                return
-        fi
+	if command -v realpath >/dev/null 2>&1 && realpath -m / >/dev/null 2>&1; then
+		realpath -m "${input_path}"
+		return
+	fi
 
-        if [[ -e "${input_path}" || -L "${input_path}" ]]; then
-                directory=$(cd -- "$(dirname -- "${input_path}")" && pwd -P) || return 1
-                basename_part=$(basename -- "${input_path}")
-                printf '%s\n' "${directory%/}/${basename_part}"
-                return 0
-        fi
+	if [[ -e "${input_path}" || -L "${input_path}" ]]; then
+		directory=$(cd -- "$(dirname -- "${input_path}")" && pwd -P) || return 1
+		basename_part=$(basename -- "${input_path}")
+		printf '%s\n' "${directory%/}/${basename_part}"
+		return 0
+	fi
 
-        if [[ "${input_path}" != /* ]]; then
-                input_path="$(pwd -P)/${input_path}"
-        fi
+	if [[ "${input_path}" != /* ]]; then
+		input_path="$(pwd -P)/${input_path}"
+	fi
 
-        IFS='/' read -r -a normalized_parts <<<"${input_path}"
-        directory=()
-        for part in "${normalized_parts[@]}"; do
-                case "${part}" in
-                "" | ".")
-                        continue
-                        ;;
-                "..")
-                        if [[ ${#directory[@]} -gt 0 ]]; then
-                                unset 'directory[${#directory[@]}-1]'
-                        fi
-                        ;;
-                *)
-                        directory+=("${part}")
-                        ;;
-                esac
-        done
+	IFS='/' read -r -a normalized_parts <<<"${input_path}"
+	directory=()
+	for part in "${normalized_parts[@]}"; do
+		case "${part}" in
+		"" | ".")
+			continue
+			;;
+		"..")
+			if [[ ${#directory[@]} -gt 0 ]]; then
+				unset 'directory[${#directory[@]}-1]'
+			fi
+			;;
+		*)
+			directory+=("${part}")
+			;;
+		esac
+	done
 
-        printf '/%s\n' "$(IFS=/; echo "${directory[*]}")"
+	printf '/%s\n' "$(
+		IFS=/
+		echo "${directory[*]}"
+	)"
 }
 
 tools_writable_directory_allowed() {
