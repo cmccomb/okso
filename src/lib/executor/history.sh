@@ -24,6 +24,8 @@ source "${EXECUTOR_LIB_DIR}/../core/logging.sh"
 source "${EXECUTOR_LIB_DIR}/../core/state.sh"
 # shellcheck source=../formatting.sh disable=SC1091
 source "${EXECUTOR_LIB_DIR}/../formatting.sh"
+# shellcheck source=../validation/validation.sh disable=SC1091
+source "${EXECUTOR_LIB_DIR}/../validation/validation.sh"
 
 initialize_executor_state() {
 	# Initializes the executor state document with user query, tools, and plan.
