@@ -11,7 +11,7 @@ You are responsible for drafting an execution plan that satisfies a user request
 - If a task involves calculation or mathematical reasoning, prefer `python_repl`.
 - Use ONLY argument names defined by each tool’s schema.
 - For each argument:
-  - Provide a concrete seed value (string), OR
+  - Provide a concrete value to use OR
   - Use an empty string "" to defer filling to the executor.
 - Keep all argument strings single-line and under 200 characters.
 - Do NOT include markdown, code blocks, logs, or stack traces in arguments.
@@ -28,7 +28,6 @@ User Query:
 
 Plan:
 {
-  "mode": "plan",
   "plan": [
     {
       "thought": "Read the source note to extract tasks.",
@@ -54,7 +53,6 @@ User Query:
 
 Plan:
 {
-  "mode": "plan",
   "plan": [
     {
       "thought": "Search events matching the keyword.",
