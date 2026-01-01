@@ -111,7 +111,7 @@ JQ
 }
 
 fill_missing_args_with_llm() {
-        # Fills planner-marked context arguments via a single LLM round-trip when possible.
+	# Fills planner-marked context arguments via a single LLM round-trip when possible.
 	# Arguments:
 	#   $1 - tool name
 	#   $2 - args JSON
@@ -184,7 +184,7 @@ extract_context_controls() {
 }
 
 resolve_action_args() {
-        # Applies planner controls, fills context fields, and normalizes the final JSON.
+	# Applies planner controls, fills context fields, and normalizes the final JSON.
 	# Arguments:
 	#   $1 - tool name
 	#   $2 - args JSON
@@ -214,10 +214,10 @@ resolve_action_args() {
 	context_seed_lines="$(jq -r '.context_seed_lines[]?' <<<"${context_metadata}")"
 	resolved_args="$(jq -c '.args' <<<"${context_metadata}")"
 
-        schema="$(tool_args_schema "${tool}")"
+	schema="$(tool_args_schema "${tool}")"
 
-        if [[ "${context_fields_json}" == "[]" ]]; then
-                normalize_args_json "${resolved_args}"
+	if [[ "${context_fields_json}" == "[]" ]]; then
+		normalize_args_json "${resolved_args}"
 		return 0
 	fi
 
@@ -231,7 +231,7 @@ resolve_action_args() {
 
 	resolved_args="$(fill_missing_args_with_llm "${tool}" "${resolved_args}" "${user_query}" "${plan_outline}" "${planner_thought}" "${history_for_prompt}" "${context_fields_json}")"
 
-        normalize_args_json "${resolved_args}"
+	normalize_args_json "${resolved_args}"
 }
 
 execute_planned_action() {
