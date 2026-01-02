@@ -29,7 +29,7 @@ execute tool calls and emit final answers.
    suffix containing tools, schemas, examples, and timestamps. The combined prompt is
    fed to `llama_client.sh`.
 5. **Normalization + scoring:** Raw model output is cleaned by
-   `normalization.sh#normalize_planner_response`, then ranked via
+   `normalization.sh#normalize_plan`, then ranked via
    `scoring.sh#score_planner_candidate`. The best candidate's plan array and allowed tools
   are forwarded to the executor loop.
 6. **Execution:** `react/react.sh` executes the plan with approvals and emits the final
