@@ -98,11 +98,6 @@ normalize_planner_response() {
 		return 1
 	}
 
-	plan_clean="$(append_final_answer_step "${plan_clean}")" || {
-		log "WARN" "normalize_planner_response: unable to ensure final_answer step" "${raw}" >&2
-		return 1
-	}
-
 	jq --argjson plan "${plan_clean}" '.plan = $plan' <<<"${normalized}" 2>/dev/null || printf '%s' "${normalized}"
 }
 
@@ -125,26 +120,6 @@ extract_plan_array() {
 	printf '%s' "${plan_json}"
 }
 
-append_final_answer_step() {
-	# Ensures the plan includes a final step with the final_answer tool.
-	# Arguments:
-	#   $1 - plan JSON array (string)
-	local plan_json plan_clean has_final updated_plan
-	plan_json="${1:-[]}"
-
-	plan_clean="$(printf '%s' "$plan_json" | normalize_planner_plan)" || return 1
-
-	has_final="$(jq -r 'map((.tool // "") | ascii_downcase == "final_answer") | any' <<<"${plan_clean}" 2>/dev/null || echo false)"
-	if [[ "${has_final}" == "true" ]]; then
-		printf '%s' "${plan_clean}"
-		return 0
-	fi
-
-	updated_plan="$(jq -c '. + [{tool:"final_answer",thought:"Summarize the result for the user.",args:{input:""}}]' <<<"${plan_clean}" 2>/dev/null || printf '%s' "${plan_json}")"
-	printf '%s' "${updated_plan}"
-}
-
 export -f normalize_planner_plan
 export -f normalize_planner_response
 export -f extract_plan_array
-export -f append_final_answer_step

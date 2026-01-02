@@ -34,25 +34,6 @@ SCRIPT
 	[[ "${output}" == *"planner_output_empty"* ]]
 }
 
-@test "append_final_answer_step adds missing summary step without duplication" {
-	run bash <<'SCRIPT'
-set -euo pipefail
-export PLANNER_SKIP_TOOL_LOAD=true
-source ./src/lib/planning/planner.sh
-        without_final=$(append_final_answer_step "[{\"tool\":\"terminal\",\"args\":{\"command\":\"ls\"},\"thought\":\"list\"}]")
-        with_final=$(append_final_answer_step "[{\"tool\":\"final_answer\",\"args\":{\"input\":\"done\"},\"thought\":\"done\"}]")
-printf "%s\n---\n%s\n" "${without_final}" "${with_final}"
-SCRIPT
-
-	[ "$status" -eq 0 ]
-	first_tools=$(printf '%s' "${lines[0]}" | jq -r '.[].tool')
-	[[ "${first_tools}" == *"final_answer" ]]
-	second_tools=$(printf '%s' "${lines[2]}" | jq -r '.[].tool')
-	[ "${second_tools}" = "final_answer" ]
-	second_thought=$(printf '%s' "${lines[2]}" | jq -r '.[0].thought')
-	[ "${second_thought}" = "done" ]
-}
-
 @test "derive_allowed_tools_from_plan gathers unique tools and ensures summary" {
 	run bash <<'SCRIPT'
 set -euo pipefail
