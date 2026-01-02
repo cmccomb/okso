@@ -58,8 +58,8 @@ log_emit() {
 
 	# Trim detail if too long
 	if [[ ${#detail} -gt 1000 ]]; then
-    detail="${detail:0:1000}...[first 1000 chars of ${#detail} ($(( 100 * 1000 / ${#detail} ))%)]"
-  fi
+		detail="${detail:0:1000}...[first 1000 chars of ${#detail} ($((100 * 1000 / ${#detail}))%)]"
+	fi
 
 	payload=$(jq -n \
 		--arg time "${timestamp}" \

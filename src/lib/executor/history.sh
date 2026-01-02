@@ -192,67 +192,74 @@ finalize_executor_result() {
 }
 
 validate_and_optionally_replan() {
-	# Validates a final answer against the original query and optionally triggers replanning.
-	# Uses the 8B validator model to check if the answer satisfies the user's request.
-	# If validation fails, logs the reason and optionally signals for replanning.
-	#
-	# Arguments:
+	# Args:
 	#   $1 - state prefix
 	#   $2 - final answer text
-	#
-	# Returns:
-	#   0 if validation passes, 1 if fails but continues, 2 on validation error
-	local state_name final_answer user_query history_text validation_result validation_status
+	local state_name final_answer user_query history_text
+	local validation_json validator_rc satisfied reasoning
+	local history_pretty
 	state_name="$1"
 	final_answer="$2"
+
 	user_query="$(state_get "${state_name}" "user_query")"
 	history_text="$(state_get_history_lines "${state_name}")"
 
 	log "INFO" "Running final answer validation" || true
 
-	# Call the validation function with output to a variable
-	if ! validation_result="$(validate_final_answer_against_query "${user_query}" "${final_answer}" "${history_text}")"; then
+	# Always capture output; keep exit code separately.
+	validation_json="$(validate_final_answer_against_query "${user_query}" "${final_answer}" "${history_text}")"
+	validator_rc=$?
 
-		log "INFO" "Validation results" "${validation_result}"
-
-		validation_status=$?
-
-		if [[ ${validation_status} -eq 1 ]]; then
-			# Validation indicates answer does NOT satisfy query
-			log "WARN" "Final answer validation failed; answer may not satisfy query" || true
-
-			# Extract reasoning if available
-			local reasoning
-			reasoning="$(jq -r '.reasoning // "Unknown reason"' <<<"${validation_result}" 2>/dev/null || echo "Validation failed to provide reasoning")"
-
-			log "INFO" "Validation reasoning" "${reasoning}" || true
-			log_pretty "WARN" "validation_failure_reason" "${reasoning}" || true
-
-			# Log the failed validation result for debugging
-			log_pretty "DEBUG" "validation_result" "${validation_result}" || true
-
-			# Set a flag to indicate replanning may be beneficial
-			state_set "${state_name}" "answer_validation_failed" "true" || true
-			state_set "${state_name}" "validation_failure_reason" "${reasoning}" || true
-
-			# Continue with outputting the answer, but mark that it didn't pass validation
-			log "INFO" "Continuing with unvalidated answer; consider iterative replanning" || true
-		else
-			# Validation infrastructure error (not a validation failure)
-			log "WARN" "Answer validation check encountered an error; outputting answer as-is" || true
+	if [[ ${validator_rc} -ne 0 ]]; then
+		# Validator infra failure: we got *some* output (maybe), but tool failed.
+		log "WARN" "Answer validation check encountered an error; outputting answer as-is" "rc=${validator_rc}" || true
+		if [[ -n "${validation_json}" ]]; then
+			log_pretty "DEBUG" "validation_output" "${validation_json}" || true
 		fi
 	else
-		# Validation passed
-		log "INFO" "Final answer passed validation" || true
-		log_pretty "INFO" "validation_result" "${validation_result}" || true
+		# Validator ran successfully; interpret result.
+		# Accept satisfied as bool or int; default to null.
+		satisfied="$(
+			jq -r '
+        if (.satisfied|type)=="boolean" then (if .satisfied then 1 else 0 end)
+        elif (.satisfied|type)=="number" then (if .satisfied!=0 then 1 else 0 end)
+        else null end
+      ' <<<"${validation_json}" 2>/dev/null
+		)"
+
+		reasoning="$(
+			jq -r '.reasoning // empty' <<<"${validation_json}" 2>/dev/null
+		)"
+
+		log_pretty "INFO" "validation_result" "${validation_json}" || true
+
+		if [[ "${satisfied}" == "0" ]]; then
+			log "WARN" "Final answer did not satisfy query per validator" || true
+
+			# Persist flags for caller / UI
+			state_set "${state_name}" "answer_validation_failed" "true" || true
+			if [[ -n "${reasoning}" ]]; then
+				state_set "${state_name}" "validation_failure_reason" "${reasoning}" || true
+				log_pretty "WARN" "validation_failure_reason" "${reasoning}" || true
+			else
+				state_set "${state_name}" "validation_failure_reason" "Unknown reason" || true
+			fi
+		elif [[ "${satisfied}" == "1" ]]; then
+			log "INFO" "Final answer passed validation" || true
+		else
+			# Unexpected schema/content: treat as infra-ish warning.
+			log "WARN" "Validator returned unexpected schema; outputting answer as-is" || true
+		fi
 	fi
 
-	# Output the final answer regardless of validation status
+	# Emit final answer regardless.
+	history_pretty="$(format_tool_history "${history_text}")"
 	log_pretty "INFO" "Final answer" "${final_answer}"
-	if [[ -z "$(format_tool_history "${history_text}")" ]]; then
+
+	if [[ -z "${history_pretty}" ]]; then
 		log "INFO" "Execution summary" "No tool runs"
 	else
-		log_pretty "INFO" "Execution summary" "$(format_tool_history "${history_text}")"
+		log_pretty "INFO" "Execution summary" "${history_pretty}"
 	fi
 
 	emit_boxed_summary \
