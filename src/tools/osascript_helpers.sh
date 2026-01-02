@@ -42,10 +42,6 @@ assert_osascript_available() {
 		return 2
 	fi
 
-	if ! require_macos_capable_terminal "${platform_warning}" "WARN"; then
-		return 1
-	fi
-
 	if ! command -v "${osascript_bin}" >/dev/null 2>&1; then
 		log "WARN" "${missing_warning}" "${detail}" || true
 		return 1

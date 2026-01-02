@@ -52,13 +52,8 @@ TERMINAL_ALLOWED_COMMANDS=(
 	"du"
 	"base64"
 	"date"
+	"open"
 )
-
-TERMINAL_HAS_OPEN=false
-if require_macos_capable_terminal "The 'open' command is only available on macOS" "DEBUG"; then
-	TERMINAL_ALLOWED_COMMANDS+=("open")
-	TERMINAL_HAS_OPEN=true
-fi
 
 TERMINAL_CMD=""      # string command parsed from TOOL_ARGS
 TERMINAL_CMD_ARGS=() # array command arguments parsed from TOOL_ARGS
@@ -455,13 +450,8 @@ register_terminal() {
 {"type":"object","required":["command"],"properties":{"command":{"type":"string","enum":$(terminal_command_enum_json)},"args":{"type":"array","items":{"type":"string"}}},"additionalProperties":false}
 JSON
 	)
-	if [[ "${TERMINAL_HAS_OPEN}" == true ]]; then
-		commands_synopsis="terminal <status|pwd|ls|cd|cat|head|tail|find|grep|open|mkdir|rmdir|mv|cp|touch|rm|stat|wc|du|base64|date>"
-		description="Persistent terminal session for navigation, inspection, and safe mutations (pwd, ls, du, cd, cat, head, tail, find, grep, stat, wc, base64 encode/decode, mkdir, rmdir, mv, cp, touch, rm -i default; open on macOS)."
-	else
-		commands_synopsis="terminal <status|pwd|ls|cd|cat|head|tail|find|grep|mkdir|rmdir|mv|cp|touch|rm|stat|wc|du|base64|date>"
-		description="Persistent terminal session for navigation, inspection, and safe mutations (pwd, ls, du, cd, cat, head, tail, find, grep, stat, wc, base64 encode/decode, mkdir, rmdir, mv, cp, touch, rm -i default)."
-	fi
+  commands_synopsis="terminal <status|pwd|ls|cd|cat|head|tail|find|grep|open|mkdir|rmdir|mv|cp|touch|rm|stat|wc|du|base64|date>"
+  description="Persistent terminal session for navigation, inspection, and safe mutations (pwd, ls, du, cd, cat, head, tail, find, grep, stat, wc, base64 encode/decode, mkdir, rmdir, mv, cp, touch, rm -i default; open on macOS)."
 	usage=${commands_synopsis}
 	register_tool \
 		"terminal" \

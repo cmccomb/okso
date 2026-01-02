@@ -240,16 +240,6 @@ generate_planner_response() {
 
 	initialize_planner_models
 
-	if ! require_llama_available "planner generation"; then
-		log "ERROR" "Planner cannot generate steps without llama.cpp" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}" >&2
-		local fallback
-		fallback="LLM unavailable. Request received: ${user_query}"
-		jq -nc \
-			--arg answer "${fallback}" \
-			'{plan:[{tool:"final_answer", args:{input:$answer}, thought:"Provide the direct response."}]}'
-		return 0
-	fi
-
 	local tools_decl
 	if tools_decl=$(declare -p TOOLS 2>/dev/null) && grep -q 'declare -a' <<<"${tools_decl}"; then
 		planner_tools=("${TOOLS[@]}")
