@@ -59,11 +59,6 @@ extract_plan_array() {
 	local payload
 	payload="${1:-}"
 
-	if [[ -z "${payload}" ]]; then
-		log "WARN" "extract_plan_array: received empty planner output" "planner_output_empty" >&2
-		return 1
-	fi
-
 	normalize_plan <<<"${payload}"
 }
 
