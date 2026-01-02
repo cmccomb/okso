@@ -109,12 +109,12 @@ create_default_settings() {
 	settings_prefix="$1"
 	overrides="${2:-}"
 
-  # Allow autotuned model defaults to be set by external code
+	# Allow autotuned model defaults to be set by external code
 	if declare -f set_autotuned_model_defaults >/dev/null 2>&1; then
 		set_autotuned_model_defaults
 	fi
 
-  # Build paths and specs
+	# Build paths and specs
 	config_dir="${XDG_CONFIG_HOME:-${HOME}/.config}/okso"
 	cache_dir="${OKSO_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/okso}"
 	run_id="${OKSO_RUN_ID:-$(date -u +"%Y%m%dT%H%M%SZ")}"
@@ -129,7 +129,7 @@ create_default_settings() {
 	rephraser_cache_file="${OKSO_REPHRASER_CACHE_FILE:-${cache_dir}/rephraser.prompt-cache}"
 	executor_model_branch="${EXECUTOR_MODEL_BRANCH:-${DEFAULT_EXECUTOR_MODEL_BRANCH_BASE:-main}}"
 
-  # Build default JSON document
+	# Build default JSON document
 	default_json=$(jq -c -n \
 		--arg version "0.1.0" \
 		--arg llama_bin "${LLAMA_BIN:-llama-completion}" \
@@ -180,7 +180,7 @@ create_default_settings() {
                         user_query: ""
                 }')
 
-  # Apply overrides if provided
+	# Apply overrides if provided
 	if [[ -n "${overrides}" ]]; then
 		if override_json=$(printf '%s' "${overrides}" | jq -c '.' 2>/dev/null); then
 			default_json=$(jq -c --argjson overrides "${override_json}" '. * $overrides' <<<"${default_json}")
@@ -189,6 +189,6 @@ create_default_settings() {
 		fi
 	fi
 
-  # Store the default settings document
+	# Store the default settings document
 	settings_set_json_document "${settings_prefix}" "${default_json}"
 }
