@@ -374,12 +374,12 @@ generate_plan_outline() {
 
 # Backwards compatibility wrapper; prefer generate_planner_response for new callers.
 generate_plan_json() {
-local response_json
-if ! response_json="$(generate_planner_response "$1")"; then
-return 1
-fi
+	local response_json
+	if ! response_json="$(generate_planner_response "$1")"; then
+		return 1
+	fi
 
-jq -c '.' <<<"${response_json}"
+	jq -c '.' <<<"${response_json}"
 }
 
 tool_query_deriver() {
@@ -449,54 +449,54 @@ emit_plan_json() {
 }
 
 derive_allowed_tools_from_plan() {
-# Arguments:
-#   $1 - planner response JSON array
-local plan_json tool seen
-plan_json="${1:-[]}"
+	# Arguments:
+	#   $1 - planner response JSON array
+	local plan_json tool seen
+	plan_json="${1:-[]}"
 
-plan_json="$(normalize_planner_plan <<<"${plan_json}")" || return 1
+	plan_json="$(normalize_planner_plan <<<"${plan_json}")" || return 1
 
-seen=""
-local -a required=()
-local plan_contains_fallback=false
-if jq -e '.[] | select(.tool == "executor_fallback")' <<<"${plan_json}" >/dev/null 2>&1; then
-plan_contains_fallback=true
-fi
+	seen=""
+	local -a required=()
+	local plan_contains_fallback=false
+	if jq -e '.[] | select(.tool == "executor_fallback")' <<<"${plan_json}" >/dev/null 2>&1; then
+		plan_contains_fallback=true
+	fi
 
-if [[ "${plan_contains_fallback}" == true ]]; then
-while IFS= read -r tool; do
-[[ -z "${tool}" ]] && continue
-if grep -Fxq "${tool}" <<<"${seen}"; then
-continue
-fi
-required+=("${tool}")
-seen+="${tool}"$'\n'
-done < <(tool_names)
-else
-while IFS= read -r tool; do
-[[ -z "${tool}" ]] && continue
-if grep -Fxq "${tool}" <<<"${seen}"; then
-continue
-fi
-required+=("${tool}")
-seen+="${tool}"$'\n'
-done < <(jq -r '.[] | .tool // empty' <<<"${plan_json}" 2>/dev/null || true)
-fi
+	if [[ "${plan_contains_fallback}" == true ]]; then
+		while IFS= read -r tool; do
+			[[ -z "${tool}" ]] && continue
+			if grep -Fxq "${tool}" <<<"${seen}"; then
+				continue
+			fi
+			required+=("${tool}")
+			seen+="${tool}"$'\n'
+		done < <(tool_names)
+	else
+		while IFS= read -r tool; do
+			[[ -z "${tool}" ]] && continue
+			if grep -Fxq "${tool}" <<<"${seen}"; then
+				continue
+			fi
+			required+=("${tool}")
+			seen+="${tool}"$'\n'
+		done < <(jq -r '.[] | .tool // empty' <<<"${plan_json}" 2>/dev/null || true)
+	fi
 
-if ! grep -Fxq "final_answer" <<<"${seen}"; then
-required+=("final_answer")
-fi
+	if ! grep -Fxq "final_answer" <<<"${seen}"; then
+		required+=("final_answer")
+	fi
 
-printf '%s\n' "${required[@]}"
+	printf '%s\n' "${required[@]}"
 }
 
 plan_json_to_entries() {
-local plan_json
-plan_json="$1"
+	local plan_json
+	plan_json="$1"
 
-plan_json="$(normalize_planner_plan <<<"${plan_json}")" || return 1
+	plan_json="$(normalize_planner_plan <<<"${plan_json}")" || return 1
 
-printf '%s' "${plan_json}"
+	printf '%s' "${plan_json}"
 }
 
 EXECUTOR_ENTRYPOINT=${EXECUTOR_ENTRYPOINT:-"${PLANNING_LIB_DIR}/../executor/loop.sh"}

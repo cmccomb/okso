@@ -173,23 +173,23 @@ planner_step_has_side_effects() {
 }
 
 score_planner_candidate() {
-# Scores a normalized planner response for downstream selection.
-# Arguments:
-#   $1 - normalized planner response JSON array (string)
-local plan_json plan_length max_steps available_tools availability_known
-local score tie_breaker over_budget rationale_json final_tool
-local -a rationale=()
+	# Scores a normalized planner response for downstream selection.
+	# Arguments:
+	#   $1 - normalized planner response JSON array (string)
+	local plan_json plan_length max_steps available_tools availability_known
+	local score tie_breaker over_budget rationale_json final_tool
+	local -a rationale=()
 
-plan_json="$1"
-max_steps=${PLANNER_MAX_PLAN_STEPS:-6}
-if ! [[ "${max_steps}" =~ ^[0-9]+$ ]] || ((max_steps < 1)); then
-max_steps=6
-fi
+	plan_json="$1"
+	max_steps=${PLANNER_MAX_PLAN_STEPS:-6}
+	if ! [[ "${max_steps}" =~ ^[0-9]+$ ]] || ((max_steps < 1)); then
+		max_steps=6
+	fi
 
-plan_json="$(normalize_planner_plan <<<"${plan_json}")" || return 1
-plan_length=$(jq -r 'length' <<<"${plan_json}" 2>/dev/null)
+	plan_json="$(normalize_planner_plan <<<"${plan_json}")" || return 1
+	plan_length=$(jq -r 'length' <<<"${plan_json}" 2>/dev/null)
 
-log_pretty "INFO" "Evaluating planner plan structure" "${plan_json}" >&2
+	log_pretty "INFO" "Evaluating planner plan structure" "${plan_json}" >&2
 
 	# Start with a score of 0, and add a tie_breaker based on how well the plan fits within the step budget.
 	score=0
