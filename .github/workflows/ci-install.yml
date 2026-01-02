@@ -16,7 +16,9 @@ jobs:
         run: brew update
 
       - name: Build from source
-        run: brew tap cmccomb/okso https://github.com/cmccomb/okso && brew install --build-from-source okso
+        run: |
+          brew tap cmccomb/okso https://github.com/cmccomb/okso
+          brew install --HEAD cmccomb/okso/okso
 
       - name: Run formula tests
         run: |
