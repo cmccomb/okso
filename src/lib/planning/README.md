@@ -30,7 +30,7 @@ execute tool calls and emit final answers.
    fed to `llama_client.sh`.
 5. **Normalization + scoring:** Raw model output is cleaned by
    `normalization.sh#normalize_planner_response`, then ranked via
-   `scoring.sh#score_planner_candidate`. The best candidate's response and allowed tools
+   `scoring.sh#score_planner_candidate`. The best candidate's plan array and allowed tools
   are forwarded to the executor loop.
 6. **Execution:** `react/react.sh` executes the plan with approvals and emits the final
    user-visible answer.

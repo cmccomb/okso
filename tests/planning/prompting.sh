@@ -17,11 +17,11 @@ SCRIPT
 	[ "${lines[1]}" = "2. wrap up" ]
 }
 
-@test "plan_json_to_outline unwraps planner response objects" {
+@test "plan_json_to_outline requires array payloads" {
 	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/prompting.sh
-response='{"plan":[{"tool":"terminal","args":{"command":"ls"},"thought":"step one"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]}'
+response='[{"tool":"terminal","args":{"command":"ls"},"thought":"step one"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]'
 plan_json_to_outline "${response}"
 SCRIPT
 

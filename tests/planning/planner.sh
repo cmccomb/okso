@@ -15,7 +15,7 @@ export PLANNER_SKIP_TOOL_LOAD
 TESTING_PASSTHROUGH=true
 export TESTING_PASSTHROUGH
 source ./src/lib/planning/planner.sh
-llama_infer() { printf '{"plan":[{"tool":"final_answer","args":{}}]}'; }
+llama_infer() { printf '[{"tool":"final_answer","args":{}}]'; }
 export -f llama_infer
 planner_fetch_search_context() { printf 'Search context unavailable.'; }
 LLAMA_AVAILABLE=false

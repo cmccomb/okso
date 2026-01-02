@@ -7,13 +7,13 @@ setup() {
 	export TESTING_PASSTHROUGH=true
 }
 
-@test "normalize_planner_plan retains structured planner output" {
+@test "normalize_plan retains structured planner output" {
 	run bash <<'SCRIPT'
 set -euo pipefail
 export PLANNER_SKIP_TOOL_LOAD=true
 source ./src/lib/planning/planner.sh
 raw_plan='[{"tool":"terminal","args":{"command":"ls"},"thought":"list"}]'
-normalize_planner_plan <<<"${raw_plan}" | jq -r '.[0].tool,.[0].args.command,.[0].thought'
+normalize_plan <<<"${raw_plan}" | jq -r '.[0].tool,.[0].args.command,.[0].thought'
 SCRIPT
 
 	[ "$status" -eq 0 ]
@@ -22,12 +22,12 @@ SCRIPT
 	[ "${lines[2]}" = "list" ]
 }
 
-@test "normalize_planner_plan fails on empty planner output" {
+@test "normalize_plan fails on empty planner output" {
 	run bash <<'SCRIPT'
 set -euo pipefail
 export PLANNER_SKIP_TOOL_LOAD=true
 source ./src/lib/planning/planner.sh
-normalize_planner_plan <<<""
+normalize_plan <<<""
 SCRIPT
 
 	[ "$status" -ne 0 ]

@@ -32,6 +32,8 @@ ${planner_thought}
 Respond using the following JSON schema:
 ${args_schema}
 
-Return ONLY valid JSON matching the schema. 
+Return ONLY valid JSON matching the schema.
 
 ## Tool Call
+Provide the populated arguments JSON below without any surrounding prose:
+${args_json}

@@ -19,7 +19,7 @@ tool_args_schema() {
                 printf '{}'
         fi
 }
-plan='{"plan":[{"tool":"terminal","args":{"command":"ls"},"thought":"list"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"reply"}]}'
+plan='[{"tool":"terminal","args":{"command":"ls"},"thought":"list"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"reply"}]'
 scorecard=$(score_planner_candidate "${plan}" | tail -n 1)
 printf '%s\n' "${scorecard}"
 SCRIPT
@@ -44,7 +44,7 @@ source ./src/lib/planning/scoring.sh
 init_tool_registry
 register_web_search
 register_final_answer
-plan=$(jq -nc '{"plan":[{"tool":"web_search","args":{"query":"mars weather","num":2},"thought":"check"},{"tool":"final_answer","args":{"input":"done"},"thought":"respond"}]}')
+plan=$(jq -nc '[{"tool":"web_search","args":{"query":"mars weather","num":2},"thought":"check"},{"tool":"final_answer","args":{"input":"done"},"thought":"respond"}]')
 normalized=$(normalize_planner_response <<<"${plan}")
 scorecard=$(score_planner_candidate "${normalized}" | tail -n 1)
 jq -e '.score | type == "number"' <<<"${scorecard}"
@@ -66,7 +66,7 @@ source ./src/lib/planning/scoring.sh
 init_tool_registry
 register_web_search
 register_final_answer
-plan=$(jq -nc '{"plan":[{"tool":"web_search","args":{"input":"mars weather"},"thought":"check"},{"tool":"final_answer","args":{"input":"done"},"thought":"respond"}]}')
+plan=$(jq -nc '[{"tool":"web_search","args":{"input":"mars weather"},"thought":"check"},{"tool":"final_answer","args":{"input":"done"},"thought":"respond"}]')
 normalized=$(normalize_planner_response <<<"${plan}")
 scorecard=$(score_planner_candidate "${normalized}" | tail -n 1)
 jq -e '.rationale | map(select(contains("Planner args satisfy registered tool schemas."))) | length == 1' <<<"${scorecard}"
@@ -88,8 +88,8 @@ tool_args_schema() {
                 printf '{}'
         fi
 }
-valid='{"plan":[{"tool":"terminal","args":{"command":"ls"},"thought":"list"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]}'
-invalid='{"plan":[{"tool":"missing_tool","args":{"command":5},"thought":"broken"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]}'
+valid='[{"tool":"terminal","args":{"command":"ls"},"thought":"list"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]'
+invalid='[{"tool":"missing_tool","args":{"command":5},"thought":"broken"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]'
 good=$(score_planner_candidate "${valid}" | tail -n 1 | jq -r '.score')
 bad=$(score_planner_candidate "${invalid}" | tail -n 1 | jq -r '.score')
 printf "good=%s\n" "${good}"
@@ -110,8 +110,8 @@ export VERBOSITY=0
 source ./src/lib/planning/scoring.sh
 tool_names() { printf "%s\n" web_search notes_create final_answer; }
 tool_args_schema() { printf '{}'; }
-unsafe_first='{"plan":[{"tool":"notes_create","args":{"title":"t"},"thought":"start"},{"tool":"web_search","args":{"query":"topic"},"thought":"research"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"summarize"}]}'
-safer_first='{"plan":[{"tool":"web_search","args":{"query":"topic"},"thought":"research"},{"tool":"notes_create","args":{"title":"t"},"thought":"capture"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"summarize"}]}'
+unsafe_first='[{"tool":"notes_create","args":{"title":"t"},"thought":"start"},{"tool":"web_search","args":{"query":"topic"},"thought":"research"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"summarize"}]'
+safer_first='[{"tool":"web_search","args":{"query":"topic"},"thought":"research"},{"tool":"notes_create","args":{"title":"t"},"thought":"capture"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"summarize"}]'
 unsafe_score=$(score_planner_candidate "${unsafe_first}" | tail -n 1 | jq -r '.score')
 safer_score=$(score_planner_candidate "${safer_first}" | tail -n 1 | jq -r '.score')
 printf "unsafe=%s\n" "${unsafe_score}"
@@ -137,7 +137,7 @@ tool_args_schema() {
                 printf '{}'
         fi
 }
-plan='{"plan":[{"tool":"terminal","args":{"command":"ls"},"thought":"list"},{"tool":"notes_create","args":{"title":"t"},"thought":"note"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]}'
+plan='[{"tool":"terminal","args":{"command":"ls"},"thought":"list"},{"tool":"notes_create","args":{"title":"t"},"thought":"note"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]'
 scorecard=$(score_planner_candidate "${plan}" | tail -n 1)
 printf '%s\n' "${scorecard}"
 SCRIPT
@@ -160,7 +160,7 @@ tool_args_schema() {
                 printf '{}'
         fi
 }
-plan='{"plan":[{"tool":"terminal","args":{"command":"rm -rf /tmp/demo"},"thought":"cleanup"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]}'
+plan='[{"tool":"terminal","args":{"command":"rm -rf /tmp/demo"},"thought":"cleanup"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]'
 scorecard=$(score_planner_candidate "${plan}" | tail -n 1)
 printf '%s\n' "${scorecard}"
 SCRIPT
@@ -177,7 +177,7 @@ export VERBOSITY=1
 source ./src/lib/planning/scoring.sh
 tool_names() { printf "%s\n" terminal final_answer; }
 tool_args_schema() { printf '{}'; }
-plan='{"plan":[{"tool":"terminal","args":{"command":"ls"},"thought":"list"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]}'
+plan='[{"tool":"terminal","args":{"command":"ls"},"thought":"list"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]'
 score_planner_candidate "${plan}" >/dev/null
 SCRIPT
 
