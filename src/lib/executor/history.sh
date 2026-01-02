@@ -38,7 +38,7 @@ initialize_executor_state() {
 	local state_prefix
 	state_prefix="$1"
 
-  # Initialize the JSON state document
+	# Initialize the JSON state document
 	json_state_set_document "${state_prefix}" "$(jq -c -n \
 		--arg user_query "$2" \
 		--arg allowed_tools "$3" \
@@ -68,7 +68,7 @@ record_history() {
 	local entry
 	entry="$2"
 
-  # Append to history array in state
+	# Append to history array in state
 	json_state_append_history "$1" "${entry}"
 }
 
@@ -81,10 +81,10 @@ state_get_history_lines() {
 	local state_prefix history_raw
 	state_prefix="$1"
 
-  # Fetch history array from state
+	# Fetch history array from state
 	history_raw="$(json_state_get_key "${state_prefix}" "history")"
 
-  # Format history as newline-delimited string
+	# Format history as newline-delimited string
 	if jq -e 'type == "array"' <<<"${history_raw}" >/dev/null 2>&1; then
 		jq -r '.[]' <<<"${history_raw}"
 		return 0
@@ -111,22 +111,22 @@ record_tool_execution() {
 	observation="$5"
 	step_index="$6"
 
-  # Normalize args JSON
+	# Normalize args JSON
 	if [[ -z "${args_json}" ]]; then
 		args_json="{}"
 	fi
 
-  # Ensure args_json is valid JSON
+	# Ensure args_json is valid JSON
 	args_json="$(jq -cS '.' <<<"${args_json}" 2>/dev/null || printf '{}')"
 
-  # Attempt to parse observation as JSON
+	# Attempt to parse observation as JSON
 	if observation_json=$(jq -c '.' <<<"${observation}" 2>/dev/null); then
 		observation_json_value="${observation_json}"
 	else
 		observation_json_value="null"
 	fi
 
-  # Build history entry
+	# Build history entry
 	entry=$(
 		jq -c -n \
 			--arg step "${step_index}" \
@@ -143,7 +143,7 @@ record_tool_execution() {
                 }'
 	) || return 1
 
-  # Append entry to history and log
+	# Append entry to history and log
 	record_history "${state_name}" "${entry}"
 	log "INFO" "Recorded tool execution" "$(printf 'step=%s tool=%s' "${step_index}" "${tool}")"
 }
@@ -156,7 +156,7 @@ finalize_executor_result() {
 	local final_answer
 	state_name="$1"
 
-  # Check if replanning is needed due to user feedback
+	# Check if replanning is needed due to user feedback
 	needs_replanning="$(json_state_get_key "${state_name}" "needs_replanning" 2>/dev/null || echo "")"
 
 	# If replanning is needed, check for user feedback
@@ -169,11 +169,11 @@ finalize_executor_result() {
 		fi
 	fi
 
-  # Determine final answer from state
+	# Determine final answer from state
 	observation="$(json_state_get_key "${state_name}" "final_answer" 2>/dev/null || echo "")"
 	final_answer_action="$(json_state_get_key "${state_name}" "final_answer_action" 2>/dev/null || echo "")"
 
-  # Prioritize observation if valid
+	# Prioritize observation if valid
 	if [[ -n "${observation}" ]]; then
 		if jq -e '.output != null and .exit_code != null' <<<"${observation}" >/dev/null 2>&1; then
 			final_answer="$(jq -r '.output' <<<"${observation}")"
@@ -186,16 +186,16 @@ finalize_executor_result() {
 		final_answer=""
 	fi
 
-  # Store final answer back into state
+	# Store final answer back into state
 	json_state_set_key "${state_name}" "final_answer" "${final_answer}"
 
-  # Validate final answer if enabled
+	# Validate final answer if enabled
 	if [[ "${ENABLE_ANSWER_VALIDATION:-true}" == "true" ]]; then
 		validate_and_optionally_replan "${state_name}" "${final_answer}"
 		return $?
 	fi
 
-  # Emit final answer and summary
+	# Emit final answer and summary
 	log_pretty "INFO" "Final answer" "${final_answer}"
 	if [[ -z "$(format_tool_history "$(state_get_history_lines "${state_name}")")" ]]; then
 		log "INFO" "Execution summary" "No tool runs"
@@ -203,7 +203,7 @@ finalize_executor_result() {
 		log_pretty "INFO" "Execution summary" "$(format_tool_history "$(state_get_history_lines "${state_name}")")"
 	fi
 
-  # Emit boxed summary
+	# Emit boxed summary
 	emit_boxed_summary \
 		"$(json_state_get_key "${state_name}" "user_query")" \
 		"$(json_state_get_key "${state_name}" "plan_outline")" \
@@ -221,18 +221,18 @@ validate_and_optionally_replan() {
 	state_name="$1"
 	final_answer="$2"
 
-  # Fetch user query and history
+	# Fetch user query and history
 	user_query="$(json_state_get_key "${state_name}" "user_query")"
 	history_text="$(state_get_history_lines "${state_name}")"
 
-  # Run final answer validation
+	# Run final answer validation
 	log "INFO" "Running final answer validation" || true
 
 	# Always capture output; keep exit code separately.
 	validation_json="$(validate_final_answer_against_query "${user_query}" "${final_answer}" "${history_text}")"
 	validator_rc=$?
 
-  # Interpret validation result
+	# Interpret validation result
 	if [[ ${validator_rc} -ne 0 ]]; then
 		# Validator infra failure: we got *some* output (maybe), but tool failed.
 		log "WARN" "Answer validation check encountered an error; outputting answer as-is" "rc=${validator_rc}" || true
@@ -250,14 +250,14 @@ validate_and_optionally_replan() {
       ' <<<"${validation_json}" 2>/dev/null
 		)"
 
-    # Extract reasoning if present
+		# Extract reasoning if present
 		reasoning="$(
 			jq -r '.reasoning // empty' <<<"${validation_json}" 2>/dev/null
 		)"
 
 		log_pretty "INFO" "validation_result" "${validation_json}" || true
 
-    # Handle validation outcome
+		# Handle validation outcome
 		if [[ "${satisfied}" == "0" ]]; then
 			log "WARN" "Final answer did not satisfy query per validator" || true
 

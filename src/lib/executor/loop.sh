@@ -54,7 +54,7 @@ normalize_args_json() {
 	# Normalize with sorted keys
 	normalized="$(jq -cS '.' <<<"${args_json}" 2>/dev/null || printf '{}')"
 
-  # Return normalized JSON
+	# Return normalized JSON
 	printf '%s' "${normalized}"
 }
 
@@ -67,10 +67,10 @@ format_action_context() {
 	thought="$1"
 	tool="$2"
 	args_json="$3"
-  # Pretty-print args JSON if possible
+	# Pretty-print args JSON if possible
 	args_pretty="$(jq -c '.' <<<"${args_json}" 2>/dev/null || printf '%s' "${args_json}")"
 
-  # Return formatted context
+	# Return formatted context
 	printf 'Thought: %s\nTool: %s\nArgs: %s' "${thought}" "${tool}" "${args_pretty}"
 }
 
@@ -89,7 +89,7 @@ apply_plan_arg_controls() {
 	user_query="$4"
 	history_text="$5"
 
-  # Parse args and plan args as objects, defaulting to empty objects
+	# Parse args and plan args as objects, defaulting to empty objects
 	args_obj="$(jq -ce 'if type=="object" then . else {} end' <<<"${args_json}" 2>/dev/null || printf '{}')"
 	plan_args="$(jq -ce '.args // {} | if type=="object" then . else {} end' <<<"${plan_entry_json}" 2>/dev/null || printf '{}')"
 
@@ -117,7 +117,7 @@ $planned as $p
 JQ
 	)
 
-  # Apply the jq filter to merge args and mark context-controlled fields
+	# Apply the jq filter to merge args and mark context-controlled fields
 	jq -c -n --argjson args "${args_obj}" --argjson planned "${plan_args}" "${jq_filter}" 2>/dev/null
 }
 

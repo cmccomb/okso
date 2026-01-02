@@ -566,6 +566,6 @@ else
 		return 1 2>/dev/null
 	fi
 
-        # shellcheck source=../executor/loop.sh disable=SC1091
-        source "${EXECUTOR_ENTRYPOINT}"
+	# shellcheck source=../executor/loop.sh disable=SC1091
+	source "${EXECUTOR_ENTRYPOINT}"
 fi
