@@ -25,32 +25,17 @@ emit_error_envelope() {
 	#   $1 - context (string; optional; defaults to ERROR_CONTEXT/TOOL_NAME/runtime)
 	#   $2 - category (string; required)
 	#   $3 - message (string; required)
-	local context category message escaped_context escaped_category escaped_message
+	local context category message
 	context=${1:-${ERROR_CONTEXT:-${TOOL_NAME:-runtime}}}
 	category="$2"
 	message="$3"
 
-	if command -v jq >/dev/null 2>&1; then
-		jq -cn \
-			--arg name "${context}" \
-			--arg category "${category}" \
-			--arg message "${message}" \
-			'{name:$name, category:$category, message:$message}'
-		return
-	fi
-
-	escaped_context=${context//\\/\\\\}
-	escaped_context=${escaped_context//"/\\"/}
-	escaped_context=${escaped_context//$'\n'/\\n}
-	escaped_category=${category//\\/\\\\}
-	escaped_category=${escaped_category//"/\\"/}
-	escaped_category=${escaped_category//$'\n'/\\n}
-	escaped_message=${message//\\/\\\\}
-	escaped_message=${escaped_message//"/\\"/}
-	escaped_message=${escaped_message//$'\n'/\\n}
-
-	printf '{"name":"%s","category":"%s","message":"%s"}\n' \
-		"${escaped_context}" "${escaped_category}" "${escaped_message}"
+	# Emit the error envelope as JSON
+  jq -cn \
+    --arg name "${context}" \
+    --arg category "${category}" \
+    --arg message "${message}" \
+    '{name:$name, category:$category, message:$message}'
 }
 
 die() {
@@ -66,6 +51,7 @@ die() {
 	message="$3"
 	status=${4:-1}
 
+  # Emit the error envelope and exit
 	emit_error_envelope "${context}" "${category}" "${message}" >&2
 	exit "${status}"
 }
@@ -83,6 +69,7 @@ warn() {
 	message="$3"
 	status=${4:-1}
 
+  # Emit the error envelope and return status
 	emit_error_envelope "${context}" "${category}" "${message}" >&2
 	return "${status}"
 }
@@ -96,5 +83,6 @@ log_debug() {
 	context=${1:-${ERROR_CONTEXT:-${TOOL_NAME:-runtime}}}
 	message="$2"
 
+  # Emit the debug envelope
 	emit_error_envelope "${context}" "debug" "${message}" >&2
 }
