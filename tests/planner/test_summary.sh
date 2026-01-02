@@ -19,8 +19,8 @@
 
                 state_prefix="summary_state"
                 initialize_executor_state "${state_prefix}" "Do something" "tool-a" "" "Plan outline"
-                state_append_history "${state_prefix}" "tool-a did work"
-                state_set "${state_prefix}" "final_answer" "All done"
+                json_state_append_history "${state_prefix}" "tool-a did work"
+                json_state_set_key "${state_prefix}" "final_answer" "All done"
 
                 output="$(finalize_executor_result "${state_prefix}")"
                 [[ "${output}" == *"Do something"* ]]

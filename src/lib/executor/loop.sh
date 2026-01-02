@@ -28,8 +28,8 @@ source "${EXECUTOR_LIB_DIR}/../llm/llama_client.sh"
 source "${EXECUTOR_LIB_DIR}/../exec/dispatch.sh"
 # shellcheck source=../core/logging.sh disable=SC1091
 source "${EXECUTOR_LIB_DIR}/../core/logging.sh"
-# shellcheck source=../core/state.sh disable=SC1091
-source "${EXECUTOR_LIB_DIR}/../core/state.sh"
+# shellcheck source=../core/json_state.sh disable=SC1091
+source "${EXECUTOR_LIB_DIR}/../core/json_state.sh"
 # shellcheck source=../tools/query.sh disable=SC1091
 source "${EXECUTOR_LIB_DIR}/../tools/query.sh"
 # shellcheck source=../prompt/templates.sh disable=SC1091
@@ -250,8 +250,8 @@ execute_planned_action() {
 	args_json="$(jq -c '.args' <<<"${action_json}")"
 	thought="$(jq -r '.thought' <<<"${action_json}")"
 
-	history_text="$(state_get_history_lines "${state_prefix}")"
-	if ! args_after_controls="$(resolve_action_args "${tool}" "${args_json}" "${action_json}" "$(state_get "${state_prefix}" "user_query")" "${history_text}" "$(state_get "${state_prefix}" "plan_outline")" "${thought}")"; then
+        history_text="$(state_get_history_lines "${state_prefix}")"
+        if ! args_after_controls="$(resolve_action_args "${tool}" "${args_json}" "${action_json}" "$(json_state_get_key "${state_prefix}" "user_query")" "${history_text}" "$(json_state_get_key "${state_prefix}" "plan_outline")" "${thought}")"; then
 		log "ERROR" "Argument resolution failed" "${tool}" || true
 		return 1
 	fi
@@ -259,12 +259,12 @@ execute_planned_action() {
 	context="$(format_action_context "${thought}" "${tool}" "${args_after_controls}")"
 	observation="$(execute_tool_with_query "${tool}" "$(extract_tool_query "${tool}" "${args_after_controls}")" "${context}" "${args_after_controls}")"
 
-	record_tool_execution "${state_prefix}" "${tool}" "${thought}" "${args_after_controls}" "${observation}" "${step_index}"
+        record_tool_execution "${state_prefix}" "${tool}" "${thought}" "${args_after_controls}" "${observation}" "${step_index}"
 
-	if [[ "${tool}" == "final_answer" ]]; then
-		state_set "${state_prefix}" "final_answer_action" "${observation}"
-		state_set "${state_prefix}" "final_answer" "${observation}"
-	fi
+        if [[ "${tool}" == "final_answer" ]]; then
+                json_state_set_key "${state_prefix}" "final_answer_action" "${observation}"
+                json_state_set_key "${state_prefix}" "final_answer" "${observation}"
+        fi
 }
 
 executor_loop() {
@@ -286,19 +286,19 @@ executor_loop() {
 
 	if [[ -z "${plan_entries}" ]]; then
 		log "ERROR" "No planner actions provided" "${user_query}" >&2
-		state_set "${state_prefix}" "final_answer" "Planner did not provide any executable steps."
-		finalize_executor_result "${state_prefix}"
-		return 1
-	fi
+                json_state_set_key "${state_prefix}" "final_answer" "Planner did not provide any executable steps."
+                finalize_executor_result "${state_prefix}"
+                return 1
+        fi
 
 	step_index=0
 
-	if ! jq -e 'type == "array" and (length > 0)' <<<"${plan_entries}" >/dev/null 2>&1; then
-		log "ERROR" "Planner returned no actionable steps" "${plan_entries}" >&2
-		state_set "${state_prefix}" "final_answer" "Planner did not provide any executable steps."
-		finalize_executor_result "${state_prefix}"
-		return 1
-	fi
+        if ! jq -e 'type == "array" and (length > 0)' <<<"${plan_entries}" >/dev/null 2>&1; then
+                log "ERROR" "Planner returned no actionable steps" "${plan_entries}" >&2
+                json_state_set_key "${state_prefix}" "final_answer" "Planner did not provide any executable steps."
+                finalize_executor_result "${state_prefix}"
+                return 1
+        fi
 
 	while IFS= read -r plan_entry || [[ -n "$plan_entry" ]]; do
 		((++step_index))
@@ -307,12 +307,12 @@ executor_loop() {
 			break
 		fi
 
-		execute_planned_action "${state_prefix}" "${step_index}" "${plan_entry}"
+                execute_planned_action "${state_prefix}" "${step_index}" "${plan_entry}"
 
-		if [[ -n "$(state_get "${state_prefix}" "final_answer")" ]]; then
-			break
-		fi
-	done < <(jq -c '.[]' <<<"${plan_entries}")
+                if [[ -n "$(json_state_get_key "${state_prefix}" "final_answer")" ]]; then
+                        break
+                fi
+        done < <(jq -c '.[]' <<<"${plan_entries}")
 
 	finalize_executor_result "${state_prefix}"
 }

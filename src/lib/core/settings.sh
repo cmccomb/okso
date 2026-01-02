@@ -29,74 +29,9 @@ CORE_SETTINGS_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=src/lib/core/json_state.sh
 source "${CORE_SETTINGS_LIB_DIR}/json_state.sh"
 
-settings_namespace_json_var() {
-	# Generates the shell variable name for a settings namespace.
-	# Arguments:
-	#   $1 - settings namespace prefix (string)
-	json_state_namespace_var "$@"
-}
-
-settings_get_json_document() {
-	# Retrieves the JSON document for a namespace with optional fallback.
-	# Arguments:
-	#   $1 - settings namespace prefix (string)
-	#   $2 - fallback JSON (string, optional; defaults to '{}')
-	#   $3 - output variable name (string, optional)
-	json_state_get_document "$@"
-}
-
-settings_set_json_document() {
-	# Sets the JSON document for a namespace after validating JSON.
-	# Arguments:
-	#   $1 - settings namespace prefix (string)
-	#   $2 - JSON document (string)
-	json_state_set_document "$@"
-}
-
-settings_clear_namespace() {
-	# Clears a settings namespace to an empty JSON document or provided value.
-	# Arguments:
-	#   $1 - settings namespace prefix (string)
-	#   $2 - JSON document to write (string, optional; defaults to '{}')
-	local prefix document
-	prefix="$1"
-	document="${2:-{}}"
-	settings_set_json_document "${prefix}" "${document}"
-}
-
-settings_set() {
-	# Sets a logical key in the settings document.
-	# Arguments:
-	#   $1 - settings namespace prefix (string)
-	#   $2 - logical key (string)
-	#   $3 - value (string)
-	settings_set_json "$@"
-}
-
-settings_get() {
-	# Fetches a logical key from the settings document.
-	# Arguments:
-	#   $1 - settings namespace prefix (string)
-	#   $2 - logical key (string)
-	settings_get_json "$@"
-}
-
-settings_set_json() {
-	# Writes a JSON-serializable value at the provided key.
-	# Arguments:
-	#   $1 - settings namespace prefix (string)
-	#   $2 - logical key (string)
-	#   $3 - value (string)
-	json_state_set_key "$@"
-}
-
-settings_get_json() {
-	# Reads a JSON value at the provided key.
-	# Arguments:
-	#   $1 - settings namespace prefix (string)
-	#   $2 - logical key (string)
-	json_state_get_key "$@"
-}
+# Settings consumers should call json_state_* helpers directly for reads and writes
+# to avoid duplicating wrapper functions. This module provides only the
+# settings-specific bootstrapping needed to materialize defaults.
 
 create_default_settings() {
 	# Builds and stores the default settings document for the namespace.
@@ -190,5 +125,5 @@ create_default_settings() {
 	fi
 
 	# Store the default settings document
-	settings_set_json_document "${settings_prefix}" "${default_json}"
+        json_state_set_document "${settings_prefix}" "${default_json}"
 }
