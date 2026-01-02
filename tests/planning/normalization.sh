@@ -5,7 +5,7 @@ setup() {
 }
 
 @test "normalize_plan accepts top-level plan arrays" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/normalization.sh
 raw_response='[{"tool":"notes_create","args":{"title":"t"},"thought":"note"},{"tool":"final_answer","args":{"input":"done"},"thought":"reply"}]'
@@ -21,22 +21,22 @@ SCRIPT
 }
 
 @test "normalize_plan enforces array shape from arguments" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/normalization.sh
 normalize_plan '{"plan": "not an array"}'
 SCRIPT
 
-        [ "$status" -ne 0 ]
+	[ "$status" -ne 0 ]
 }
 
 @test "normalize_plan fails cleanly on empty output" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/normalization.sh
 normalize_plan <<<""
 SCRIPT
 
-        [ "$status" -ne 0 ]
+	[ "$status" -ne 0 ]
 	[[ "${output}" == *"planner_output_empty"* ]]
 }
