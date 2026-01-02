@@ -27,7 +27,12 @@ source "${PLANNING_NORMALIZATION_DIR}/../core/logging.sh"
 normalize_plan() {
 	local raw normalized
 
-	raw="$(cat)"
+	# Prefer an explicit argument when provided; fall back to stdin for callers
+	# that stream planner output directly.
+	raw="${1:-}"
+	if [[ -z "${raw}" ]]; then
+		raw="$(cat)"
+	fi
 
 	if [[ -z "${raw}" ]]; then
 		log "WARN" "normalize_plan: received empty planner output" "planner_output_empty" >&2
@@ -52,15 +57,4 @@ end
 	printf '%s' "${normalized}"
 }
 
-# Extracts and minimally validates a plan array.
-# Arguments:
-#   $1 - planner response JSON (array)
-extract_plan_array() {
-	local payload
-	payload="${1:-}"
-
-	normalize_plan <<<"${payload}"
-}
-
 export -f normalize_plan
-export -f extract_plan_array

@@ -45,7 +45,7 @@ init_tool_registry
 register_web_search
 register_final_answer
 plan=$(jq -nc '[{"tool":"web_search","args":{"query":"mars weather","num":2},"thought":"check"},{"tool":"final_answer","args":{"input":"done"},"thought":"respond"}]')
-normalized=$(normalize_planner_response <<<"${plan}")
+normalized=$(normalize_plan <<<"${plan}")
 scorecard=$(score_planner_candidate "${normalized}" | tail -n 1)
 jq -e '.score | type == "number"' <<<"${scorecard}"
 jq -e '.rationale | map(select(contains("Planner args satisfy registered tool schemas."))) | length == 1' <<<"${scorecard}"
@@ -67,7 +67,7 @@ init_tool_registry
 register_web_search
 register_final_answer
 plan=$(jq -nc '[{"tool":"web_search","args":{"input":"mars weather"},"thought":"check"},{"tool":"final_answer","args":{"input":"done"},"thought":"respond"}]')
-normalized=$(normalize_planner_response <<<"${plan}")
+normalized=$(normalize_plan <<<"${plan}")
 scorecard=$(score_planner_candidate "${normalized}" | tail -n 1)
 jq -e '.rationale | map(select(contains("Planner args satisfy registered tool schemas."))) | length == 1' <<<"${scorecard}"
 SCRIPT
