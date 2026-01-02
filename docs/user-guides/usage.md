@@ -47,7 +47,7 @@ Use `./src/bin/okso --help` to see all flags. The CLI walks through planning and
    REACT_MODEL_SPEC=bartowski/Qwen_Qwen3-4B-GGUF:Qwen_Qwen3-4B-Q4_K_M.gguf \
    PLANNER_MODEL_BRANCH=main \
    REACT_MODEL_BRANCH=main \
-   OKSO_LLAMA_BIN=llama-cli \
+   OKSO_LLAMA_BIN=llama-completion \
    ./src/bin/okso --yes -- "classify support tickets"
    ```
 

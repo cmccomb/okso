@@ -53,10 +53,6 @@ Final answer captured
   - Model file within the repository
   - Uses executor model if not specified
 
-- **`VALIDATOR_CACHE_FILE`** (default: uses `EXECUTOR_CACHE_FILE`)
-  - Prompt cache file for validator inference
-  - Uses executor cache if not specified
-
 ## Validation Schema
 
 The validation output follows this JSON schema:
@@ -203,7 +199,6 @@ Example test:
 
 1. **Model Selection**: Uses the 8B model (typically 4-6GB) for efficiency
 2. **Inference Cost**: Adds one additional LLM inference call per execution
-3. **Caching**: Supports prompt caching via `VALIDATOR_CACHE_FILE` to reduce repeated inference costs
 
 ## Troubleshooting
 

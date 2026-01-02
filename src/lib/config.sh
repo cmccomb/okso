@@ -188,11 +188,6 @@ load_config() {
 	CACHE_DIR="${OKSO_CACHE_DIR:-${default_cache_dir}}"
 	NOTES_DIR="${OKSO_NOTES_DIR:-${HOME}/.okso}"
 
-	PLANNER_CACHE_FILE="${OKSO_PLANNER_CACHE_FILE:-${CACHE_DIR}/planner.prompt-cache}"
-	EXECUTOR_CACHE_FILE="${OKSO_EXECUTOR_CACHE_FILE:-${CACHE_DIR}/runs/${OKSO_RUN_ID}/executor.prompt-cache}"
-	VALIDATOR_CACHE_FILE="${OKSO_VALIDATOR_CACHE_FILE:-${CACHE_DIR}/runs/${OKSO_RUN_ID}/validator.prompt-cache}"
-	SEARCH_REPHRASER_CACHE_FILE="${OKSO_REPHRASER_CACHE_FILE:-${CACHE_DIR}/rephraser.prompt-cache}"
-
 	log_model_autotune_summary
 }
 
@@ -214,9 +209,6 @@ VALIDATOR_MODEL_BRANCH=$(quote_config_value "${VALIDATOR_MODEL_BRANCH}")
 SEARCH_REPHRASER_MODEL_SPEC=$(quote_config_value "${SEARCH_REPHRASER_MODEL_SPEC}")
 SEARCH_REPHRASER_MODEL_BRANCH=$(quote_config_value "${SEARCH_REPHRASER_MODEL_BRANCH}")
 CACHE_DIR=$(quote_config_value "${CACHE_DIR}")
-PLANNER_CACHE_FILE=$(quote_config_value "${PLANNER_CACHE_FILE}")
-EXECUTOR_CACHE_FILE=$(quote_config_value "${EXECUTOR_CACHE_FILE}")
-VALIDATOR_CACHE_FILE=$(quote_config_value "${VALIDATOR_CACHE_FILE}")
 VERBOSITY=${VERBOSITY}
 APPROVE_ALL=${APPROVE_ALL}
 EOF_CONFIG
@@ -305,17 +297,13 @@ init_environment() {
 		LLAMA_AVAILABLE=true
 	fi
 
-	if [[ "${LLAMA_AVAILABLE}" == true ]] && ! command -v "${LLAMA_BIN:-llama-cli}" >/dev/null 2>&1; then
-		log "WARN" "llama.cpp binary not found" "${LLAMA_BIN:-llama-cli}"
+	if [[ "${LLAMA_AVAILABLE}" == true ]] && ! command -v "${LLAMA_BIN:-llama-completion}" >/dev/null 2>&1; then
+		log "WARN" "llama.cpp binary not found" "${LLAMA_BIN:-llama-completion}"
 		LLAMA_AVAILABLE=false
 	fi
 
 	# Create required directories
 	mkdir -p "${CACHE_DIR}" \
-		"$(dirname "${PLANNER_CACHE_FILE}")" \
-		"$(dirname "${EXECUTOR_CACHE_FILE}")" \
-		"$(dirname "${VALIDATOR_CACHE_FILE}")" \
-		"$(dirname "${SEARCH_REPHRASER_CACHE_FILE}")" \
 		"${NOTES_DIR}"
 }
 

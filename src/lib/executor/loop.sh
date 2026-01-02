@@ -152,7 +152,7 @@ fill_missing_args_with_llm() {
 
 	log_pretty "INFO" "prompt" "${prompt}"
 
-	response="$(llama_infer "${prompt}" "" 256 "${schema}" "${EXECUTOR_MODEL_REPO:-}" "${EXECUTOR_MODEL_FILE:-}" "${EXECUTOR_CACHE_FILE:-}")"
+	response="$(llama_infer "${prompt}" "" 256 "${schema}" "${EXECUTOR_MODEL_REPO:-}" "${EXECUTOR_MODEL_FILE:-}")"
 	if jq -e 'type == "object"' <<<"${response}" >/dev/null 2>&1; then
 		jq -c '.' <<<"${response}"
 		return 0

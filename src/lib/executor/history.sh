@@ -141,38 +141,37 @@ finalize_executor_result() {
 	# Finalizes and emits the executor run result.
 	# Arguments:
 	#   $1 - state prefix
-	local state_name final_answer observation final_answer_action needs_replanning user_feedback
+	local state_name observation final_answer_action needs_replanning user_feedback
+	local final_answer
 	state_name="$1"
 
-	# Check if replanning is needed due to user feedback
 	needs_replanning="$(state_get "${state_name}" "needs_replanning" 2>/dev/null || echo "")"
 	if [[ "${needs_replanning}" == "true" ]]; then
 		user_feedback="$(state_get_json_document "${state_name}" | jq -r '.user_feedback // empty' 2>/dev/null || echo "")"
 		if [[ -n "${user_feedback}" ]]; then
 			log "INFO" "Replanning with user feedback" "feedback=${user_feedback}"
-			# Emit a special marker that signals replanning is needed
 			jq -nc --arg feedback "${user_feedback}" '{status: "feedback_received", feedback: $feedback}'
 			return 0
 		fi
 	fi
 
-	observation="$(state_get "${state_name}" "final_answer")"
-	final_answer_action="$(state_get "${state_name}" "final_answer_action")"
-	if [[ -z "${observation}" ]]; then
-		if [[ -n "${final_answer_action}" ]]; then
-			final_answer="${final_answer_action}"
-		fi
-	else
+	observation="$(state_get "${state_name}" "final_answer" 2>/dev/null || echo "")"
+	final_answer_action="$(state_get "${state_name}" "final_answer_action" 2>/dev/null || echo "")"
+
+	if [[ -n "${observation}" ]]; then
 		if jq -e '.output != null and .exit_code != null' <<<"${observation}" >/dev/null 2>&1; then
-			final_answer=$(jq -r '.output' <<<"${observation}")
+			final_answer="$(jq -r '.output' <<<"${observation}")"
 		else
 			final_answer="${observation}"
 		fi
+	elif [[ -n "${final_answer_action}" ]]; then
+		final_answer="${final_answer_action}"
+	else
+		final_answer=""
 	fi
 
 	state_set "${state_name}" "final_answer" "${final_answer}"
 
-	# Validate final answer against original query if enabled
 	if [[ "${ENABLE_ANSWER_VALIDATION:-true}" == "true" ]]; then
 		validate_and_optionally_replan "${state_name}" "${final_answer}"
 		return $?

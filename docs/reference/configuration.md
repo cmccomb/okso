@@ -20,10 +20,6 @@ EXECUTOR_MODEL_SPEC=bartowski/Qwen_Qwen3-4B-GGUF:Qwen_Qwen3-4B-Q4_K_M.gguf
 EXECUTOR_MODEL_BRANCH=main
 VALIDATOR_MODEL_SPEC=bartowski/Qwen_Qwen3-4B-GGUF:Qwen_Qwen3-4B-Q4_K_M.gguf
 VALIDATOR_MODEL_BRANCH=main
-OKSO_CACHE_DIR=${XDG_CACHE_HOME:-~/.cache}/okso
-OKSO_PLANNER_CACHE_FILE=${OKSO_CACHE_DIR}/planner.prompt-cache
-OKSO_EXECUTOR_CACHE_FILE=${OKSO_CACHE_DIR}/runs/${OKSO_RUN_ID}/executor.prompt-cache
-OKSO_VALIDATOR_CACHE_FILE=${OKSO_CACHE_DIR}/runs/${OKSO_RUN_ID}/validator.prompt-cache
 OKSO_RUN_ID=20240101T000000Z
 VERBOSITY=1
 APPROVE_ALL=false
@@ -43,12 +39,8 @@ PLANNER_DEBUG_LOG=${TMPDIR:-/tmp}/okso_planner_candidates.log
 - `EXECUTOR_MODEL_BRANCH`: Optional branch or tag for the executor download (default: `main`).
 - `VALIDATOR_MODEL_SPEC`: Hugging Face `repo[:file]` identifier for the validator llama.cpp model (default: executor model).
 - `VALIDATOR_MODEL_BRANCH`: Optional branch or tag for the validator download (default: executor branch).
-- `OKSO_CACHE_DIR`: Base directory for llama.cpp prompt caches (default: `${XDG_CACHE_HOME:-~/.cache}/okso`).
-- `OKSO_PLANNER_CACHE_FILE`: Prompt cache for planner llama.cpp calls (default: `${OKSO_CACHE_DIR}/planner.prompt-cache`).
-- `OKSO_EXECUTOR_CACHE_FILE`: Prompt cache for the executor call (default: `${OKSO_CACHE_DIR}/runs/${OKSO_RUN_ID}/executor.prompt-cache`).
-- `OKSO_VALIDATOR_CACHE_FILE`: Prompt cache for the validator call (default: `${OKSO_CACHE_DIR}/runs/${OKSO_RUN_ID}/validator.prompt-cache`).
 - `OKSO_RUN_ID`: Run identifier used to scope the executor prompt cache (default: UTC timestamp). Override to reuse a run-scoped cache across invocations.
-- `LLAMA_BIN`: Path to the llama.cpp binary used for scoring (default: `llama-cli`).
+- `LLAMA_BIN`: Path to the llama.cpp binary used for scoring (default: `llama-completion`).
 - `LLAMA_DEFAULT_CONTEXT_SIZE`: Assumed default llama.cpp context window used when no override is requested (default: `4096`).
 - `LLAMA_CONTEXT_CAP`: Maximum context window okso will request for llama.cpp invocations (default: `8192`).
 - `LLAMA_CONTEXT_MARGIN_PERCENT`: Safety margin percentage applied to prompt + generation estimates when sizing context (default: `15`).
@@ -68,8 +60,6 @@ PLANNER_DEBUG_LOG=${TMPDIR:-/tmp}/okso_planner_candidates.log
 Environment variables with the same names as the config keys take precedence over file values when set. Google Custom Search credentials can also be provided via `OKSO_GOOGLE_CSE_API_KEY` and `OKSO_GOOGLE_CSE_ID`.
 
 Planner sampling runs `PLANNER_SAMPLE_COUNT` generations at `PLANNER_TEMPERATURE` and logs each normalized candidate to `PLANNER_DEBUG_LOG` alongside its score, tie-breaker, and rationale. Lowering the temperature generally produces narrower plans, while increasing it explores more tool combinations. Candidates outside the `PLANNER_MAX_PLAN_STEPS` budget, that omit the final `final_answer` step, or that reference unknown tools drop in score and are unlikely to win when the best plan is selected.
-
-Executor runs create a cache directory under `${OKSO_CACHE_DIR}/runs/${OKSO_RUN_ID}` for the duration of the invocation. Successful runs remove that directory, while failures keep it intact for debugging.
 
 API keys and other secrets belong in `~/.config/okso/config.env` or a locally sourced `.env` file—never commit them to version control. Consider adding local files containing secrets to `.gitignore` if you keep them alongside your working directory.
 

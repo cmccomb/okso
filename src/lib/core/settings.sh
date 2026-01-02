@@ -129,7 +129,7 @@ create_default_settings() {
 
 	default_json=$(jq -c -n \
 		--arg version "0.1.0" \
-		--arg llama_bin "${LLAMA_BIN:-llama-cli}" \
+		--arg llama_bin "${LLAMA_BIN:-llama-completion}" \
 		--arg default_model_file "${default_model_file}" \
 		--arg default_planner_model_file "${default_planner_model_file}" \
 		--arg config_dir "${config_dir}" \
@@ -154,10 +154,6 @@ create_default_settings() {
                         default_planner_model_file: $default_planner_model_file,
                         config_dir: $config_dir,
                         config_file: $config_file,
-                        cache_dir: $cache_dir,
-                        planner_cache_file: $planner_cache_file,
-                        executor_cache_file: $executor_cache_file,
-                        rephraser_cache_file: $rephraser_cache_file,
                         run_id: $run_id,
                         planner_model_spec: $planner_model_spec,
                         planner_model_branch: $planner_model_branch,

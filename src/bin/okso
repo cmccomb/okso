@@ -15,7 +15,7 @@
 #   -q, --quiet           Silence informational logs.
 #
 # Environment:
-#   LLAMA_BIN       llama.cpp binary (default: llama-cli).
+#   LLAMA_BIN       llama.cpp binary (default: llama-completion).
 #
 # Dependencies:
 #   - bash 3.2+
@@ -105,8 +105,7 @@ main() {
 	fi
 
 	prepare_environment_with_settings "${settings_prefix}"
-	ensure_executor_run_cache_dir
-	trap 'cleanup_executor_run_cache_dir "$?"' EXIT
+
 	initialize_planner_models
 	# Planner flow:
 	# 1. Generate an outline, 2. identify tools, 3. build concrete plan entries

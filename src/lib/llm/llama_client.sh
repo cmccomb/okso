@@ -79,19 +79,15 @@ llama_infer() {
 	#   $4 - JSON schema document for constrained decoding (string, optional)
 	#   $5 - model repository override (string, optional)
 	#   $6 - model file override (string, optional)
-	#   $7 - prompt cache path (string, optional)
-	#   $8 - prompt prefix used to assemble the final prompt (string, optional)
 	# Returns:
 	#   The generated text (string).
-	local prompt stop_string number_of_tokens schema_json repo_override file_override cache_file prompt_prefix
+	local prompt stop_string number_of_tokens schema_json repo_override file_override
 	prompt="$1"
 	stop_string="${2:-}"
 	number_of_tokens="${3:-256}"
 	schema_json="${4:-}"
 	repo_override="${5:-${EXECUTOR_MODEL_REPO:-}}"
 	file_override="${6:-${EXECUTOR_MODEL_FILE:-}}"
-	cache_file="${7:-${EXECUTOR_CACHE_FILE:-}}"
-	prompt_prefix="${8:-}"
 
 	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
 		log "WARN" "llama unavailable; skipping inference" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}"
@@ -164,18 +160,12 @@ llama_infer() {
 		llama_args+=(--grammar "${LLAMA_GRAMMAR}")
 	fi
 
-	if [[ -n "${cache_file}" ]]; then
-		llama_args+=(--prompt-cache "${cache_file}")
-	fi
-
 	prompt_context_detail=$(jq -nc \
-		--arg cache_file "${cache_file}" \
-		--arg prompt_prefix "${prompt_prefix}" \
 		--arg stop_string "${stop_string}" \
 		--argjson schema_provided "$(if [[ -n "${schema_json}" ]]; then printf 'true'; else printf 'false'; fi)" \
 		--argjson prompt_tokens "${prompt_tokens}" \
 		--argjson target_context "${target_context}" \
-		'{cache_file:$cache_file, prompt_prefix:$prompt_prefix, stop_string:$stop_string, schema_provided:$schema_provided, prompt_tokens:$prompt_tokens, target_context:$target_context}')
+		'{stop_string:$stop_string, schema_provided:$schema_provided, prompt_tokens:$prompt_tokens, target_context:$target_context}')
 	log "INFO" "llama prompt inputs" "${prompt_context_detail}"
 
 	llama_args+=(-p "${prompt}")

@@ -319,7 +319,7 @@ map_tier_to_models() {
 }
 
 load_or_detect_system_profile() {
-	local cache_home cache_file phys_bytes is_gha base_tier now_gb
+	local phys_bytes is_gha base_tier now_gb
 	cache_home="${OKSO_CACHE_HOME:-${XDG_CACHE_HOME:-${HOME}/.cache}/okso}"
 	cache_file="${cache_home}/system_profile.env"
 

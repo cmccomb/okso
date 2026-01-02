@@ -56,7 +56,7 @@ schema_path() {
 	printf '%s/%s' "$(schema_root_dir)" "${schema_file}"
 }
 
-# Reads a schema file and writes it to stdout.
+# Reads a schema file and writes it to stdout as a single line (no newlines).
 # Arguments:
 #   $1 - schema key (string)
 load_schema_text() {
@@ -64,5 +64,7 @@ load_schema_text() {
 	schema_name="$1"
 	schema_file_path="$(schema_path "${schema_name}")" || return 1
 
-	cat "${schema_file_path}"
+	# Remove LF/CR so --json-schema sees valid JSON (whitespace is fine; literal newlines can break some parsers).
+	# Also trim leading/trailing spaces.
+	tr -d '\r\n' <"${schema_file_path}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'
 }
