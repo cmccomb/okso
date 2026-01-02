@@ -54,28 +54,5 @@ require_macos_capable_terminal() {
 	return 1
 }
 
-require_python3_available() {
-	# Ensures python3 is available before invoking Python-dependent helpers.
-	# Arguments:
-	#   $1 - feature name for logging context (string; optional)
-	local feature python_status
-	feature=${1:-"python3-dependent functionality"}
-	python_status=127
-
-	hash -r 2>/dev/null || true
-
-	if command -v python3 >/dev/null 2>&1; then
-		python3 --version >/dev/null 2>&1
-		python_status=$?
-		if [[ ${python_status} -eq 0 ]]; then
-			return 0
-		fi
-	fi
-
-	log "ERROR" "python3 is required for ${feature}" "python3 unavailable or failed (exit_status=${python_status})" || true
-	return 1
-}
-
 export -f require_llama_available
 export -f require_macos_capable_terminal
-export -f require_python3_available

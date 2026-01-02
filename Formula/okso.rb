@@ -18,6 +18,7 @@ class Okso < Formula
   depends_on "poppler"
   depends_on "ripgrep"
   depends_on "tesseract"
+  depends_on "python@3.12"
   depends_on "yq"
 
   def install
