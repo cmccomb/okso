@@ -20,8 +20,6 @@ PLANNING_NORMALIZATION_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck source=../core/logging.sh disable=SC1091
 source "${PLANNING_NORMALIZATION_DIR}/../core/logging.sh"
-# shellcheck source=../dependency_guards/dependency_guards.sh disable=SC1091
-source "${PLANNING_NORMALIZATION_DIR}/../dependency_guards/dependency_guards.sh"
 
 # Normalize planner output into a clean PlannerPlan JSON array of objects. Minimal
 # guards remain to weed out empty llama responses while letting schema validation

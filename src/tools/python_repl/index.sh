@@ -21,8 +21,6 @@
 
 # shellcheck source=../../lib/core/logging.sh disable=SC1091
 source "${BASH_SOURCE[0]%/tools/python_repl/index.sh}/lib/core/logging.sh"
-# shellcheck source=../../lib/dependency_guards/dependency_guards.sh disable=SC1091
-source "${BASH_SOURCE[0]%/tools/python_repl/index.sh}/lib/dependency_guards/dependency_guards.sh"
 # shellcheck source=../registry.sh disable=SC1091
 source "${BASH_SOURCE[0]%/python_repl/index.sh}/registry.sh"
 
@@ -133,11 +131,6 @@ tool_python_repl() {
 	local query sandbox_dir startup_file repl_input status text_key create_status startup_status # strings and status code
 	text_key="$(canonical_text_arg_key)"
 
-	if ! require_python3_available "python_repl tool"; then
-		log "ERROR" "python_repl requires python3" "TOOL_ARGS=${TOOL_ARGS}" >&2
-		return 1
-	fi
-
 	if ! query=$(python_repl_resolve_query); then
 		return 1
 	fi
@@ -168,7 +161,7 @@ tool_python_repl() {
 	PYTHONSTARTUP="${startup_file}" \
 		PYTHON_REPL_SANDBOX="${sandbox_dir}" \
 		PYTHONNOUSERSITE=1 \
-		python3 -iq <<<"${repl_input}"
+		python3.12 -iq <<<"${repl_input}"
 	status=$?
 	rm -rf "${sandbox_dir}"
 	return "${status}"

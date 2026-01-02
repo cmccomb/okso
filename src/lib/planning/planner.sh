@@ -77,8 +77,6 @@ source "${PLANNING_LIB_DIR}/../prompt/build_planner.sh"
 source "${PLANNING_LIB_DIR}/../schema/schema.sh"
 # shellcheck source=../core/json_state.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/../core/json_state.sh"
-# shellcheck source=../dependency_guards/dependency_guards.sh disable=SC1091
-source "${PLANNING_LIB_DIR}/../dependency_guards/dependency_guards.sh"
 # shellcheck source=../llm/llama_client.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/../llm/llama_client.sh"
 # shellcheck source=../config.sh disable=SC1091
@@ -239,16 +237,6 @@ generate_planner_response() {
 	user_query="$1"
 
 	initialize_planner_models
-
-	if ! require_llama_available "planner generation"; then
-		log "ERROR" "Planner cannot generate steps without llama.cpp" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}" >&2
-		local fallback
-		fallback="LLM unavailable. Request received: ${user_query}"
-		jq -nc \
-			--arg answer "${fallback}" \
-			'{plan:[{tool:"final_answer", args:{input:$answer}, thought:"Provide the direct response."}]}'
-		return 0
-	fi
 
 	local tools_decl
 	if tools_decl=$(declare -p TOOLS 2>/dev/null) && grep -q 'declare -a' <<<"${tools_decl}"; then

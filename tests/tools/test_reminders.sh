@@ -11,12 +11,6 @@
 # Exit codes:
 #   Inherits Bats semantics; individual tests assert script exit codes.
 
-@test "reminders tools warn when run off macOS" {
-	run bash -lc 'source ./src/tools/reminders/index.sh; IS_MACOS=false; VERBOSITY=1; TOOL_ARGS="{\"title\":\"Title\",\"notes\":\"Body\"}"; tool_reminders_create'
-	[ "$status" -eq 0 ]
-	[[ "$output" == *"Apple Reminders is only available on macOS"* ]]
-}
-
 @test "reminders_create passes title and body to osascript" {
 	run bash -lc '
                 export REMINDERS_OSASCRIPT_BIN="$(pwd)/tests/fixtures/osascript_stub.sh"
