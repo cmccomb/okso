@@ -5,7 +5,7 @@ setup() {
 }
 
 @test "plan_json_to_outline numbers steps from raw planner text" {
-	run bash <<'SCRIPT'
+run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/prompting.sh
 raw_plan='[{"tool":"terminal","args":{"command":"ls"},"thought":"list"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"wrap up"}]'
@@ -17,17 +17,17 @@ SCRIPT
 	[ "${lines[1]}" = "2. wrap up" ]
 }
 
-@test "plan_json_to_outline unwraps planner response objects" {
-	run bash <<'SCRIPT'
+@test "plan_json_to_outline requires array payloads" {
+run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/prompting.sh
-response='{"plan":[{"tool":"terminal","args":{"command":"ls"},"thought":"step one"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]}'
+response='[{"tool":"terminal","args":{"command":"ls"},"thought":"step one"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]'
 plan_json_to_outline "${response}"
 SCRIPT
 
-	[ "$status" -eq 0 ]
-	[ "${lines[0]}" = "1. step one" ]
-	[ "${lines[1]}" = "2. finish" ]
+[ "$status" -eq 0 ]
+[ "${lines[0]}" = "1. step one" ]
+[ "${lines[1]}" = "2. finish" ]
 }
 
 @test "build_planner_prompt_with_tools injects tool descriptions when provided" {

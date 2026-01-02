@@ -4,7 +4,7 @@ Structured outputs keep planner interactions predictable. Schema files live in `
 
 ## Available schemas
 
-- `planner_plan.schema.json`: JSON object with a `plan` array of tool steps and rationales; each step requires `tool`, `args`, and `thought`. The executor consumes the serialized plan directly from the planner response.
+- `planner_plan.schema.json`: JSON array of tool steps and rationales; each item requires `tool`, `args`, and `thought`. The executor consumes the serialized plan directly from the planner response.
 - `pre_planner_search_terms.schema.json`: array of one to three concise search terms (5–80 characters each) used for pre-planning web lookups.
 - `executor_action.schema.json`: template for dynamically generated per-tool schemas used during the executor loop. Tool names and argument shapes are injected at runtime before calls to `llama.cpp`.
 - `final_answer_verification.schema.json`: validator output with `satisfied` (boolean) and `reasoning` (string) fields emitted by the final-answer validation helper.

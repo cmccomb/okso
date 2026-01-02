@@ -48,27 +48,15 @@ build_planner_prompt_with_tools() {
 }
 
 plan_json_to_outline() {
-	# Converts a planner response into a human-readable outline string.
-	# Arguments:
-	#   $1 - planner response JSON (object or legacy plan array)
-	local plan_json plan_clean status
-	plan_json="${1:-[]}"
+# Converts a planner response into a human-readable outline string.
+# Arguments:
+#   $1 - planner response JSON array
+local plan_json plan_clean
+plan_json="${1:-[]}"
 
-	if plan_clean="$(extract_plan_array "${plan_json}")"; then
-		status=0
-	else
-		status=$?
-	fi
+plan_clean="$(normalize_planner_plan <<<"${plan_json}")" || return 1
 
-	if [[ ${status} -ne 0 ]]; then
-		return 1
-	fi
-
-	if [[ -z "${plan_clean}" ]]; then
-		return 1
-	fi
-
-	jq -r 'to_entries | map("\(.key + 1). " + (if (.value.thought // "") != "" then (.value.thought // "") else "Use " + (.value.tool // "unknown") end)) | join("\n")' <<<"${plan_clean}"
+jq -r 'to_entries | map("\(.key + 1). " + (if (.value.thought // "") != "" then (.value.thought // "") else "Use " + (.value.tool // "unknown") end)) | join("\n")' <<<"${plan_clean}"
 }
 
 export -f plan_json_to_outline

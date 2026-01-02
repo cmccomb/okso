@@ -1,64 +1,56 @@
 {
   "title": "Tool-based plan",
   "description": "Structured planner response consumed by the executor.",
-  "type": "object",
-  "required": ["plan"],
-  "properties": {
-    "plan": {
-      "type": "array",
-      "minItems": 1,
-      "description": "Ordered steps pairing tools with arguments and short reasoning.",
-      "items": {
+  "type": "array",
+  "minItems": 1,
+  "items": {
+    "type": "object",
+    "required": ["tool", "args", "thought"],
+    "additionalProperties": false,
+    "properties": {
+      "thought": {
+        "type": "string",
+        "description": "Brief rationale for the step.",
+        "minLength": 5
+      },
+      "tool": {
+        "type": "string",
+        "description": "Tool to invoke.",
+        "minLength": 1
+      },
+      "args": {
         "type": "object",
-        "required": ["tool", "args", "thought"],
-        "additionalProperties": false,
-        "properties": {
-          "thought": {
-            "type": "string",
-            "description": "Brief rationale for the step.",
-            "minLength": 5
-          },
-          "tool": {
-            "type": "string",
-            "description": "Tool to invoke.",
-            "minLength": 1
-          },
-          "args": {
-            "type": "object",
-            "description": "Arguments for the chosen tool. Fill mode is inferred from seed presence: non-empty strings are used as-is; empty strings are filled by executor from observations.",
-            "additionalProperties": true
-          }
-        },
-        "allOf": [
-          {
-            "if": {
-              "properties": {
-                "tool": {
-                  "enum": [
-                    "calendar_list",
-                    "mail_list_inbox",
-                    "mail_list_unread",
-                    "notes_list",
-                    "executor_fallback",
-                    "reminders_list"
-                  ]
-                }
-              }
-            },
-            "then": {
-              "properties": {
-                "args": { "minProperties": 0 }
-              }
-            },
-            "else": {
-              "properties": {
-                "args": { "minProperties": 1 }
-              }
+        "description": "Arguments for the chosen tool. Fill mode is inferred from seed presence: non-empty strings are used as-is; empty strings are filled by executor from observations.",
+        "additionalProperties": true
+      }
+    },
+    "allOf": [
+      {
+        "if": {
+          "properties": {
+            "tool": {
+              "enum": [
+                "calendar_list",
+                "mail_list_inbox",
+                "mail_list_unread",
+                "notes_list",
+                "executor_fallback",
+                "reminders_list"
+              ]
             }
           }
-        ]
+        },
+        "then": {
+          "properties": {
+            "args": { "minProperties": 0 }
+          }
+        },
+        "else": {
+          "properties": {
+            "args": { "minProperties": 1 }
+          }
+        }
       }
-    }
-  },
-  "additionalProperties": false
+    ]
+  }
 }
