@@ -16,10 +16,17 @@ estimate_token_count() {
 	# Estimates the number of tokens in a string based on character length.
 	# Arguments:
 	#   $1 - text content (string)
+	# Returns:
+	#   Estimated token count (int)
+
 	local text length token_estimate
 	text="$1"
 	length=${#text}
+
+	# Simple heuristic: assume average 4 characters per token
 	token_estimate=$(((length + 3) / 4))
+
+	# Return the estimated token count
 	printf '%s' "${token_estimate}"
 }
 

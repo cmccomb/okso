@@ -17,7 +17,11 @@
 #   Functions print derived strings and return 0 on success.
 
 LLM_CONTEXT_BUDGET_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# Initialize default values for optional environment variables
 PROMPT_TOKEN_BUDGET=${PROMPT_TOKEN_BUDGET:-4096}
+
+# Default character limit per line when summarizing context blocks
 SUMMARY_LINE_CHAR_LIMIT=${SUMMARY_LINE_CHAR_LIMIT:-240}
 
 # shellcheck source=../core/logging.sh disable=SC1091
@@ -30,32 +34,46 @@ estimate_total_tokens() {
 	# Arguments:
 	#   $1 - prompt text (string)
 	#   $2 - max completion tokens (int)
+	# Returns:
+	#   Estimated total tokens (int)
 	local prompt_text completion_tokens prompt_tokens
 	prompt_text="$1"
 	completion_tokens=${2:-0}
+
+	# Estimate prompt tokens
 	prompt_tokens=$(estimate_token_count "${prompt_text}")
+
+	# Return total tokens
 	echo $((prompt_tokens + completion_tokens))
 }
 
-_truncate_for_summary() {
+truncate_for_summary() {
 	# Produces a condensed, single-line summary for oversized content.
 	# Arguments:
 	#   $1 - content to summarize (string)
 	#   $2 - character limit (int)
+	# Returns:
+	#   Summarized content (string)
 	local content limit cleaned
 	content="$1"
 	limit="$2"
+
+	# Replace newlines and carriage returns with spaces
 	cleaned="${content//$'\n'/ }"
 	cleaned="${cleaned//$'\r'/ }"
+
+	# Collapse multiple spaces
 	while [[ "${cleaned}" == *"  "* ]]; do
 		cleaned="${cleaned//  / }"
 	done
 
+	# If within limit, return as-is
 	if ((${#cleaned} <= limit)); then
 		printf '%s' "${cleaned}"
 		return 0
 	fi
 
+	# Truncate and indicate original length
 	printf '%s… (truncated, original %s chars)' "${cleaned:0:limit}" "${#cleaned}"
 }
 
@@ -64,11 +82,14 @@ summarize_context_block() {
 	# Arguments:
 	#   $1 - raw context text (string)
 	#   $2 - character limit per line (int, optional)
+	# Returns:
+	#   Summarized context text (string)
 	local context_text line_char_limit
 	context_text="$1"
 	line_char_limit=${2:-${SUMMARY_LINE_CHAR_LIMIT}}
 	local -a summarized_lines=()
 
+	# Process each line
 	while IFS= read -r line || [[ -n "${line}" ]]; do
 		local prefixless leading_spaces
 		leading_spaces="${line%%[![:space:]]*}"
@@ -79,22 +100,26 @@ summarize_context_block() {
 			continue
 		fi
 
+		# Special handling for web_fetch content lines.
 		local trimmed
 		if [[ "${prefixless}" =~ ^Content: ]]; then
-			trimmed="$(_truncate_for_summary "${prefixless#Content: }" "${line_char_limit}")"
+			trimmed="$(truncate_for_summary "${prefixless#Content: }" "${line_char_limit}")"
 			summarized_lines+=("${leading_spaces}Content summary: ${trimmed}")
 			continue
 		fi
 
+		# Summarize lines exceeding the character limit.
 		if ((${#prefixless} > line_char_limit)); then
-			trimmed="$(_truncate_for_summary "${prefixless}" "${line_char_limit}")"
+			trimmed="$(truncate_for_summary "${prefixless}" "${line_char_limit}")"
 			summarized_lines+=("${leading_spaces}${trimmed}")
 			continue
 		fi
 
+		# Preserve lines within the limit.
 		summarized_lines+=("${line}")
 	done <<<"${context_text}"
 
+	# Output summarized lines
 	printf '%s\n' "${summarized_lines[@]}"
 }
 
@@ -105,12 +130,16 @@ apply_prompt_context_budget() {
 	#   $2 - context text to potentially summarize (string)
 	#   $3 - max completion tokens expected (int)
 	#   $4 - context label for logging (string)
+	# Returns:
+	#   Context text, summarized if needed (string)
+
 	local prompt_text context_text max_completion_tokens context_label
 	prompt_text="$1"
 	context_text="$2"
 	max_completion_tokens=${3:-0}
 	context_label="$4"
 
+	# Estimate total tokens for prompt + completion
 	local estimated_total
 	estimated_total=$(estimate_total_tokens "${prompt_text}" "${max_completion_tokens}")
 	if ((estimated_total <= PROMPT_TOKEN_BUDGET)); then
@@ -118,6 +147,7 @@ apply_prompt_context_budget() {
 		return 0
 	fi
 
+	# Summarize context to fit within budget
 	local summarized_context context_tokens summarized_tokens adjusted_total prompt_tokens base_prompt_tokens
 	summarized_context="$(summarize_context_block "${context_text}" "${SUMMARY_LINE_CHAR_LIMIT}")"
 	prompt_tokens=$((estimated_total - max_completion_tokens))
@@ -127,25 +157,29 @@ apply_prompt_context_budget() {
 	((base_prompt_tokens < 0)) && base_prompt_tokens=0
 	adjusted_total=$((base_prompt_tokens + summarized_tokens + max_completion_tokens))
 
+	# Further adjust if still over budget
 	if ((adjusted_total > PROMPT_TOKEN_BUDGET)); then
 		local remaining_budget max_characters_for_context
 		remaining_budget=$((PROMPT_TOKEN_BUDGET - base_prompt_tokens - max_completion_tokens))
 		((remaining_budget < 0)) && remaining_budget=0
 
+		# If no budget remains, clear context; otherwise, truncate summarized context further
 		if ((remaining_budget == 0)); then
 			summarized_context=""
 			summarized_tokens=0
 			adjusted_total=$((base_prompt_tokens + max_completion_tokens))
 		else
 			max_characters_for_context=$((remaining_budget * 4))
-			summarized_context="$(_truncate_for_summary "${summarized_context}" "${max_characters_for_context}")"
+			summarized_context="$(truncate_for_summary "${summarized_context}" "${max_characters_for_context}")"
 			summarized_tokens=$(estimate_token_count "${summarized_context}")
 			adjusted_total=$((base_prompt_tokens + summarized_tokens + max_completion_tokens))
 		fi
 	fi
 
+	# Log the summarization action
 	log "INFO" "Summarizing context to respect prompt budget" \
 		"$(printf 'label=%s before=%s after=%s budget=%s' "${context_label}" "${estimated_total}" "${adjusted_total}" "${PROMPT_TOKEN_BUDGET}")"
 
+	# Return the summarized context
 	printf '%s' "${summarized_context}"
 }
