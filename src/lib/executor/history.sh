@@ -20,8 +20,8 @@ EXECUTOR_LIB_DIR=${EXECUTOR_LIB_DIR:-$(cd -- "$(dirname "${BASH_SOURCE[0]}")" &&
 
 # shellcheck source=../core/logging.sh disable=SC1091
 source "${EXECUTOR_LIB_DIR}/../core/logging.sh"
-# shellcheck source=../core/state.sh disable=SC1091
-source "${EXECUTOR_LIB_DIR}/../core/state.sh"
+# shellcheck source=../core/json_state.sh disable=SC1091
+source "${EXECUTOR_LIB_DIR}/../core/json_state.sh"
 # shellcheck source=../formatting.sh disable=SC1091
 source "${EXECUTOR_LIB_DIR}/../formatting.sh"
 # shellcheck source=../validation/validation.sh disable=SC1091
@@ -38,7 +38,7 @@ initialize_executor_state() {
 	local state_prefix
 	state_prefix="$1"
 
-	state_set_json_document "${state_prefix}" "$(jq -c -n \
+	json_state_set_document "${state_prefix}" "$(jq -c -n \
 		--arg user_query "$2" \
 		--arg allowed_tools "$3" \
 		--arg plan_entries "$4" \
@@ -66,7 +66,7 @@ record_history() {
 	#   $2 - formatted history entry (string)
 	local entry
 	entry="$2"
-	state_append_history "$1" "${entry}"
+	json_state_append_history "$1" "${entry}"
 }
 
 state_get_history_lines() {
@@ -77,7 +77,7 @@ state_get_history_lines() {
 	#   Newline-delimited string of history entries.
 	local state_prefix history_raw
 	state_prefix="$1"
-	history_raw="$(state_get "${state_prefix}" "history")"
+	history_raw="$(json_state_get_key "${state_prefix}" "history")"
 
 	if jq -e 'type == "array"' <<<"${history_raw}" >/dev/null 2>&1; then
 		jq -r '.[]' <<<"${history_raw}"
@@ -145,9 +145,9 @@ finalize_executor_result() {
 	local final_answer
 	state_name="$1"
 
-	needs_replanning="$(state_get "${state_name}" "needs_replanning" 2>/dev/null || echo "")"
+	needs_replanning="$(json_state_get_key "${state_name}" "needs_replanning" 2>/dev/null || echo "")"
 	if [[ "${needs_replanning}" == "true" ]]; then
-		user_feedback="$(state_get_json_document "${state_name}" | jq -r '.user_feedback // empty' 2>/dev/null || echo "")"
+		user_feedback="$(json_state_get_document "${state_name}" | jq -r '.user_feedback // empty' 2>/dev/null || echo "")"
 		if [[ -n "${user_feedback}" ]]; then
 			log "INFO" "Replanning with user feedback" "feedback=${user_feedback}"
 			jq -nc --arg feedback "${user_feedback}" '{status: "feedback_received", feedback: $feedback}'
@@ -155,8 +155,8 @@ finalize_executor_result() {
 		fi
 	fi
 
-	observation="$(state_get "${state_name}" "final_answer" 2>/dev/null || echo "")"
-	final_answer_action="$(state_get "${state_name}" "final_answer_action" 2>/dev/null || echo "")"
+	observation="$(json_state_get_key "${state_name}" "final_answer" 2>/dev/null || echo "")"
+	final_answer_action="$(json_state_get_key "${state_name}" "final_answer_action" 2>/dev/null || echo "")"
 
 	if [[ -n "${observation}" ]]; then
 		if jq -e '.output != null and .exit_code != null' <<<"${observation}" >/dev/null 2>&1; then
@@ -170,7 +170,7 @@ finalize_executor_result() {
 		final_answer=""
 	fi
 
-	state_set "${state_name}" "final_answer" "${final_answer}"
+	json_state_set_key "${state_name}" "final_answer" "${final_answer}"
 
 	if [[ "${ENABLE_ANSWER_VALIDATION:-true}" == "true" ]]; then
 		validate_and_optionally_replan "${state_name}" "${final_answer}"
@@ -185,8 +185,8 @@ finalize_executor_result() {
 	fi
 
 	emit_boxed_summary \
-		"$(state_get "${state_name}" "user_query")" \
-		"$(state_get "${state_name}" "plan_outline")" \
+		"$(json_state_get_key "${state_name}" "user_query")" \
+		"$(json_state_get_key "${state_name}" "plan_outline")" \
 		"$(state_get_history_lines "${state_name}")" \
 		"${final_answer}"
 }
@@ -201,7 +201,7 @@ validate_and_optionally_replan() {
 	state_name="$1"
 	final_answer="$2"
 
-	user_query="$(state_get "${state_name}" "user_query")"
+	user_query="$(json_state_get_key "${state_name}" "user_query")"
 	history_text="$(state_get_history_lines "${state_name}")"
 
 	log "INFO" "Running final answer validation" || true
@@ -237,12 +237,12 @@ validate_and_optionally_replan() {
 			log "WARN" "Final answer did not satisfy query per validator" || true
 
 			# Persist flags for caller / UI
-			state_set "${state_name}" "answer_validation_failed" "true" || true
+			json_state_set_key "${state_name}" "answer_validation_failed" "true" || true
 			if [[ -n "${reasoning}" ]]; then
-				state_set "${state_name}" "validation_failure_reason" "${reasoning}" || true
+				json_state_set_key "${state_name}" "validation_failure_reason" "${reasoning}" || true
 				log_pretty "WARN" "validation_failure_reason" "${reasoning}" || true
 			else
-				state_set "${state_name}" "validation_failure_reason" "Unknown reason" || true
+				json_state_set_key "${state_name}" "validation_failure_reason" "Unknown reason" || true
 			fi
 		elif [[ "${satisfied}" == "1" ]]; then
 			log "INFO" "Final answer passed validation" || true
@@ -264,7 +264,7 @@ validate_and_optionally_replan() {
 
 	emit_boxed_summary \
 		"${user_query}" \
-		"$(state_get "${state_name}" "plan_outline")" \
+		"$(json_state_get_key "${state_name}" "plan_outline")" \
 		"${history_text}" \
 		"${final_answer}"
 }

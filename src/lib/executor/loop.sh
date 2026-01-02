@@ -26,8 +26,8 @@ source "${EXECUTOR_LIB_DIR}/../formatting.sh"
 source "${EXECUTOR_LIB_DIR}/../llm/llama_client.sh"
 # shellcheck source=../core/logging.sh disable=SC1091
 source "${EXECUTOR_LIB_DIR}/../core/logging.sh"
-# shellcheck source=../core/state.sh disable=SC1091
-source "${EXECUTOR_LIB_DIR}/../core/state.sh"
+# shellcheck source=../core/json_state.sh disable=SC1091
+source "${EXECUTOR_LIB_DIR}/../core/json_state.sh"
 # shellcheck source=../tools/query.sh disable=SC1091
 source "${EXECUTOR_LIB_DIR}/../tools/query.sh"
 # shellcheck source=../prompt/templates.sh disable=SC1091
@@ -251,7 +251,7 @@ execute_planned_action() {
 	thought="$(jq -r '.thought' <<<"${action_json}")"
 
 	history_text="$(state_get_history_lines "${state_prefix}")"
-	if ! args_after_controls="$(resolve_action_args "${tool}" "${args_json}" "${action_json}" "$(state_get "${state_prefix}" "user_query")" "${history_text}" "$(state_get "${state_prefix}" "plan_outline")" "${thought}")"; then
+	if ! args_after_controls="$(resolve_action_args "${tool}" "${args_json}" "${action_json}" "$(json_state_get_key "${state_prefix}" "user_query")" "${history_text}" "$(json_state_get_key "${state_prefix}" "plan_outline")" "${thought}")"; then
 		log "ERROR" "Argument resolution failed" "${tool}" || true
 		return 1
 	fi
@@ -262,8 +262,8 @@ execute_planned_action() {
 	record_tool_execution "${state_prefix}" "${tool}" "${thought}" "${args_after_controls}" "${observation}" "${step_index}"
 
 	if [[ "${tool}" == "final_answer" ]]; then
-		state_set "${state_prefix}" "final_answer_action" "${observation}"
-		state_set "${state_prefix}" "final_answer" "${observation}"
+		json_state_set_key "${state_prefix}" "final_answer_action" "${observation}"
+		json_state_set_key "${state_prefix}" "final_answer" "${observation}"
 	fi
 }
 
@@ -286,7 +286,7 @@ executor_loop() {
 
 	if [[ -z "${plan_entries}" ]]; then
 		log "ERROR" "No planner actions provided" "${user_query}" >&2
-		state_set "${state_prefix}" "final_answer" "Planner did not provide any executable steps."
+		json_state_set_key "${state_prefix}" "final_answer" "Planner did not provide any executable steps."
 		finalize_executor_result "${state_prefix}"
 		return 1
 	fi
@@ -295,7 +295,7 @@ executor_loop() {
 
 	if ! jq -e 'type == "array" and (length > 0)' <<<"${plan_entries}" >/dev/null 2>&1; then
 		log "ERROR" "Planner returned no actionable steps" "${plan_entries}" >&2
-		state_set "${state_prefix}" "final_answer" "Planner did not provide any executable steps."
+		json_state_set_key "${state_prefix}" "final_answer" "Planner did not provide any executable steps."
 		finalize_executor_result "${state_prefix}"
 		return 1
 	fi
@@ -309,7 +309,7 @@ executor_loop() {
 
 		execute_planned_action "${state_prefix}" "${step_index}" "${plan_entry}"
 
-		if [[ -n "$(state_get "${state_prefix}" "final_answer")" ]]; then
+		if [[ -n "$(json_state_get_key "${state_prefix}" "final_answer")" ]]; then
 			break
 		fi
 	done < <(jq -c '.[]' <<<"${plan_entries}")
