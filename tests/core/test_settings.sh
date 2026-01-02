@@ -6,10 +6,10 @@
                 prefix="persist_${RANDOM}"
                 source ./src/lib/core/settings.sh
                 create_default_settings "${prefix}"
-                settings_set_json "${prefix}" example "value"
-                cache_var="$(settings_namespace_json_var "${prefix}")"
+                json_state_set_key "${prefix}" example "value"
+                cache_var="$(json_state_namespace_var "${prefix}")"
                 unset "${cache_var}"
-                printf "%s" "$(settings_get_json_document "${prefix}" | jq -r ".example")"
+                printf "%s" "$(json_state_get_document "${prefix}" | jq -r ".example")"
         '
 	[ "$status" -eq 0 ]
 	[ "$output" = "value" ]
@@ -22,7 +22,7 @@
                 export DEFAULT_MODEL_FILE_BASE="Alt.gguf"
                 source ./src/lib/core/settings.sh
                 create_default_settings "${prefix}" "{\"verbosity\":\"5\",\"notes_dir\":\"/tmp/custom_notes\"}"
-                doc="$(settings_get_json_document "${prefix}")"
+                doc="$(json_state_get_document "${prefix}")"
                 printf "%s|%s|%s" \
                         "$(jq -r ".default_model_file" <<<"${doc}")" \
                         "$(jq -r ".verbosity" <<<"${doc}")" \

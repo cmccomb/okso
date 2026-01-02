@@ -2,6 +2,9 @@
 
 setup() {
 	unset -f chpwd _mise_hook 2>/dev/null || true
+	export VERBOSITY=0
+	export LLAMA_AVAILABLE=false
+	export TESTING_PASSTHROUGH=true
 }
 
 @test "normalize_planner_plan retains structured planner output" {
@@ -177,17 +180,16 @@ SCRIPT
 set -euo pipefail
 export PLANNER_SKIP_TOOL_LOAD=true
 source ./src/lib/planning/planner.sh
-source ./src/lib/core/state.sh
 VERBOSITY=0
 state_prefix=state
 plan_entry=$(jq -nc --arg tool "terminal" --arg command "echo" --arg arg0 "hi" '{tool:$tool,args:{command:$command,args:[$arg0]},thought:"Following planned step"}')
-state_set "${state_prefix}" "plan_entries" "${plan_entry}"
-state_set "${state_prefix}" "plan_index" 0
+json_state_set_key "${state_prefix}" "plan_entries" "${plan_entry}"
+json_state_set_key "${state_prefix}" "plan_index" 0
 USE_REACT_LLAMA=false
 LLAMA_AVAILABLE=false
 select_next_action "${state_prefix}" action_json
 printf "%s\n" "${action_json}"
-plan_index="$(state_get "${state_prefix}" "plan_index")"
+plan_index="$(json_state_get_key "${state_prefix}" "plan_index")"
 if [[ "${plan_index}" -ne 1 ]]; then
         echo "expected plan index to advance for fallback action"
         exit 1

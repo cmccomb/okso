@@ -59,6 +59,8 @@ source "${RUNTIME_LIB_DIR}/core/errors.sh"
 source "${RUNTIME_LIB_DIR}/formatting.sh"
 # shellcheck source=./tools/query.sh disable=SC1091
 source "${RUNTIME_LIB_DIR}/tools/query.sh"
+# shellcheck source=./core/json_state.sh disable=SC1091
+source "${RUNTIME_LIB_DIR}/core/json_state.sh"
 # shellcheck source=./core/settings.sh disable=SC1091
 source "${RUNTIME_LIB_DIR}/core/settings.sh"
 
@@ -112,7 +114,7 @@ apply_settings_to_globals() {
 	settings_prefix="$1"
 
 	local json key var value
-	json="$(settings_get_json_document "${settings_prefix}")"
+	json="$(json_state_get_document "${settings_prefix}")"
 
 	while read -r key var; do
 		[[ -z "${key}" ]] && continue
@@ -131,7 +133,7 @@ capture_globals_into_settings() {
 	while read -r key var; do
 		[[ -z "${key}" ]] && continue
 		value="${!var-}"
-		settings_set_json "${settings_prefix}" "${key}" "${value}"
+		json_state_set_key "${settings_prefix}" "${key}" "${value}"
 	done <<<"$(settings_field_mappings)"
 }
 

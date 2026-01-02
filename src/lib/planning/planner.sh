@@ -75,8 +75,8 @@ fi
 source "${PLANNING_LIB_DIR}/../prompt/build_planner.sh"
 # shellcheck source=../schema/schema.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/../schema/schema.sh"
-# shellcheck source=../core/state.sh disable=SC1091
-source "${PLANNING_LIB_DIR}/../core/state.sh"
+# shellcheck source=../core/json_state.sh disable=SC1091
+source "${PLANNING_LIB_DIR}/../core/json_state.sh"
 # shellcheck source=../llm/llama_client.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/../llm/llama_client.sh"
 # shellcheck source=../config.sh disable=SC1091
@@ -522,7 +522,7 @@ select_next_action() {
 	state_prefix="$1"
 	output_var="$2"
 
-	plan_entries_raw="$(state_get "${state_prefix}" "plan_entries" 2>/dev/null || printf '')"
+	plan_entries_raw="$(json_state_get_key "${state_prefix}" "plan_entries" 2>/dev/null || printf '')"
 	plan_entries="$(printf '%s' "${plan_entries_raw}" | jq -r '.' 2>/dev/null || printf '%s' "${plan_entries_raw}")"
 
 	if jq -e 'type == "array"' <<<"${plan_entries}" >/dev/null 2>&1; then
@@ -537,7 +537,7 @@ select_next_action() {
 		return 1
 	fi
 
-	plan_index="$(state_get "${state_prefix}" "plan_index" 2>/dev/null || printf '0')"
+	plan_index="$(json_state_get_key "${state_prefix}" "plan_index" 2>/dev/null || printf '0')"
 	if [[ -z "${plan_index}" || ! "${plan_index}" =~ ^[0-9]+$ ]]; then
 		plan_index=0
 	fi
@@ -552,7 +552,7 @@ select_next_action() {
 		return 1
 	fi
 
-	state_set "${state_prefix}" "plan_index" $((plan_index + 1)) || return 1
+	json_state_set_key "${state_prefix}" "plan_index" $((plan_index + 1)) || return 1
 	printf -v "${output_var}" '%s' "${next_action}"
 }
 
