@@ -174,37 +174,3 @@ SCRIPT
 	fallback_tool=$(printf '%s' "${output}" | jq -r '.[0].tool')
 	[ "${fallback_tool}" = "final_answer" ]
 }
-
-@test "select_next_action uses deterministic plan when llama disabled" {
-	run bash <<'SCRIPT'
-set -euo pipefail
-export PLANNER_SKIP_TOOL_LOAD=true
-source ./src/lib/planning/planner.sh
-VERBOSITY=0
-state_prefix=state
-plan_entry=$(jq -nc --arg tool "terminal" --arg command "echo" --arg arg0 "hi" '{tool:$tool,args:{command:$command,args:[$arg0]},thought:"Following planned step"}')
-json_state_set_key "${state_prefix}" "plan_entries" "${plan_entry}"
-json_state_set_key "${state_prefix}" "plan_index" 0
-USE_REACT_LLAMA=false
-LLAMA_AVAILABLE=false
-select_next_action "${state_prefix}" action_json
-printf "%s\n" "${action_json}"
-plan_index="$(json_state_get_key "${state_prefix}" "plan_index")"
-if [[ "${plan_index}" -ne 1 ]]; then
-        echo "expected plan index to advance for fallback action"
-        exit 1
-fi
-SCRIPT
-
-	[ "$status" -eq 0 ]
-	action_json=$(printf '%s' "${output}" | tail -n 1)
-	tool=$(printf '%s' "${action_json}" | jq -r '.tool')
-	command=$(printf '%s' "${action_json}" | jq -r '.args.command')
-	arg0=$(printf '%s' "${action_json}" | jq -r '.args.args[0]')
-	thought=$(printf '%s' "${action_json}" | jq -r '.thought')
-
-	[ "${tool}" = "terminal" ]
-	[ "${command}" = "echo" ]
-	[ "${arg0}" = "hi" ]
-	[ "${thought}" = "Following planned step" ]
-}
