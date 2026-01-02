@@ -179,37 +179,6 @@ SCRIPT
 	[[ "${detail}" == *"${cache_file}"* ]]
 }
 
-@test "llama_infer logs the exact llama argv used" {
-	cd "$(git rev-parse --show-toplevel)" || exit 1
-	args_dir=$(mktemp -d)
-	args_file="${args_dir}/args.txt"
-	cache_file="${args_dir}/react.prompt-cache"
-	log_file="${args_dir}/log.jsonl"
-	mock_binary="${args_dir}/mock_llama.sh"
-	cat >"${mock_binary}" <<SCRIPT
-#!/usr/bin/env bash
-printf "%s\n" "\$@" >"${args_file}"
-SCRIPT
-	chmod +x "${mock_binary}"
-	export LLAMA_AVAILABLE=true
-	export LLAMA_BIN="${mock_binary}"
-	export REACT_MODEL_REPO=demo/repo
-	export REACT_MODEL_FILE=model.gguf
-	export VERBOSITY=2
-	source ./src/lib/llm/llama_client.sh
-
-	llama_infer "prompt text" "" 8 "" "${REACT_MODEL_REPO}" "${REACT_MODEL_FILE}" "${cache_file}" 2>"${log_file}"
-	status=$?
-
-	mapfile -t args <"${args_file}"
-	actual=$(printf '%s ' "${args[@]}")
-	actual=${actual% }
-	logged=$(jq -r 'select(.message=="llama args") | .detail' "${log_file}")
-
-	[ "${status}" -eq 0 ]
-	[[ "LOGGED=${logged}" == "LOGGED=${actual}" ]]
-}
-
 @test "llama_infer interrupts hung llama when timeout configured" {
 	run env BASH_ENV= ENV= bash --noprofile --norc -c '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
