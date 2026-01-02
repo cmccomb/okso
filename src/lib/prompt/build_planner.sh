@@ -19,8 +19,6 @@ PROMPT_BUILD_PLANNER_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${PROMPT_BUILD_PLANNER_DIR}/templates.sh"
 # shellcheck source=../schema/schema.sh disable=SC1091
 source "${PROMPT_BUILD_PLANNER_DIR}/../schema/schema.sh"
-# shellcheck source=../time/time.sh disable=SC1091
-source "${PROMPT_BUILD_PLANNER_DIR}/../time/time.sh"
 
 build_planner_prompt_parts() {
 	# Renders the planner prompt and splits it into prefix + suffix using the rendered date anchor.
@@ -40,9 +38,9 @@ build_planner_prompt_parts() {
 	prefix_var="$4"
 	suffix_var="$5"
 	planner_schema="$(load_schema_text planner_plan)"
-	current_date="$(current_date_local)"
-	current_time="$(current_time_local)"
-	current_weekday="$(current_weekday_local)"
+	current_date="$(date '+%Y-%m-%d')"
+	current_time="$(date '+%H:%M:%S')"
+	current_weekday="$(date '+%A')"
 
 	rendered="$(render_prompt_template "planner" \
 		user_query "${user_query}" \
