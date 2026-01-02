@@ -56,6 +56,11 @@ log_emit() {
 		return 0
 	fi
 
+	# Trim detail if too long
+	if [[ ${#detail} -gt 1000 ]]; then
+    detail="${detail:0:1000}...[first 1000 chars of ${#detail} ($(( 100 * 1000 / ${#detail} ))%)]"
+  fi
+
 	payload=$(jq -n \
 		--arg time "${timestamp}" \
 		--arg level "${level}" \
