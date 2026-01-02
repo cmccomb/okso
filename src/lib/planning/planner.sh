@@ -314,7 +314,7 @@ generate_planner_response() {
 			continue
 		fi
 
-		if ! normalized_plan="$(normalize_planner_response <<<"${raw_plan}")"; then
+		if ! normalized_plan="$(normalize_plan <<<"${raw_plan}")"; then
 			log "WARN" "Planner output unusable from llama.cpp" "${raw_plan}" >&2
 			continue
 		fi
@@ -454,7 +454,7 @@ derive_allowed_tools_from_plan() {
 	local plan_json tool seen
 	plan_json="${1:-[]}"
 
-	plan_json="$(normalize_planner_plan <<<"${plan_json}")" || return 1
+	plan_json="$(normalize_plan <<<"${plan_json}")" || return 1
 
 	seen=""
 	local -a required=()
@@ -494,7 +494,7 @@ plan_json_to_entries() {
 	local plan_json
 	plan_json="$1"
 
-	plan_json="$(normalize_planner_plan <<<"${plan_json}")" || return 1
+	plan_json="$(normalize_plan <<<"${plan_json}")" || return 1
 
 	printf '%s' "${plan_json}"
 }

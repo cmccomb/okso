@@ -24,13 +24,13 @@ source "${PLANNING_NORMALIZATION_DIR}/../core/logging.sh"
 # Normalize planner output into a clean plan array of objects. Structured
 # generation should already satisfy the schema; this function only enforces the
 # top-level array shape and presence of the primary fields.
-normalize_planner_plan() {
+normalize_plan() {
 	local raw normalized
 
 	raw="$(cat)"
 
 	if [[ -z "${raw}" ]]; then
-		log "WARN" "normalize_planner_plan: received empty planner output" "planner_output_empty" >&2
+		log "WARN" "normalize_plan: received empty planner output" "planner_output_empty" >&2
 		return 1
 	fi
 
@@ -45,17 +45,11 @@ else
 error("planner_output_invalid_shape")
 end
 ' <<<"${raw}" 2>/dev/null); then
-		log "WARN" "normalize_planner_plan: failed to parse planner output" "planner_output_parse_failed" >&2
+		log "WARN" "normalize_plan: failed to parse planner output" "planner_output_parse_failed" >&2
 		return 1
 	fi
 
 	printf '%s' "${normalized}"
-}
-
-# Backwards-compatible alias that preserves the previous entry point name while
-# structured generation converges on the top-level array response.
-normalize_planner_response() {
-	normalize_planner_plan
 }
 
 # Extracts and minimally validates a plan array.
@@ -70,9 +64,8 @@ extract_plan_array() {
 		return 1
 	fi
 
-	normalize_planner_plan <<<"${payload}"
+	normalize_plan <<<"${payload}"
 }
 
-export -f normalize_planner_plan
-export -f normalize_planner_response
+export -f normalize_plan
 export -f extract_plan_array

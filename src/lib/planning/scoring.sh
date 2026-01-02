@@ -186,7 +186,7 @@ score_planner_candidate() {
 		max_steps=6
 	fi
 
-	plan_json="$(normalize_planner_plan <<<"${plan_json}")" || return 1
+	plan_json="$(normalize_plan <<<"${plan_json}")" || return 1
 	plan_length=$(jq -r 'length' <<<"${plan_json}" 2>/dev/null)
 
 	log_pretty "INFO" "Evaluating planner plan structure" "${plan_json}" >&2
