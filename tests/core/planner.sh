@@ -1,10 +1,10 @@
 #!/usr/bin/env bats
 
 setup() {
-        unset -f chpwd _mise_hook 2>/dev/null || true
-        export VERBOSITY=0
-        export LLAMA_AVAILABLE=false
-        export TESTING_PASSTHROUGH=true
+	unset -f chpwd _mise_hook 2>/dev/null || true
+	export VERBOSITY=0
+	export LLAMA_AVAILABLE=false
+	export TESTING_PASSTHROUGH=true
 }
 
 @test "normalize_planner_plan retains structured planner output" {
@@ -176,7 +176,7 @@ SCRIPT
 }
 
 @test "select_next_action uses deterministic plan when llama disabled" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 export PLANNER_SKIP_TOOL_LOAD=true
 source ./src/lib/planning/planner.sh

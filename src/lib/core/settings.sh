@@ -125,5 +125,5 @@ create_default_settings() {
 	fi
 
 	# Store the default settings document
-        json_state_set_document "${settings_prefix}" "${default_json}"
+	json_state_set_document "${settings_prefix}" "${default_json}"
 }

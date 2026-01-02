@@ -534,7 +534,7 @@ select_next_action() {
 	state_prefix="$1"
 	output_var="$2"
 
-        plan_entries_raw="$(json_state_get_key "${state_prefix}" "plan_entries" 2>/dev/null || printf '')"
+	plan_entries_raw="$(json_state_get_key "${state_prefix}" "plan_entries" 2>/dev/null || printf '')"
 	plan_entries="$(printf '%s' "${plan_entries_raw}" | jq -r '.' 2>/dev/null || printf '%s' "${plan_entries_raw}")"
 
 	if jq -e 'type == "array"' <<<"${plan_entries}" >/dev/null 2>&1; then
@@ -549,7 +549,7 @@ select_next_action() {
 		return 1
 	fi
 
-        plan_index="$(json_state_get_key "${state_prefix}" "plan_index" 2>/dev/null || printf '0')"
+	plan_index="$(json_state_get_key "${state_prefix}" "plan_index" 2>/dev/null || printf '0')"
 	if [[ -z "${plan_index}" || ! "${plan_index}" =~ ^[0-9]+$ ]]; then
 		plan_index=0
 	fi
@@ -564,7 +564,7 @@ select_next_action() {
 		return 1
 	fi
 
-        json_state_set_key "${state_prefix}" "plan_index" $((plan_index + 1)) || return 1
+	json_state_set_key "${state_prefix}" "plan_index" $((plan_index + 1)) || return 1
 	printf -v "${output_var}" '%s' "${next_action}"
 }
 

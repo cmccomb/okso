@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 
 @test "settings persist across shells using cache" {
-        run bash -lc '
+	run bash -lc '
                 set -e
                 prefix="persist_${RANDOM}"
                 source ./src/lib/core/settings.sh
@@ -16,7 +16,7 @@
 }
 
 @test "default overrides merge onto base settings" {
-        run bash -lc '
+	run bash -lc '
                 set -e
                 prefix="override_${RANDOM}"
                 export DEFAULT_MODEL_FILE_BASE="Alt.gguf"

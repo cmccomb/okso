@@ -99,12 +99,12 @@ main() {
 
 	load_runtime_settings "${settings_prefix}" "$@"
 
-        if [[ "$(json_state_get_key "${settings_prefix}" "command")" == "init" ]]; then
-                # Init mode writes a config file and exits without running the planner.
-                apply_settings_to_globals "${settings_prefix}"
-                write_config_file
-                return 0
-        fi
+	if [[ "$(json_state_get_key "${settings_prefix}" "command")" == "init" ]]; then
+		# Init mode writes a config file and exits without running the planner.
+		apply_settings_to_globals "${settings_prefix}"
+		write_config_file
+		return 0
+	fi
 
 	prepare_environment_with_settings "${settings_prefix}"
 
@@ -112,8 +112,8 @@ main() {
 	# Planner flow:
 	# 1. Generate an outline, 2. identify tools, 3. build concrete plan entries
 	# for execution, then 4. render plan outputs before proceeding.
-        log "INFO" "Starting plan generation" "$(json_state_get_key "${settings_prefix}" "user_query")"
-        plan_response="$(generate_planner_response "$(json_state_get_key "${settings_prefix}" "user_query")")"
+	log "INFO" "Starting plan generation" "$(json_state_get_key "${settings_prefix}" "user_query")"
+	plan_response="$(generate_planner_response "$(json_state_get_key "${settings_prefix}" "user_query")")"
 	plan_outline="$(plan_json_to_outline "${plan_response}")"
 	required_tools="$(derive_allowed_tools_from_plan "${plan_response}")"
 	log "INFO" "Planner identified tools" "${required_tools}"

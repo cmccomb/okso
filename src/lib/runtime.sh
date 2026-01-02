@@ -114,7 +114,7 @@ apply_settings_to_globals() {
 	settings_prefix="$1"
 
 	local json key var value
-        json="$(json_state_get_document "${settings_prefix}")"
+	json="$(json_state_get_document "${settings_prefix}")"
 
 	while read -r key var; do
 		[[ -z "${key}" ]] && continue
@@ -133,7 +133,7 @@ capture_globals_into_settings() {
 	while read -r key var; do
 		[[ -z "${key}" ]] && continue
 		value="${!var-}"
-                json_state_set_key "${settings_prefix}" "${key}" "${value}"
+		json_state_set_key "${settings_prefix}" "${key}" "${value}"
 	done <<<"$(settings_field_mappings)"
 }
 
