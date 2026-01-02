@@ -18,7 +18,7 @@
 
 CORE_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# shellcheck source=./logging.sh disable=SC1091
+# shellcheck source=src/lib/core/logging.sh
 source "${CORE_LIB_DIR}/logging.sh"
 
 json_state_namespace_var() {
@@ -44,6 +44,7 @@ json_state_cache_path() {
 }
 
 json_state_write_cache() {
+  # Writes the JSON document to the persistent cache file for a namespace.
 	# Arguments:
 	#   $1 - namespace prefix (string)
 	#   $2 - JSON document (string)
@@ -53,6 +54,7 @@ json_state_write_cache() {
 }
 
 json_state_get_document() {
+  # Retrieves the JSON document for a namespace with optional fallback.
 	# Arguments:
 	#   $1 - namespace prefix (string)
 	#   $2 - fallback JSON document (string, optional; defaults to '{}')
@@ -109,24 +111,30 @@ json_state_get_document() {
 }
 
 json_state_set_document() {
+  # Sets the JSON document for a namespace after validating JSON.
 	# Arguments:
 	#   $1 - namespace prefix (string)
 	#   $2 - JSON document (string)
 	local prefix document json_var sanitized
 	prefix="$1"
 	document="$2"
+
+	# Validate and store the document
 	json_var=$(json_state_namespace_var "${prefix}")
 
+  # Validate JSON
 	if ! sanitized=$(printf '%s' "${document}" | jq -c '.' 2>/dev/null); then
 		log "ERROR" "json_state_set_document: invalid JSON" "namespace=${prefix}" || true
 		return 1
 	fi
 
+  # Store sanitized JSON
 	printf -v "${json_var}" '%s' "${sanitized}"
 	json_state_write_cache "${prefix}" "${sanitized}"
 }
 
 json_state_set_key() {
+  # Sets a logical key in the JSON document.
 	# Arguments:
 	#   $1 - namespace prefix (string)
 	#   $2 - key (string)
@@ -136,27 +144,37 @@ json_state_set_key() {
 	key="$2"
 	value="$3"
 
+  # Fetch current document
 	json_state_get_document "${prefix}" '{}' base_json >/dev/null
+
+	# Set the key
 	if ! updated=$(jq -c --arg key "${key}" --arg value "${value}" '.[$key] = $value' <<<"${base_json}" 2>/dev/null); then
 		log "ERROR" "json_state_set_key: failed to set value" "namespace=${prefix} key=${key}" || true
 		return 1
 	fi
 
+  # Save updated document
 	json_state_set_document "${prefix}" "${updated}"
 }
 
 json_state_get_key() {
+  # Fetches a logical key from the JSON document.
 	# Arguments:
 	#   $1 - namespace prefix (string)
 	#   $2 - key (string)
 	local prefix key document
 	prefix="$1"
 	key="$2"
+
+	# Fetch current document
 	json_state_get_document "${prefix}" '{}' document >/dev/null
+
+	# Extract and return the key's value
 	jq -r --arg key "${key}" '.[$key] // ""' <<<"${document}"
 }
 
 json_state_increment_key() {
+  # Increments a numeric key in the JSON document.
 	# Arguments:
 	#   $1 - namespace prefix (string)
 	#   $2 - key (string)
@@ -165,25 +183,38 @@ json_state_increment_key() {
 	prefix="$1"
 	key="$2"
 	increment="${3:-1}"
+
+	# Fetch current document
 	json_state_get_document "${prefix}" '{}' base_json >/dev/null
+
+	# Increment the key
 	if ! updated=$(jq -c --arg key "${key}" --argjson inc "${increment}" '.[$key] = ((try (.[$key]|tonumber) catch 0) + $inc)' <<<"${base_json}" 2>/dev/null); then
 		log "ERROR" "json_state_increment_key: failed to increment" "namespace=${prefix} key=${key}" || true
 		return 1
 	fi
+
+	# Save updated document
 	json_state_set_document "${prefix}" "${updated}"
 }
 
 json_state_append_history() {
+  # Appends an entry to the history array in the JSON document.
 	# Arguments:
 	#   $1 - namespace prefix (string)
 	#   $2 - history entry (string)
 	local prefix entry base_json updated
 	prefix="$1"
 	entry="$2"
+
+	# Fetch current document
 	json_state_get_document "${prefix}" '{}' base_json >/dev/null
+
+	# Append to history array
 	if ! updated=$(jq -c --arg entry "${entry}" '(.history //= []) | .history += [$entry]' <<<"${base_json}" 2>/dev/null); then
 		log "ERROR" "json_state_append_history: failed to append history" "namespace=${prefix}" || true
 		return 1
 	fi
+
+	# Save updated document
 	json_state_set_document "${prefix}" "${updated}"
 }
