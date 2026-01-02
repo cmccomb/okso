@@ -59,7 +59,7 @@ PLANNING_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 #   5. The best candidate's plan and allowed tools are forwarded to the executor
 #      loop, which handles execution, approvals, and final answers.
 #
-# This file owns steps (1)–(4); execution dispatch lives in ../executor/executor.sh.
+# This file owns steps (1)–(4); execution dispatch lives in ../executor/loop.sh.
 
 # shellcheck source=../core/errors.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/../core/errors.sh"
@@ -556,7 +556,7 @@ select_next_action() {
 	printf -v "${output_var}" '%s' "${next_action}"
 }
 
-EXECUTOR_ENTRYPOINT=${EXECUTOR_ENTRYPOINT:-"${PLANNING_LIB_DIR}/../executor/executor.sh"}
+EXECUTOR_ENTRYPOINT=${EXECUTOR_ENTRYPOINT:-"${PLANNING_LIB_DIR}/../executor/loop.sh"}
 
 if [[ "${PLANNER_SKIP_TOOL_LOAD:-false}" == true ]]; then
 	log "DEBUG" "Skipping executor entrypoint load" "planner_skip_tool_load=true" >&2
@@ -566,6 +566,6 @@ else
 		return 1 2>/dev/null
 	fi
 
-	# shellcheck source=../executor/executor.sh disable=SC1091
-	source "${EXECUTOR_ENTRYPOINT}"
+        # shellcheck source=../executor/loop.sh disable=SC1091
+        source "${EXECUTOR_ENTRYPOINT}"
 fi
