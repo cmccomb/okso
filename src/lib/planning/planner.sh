@@ -112,11 +112,13 @@ planner_format_search_context() {
 	local raw_context formatted
 	raw_context="$1"
 
+  # Fallback when no context is available
 	if [[ -z "${raw_context}" ]]; then
 		printf '%s' "Search context unavailable."
 		return 0
 	fi
 
+  # Format the search results
 	if ! formatted=$(jq -r '
                 def fmt(idx; item): "\(idx). \(item.title // "Untitled"): \(item.snippet // "") [\(item.url // "")";
                 if (.items | length == 0) then
@@ -131,6 +133,7 @@ planner_format_search_context() {
 		return 0
 	fi
 
+  # Return the formatted context
 	printf '%s' "${formatted}"
 }
 
@@ -144,21 +147,13 @@ planner_fetch_search_context() {
 	local -a formatted_sections=()
 	user_query="$1"
 
-	if ! declare -F tool_web_search >/dev/null 2>&1; then
-		log "WARN" "web_search tool unavailable; skipping pre-plan search" "planner_tools_missing_web_search" >&2
-		printf '%s' "Search context unavailable."
-		return 0
-	fi
-
+  # Derive search queries
 	if ! queries_json="$(planner_generate_search_queries "${user_query}")"; then
 		log "WARN" "Failed to derive search queries; defaulting to raw query" "pre_planner_search_terms_failed" >&2
 		queries_json="$(jq -nc --arg query "${user_query}" '[ $query ]' 2>/dev/null || printf '["%s"]' "${user_query}")"
 	fi
 
-	if [[ -z "${queries_json}" ]]; then
-		queries_json="$(jq -nc --arg query "${user_query}" '[ $query ]' 2>/dev/null || printf '["%s"]' "${user_query}")"
-	fi
-
+  # Execute searches and format context
 	local index=0
 	while IFS= read -r search_query; do
 		((index++))
@@ -166,7 +161,10 @@ planner_fetch_search_context() {
 			continue
 		fi
 
+    # Prepare tool arguments
 		tool_args=$(jq -nc --arg query "${search_query}" '{query:$query, num:5}' 2>/dev/null)
+
+    # Execute the search tool
 		if [[ -z "${tool_args}" ]]; then
 			log "WARN" "Failed to encode search args" "planner_search_args_encoding_failed" >&2
 			raw_context=$(jq -nc --arg query "${search_query}" '{query:$query,items:[]}' 2>/dev/null)
@@ -175,16 +173,20 @@ planner_fetch_search_context() {
 			raw_context=$(jq -nc --arg query "${search_query}" '{query:$query,items:[]}' 2>/dev/null)
 		fi
 
+    # Format the search context
 		formatted_context=$(planner_format_search_context "${raw_context}")
 		formatted_sections+=("Search ${index}: ${formatted_context}")
 	done < <(jq -r '.[]' <<<"${queries_json}" 2>/dev/null)
 
+  # Return the combined search context
 	printf '%s' "$(printf '%s\n' "${formatted_sections[@]}" | sed '/^[[:space:]]*$/d' | paste -sd $'\n\n' -)"
 }
 
 lowercase() {
 	# Arguments:
 	#   $1 - input string
+	# Returns:
+	#   lowercased string
 	printf '%s' "$1" | tr '[:upper:]' '[:lower:]'
 }
 
@@ -195,11 +197,14 @@ validate_positive_int() {
 	#   $1 - raw value (string)
 	#   $2 - fallback value used when validation fails (string)
 	#   $3 - metric name for logging (string)
+	# Returns:
+	#   sanitized positive integer (string)
 	local raw fallback metric sanitized
 	raw="$1"
 	fallback="$2"
 	metric="$3"
 
+  # Validate positive integer
 	if [[ "${raw}" =~ ^[0-9]+$ ]] && ((raw >= 1)); then
 		sanitized="${raw}"
 	else
@@ -207,6 +212,7 @@ validate_positive_int() {
 		sanitized="${fallback}"
 	fi
 
+  # Return sanitized value
 	printf '%s' "${sanitized}"
 }
 
@@ -215,10 +221,13 @@ validate_temperature() {
 	# Arguments:
 	#   $1 - raw temperature (string)
 	#   $2 - fallback temperature when validation fails (string)
+	# Returns:
+  #   sanitized temperature (string)
 	local raw fallback sanitized
 	raw="$1"
 	fallback="$2"
 
+  # Validate temperature in 0-1 range
 	if [[ "${raw}" =~ ^[0-9]*\.?[0-9]+$ ]] && awk -v t="${raw}" 'BEGIN { exit !(t >= 0 && t <= 1) }'; then
 		sanitized="${raw}"
 	else
@@ -226,12 +235,15 @@ validate_temperature() {
 		sanitized="${fallback}"
 	fi
 
+  # Return sanitized value
 	printf '%s' "${sanitized}"
 }
 
 generate_planner_response() {
 	# Arguments:
 	#   $1 - user query (string)
+	# Returns:
+	#   planner response JSON (string)
 	local user_query
 	local -a planner_tools=()
 	user_query="$1"
