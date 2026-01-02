@@ -25,8 +25,6 @@ PLANNING_SCORING_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck source=../core/logging.sh disable=SC1091
 source "${PLANNING_SCORING_DIR}/../core/logging.sh"
-# shellcheck source=../dependency_guards/dependency_guards.sh disable=SC1091
-source "${PLANNING_SCORING_DIR}/../dependency_guards/dependency_guards.sh"
 
 planner_is_tool_available() {
 	# Checks whether the provided tool is registered.

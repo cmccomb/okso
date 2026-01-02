@@ -77,8 +77,6 @@ source "${PLANNING_LIB_DIR}/../prompt/build_planner.sh"
 source "${PLANNING_LIB_DIR}/../schema/schema.sh"
 # shellcheck source=../core/state.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/../core/state.sh"
-# shellcheck source=../dependency_guards/dependency_guards.sh disable=SC1091
-source "${PLANNING_LIB_DIR}/../dependency_guards/dependency_guards.sh"
 # shellcheck source=../llm/llama_client.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/../llm/llama_client.sh"
 # shellcheck source=../config.sh disable=SC1091

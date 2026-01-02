@@ -21,8 +21,6 @@
 
 # shellcheck source=../../lib/core/logging.sh disable=SC1091
 source "${BASH_SOURCE[0]%/tools/python_repl/index.sh}/lib/core/logging.sh"
-# shellcheck source=../../lib/dependency_guards/dependency_guards.sh disable=SC1091
-source "${BASH_SOURCE[0]%/tools/python_repl/index.sh}/lib/dependency_guards/dependency_guards.sh"
 # shellcheck source=../registry.sh disable=SC1091
 source "${BASH_SOURCE[0]%/python_repl/index.sh}/registry.sh"
 

@@ -26,8 +26,6 @@
 source "${BASH_SOURCE[0]%/tools/terminal/index.sh}/lib/core/logging.sh"
 # shellcheck source=../../lib/cli/output.sh disable=SC1091
 source "${BASH_SOURCE[0]%/tools/terminal/index.sh}/lib/cli/output.sh"
-# shellcheck source=../../lib/dependency_guards/dependency_guards.sh disable=SC1091
-source "${BASH_SOURCE[0]%/tools/terminal/index.sh}/lib/dependency_guards/dependency_guards.sh"
 # shellcheck source=../registry.sh disable=SC1091
 source "${BASH_SOURCE[0]%/terminal/index.sh}/registry.sh"
 
