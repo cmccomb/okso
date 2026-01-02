@@ -44,7 +44,7 @@ json_state_cache_path() {
 }
 
 json_state_write_cache() {
-  # Writes the JSON document to the persistent cache file for a namespace.
+	# Writes the JSON document to the persistent cache file for a namespace.
 	# Arguments:
 	#   $1 - namespace prefix (string)
 	#   $2 - JSON document (string)
@@ -54,7 +54,7 @@ json_state_write_cache() {
 }
 
 json_state_get_document() {
-  # Retrieves the JSON document for a namespace with optional fallback.
+	# Retrieves the JSON document for a namespace with optional fallback.
 	# Arguments:
 	#   $1 - namespace prefix (string)
 	#   $2 - fallback JSON document (string, optional; defaults to '{}')
@@ -111,7 +111,7 @@ json_state_get_document() {
 }
 
 json_state_set_document() {
-  # Sets the JSON document for a namespace after validating JSON.
+	# Sets the JSON document for a namespace after validating JSON.
 	# Arguments:
 	#   $1 - namespace prefix (string)
 	#   $2 - JSON document (string)
@@ -122,19 +122,19 @@ json_state_set_document() {
 	# Validate and store the document
 	json_var=$(json_state_namespace_var "${prefix}")
 
-  # Validate JSON
+	# Validate JSON
 	if ! sanitized=$(printf '%s' "${document}" | jq -c '.' 2>/dev/null); then
 		log "ERROR" "json_state_set_document: invalid JSON" "namespace=${prefix}" || true
 		return 1
 	fi
 
-  # Store sanitized JSON
+	# Store sanitized JSON
 	printf -v "${json_var}" '%s' "${sanitized}"
 	json_state_write_cache "${prefix}" "${sanitized}"
 }
 
 json_state_set_key() {
-  # Sets a logical key in the JSON document.
+	# Sets a logical key in the JSON document.
 	# Arguments:
 	#   $1 - namespace prefix (string)
 	#   $2 - key (string)
@@ -144,7 +144,7 @@ json_state_set_key() {
 	key="$2"
 	value="$3"
 
-  # Fetch current document
+	# Fetch current document
 	json_state_get_document "${prefix}" '{}' base_json >/dev/null
 
 	# Set the key
@@ -153,12 +153,12 @@ json_state_set_key() {
 		return 1
 	fi
 
-  # Save updated document
+	# Save updated document
 	json_state_set_document "${prefix}" "${updated}"
 }
 
 json_state_get_key() {
-  # Fetches a logical key from the JSON document.
+	# Fetches a logical key from the JSON document.
 	# Arguments:
 	#   $1 - namespace prefix (string)
 	#   $2 - key (string)
@@ -174,7 +174,7 @@ json_state_get_key() {
 }
 
 json_state_increment_key() {
-  # Increments a numeric key in the JSON document.
+	# Increments a numeric key in the JSON document.
 	# Arguments:
 	#   $1 - namespace prefix (string)
 	#   $2 - key (string)
@@ -198,7 +198,7 @@ json_state_increment_key() {
 }
 
 json_state_append_history() {
-  # Appends an entry to the history array in the JSON document.
+	# Appends an entry to the history array in the JSON document.
 	# Arguments:
 	#   $1 - namespace prefix (string)
 	#   $2 - history entry (string)

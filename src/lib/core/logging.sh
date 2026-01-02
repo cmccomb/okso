@@ -19,7 +19,7 @@
 
 CORE_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# shellcheck source=./errors.sh disable=SC1091
+# shellcheck source=src/lib/core/errors.sh
 source "${CORE_LIB_DIR}/errors.sh"
 
 log_emit() {
@@ -38,6 +38,7 @@ log_emit() {
 	verbosity=${VERBOSITY:-1}
 	should_emit=1
 
+	# Determine if the log should be emitted based on level and verbosity
 	case "${level}" in
 	DEBUG)
 		[[ ${verbosity} -lt 2 ]] && should_emit=0
@@ -52,6 +53,7 @@ log_emit() {
 		;;
 	esac
 
+	# Skip emission if verbosity is too low
 	if [[ ${should_emit} -eq 0 ]]; then
 		return 0
 	fi
@@ -61,6 +63,7 @@ log_emit() {
 		detail="${detail:0:1000}...[first 1000 chars of ${#detail} ($((100 * 1000 / ${#detail}))%)]"
 	fi
 
+	# Construct the log payload
 	payload=$(jq -n \
 		--arg time "${timestamp}" \
 		--arg level "${level}" \
@@ -73,8 +76,10 @@ log_emit() {
 			detail: $detail
 		}')
 
+	# Emit the log in the requested format
 	case "${format_style}" in
 	pretty)
+		# Emit pretty-printed JSON with special handling for detail field
 		printf '%s\n' "${payload}" | jq '
                 .detail |= (
                         if type == "string" then
@@ -90,6 +95,7 @@ log_emit() {
         ' >&2
 		;;
 	*)
+		# Emit compact JSON
 		printf '%s\n' "${payload}" | jq -c '.' >&2
 		;;
 	esac

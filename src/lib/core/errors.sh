@@ -31,11 +31,11 @@ emit_error_envelope() {
 	message="$3"
 
 	# Emit the error envelope as JSON
-  jq -cn \
-    --arg name "${context}" \
-    --arg category "${category}" \
-    --arg message "${message}" \
-    '{name:$name, category:$category, message:$message}'
+	jq -cn \
+		--arg name "${context}" \
+		--arg category "${category}" \
+		--arg message "${message}" \
+		'{name:$name, category:$category, message:$message}'
 }
 
 die() {
@@ -51,7 +51,7 @@ die() {
 	message="$3"
 	status=${4:-1}
 
-  # Emit the error envelope and exit
+	# Emit the error envelope and exit
 	emit_error_envelope "${context}" "${category}" "${message}" >&2
 	exit "${status}"
 }
@@ -69,7 +69,7 @@ warn() {
 	message="$3"
 	status=${4:-1}
 
-  # Emit the error envelope and return status
+	# Emit the error envelope and return status
 	emit_error_envelope "${context}" "${category}" "${message}" >&2
 	return "${status}"
 }
@@ -83,6 +83,6 @@ log_debug() {
 	context=${1:-${ERROR_CONTEXT:-${TOOL_NAME:-runtime}}}
 	message="$2"
 
-  # Emit the debug envelope
+	# Emit the debug envelope
 	emit_error_envelope "${context}" "debug" "${message}" >&2
 }
