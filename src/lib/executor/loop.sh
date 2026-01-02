@@ -24,8 +24,6 @@ EXECUTOR_LIB_DIR=${EXECUTOR_LIB_DIR:-$(cd -- "$(dirname "${BASH_SOURCE[0]}")" &&
 source "${EXECUTOR_LIB_DIR}/../formatting.sh"
 # shellcheck source=../llm/llama_client.sh disable=SC1091
 source "${EXECUTOR_LIB_DIR}/../llm/llama_client.sh"
-# shellcheck source=../exec/dispatch.sh disable=SC1091
-source "${EXECUTOR_LIB_DIR}/../exec/dispatch.sh"
 # shellcheck source=../core/logging.sh disable=SC1091
 source "${EXECUTOR_LIB_DIR}/../core/logging.sh"
 # shellcheck source=../core/state.sh disable=SC1091
@@ -36,6 +34,8 @@ source "${EXECUTOR_LIB_DIR}/../tools/query.sh"
 source "${EXECUTOR_LIB_DIR}/../prompt/templates.sh"
 # shellcheck source=./history.sh disable=SC1091
 source "${EXECUTOR_LIB_DIR}/history.sh"
+# shellcheck source=./dispatch.sh disable=SC1091
+source "${EXECUTOR_LIB_DIR}/dispatch.sh"
 
 normalize_args_json() {
 	# Normalizes argument JSON into canonical form.

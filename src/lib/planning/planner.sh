@@ -90,8 +90,8 @@ source "${PLANNING_LIB_DIR}/prompting.sh"
 # shellcheck source=./rephrasing.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/rephrasing.sh"
 if [[ "${PLANNER_SKIP_TOOL_LOAD:-false}" != true ]]; then
-	# shellcheck source=../exec/dispatch.sh disable=SC1091
-	source "${PLANNING_LIB_DIR}/../exec/dispatch.sh"
+	# shellcheck source=../executor/dispatch.sh disable=SC1091
+	source "${PLANNING_LIB_DIR}/../executor/dispatch.sh"
 fi
 
 initialize_planner_models() {
