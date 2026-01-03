@@ -31,7 +31,7 @@ SCRIPT
 }
 
 @test "planner sources executor loop entrypoint by default" {
-	run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
+        run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
@@ -46,5 +46,43 @@ actual_entrypoint="$(cd -- "$(dirname "${EXECUTOR_ENTRYPOINT}")" && pwd)/$(basen
 [[ "$(type -t executor_loop)" == "function" ]]
 SCRIPT
 
-	[ "$status" -eq 0 ]
+        [ "$status" -eq 0 ]
+}
+
+@test "planner reuses caller-provided TOOLS array" {
+        run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+declare -a TOOLS=(alpha beta)
+PLANNER_SKIP_TOOL_LOAD=true
+export PLANNER_SKIP_TOOL_LOAD
+source ./src/lib/planning/planner.sh
+
+planner_collect_tools | paste -sd ',' -
+SCRIPT
+
+        [ "$status" -eq 0 ]
+        catalog=$(printf '%s' "${output}" | tail -n 1)
+        [ "${catalog}" = "alpha,beta" ]
+}
+
+@test "planner falls back to tool_names when TOOLS is unset" {
+        run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+PLANNER_SKIP_TOOL_LOAD=true
+export PLANNER_SKIP_TOOL_LOAD
+source ./src/lib/planning/planner.sh
+
+tool_names() { printf '%s\n' web final_answer; }
+export -f tool_names
+
+planner_collect_tools | paste -sd ',' -
+SCRIPT
+
+        [ "$status" -eq 0 ]
+        catalog=$(printf '%s' "${output}" | tail -n 1)
+        [ "${catalog}" = "web,final_answer" ]
 }
