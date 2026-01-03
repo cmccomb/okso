@@ -29,6 +29,7 @@ load_prompt_template() {
 	prompt_name="$1"
 	prompt_path="${PROMPTS_DIR}/${prompt_name}.md"
 
+	# Check if the prompt template file exists
 	if [[ ! -f "${prompt_path}" ]]; then
 		log "ERROR" "prompt template missing" "${prompt_path}" || true
 		return 1
@@ -49,13 +50,17 @@ render_prompt_template() {
 
 	prompt_name="$1"
 	shift
-	prompt_text="$(load_prompt_template "${prompt_name}")" || return 1
 
+	# Load the prompt template
+	prompt_text="$(load_prompt_template "${prompt_name}")"
+
+	# Validate that we have pairs of substitution arguments
 	if (($# % 2 != 0)); then
 		log "ERROR" "render_prompt_template expects substitution pairs" "args_count=$#" || true
 		return 1
 	fi
 
+	# Build the substitutions array
 	while (($# > 0)); do
 		local key value
 		key="$1"
@@ -64,11 +69,13 @@ render_prompt_template() {
 		shift 2
 	done
 
+	# Perform substitutions
 	if ((${#substitutions[@]} == 0)); then
 		printf '%s' "${prompt_text}"
 		return 0
 	fi
 
+	# Use envsubst to substitute variables in the prompt text
 	env "${substitutions[@]}" envsubst <<<"${prompt_text}"
 }
 

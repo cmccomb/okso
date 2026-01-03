@@ -20,20 +20,23 @@ SCHEMA_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=../core/logging.sh disable=SC1091
 source "${SCHEMA_LIB_DIR}/../core/logging.sh"
 
-# Returns the absolute path to the schema directory.
 schema_root_dir() {
+	# Changes to the schema directory and prints its absolute path.
+	# Returns:
+	#   Absolute path to the schema directory (string).
 	cd "${SCHEMA_LIB_DIR}/../../schemas" && pwd
 }
 
-# Resolves a schema name to its file path.
-# Arguments:
-#   $1 - schema key (string)
-# Returns:
-#   Absolute path to the schema file (string).
 schema_path() {
+	# Resolves a schema name to its file path.
+	# Arguments:
+	#   $1 - schema key (string)
+	# Returns:
+	#   Absolute path to the schema file (string).
 	local schema_name schema_file
 	schema_name="$1"
 
+	# Map schema names to filenames
 	case "${schema_name}" in
 	executor_action)
 		schema_file="executor_action.schema.json"
@@ -53,13 +56,16 @@ schema_path() {
 		;;
 	esac
 
+	# Construct full path
 	printf '%s/%s' "$(schema_root_dir)" "${schema_file}"
 }
 
-# Reads a schema file and writes it to stdout as a single line (no newlines).
-# Arguments:
-#   $1 - schema key (string)
 load_schema_text() {
+	# Reads a schema file and writes it to stdout as a single line (no newlines).
+	# Arguments:
+	#   $1 - schema key (string)
+	# Returns:
+	#   Schema content on stdout; non-zero on failure.
 	local schema_name schema_file_path
 	schema_name="$1"
 	schema_file_path="$(schema_path "${schema_name}")" || return 1

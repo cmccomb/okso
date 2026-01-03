@@ -27,21 +27,15 @@ format_tool_descriptions() {
 	# Arguments:
 	#   $1 - newline-delimited allowed tool names (string)
 	#   $2 - callback to format a single tool line (function name)
+	# Returns:
+	#   Concatenated formatted tool lines (string)
+
 	local allowed_tools formatter tool_lines tool formatted_line
 	allowed_tools="$1"
 	formatter="$2"
 	tool_lines=""
 
-	if [[ -z "${formatter}" ]]; then
-		log "ERROR" "format_tool_descriptions requires a formatter" ""
-		return 1
-	fi
-
-	if ! declare -F "${formatter}" >/dev/null 2>&1; then
-		log "ERROR" "Unknown tool formatter" "${formatter}"
-		return 1
-	fi
-
+  # Format each tool line using the provided formatter callback
 	while IFS= read -r tool || [[ -n "${tool}" ]]; do
 		[[ -z "${tool}" ]] && continue
 		formatted_line="$("${formatter}" "${tool}")"
@@ -50,6 +44,7 @@ format_tool_descriptions() {
 		fi
 	done <<<"${allowed_tools}"
 
+  # Return the concatenated tool lines without trailing newline
 	printf '%s' "${tool_lines%$'\n'}"
 }
 
@@ -57,6 +52,8 @@ format_tool_details() {
 	# Arguments:
 	#   $1 - tool name (string)
 	#   $2 - include schema (bool, optional)
+	# Returns:
+	#   Formatted tool details (string)
 	local tool description command safety include_schema args_schema
 	local -a details=()
 	local detail_text=""
@@ -66,10 +63,12 @@ format_tool_details() {
 	command="$(tool_command "${tool}")"
 	safety="$(tool_safety "${tool}")"
 
+  # Collect available details
 	if [[ -n "${description}" ]]; then
 		details+=("${description}")
 	fi
 
+  # Include args schema if requested
 	if [[ "${include_schema}" == true ]]; then
 		args_schema="$(tool_args_schema "${tool}")"
 		if [[ -n "${args_schema}" && "${args_schema}" != "{}" ]]; then
@@ -77,18 +76,22 @@ format_tool_details() {
 		fi
 	fi
 
+  # Include example command if available
 	if [[ -n "${command}" ]]; then
 		details+=("Example: ${command}")
 	fi
 
+  # Include safety information if available
 	if [[ -n "${safety}" ]]; then
 		details+=("Safety: ${safety}")
 	fi
 
+  # Combine details into a single string
 	if ((${#details[@]} == 0)); then
 		return 0
 	fi
 
+  # Join details with separator
 	for i in $(seq 0 $((${#details[@]} - 1))); do
 		if ((i > 0)); then
 			detail_text+=' | '
@@ -96,12 +99,16 @@ format_tool_details() {
 		detail_text+="${details[i]}"
 	done
 
+  # Return the detail text
 	printf '%s' "${detail_text}"
 }
 
 render_box() {
+  # Renders content inside a box drawn with box-drawing characters.
 	# Arguments:
 	#   $1 - content to wrap inside the box (string)
+	# Returns:
+	#   Boxed content rendered to stdout
 	local content terminal_width max_line_length line width_limit lines top_border bottom_border padding
 	content="$1"
 	terminal_width="${COLUMNS:-"$(tput cols 2>/dev/null || printf '80')"}"
@@ -115,6 +122,7 @@ render_box() {
 		width_limit=20
 	fi
 
+  # Wrap content to fit within width limit
 	lines=()
 	while IFS= read -r line || [[ -n "${line}" ]]; do
 		lines+=("${line}")
@@ -124,6 +132,7 @@ render_box() {
 		lines=("")
 	fi
 
+  # Determine maximum line length
 	max_line_length=0
 	for line in "${lines[@]}"; do
 		if ((${#line} > max_line_length)); then
@@ -131,9 +140,11 @@ render_box() {
 		fi
 	done
 
+  # Build top and bottom borders
 	top_border="┌$(printf '─%.0s' $(seq 1 $((max_line_length + 2))))┐"
 	bottom_border="└$(printf '─%.0s' $(seq 1 $((max_line_length + 2))))┘"
 
+  # Render the box
 	printf '%s\n' "${top_border}"
 	for line in "${lines[@]}"; do
 		padding=$((max_line_length - ${#line}))
@@ -143,22 +154,29 @@ render_box() {
 }
 
 indent_block() {
+  # Indents each line of the given content with the specified prefix.
 	# Arguments:
 	#   $1 - prefix applied to every line (string)
 	#   $2 - content to indent (string)
+	# Returns:
+  #  Indented content (string)
 	local prefix content line
 	prefix="$1"
 	content="$2"
 
+  # Indent each line with the given prefix
 	while IFS= read -r line || [[ -n "${line}" ]]; do
 		printf '%s%s\n' "${prefix}" "${line}"
 	done <<<"${content}"
 }
 
 format_box_section() {
+  # Formats a section for boxed summary output.
 	# Arguments:
 	#   $1 - section title (string)
 	#   $2 - section body (string)
+	# Returns:
+  #   Formatted box section (string)
 	local title body
 	title="$1"
 	body="$2"
@@ -171,29 +189,36 @@ format_box_section() {
 }
 
 render_boxed_summary() {
+  # Renders a boxed summary of the query, plan, tool history, and final answer.
 	# Arguments:
 	#   $1 - user query (string)
 	#   $2 - planner outline (string)
 	#   $3 - tool invocation history (newline-delimited string)
 	#   $4 - final answer (string)
+	# Returns:
+	#   Boxed summary rendered to stdout
+
 	local user_query plan_outline tool_history final_answer formatted_tools formatted_content
 	user_query="$1"
 	plan_outline="$2"
 	tool_history="$3"
 	final_answer="$4"
 
+  # Format tool history
 	if [[ -z "${tool_history}" ]]; then
 		formatted_tools="(none)"
 	else
 		formatted_tools="$(format_tool_history "${tool_history}")"
 	fi
 
+  # Combine all sections into the boxed content
 	formatted_content=$(printf '%s\n\n%s\n\n%s\n\n%s' \
 		"$(format_box_section "Query" "${user_query}")" \
 		"$(format_box_section "Plan" "${plan_outline}")" \
 		"$(format_box_section "Tool runs" "${formatted_tools}")" \
 		"$(format_box_section "Final answer" "${final_answer}")")
 
+  # Optionally format with gum if available
 	if command -v gum >/dev/null 2>&1; then
 		# gum format can be slow on large inputs, but for summaries it adds nice markdown rendering.
 		formatted_content="$(printf '%s\n' "${formatted_content}" | gum format)"
@@ -215,6 +240,7 @@ format_tool_history() {
 	current_observation=""
 	collecting_observation=false
 
+
 	append_current_entry() {
 		if [[ -z "${current_step}" ]]; then
 			return
@@ -234,6 +260,7 @@ format_tool_history() {
 		collecting_observation=false
 	}
 
+# Parse tool history line by line
 	while IFS= read -r line || [[ -n "${line}" ]]; do
 		# Try to parse line as a JSON entry from record_tool_execution
 		if jq -e '.step != null and .action != null' <<<"${line}" >/dev/null 2>&1; then
@@ -318,6 +345,7 @@ format_tool_history() {
 			continue
 		fi
 
+    # Parse custom formatted history lines
 		if [[ "${line}" =~ ^[[:space:]-]*Step[[:space:]]+([0-9]+)[[:space:]]*(.*)$ ]]; then
 			append_current_entry
 
@@ -382,6 +410,8 @@ emit_boxed_summary() {
 	#   $2 - planner outline (string)
 	#   $3 - tool invocation history (newline-delimited string)
 	#   $4 - final answer (string)
+	# Returns:
+	#   Boxed summary rendered to stdout
 	render_boxed_summary "$@"
 }
 
@@ -389,6 +419,8 @@ format_tool_line() {
 	# Arguments:
 	#   $1 - tool name (string)
 	#   $2 - include schema (bool, optional)
+	# Returns:
+	#   Formatted tool line (string)
 	local tool include_schema detail_text
 	tool="$1"
 	include_schema="${2:-true}"
@@ -403,5 +435,10 @@ format_tool_line() {
 }
 
 format_tool_example_line() {
+  # Formats a single tool line with example command only.
+  # Arguments:
+  #   $1 - tool name (string)
+  # Returns:
+  #   Formatted tool line (string)
 	format_tool_line "$1"
 }

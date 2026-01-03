@@ -56,14 +56,19 @@ tools_normalize_path() {
 	# Returns a normalized absolute path for allowlist checks.
 	# Arguments:
 	#   $1 - path to normalize (string)
+	# Returns:
+	#   normalized absolute path on stdout; non-zero on failure.
+
 	local input_path directory basename_part normalized_parts
 	input_path="$1"
 
+  # Use realpath if available
 	if command -v realpath >/dev/null 2>&1 && realpath -m / >/dev/null 2>&1; then
 		realpath -m "${input_path}"
 		return
 	fi
 
+  # Fallback normalization
 	if [[ -e "${input_path}" || -L "${input_path}" ]]; then
 		directory=$(cd -- "$(dirname -- "${input_path}")" && pwd -P) || return 1
 		basename_part=$(basename -- "${input_path}")
@@ -71,10 +76,12 @@ tools_normalize_path() {
 		return 0
 	fi
 
+  # Manual normalization for non-existent paths
 	if [[ "${input_path}" != /* ]]; then
 		input_path="$(pwd -P)/${input_path}"
 	fi
 
+  # Split and process path components
 	IFS='/' read -r -a normalized_parts <<<"${input_path}"
 	directory=()
 	for part in "${normalized_parts[@]}"; do
@@ -103,10 +110,13 @@ tools_writable_directory_allowed() {
 	# Validates that a directory is within the writable allowlist.
 	# Arguments:
 	#   $1 - target directory (string)
+	# Returns:
+	#   None; returns non-zero if the directory is not allowed.
 	local candidate normalized allowed normalized_allowed
 	candidate="$1"
 	normalized=$(tools_normalize_path "${candidate}") || return 1
 
+  # Check against allowlist
 	for allowed in "${TOOL_WRITABLE_DIRECTORY_ALLOWLIST[@]}"; do
 		normalized_allowed=$(tools_normalize_path "${allowed}") || continue
 		if [[ "${normalized}" == "${normalized_allowed}"* ]]; then
@@ -120,7 +130,11 @@ tools_writable_directory_allowed() {
 
 validate_writable_directories() {
 	# Confirms all configured writable directories are allowlisted.
+	# Returns:
+	#   None; returns non-zero on failure.
 	local candidate
+
+	# Check NOTES_DIR and CONFIG_DIR
 	for candidate in "${NOTES_DIR:-${HOME}/.okso}" "${CONFIG_DIR:-${XDG_CONFIG_HOME:-${HOME}/.config}/okso}"; do
 		if [[ -z "${candidate}" ]]; then
 			continue
@@ -134,6 +148,10 @@ validate_writable_directories() {
 }
 
 initialize_tools() {
+  # Initializes and registers all available tools.
+  # Returns:
+  #   None; returns non-zero on failure.
+
 	if ! validate_writable_directories; then
 		return 1
 	fi

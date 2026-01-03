@@ -62,49 +62,71 @@ source "${CONFIG_LIB_DIR}/system_profile.sh"
 : "${MODEL_AUTOTUNE_HEADROOM_CLASS:=}"
 
 set_autotuned_model_defaults() {
+  # Sets default model specifications based on system profile autotuning.
+  # Arguments:
+  #   None
+  # Returns:
+  #   None
+
 	local pressure_level headroom_class effective_tier task_size default_size heavy_size
 
+   # Load or detect system profile
 	load_or_detect_system_profile
 
+  # Determine pressure level and headroom class
 	pressure_level="$(detect_pressure_level)"
 	headroom_class="$(estimate_headroom_class)"
 	MODEL_AUTOTUNE_PRESSURE_LEVEL="${pressure_level}"
 	MODEL_AUTOTUNE_HEADROOM_CLASS="${headroom_class}"
 
+  # Determine base tier if not already set
 	if [[ -z "${DETECTED_BASE_TIER:-}" ]]; then
 		DETECTED_BASE_TIER="default"
 	fi
 
+  # Determine effective tier based on pressure and headroom
 	effective_tier=$(cap_tier_for_pressure "${DETECTED_BASE_TIER}" "${pressure_level}" "${headroom_class}")
 	MODEL_AUTOTUNE_BASE_TIER="${DETECTED_BASE_TIER}"
 	MODEL_AUTOTUNE_EFFECTIVE_TIER="${effective_tier}"
 
+  # Resolve model sizes based on effective tier
 	resolve_autotune_model_sizes "${effective_tier}" task_size default_size heavy_size
 
+  # Set model defaults
 	DEFAULT_REPHRASER_MODEL_REPO="$(model_repo_for_size "${task_size}")"
 	DEFAULT_REPHRASER_MODEL_FILE="$(model_file_for_size "${task_size}")"
 	DEFAULT_REPHRASER_MODEL_SPEC_BASE="${DEFAULT_REPHRASER_MODEL_REPO}:${DEFAULT_REPHRASER_MODEL_FILE}"
 
+  # Executor uses default size
 	DEFAULT_EXECUTOR_MODEL_REPO="$(model_repo_for_size "${default_size}")"
 	DEFAULT_EXECUTOR_MODEL_FILE="$(model_file_for_size "${default_size}")"
 	DEFAULT_EXECUTOR_MODEL_SPEC_BASE="${DEFAULT_EXECUTOR_MODEL_REPO}:${DEFAULT_EXECUTOR_MODEL_FILE}"
 
+  # Planner uses heavy size
 	DEFAULT_PLANNER_MODEL_REPO="$(model_repo_for_size "${heavy_size}")"
 	DEFAULT_PLANNER_MODEL_FILE="$(model_file_for_size "${heavy_size}")"
 	DEFAULT_PLANNER_MODEL_SPEC_BASE="${DEFAULT_PLANNER_MODEL_REPO}:${DEFAULT_PLANNER_MODEL_FILE}"
 
+  # Validator uses heavy size
 	DEFAULT_VALIDATOR_MODEL_REPO="$(model_repo_for_size "${heavy_size}")"
 	DEFAULT_VALIDATOR_MODEL_FILE="$(model_file_for_size "${heavy_size}")"
 	DEFAULT_VALIDATOR_MODEL_SPEC_BASE="${DEFAULT_VALIDATOR_MODEL_REPO}:${DEFAULT_VALIDATOR_MODEL_FILE}"
 }
 
 log_model_autotune_summary() {
+  # Logs a summary of the model autotuning decisions.
+  # Arguments:
+  #   None
+  # Returns:
+  #  None
+
 	local base effective pressure headroom mem_fragment gha_fragment fragments summary_detail
 	base="${MODEL_AUTOTUNE_BASE_TIER:-${DETECTED_BASE_TIER:-unknown}}"
 	effective="${MODEL_AUTOTUNE_EFFECTIVE_TIER:-${base}}"
 	pressure="${MODEL_AUTOTUNE_PRESSURE_LEVEL:-unknown}"
 	headroom="${MODEL_AUTOTUNE_HEADROOM_CLASS:-unknown}"
 
+  # Build memory fragment
 	if [[ -n "${DETECTED_PHYS_MEM_GB:-}" ]]; then
 		mem_fragment="physmem=${DETECTED_PHYS_MEM_GB}GB"
 	elif [[ -n "${DETECTED_PHYS_MEM_BYTES:-}" ]]; then
@@ -113,13 +135,16 @@ log_model_autotune_summary() {
 		mem_fragment="physmem=unknown"
 	fi
 
+  # Build GHA fragment if applicable
 	gha_fragment="${DETECTED_IS_GHA:+github_actions=${DETECTED_IS_GHA}}"
 
+  # Compile summary detail
 	fragments=()
 	fragments+=("${mem_fragment}")
 	[[ -n "${gha_fragment}" ]] && fragments+=("${gha_fragment}")
 	fragments+=("pressure=${pressure}" "headroom=${headroom}")
 
+  # Combine fragments into summary detail
 	summary_detail=$(
 		IFS=','
 		printf '%s' "${fragments[*]}"
@@ -129,11 +154,18 @@ log_model_autotune_summary() {
 
 default_run_id() {
 	# Generates a stable run identifier for cache scoping.
+	# Returns:
+	#   run ID string on stdout.
 	date -u +"%Y%m%dT%H%M%SZ"
 }
 
 detect_config_file() {
 	# Parse the config path early so subsequent helpers can honor user-provided locations.
+	# Arguments:
+	#   $@ - command-line arguments
+	# Returns:
+	#   None; sets CONFIG_FILE variable.
+
 	while [[ $# -gt 0 ]]; do
 		case "$1" in
 		--config)
@@ -156,6 +188,10 @@ detect_config_file() {
 
 load_config() {
 	# Load file-backed configuration, then apply environment variable overrides.
+	# Arguments:
+	#   None
+	# Returns:
+	#   None; sets global configuration variables.
 
 	# Load from file if it exists
 	if [[ -f "${CONFIG_FILE}" ]]; then
@@ -193,12 +229,21 @@ load_config() {
 
 write_config_file() {
 	# Persist the current configuration in a shell-friendly format.
+	# Arguments:
+	#   None
+	# Returns:
+	#   None; writes to CONFIG_FILE.
+
+	# Helper to quote config values
 	quote_config_value() {
 		local value="$1"
 		printf '%q' "${value}"
 	}
 
+  # Ensure config directory exists
 	mkdir -p "$(dirname "${CONFIG_FILE}")"
+
+	# Write config file
 	cat >"${CONFIG_FILE}" <<EOF_CONFIG
 PLANNER_MODEL_SPEC=$(quote_config_value "${PLANNER_MODEL_SPEC}")
 PLANNER_MODEL_BRANCH=$(quote_config_value "${PLANNER_MODEL_BRANCH}")
@@ -212,6 +257,8 @@ CACHE_DIR=$(quote_config_value "${CACHE_DIR}")
 VERBOSITY=${VERBOSITY}
 APPROVE_ALL=${APPROVE_ALL}
 EOF_CONFIG
+
+  # Log completion
 	printf 'Wrote config to %s\n' "${CONFIG_FILE}"
 }
 
@@ -220,10 +267,13 @@ parse_model_spec() {
 	# Arguments:
 	#   $1 - model spec repo[:file]
 	#   $2 - default file fallback
+	# Returns:
+	#   repo and file on separate lines.
 	local spec default_file repo file
 	spec="$1"
 	default_file="$2"
 
+  # Parse spec
 	if [[ "${spec}" == *:* ]]; then
 		repo="${spec%%:*}"
 		file="${spec#*:}"
@@ -237,6 +287,11 @@ parse_model_spec() {
 
 normalize_approval_flags() {
 	# Normalize approval toggles to strict booleans.
+	# Arguments:
+	#   None
+	# Returns:
+	#   None; sets APPROVE_ALL variable.
+
 	case "${APPROVE_ALL}" in
 	true | True | TRUE | 1)
 		APPROVE_ALL=true
@@ -258,6 +313,9 @@ hydrate_model_spec_to_vars() {
 	#   $2 - default file name
 	#   $3 - repo variable name to populate
 	#   $4 - file variable name to populate
+	# Returns:
+	#   None; sets specified variables.
+
 	local model_parts repo_var file_var
 	model_parts=()
 	repo_var="$3"

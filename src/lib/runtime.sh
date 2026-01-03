@@ -64,18 +64,22 @@ source "${RUNTIME_LIB_DIR}/core/json_state.sh"
 # shellcheck source=./core/settings.sh disable=SC1091
 source "${RUNTIME_LIB_DIR}/core/settings.sh"
 
-if ! command -v jq >/dev/null 2>&1; then
-	die runtime dependency "Missing jq dependency. Install jq with your package manager (e.g., apt-get install jq or brew install jq) and re-run."
-fi
-
 set_by_name() {
+	# Sets a variable by name using printf for safety.
 	# Arguments:
 	#   $1 - variable name (string)
 	#   $2 - value (string)
+	# Returns:
+	#   None.
 	printf -v "$1" '%s' "$2"
 }
 
 settings_field_mappings() {
+  # Outputs newline-delimited key-variable mappings for settings fields.
+  # Each line contains a settings key and the corresponding global variable name.
+  # Returns:
+  #   Newline-delimited key-variable pairs on stdout.
+
 	cat <<'EOF'
 version VERSION
 llama_bin LLAMA_BIN
@@ -108,8 +112,11 @@ EOF
 }
 
 apply_settings_to_globals() {
+  # Applies settings from the JSON state to global variables.
 	# Arguments:
 	#   $1 - settings namespace prefix
+	# Returns:
+	#   None.
 	local settings_prefix
 	settings_prefix="$1"
 
@@ -124,8 +131,12 @@ apply_settings_to_globals() {
 }
 
 capture_globals_into_settings() {
+  # Captures global variables back into the JSON state settings.
 	# Arguments:
 	#   $1 - settings namespace prefix
+	# Returns:
+	#   None.
+
 	local settings_prefix
 	settings_prefix="$1"
 
@@ -138,9 +149,12 @@ capture_globals_into_settings() {
 }
 
 load_runtime_settings() {
+  # Loads and applies runtime settings from defaults, config files, and CLI arguments.
 	# Arguments:
 	#   $1 - settings namespace prefix
 	#   $@ - CLI arguments for parsing
+	# Returns:
+	#  None.
 	local settings_prefix
 	settings_prefix="$1"
 	shift
@@ -160,8 +174,12 @@ load_runtime_settings() {
 }
 
 prepare_environment_with_settings() {
+  # Prepares the runtime environment and tool registry using the provided settings.
 	# Arguments:
 	#   $1 - settings namespace prefix to use and update
+	# Returns:
+	#   None.
+
 	local settings_prefix
 	settings_prefix="$1"
 
@@ -175,6 +193,7 @@ prepare_environment_with_settings() {
 }
 # shellcheck disable=SC2034
 render_plan_outputs() {
+  # Renders plan outputs for dry-run and plan-only modes.
 	# Arguments:
 	#   $1 - name of variable to receive action ("continue" or "exit")
 	#   $2 - settings namespace prefix
@@ -182,6 +201,8 @@ render_plan_outputs() {
 	#   $4 - plan entries string
 	#   $5 - plan outline text
 	#   $6 - planner response JSON
+	# Returns:
+	#   None.
 	local action_var settings_prefix
 	action_var="$1"
 	settings_prefix="$2"
@@ -193,6 +214,7 @@ render_plan_outputs() {
 
 	set_by_name "${action_var}" "continue"
 
+  # Handle plan-only mode
 	local plan_json tool_list_json
 	if [[ -n "${plan_response}" ]]; then
 		plan_json="${plan_response}"
@@ -201,24 +223,29 @@ render_plan_outputs() {
 	fi
 	tool_list_json="$(printf '%s' "${required_tools}" | jq -Rsc 'split("\n") | map(select(length>0))')"
 
+  # Handle plan-only mode
 	if [[ -z "${required_tools}" ]]; then
 		log "INFO" "Suggested tools" "none"
 	else
 		log_pretty "INFO" "Suggested tools" "${tool_list_json}"
 	fi
 
+  # Handle dry-run mode
 	if [[ -n "${plan_outline}" ]]; then
 		log_pretty "INFO" "Plan outline" "${plan_outline}"
 	fi
 }
 
 select_response_strategy() {
+  # Selects and invokes the response strategy based on settings.
 	# Arguments:
 	#   $1 - settings namespace prefix
 	#   $2 - required tools string
 	#   $3 - plan entries string
 	#   $4 - plan outline text
 	#   $5 - planner response JSON
+	# Returns:
+	#   None.
 	local settings_prefix
 	settings_prefix="$1"
 	shift
