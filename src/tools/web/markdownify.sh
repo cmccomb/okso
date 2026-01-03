@@ -96,11 +96,6 @@ convert_json() {
 	local body_path formatted
 	body_path=$1
 
-	if ! command -v jq >/dev/null 2>&1; then
-		printf '%s\n' "jq not available" >&2
-		return 1
-	fi
-
 	if ! formatted=$(jq '.' "${body_path}" 2>/dev/null); then
 		printf '%s\n' "invalid JSON" >&2
 		return 1
@@ -214,11 +209,6 @@ main() {
 
 	if ! parsed=$(parse_args "$@"); then
 		return 1
-	fi
-
-	if ! command -v jq >/dev/null 2>&1; then
-		printf '%s\n' "jq not available" >&2
-		return 2
 	fi
 
 	path=${parsed%%|*}
