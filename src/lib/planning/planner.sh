@@ -321,11 +321,7 @@ generate_planner_response() {
 		# deterministic and safe.
 		raw_plan="$(LLAMA_TEMPERATURE="${temperature}" llama_infer "${prompt}" '' "${max_generation_tokens}" "${planner_schema_text}" "${PLANNER_MODEL_REPO:-}" "${PLANNER_MODEL_FILE:-}" "${PLANNER_CACHE_FILE:-}" "${planner_prompt_prefix}")" || raw_plan=""
 
-		if [[ -z "${raw_plan}" ]]; then
-			log "WARN" "Planner returned empty response from llama.cpp" "planner_llama_empty" >&2
-			continue
-		fi
-
+    # Normalize the candidate plan and skip unusable outputs
 		if ! normalized_plan="$(normalize_plan <<<"${raw_plan}")"; then
 			log "WARN" "Planner output unusable from llama.cpp" "${raw_plan}" >&2
 			continue
@@ -450,11 +446,7 @@ emit_plan_json() {
 	local plan_entries
 	plan_entries="$1"
 
-	if [[ -z "${plan_entries}" ]]; then
-		printf '[]'
-		return 0
-	fi
-
+  # Normalize the plan entries into a JSON array
 	printf '%s\n' "${plan_entries}" |
 		sed '/^[[:space:]]*$/d' |
 		jq -sc 'map(select(type=="object"))'
