@@ -257,5 +257,11 @@ select_response_strategy() {
 
 	apply_settings_to_globals "${settings_prefix}"
 
-	executor_loop "${USER_QUERY}" "${required_tools}" "${plan_entries}" "${plan_outline}"
+	local user_query
+	user_query="$(json_state_get_key "${settings_prefix}" "user_query")"
+	if [[ -z "${user_query}" ]]; then
+		user_query="${USER_QUERY:-}"
+	fi
+
+	executor_loop "${user_query}" "${required_tools}" "${plan_entries}" "${plan_outline}"
 }
