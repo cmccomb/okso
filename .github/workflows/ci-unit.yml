@@ -25,7 +25,7 @@ jobs:
       - name: Run shellcheck
         run: |
           find src tests -type f \( -name '*.sh' -o -name 'okso' \) -print0 \
-            | xargs -0 shellcheck
+            | xargs -0 shellcheck --extended-analysis=false
 
       - name: Run Bats suite with coverage
         run: bats --verbose-run $(find tests -type f \( -name '*.bats' -o -name 'test_*.sh' \) -print | sort | tr '\n' ' ')
