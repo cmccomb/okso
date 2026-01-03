@@ -104,6 +104,34 @@ initialize_planner_models() {
 }
 export -f initialize_planner_models
 
+planner_collect_tools() {
+        # Builds the planner tool catalog from caller-provided overrides or the
+        # registered tool registry.
+        # Returns:
+        #   newline-delimited list of tool names on stdout.
+
+        local -a catalog=()
+
+        # Prefer the caller-provided TOOLS array when present and non-empty.
+        if declare -p TOOLS >/dev/null 2>&1 && [[ ${#TOOLS[@]} -gt 0 ]]; then
+                catalog=("${TOOLS[@]}")
+        fi
+
+        # Fall back to the registry if no explicit TOOLS were supplied.
+        if [[ ${#catalog[@]} -eq 0 ]]; then
+                if command -v tool_names >/dev/null 2>&1; then
+                        while IFS= read -r tool_name; do
+                                [[ -z "${tool_name}" ]] && continue
+                                catalog+=("${tool_name}")
+                        done < <(tool_names)
+                else
+                        log "WARN" "Tool catalog unavailable; no tools registered" "planner_tools=0" >&2
+                fi
+        fi
+
+        printf '%s\n' "${catalog[@]}"
+}
+
 planner_format_search_context() {
 	# Formats web search JSON into readable prompt text.
 	# Arguments:
