@@ -252,16 +252,20 @@ generate_planner_response() {
 	initialize_planner_models
 
 	# Assemble the tool catalog
-	local tools_decl
-	if tools_decl=$(declare -p TOOLS 2>/dev/null) && grep -q 'declare -a' <<<"${tools_decl}"; then
-		planner_tools=("${TOOLS[@]}")
-	else
-		planner_tools=()
-		while IFS= read -r tool_name; do
-			[[ -z "${tool_name}" ]] && continue
-			planner_tools+=("${tool_name}")
-		done < <(tool_names)
-	fi
+        local tools_decl=""
+        if declare -p TOOLS >/dev/null 2>&1; then
+                tools_decl="$(declare -p TOOLS)"
+        fi
+
+        if [[ -n "${tools_decl}" ]] && grep -q 'declare -a' <<<"${tools_decl}"; then
+                planner_tools=("${TOOLS[@]}")
+        else
+                planner_tools=()
+                while IFS= read -r tool_name; do
+                        [[ -z "${tool_name}" ]] && continue
+                        planner_tools+=("${tool_name}")
+                done < <(tool_names)
+        fi
 
 	# Log the tool catalog for operator visibility
 	local planner_tool_catalog

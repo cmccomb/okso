@@ -42,7 +42,7 @@ tool_notes_list() {
 	folder_script="$(notes_resolve_folder_script)"
 
 	log "INFO" "Listing Apple Notes" "$(notes_folder_name)"
-	notes_run_script <<APPLESCRIPT
+        notes_run_script "$@" <<APPLESCRIPT
 on run argv
         tell application "Notes"
 ${folder_script}
