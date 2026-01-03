@@ -33,7 +33,6 @@ reminders_list_name() {
 	printf '%s' "${list}"
 }
 
-
 reminders_extract_title_and_body() {
 	# Splits TOOL_ARGS into a title (first line) and body (remaining lines).
 	# Emits two NUL-delimited fields: title then body.

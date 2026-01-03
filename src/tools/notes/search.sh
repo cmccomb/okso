@@ -49,7 +49,6 @@ tool_notes_search() {
 | .[$key]
 ' <<<"${args_json}" 2>/dev/null || true)
 
-
 	if [[ -z "${query//[[:space:]]/}" ]]; then
 		log "ERROR" "Search term is required" "${args_json}" || true
 		return 1

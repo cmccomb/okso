@@ -44,7 +44,6 @@ tool_calendar_list() {
 		return 0
 	fi
 
-
 	calendar_script="$(calendar_resolve_calendar_script)"
 
 	log "INFO" "Listing upcoming Apple Calendar events" "$(calendar_name)"

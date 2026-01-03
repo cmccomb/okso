@@ -28,7 +28,6 @@ source "${BASH_SOURCE[0]%/tools/mail/common.sh}/tools/osascript_helpers.sh"
 # shellcheck source=src/tools/registry.sh
 source "${BASH_SOURCE[0]%/mail/common.sh}/registry.sh"
 
-
 mail_inbox_limit() {
 	# Prints a positive integer inbox limit.
 	local limit
