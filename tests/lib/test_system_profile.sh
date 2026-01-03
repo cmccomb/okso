@@ -48,7 +48,6 @@
 	[ "$output" = "1.7B|4B|8B" ]
 }
 
-
 @test "estimate_headroom_class classifies vm_stat output" {
 	run bash -lc '
                 set -euo pipefail
