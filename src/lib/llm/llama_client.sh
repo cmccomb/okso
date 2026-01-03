@@ -27,9 +27,9 @@
 
 LLM_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# shellcheck source=../core/logging.sh disable=SC1091
+# shellcheck source=src/lib/core/logging.sh
 source "${LLM_LIB_DIR}/../core/logging.sh"
-# shellcheck source=./tokens.sh disable=SC1091
+# shellcheck source=src/lib/llm/tokens.sh
 source "${LLM_LIB_DIR}/tokens.sh"
 
 llama_with_timeout() {

@@ -14,14 +14,14 @@
 WEB_TOOLS_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 SRC_ROOT=$(cd -- "${WEB_TOOLS_DIR}/../.." && pwd)
 
-# shellcheck source=../../lib/core/logging.sh disable=SC1091
+# shellcheck source=src/lib/core/logging.sh
 source "${SRC_ROOT}/lib/core/logging.sh"
-# shellcheck source=../registry.sh disable=SC1091
+# shellcheck source=src/tools/registry.sh
 source "${SRC_ROOT}/tools/registry.sh"
 
-# shellcheck source=./web_search.sh disable=SC1091
+# shellcheck source=src/tools/web/web_search.sh
 source "${WEB_TOOLS_DIR}/web_search.sh"
-# shellcheck source=./web_fetch.sh disable=SC1091
+# shellcheck source=src/tools/web/web_fetch.sh
 source "${WEB_TOOLS_DIR}/web_fetch.sh"
 
 register_web_suite() {

@@ -17,7 +17,7 @@
 
 SCHEMA_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# shellcheck source=../core/logging.sh disable=SC1091
+# shellcheck source=src/lib/core/logging.sh
 source "${SCHEMA_LIB_DIR}/../core/logging.sh"
 
 schema_root_dir() {

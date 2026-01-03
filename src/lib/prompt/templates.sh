@@ -16,7 +16,7 @@
 PROMPT_TEMPLATES_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 PROMPTS_DIR="${PROMPT_TEMPLATES_DIR%/lib/prompt}/prompts"
 
-# shellcheck source=../core/logging.sh disable=SC1091
+# shellcheck source=src/lib/core/logging.sh
 source "${PROMPT_TEMPLATES_DIR}/../core/logging.sh"
 
 load_prompt_template() {

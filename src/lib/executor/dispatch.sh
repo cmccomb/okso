@@ -23,13 +23,13 @@ EXEC_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 FORCE_CONFIRM="${FORCE_CONFIRM:-false}"
 APPROVE_ALL="${APPROVE_ALL:-false}"
 
-# shellcheck source=../core/logging.sh disable=SC1091
+# shellcheck source=src/lib/core/logging.sh
 source "${EXEC_LIB_DIR}/../core/logging.sh"
-# shellcheck source=../core/errors.sh disable=SC1091
+# shellcheck source=src/lib/core/errors.sh
 source "${EXEC_LIB_DIR}/../core/errors.sh"
-# shellcheck source=../config.sh disable=SC1091
+# shellcheck source=src/lib/config.sh
 source "${EXEC_LIB_DIR}/../config.sh"
-# shellcheck source=../tools.sh disable=SC1091
+# shellcheck source=src/lib/tools.sh
 source "${EXEC_LIB_DIR}/../tools.sh"
 
 should_prompt_for_tool() {

@@ -19,21 +19,21 @@
 
 EXECUTOR_LIB_DIR=${EXECUTOR_LIB_DIR:-$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)}
 
-# shellcheck source=../formatting.sh disable=SC1091
+# shellcheck source=/src/lib/formatting.sh
 source "${EXECUTOR_LIB_DIR}/../formatting.sh"
-# shellcheck source=../llm/llama_client.sh disable=SC1091
+# shellcheck source=/src/lib/llm/llama_client.sh
 source "${EXECUTOR_LIB_DIR}/../llm/llama_client.sh"
-# shellcheck source=../core/logging.sh disable=SC1091
+# shellcheck source=/src/lib/core/logging.sh
 source "${EXECUTOR_LIB_DIR}/../core/logging.sh"
-# shellcheck source=../core/json_state.sh disable=SC1091
+# shellcheck source=/src/lib/core/json_state.sh
 source "${EXECUTOR_LIB_DIR}/../core/json_state.sh"
-# shellcheck source=../tools/query.sh disable=SC1091
+# shellcheck source=/src/lib/tools/query.sh
 source "${EXECUTOR_LIB_DIR}/../tools/query.sh"
-# shellcheck source=../prompt/templates.sh disable=SC1091
+# shellcheck source=/src/lib/prompt/templates.sh
 source "${EXECUTOR_LIB_DIR}/../prompt/templates.sh"
-# shellcheck source=./history.sh disable=SC1091
+# shellcheck source=src/lib/executor/history.sh
 source "${EXECUTOR_LIB_DIR}/history.sh"
-# shellcheck source=./dispatch.sh disable=SC1091
+# shellcheck source=src/lib/executor/dispatch.sh
 source "${EXECUTOR_LIB_DIR}/dispatch.sh"
 
 normalize_args_json() {

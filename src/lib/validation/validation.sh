@@ -29,13 +29,13 @@
 VALIDATION_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 VALIDATION_PARENT_DIR=$(cd -- "${VALIDATION_LIB_DIR}/.." && pwd)
 
-# shellcheck source=../core/logging.sh disable=SC1091
+# shellcheck source=src/lib/core/logging.sh
 source "${VALIDATION_PARENT_DIR}/core/logging.sh"
-# shellcheck source=../llm/llama_client.sh disable=SC1091
+# shellcheck source=src/lib/llm/llama_client.sh
 source "${VALIDATION_PARENT_DIR}/llm/llama_client.sh"
-# shellcheck source=../schema/schema.sh disable=SC1091
+# shellcheck source=src/lib/schema/schema.sh
 source "${VALIDATION_PARENT_DIR}/schema/schema.sh"
-# shellcheck source=../prompt/templates.sh disable=SC1091
+# shellcheck source=src/lib/prompt/templates.sh
 source "${VALIDATION_PARENT_DIR}/prompt/templates.sh"
 
 build_validation_prompt() {

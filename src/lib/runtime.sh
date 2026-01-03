@@ -53,15 +53,15 @@
 
 RUNTIME_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# shellcheck source=./core/errors.sh disable=SC1091
+# shellcheck source=src/lib/core/errors.sh
 source "${RUNTIME_LIB_DIR}/core/errors.sh"
-# shellcheck source=./formatting.sh disable=SC1091
+# shellcheck source=src/lib/formatting.sh
 source "${RUNTIME_LIB_DIR}/formatting.sh"
-# shellcheck source=./tools/query.sh disable=SC1091
+# shellcheck source=src/lib/tools/query.sh
 source "${RUNTIME_LIB_DIR}/tools/query.sh"
-# shellcheck source=./core/json_state.sh disable=SC1091
+# shellcheck source=src/lib/core/json_state.sh
 source "${RUNTIME_LIB_DIR}/core/json_state.sh"
-# shellcheck source=./core/settings.sh disable=SC1091
+# shellcheck source=src/lib/core/settings.sh
 source "${RUNTIME_LIB_DIR}/core/settings.sh"
 
 set_by_name() {

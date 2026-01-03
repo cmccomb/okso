@@ -19,9 +19,9 @@
 
 TOOLS_QUERY_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# shellcheck source=../core/logging.sh disable=SC1091
+# shellcheck source=src/lib/core/logging.sh
 source "${TOOLS_QUERY_LIB_DIR}/../core/logging.sh"
-# shellcheck source=../../tools/registry.sh disable=SC1091
+# shellcheck source=src/tools/registry.sh
 source "${TOOLS_QUERY_LIB_DIR}/../../tools/registry.sh"
 
 extract_tool_query() {

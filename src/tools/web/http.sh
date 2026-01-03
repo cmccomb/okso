@@ -26,7 +26,7 @@
 WEB_HTTP_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 SRC_ROOT=$(cd -- "${WEB_HTTP_DIR}/../.." && pwd)
 
-# shellcheck source=../../lib/core/logging.sh disable=SC1091
+# shellcheck source=src/lib/core/logging.sh
 source "${SRC_ROOT}/lib/core/logging.sh"
 
 # web_http_validate_request ensures URL and byte limits are well-formed.

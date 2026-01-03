@@ -18,13 +18,13 @@
 # Exit codes:
 #   Functions emit errors via log and return non-zero when misused.
 
-# shellcheck source=./common.sh disable=SC1091
+# shellcheck source=src/tools/reminders/common.sh
 source "${BASH_SOURCE[0]%/index.sh}/common.sh"
-# shellcheck source=./create.sh disable=SC1091
+# shellcheck source=src/tools/reminders/create.sh
 source "${BASH_SOURCE[0]%/index.sh}/create.sh"
-# shellcheck source=./list.sh disable=SC1091
+# shellcheck source=src/tools/reminders/list.sh
 source "${BASH_SOURCE[0]%/index.sh}/list.sh"
-# shellcheck source=./complete.sh disable=SC1091
+# shellcheck source=src/tools/reminders/complete.sh
 source "${BASH_SOURCE[0]%/index.sh}/complete.sh"
 
 register_reminders_suite() {

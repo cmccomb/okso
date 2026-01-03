@@ -24,9 +24,9 @@ PROMPT_TOKEN_BUDGET=${PROMPT_TOKEN_BUDGET:-4096}
 # Default character limit per line when summarizing context blocks
 SUMMARY_LINE_CHAR_LIMIT=${SUMMARY_LINE_CHAR_LIMIT:-240}
 
-# shellcheck source=../core/logging.sh disable=SC1091
+# shellcheck source=src/lib/core/logging.sh
 source "${LLM_CONTEXT_BUDGET_DIR}/../core/logging.sh"
-# shellcheck source=./tokens.sh disable=SC1091
+# shellcheck source=src/lib/llm/tokens.sh
 source "${LLM_CONTEXT_BUDGET_DIR}/tokens.sh"
 
 estimate_total_tokens() {

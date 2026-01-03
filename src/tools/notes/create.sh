@@ -21,11 +21,11 @@
 # Exit codes:
 #   Returns non-zero only when registration is misused.
 
-# shellcheck source=../registry.sh disable=SC1091
+# shellcheck source=src/tools/registry.sh
 source "${BASH_SOURCE[0]%/notes/create.sh}/registry.sh"
-# shellcheck source=../../lib/core/logging.sh disable=SC1091
+# shellcheck source=src/lib/core/logging.sh
 source "${BASH_SOURCE[0]%/tools/notes/create.sh}/lib/core/logging.sh"
-# shellcheck source=./common.sh disable=SC1091
+# shellcheck source=src/tools/notes/common.sh
 source "${BASH_SOURCE[0]%/create.sh}/common.sh"
 
 derive_notes_create_query() {

@@ -22,13 +22,13 @@
 
 PLANNING_REPHRASING_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# shellcheck source=../prompt/templates.sh disable=SC1091
+# shellcheck source=src/lib/prompt/templates.sh
 source "${PLANNING_REPHRASING_DIR}/../prompt/templates.sh"
-# shellcheck source=../core/logging.sh disable=SC1091
+# shellcheck source=src/lib/core/logging.sh
 source "${PLANNING_REPHRASING_DIR}/../core/logging.sh"
-# shellcheck source=../schema/schema.sh disable=SC1091
+# shellcheck source=src/lib/schema/schema.sh
 source "${PLANNING_REPHRASING_DIR}/../schema/schema.sh"
-# shellcheck source=../llm/llama_client.sh disable=SC1091
+# shellcheck source=src/lib/llm/llama_client.sh
 source "${PLANNING_REPHRASING_DIR}/../llm/llama_client.sh"
 
 render_rephrase_prompt() {

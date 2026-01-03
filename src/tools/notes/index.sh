@@ -18,17 +18,17 @@
 # Exit codes:
 #   Functions emit errors via log and return non-zero when misused.
 
-# shellcheck source=./common.sh disable=SC1091
+# shellcheck source=src/tools/notes/common.sh
 source "${BASH_SOURCE[0]%/index.sh}/common.sh"
-# shellcheck source=./create.sh disable=SC1091
+# shellcheck source=src/tools/notes/create.sh
 source "${BASH_SOURCE[0]%/index.sh}/create.sh"
-# shellcheck source=./append.sh disable=SC1091
+# shellcheck source=src/tools/notes/append.sh
 source "${BASH_SOURCE[0]%/index.sh}/append.sh"
-# shellcheck source=./list.sh disable=SC1091
+# shellcheck source=src/tools/notes/list.sh
 source "${BASH_SOURCE[0]%/index.sh}/list.sh"
-# shellcheck source=./search.sh disable=SC1091
+# shellcheck source=src/tools/notes/search.sh
 source "${BASH_SOURCE[0]%/index.sh}/search.sh"
-# shellcheck source=./read.sh disable=SC1091
+# shellcheck source=src/tools/notes/read.sh
 source "${BASH_SOURCE[0]%/index.sh}/read.sh"
 
 register_notes_suite() {

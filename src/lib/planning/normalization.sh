@@ -18,7 +18,7 @@
 
 PLANNING_NORMALIZATION_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# shellcheck source=../core/logging.sh disable=SC1091
+# shellcheck source=src/lib/core/logging.sh
 source "${PLANNING_NORMALIZATION_DIR}/../core/logging.sh"
 
 normalize_plan() {

@@ -21,11 +21,11 @@
 # Exit codes:
 #   Functions emit errors via log and return non-zero on misuse.
 
-# shellcheck source=../../lib/core/logging.sh disable=SC1091
+# shellcheck source=src/lib/core/logging.sh
 source "${BASH_SOURCE[0]%/tools/mail/common.sh}/lib/core/logging.sh"
-# shellcheck source=../osascript_helpers.sh disable=SC1091
+# shellcheck source=src/tools/osascript_helpers.sh
 source "${BASH_SOURCE[0]%/tools/mail/common.sh}/tools/osascript_helpers.sh"
-# shellcheck source=../registry.sh disable=SC1091
+# shellcheck source=src/tools/registry.sh
 source "${BASH_SOURCE[0]%/mail/common.sh}/registry.sh"
 
 mail_require_platform() {

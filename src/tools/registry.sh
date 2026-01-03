@@ -17,7 +17,7 @@
 # Exit codes:
 #   Functions emit errors via log and return non-zero when misused.
 
-# shellcheck source=../lib/core/logging.sh disable=SC1091
+# shellcheck source=src/lib/core/logging.sh
 source "${BASH_SOURCE[0]%/tools/registry.sh}/lib/core/logging.sh"
 
 : "${CANONICAL_TEXT_ARG_KEY:=input}"

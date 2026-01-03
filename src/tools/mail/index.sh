@@ -19,17 +19,17 @@
 # Exit codes:
 #   Functions emit errors via log and return non-zero when misused.
 
-# shellcheck source=./common.sh disable=SC1091
+# shellcheck source=src/tools/mail/common.sh
 source "${BASH_SOURCE[0]%/index.sh}/common.sh"
-# shellcheck source=./draft.sh disable=SC1091
+# shellcheck source=src/tools/mail/draft.sh
 source "${BASH_SOURCE[0]%/index.sh}/draft.sh"
-# shellcheck source=./send.sh disable=SC1091
+# shellcheck source=src/tools/mail/send.sh
 source "${BASH_SOURCE[0]%/index.sh}/send.sh"
-# shellcheck source=./search.sh disable=SC1091
+# shellcheck source=src/tools/mail/search.sh
 source "${BASH_SOURCE[0]%/index.sh}/search.sh"
-# shellcheck source=./list_inbox.sh disable=SC1091
+# shellcheck source=src/tools/mail/list_inbox.sh
 source "${BASH_SOURCE[0]%/index.sh}/list_inbox.sh"
-# shellcheck source=./list_unread.sh disable=SC1091
+# shellcheck source=src/tools/mail/list_unread.sh
 source "${BASH_SOURCE[0]%/index.sh}/list_unread.sh"
 
 register_mail_suite() {

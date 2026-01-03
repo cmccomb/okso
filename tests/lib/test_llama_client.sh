@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 # shellcheck shell=bash
-# shellcheck disable=SC2154,SC2016,SC2030,SC2031,SC1091
+# shellcheck disable=SC2154,SC2016,SC2030,SC2031
 #
 # Tests for llama.cpp client helpers.
 #

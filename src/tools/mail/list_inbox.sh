@@ -21,11 +21,11 @@
 # Exit codes:
 #   Returns non-zero only when registration is misused.
 
-# shellcheck source=../registry.sh disable=SC1091
+# shellcheck source=src/tools/registry.sh
 source "${BASH_SOURCE[0]%/mail/list_inbox.sh}/registry.sh"
-# shellcheck source=../../lib/core/logging.sh disable=SC1091
+# shellcheck source=src/lib/core/logging.sh
 source "${BASH_SOURCE[0]%/tools/mail/list_inbox.sh}/lib/core/logging.sh"
-# shellcheck source=./common.sh disable=SC1091
+# shellcheck source=src/tools/mail/common.sh
 source "${BASH_SOURCE[0]%/list_inbox.sh}/common.sh"
 
 tool_mail_list_inbox() {

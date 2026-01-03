@@ -15,13 +15,13 @@
 
 EXECUTOR_LIB_DIR=${EXECUTOR_LIB_DIR:-$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)}
 
-# shellcheck source=../core/logging.sh disable=SC1091
+# shellcheck source=src/lib/core/logging.sh
 source "${EXECUTOR_LIB_DIR}/../core/logging.sh"
-# shellcheck source=../core/json_state.sh disable=SC1091
+# shellcheck source=src/lib/core/json_state.sh
 source "${EXECUTOR_LIB_DIR}/../core/json_state.sh"
-# shellcheck source=../formatting.sh disable=SC1091
+# shellcheck source=src/lib/formatting.sh
 source "${EXECUTOR_LIB_DIR}/../formatting.sh"
-# shellcheck source=../validation/validation.sh disable=SC1091
+# shellcheck source=src/lib/validation/validation.sh
 source "${EXECUTOR_LIB_DIR}/../validation/validation.sh"
 
 initialize_executor_state() {

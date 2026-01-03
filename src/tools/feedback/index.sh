@@ -28,9 +28,9 @@
 #   Returns non-zero when required context is missing, validation fails, or the
 #   output path is not writable.
 
-# shellcheck source=../../lib/core/logging.sh disable=SC1091
+# shellcheck source=src/lib/core/logging.sh
 source "${BASH_SOURCE[0]%/tools/feedback/index.sh}/lib/core/logging.sh"
-# shellcheck source=../registry.sh disable=SC1091
+# shellcheck source=src/tools/registry.sh
 source "${BASH_SOURCE[0]%/feedback/index.sh}/registry.sh"
 
 feedback_normalize_context() {

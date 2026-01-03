@@ -15,9 +15,9 @@
 
 PROMPT_BUILD_PLANNER_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# shellcheck source=./templates.sh disable=SC1091
+# shellcheck source=src/lib/prompt/templates.sh
 source "${PROMPT_BUILD_PLANNER_DIR}/templates.sh"
-# shellcheck source=../schema/schema.sh disable=SC1091
+# shellcheck source=src/lib/schema/schema.sh
 source "${PROMPT_BUILD_PLANNER_DIR}/../schema/schema.sh"
 
 build_planner_prompt() {

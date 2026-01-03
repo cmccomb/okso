@@ -24,11 +24,11 @@
 WEB_TOOLS_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 SRC_ROOT=$(cd -- "${WEB_TOOLS_DIR}/../.." && pwd)
 
-# shellcheck source=../../lib/core/logging.sh disable=SC1091
+# shellcheck source=src/lib/core/logging.sh
 source "${SRC_ROOT}/lib/core/logging.sh"
-# shellcheck source=./http.sh disable=SC1091
+# shellcheck source=src/tools/web/http.sh
 source "${WEB_TOOLS_DIR}/http.sh"
-# shellcheck source=../registry.sh disable=SC1091
+# shellcheck source=src/tools/registry.sh
 source "${SRC_ROOT}/tools/registry.sh"
 
 web_search_parse_args() {

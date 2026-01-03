@@ -19,10 +19,14 @@
 
 CLI_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# shellcheck source=../core/logging.sh disable=SC1091
+# shellcheck source=src/lib/core/logging.sh
 source "${CLI_LIB_DIR}/../core/logging.sh"
 
 build_usage_text() {
+	# Constructs and returns the usage text for the CLI.
+	# Returns:
+	#   usage text on stdout (string)
+
 	local entrypoint_display
 	entrypoint_display="${OKSO_ENTRYPOINT:-./src/bin/okso}"
 
@@ -44,6 +48,10 @@ USAGE
 }
 
 render_usage() {
+	# Renders the usage text, using gum for formatting if available.
+	# Returns:
+	#   usage text on stdout (string)
+
 	local usage_text
 	usage_text="$(build_usage_text)"
 

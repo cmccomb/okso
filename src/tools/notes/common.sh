@@ -20,9 +20,9 @@
 # Exit codes:
 #   Functions emit errors via log and return non-zero on misuse.
 
-# shellcheck source=../../lib/core/logging.sh disable=SC1091
+# shellcheck source=src/lib/core/logging.sh
 source "${BASH_SOURCE[0]%/tools/notes/common.sh}/lib/core/logging.sh"
-# shellcheck source=../osascript_helpers.sh disable=SC1091
+# shellcheck source=src/tools/osascript_helpers.sh
 source "${BASH_SOURCE[0]%/tools/notes/common.sh}/tools/osascript_helpers.sh"
 
 notes_folder_name() {

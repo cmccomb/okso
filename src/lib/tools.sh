@@ -23,33 +23,33 @@ TOOLS_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 TOOLS_SRC_ROOT=$(cd -- "${TOOLS_LIB_DIR}/.." && pwd)
 TOOLS_DIR="${TOOLS_SRC_ROOT}/tools"
 
-# shellcheck source=./core/errors.sh disable=SC1091
+# shellcheck source=src/lib/core/errors.sh
 source "${TOOLS_LIB_DIR}/core/errors.sh"
-# shellcheck source=./core/logging.sh disable=SC1091
+# shellcheck source=src/lib/core/logging.sh
 source "${TOOLS_LIB_DIR}/core/logging.sh"
-# shellcheck source=../tools/registry.sh disable=SC1091
+# shellcheck source=src/tools/registry.sh
 source "${TOOLS_DIR}/registry.sh"
 TOOL_WRITABLE_DIRECTORY_ALLOWLIST=(
 	"${HOME}/.okso"
 	"${XDG_CONFIG_HOME:-${HOME}/.config}/okso"
 )
-# shellcheck source=./tools/terminal/index.sh disable=SC1091
+# shellcheck source=src/tools/terminal/index.sh
 source "${TOOLS_DIR}/terminal/index.sh"
-# shellcheck source=./tools/python_repl/index.sh disable=SC1091
+# shellcheck source=src/tools/python_repl/index.sh
 source "${TOOLS_DIR}/python_repl/index.sh"
-# shellcheck source=./tools/notes/index.sh disable=SC1091
+# shellcheck source=src/tools/notes/index.sh
 source "${TOOLS_DIR}/notes/index.sh"
-# shellcheck source=./tools/reminders/index.sh disable=SC1091
+# shellcheck source=src/tools/reminders/index.sh
 source "${TOOLS_DIR}/reminders/index.sh"
-# shellcheck source=./tools/calendar/index.sh disable=SC1091
+# shellcheck source=src/tools/calendar/index.sh
 source "${TOOLS_DIR}/calendar/index.sh"
-# shellcheck source=./tools/mail/index.sh disable=SC1091
+# shellcheck source=src/tools/mail/index.sh
 source "${TOOLS_DIR}/mail/index.sh"
-# shellcheck source=./tools/final_answer/index.sh disable=SC1091
+# shellcheck source=src/tools/final_answer/index.sh
 source "${TOOLS_DIR}/final_answer/index.sh"
-# shellcheck source=./tools/feedback/index.sh disable=SC1091
+# shellcheck source=src/tools/feedback/index.sh
 source "${TOOLS_DIR}/feedback/index.sh"
-# shellcheck source=./tools/web/index.sh disable=SC1091
+# shellcheck source=src/tools/web/index.sh
 source "${TOOLS_DIR}/web/index.sh"
 
 tools_normalize_path() {

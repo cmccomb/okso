@@ -19,7 +19,7 @@
 # Exit codes:
 #   Functions emit warnings and return non-zero when requirements are unmet.
 
-# shellcheck source=../lib/core/logging.sh disable=SC1091
+# shellcheck source=src/lib/core/logging.sh
 source "${BASH_SOURCE[0]%/tools/osascript_helpers.sh}/lib/core/logging.sh"
 
 assert_osascript_available() {

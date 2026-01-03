@@ -18,13 +18,13 @@
 # Exit codes:
 #   Functions emit errors via log and return non-zero when misused.
 
-# shellcheck source=./common.sh disable=SC1091
+# shellcheck source=src/tools/calendar/common.sh
 source "${BASH_SOURCE[0]%/index.sh}/common.sh"
-# shellcheck source=./create.sh disable=SC1091
+# shellcheck source=src/tools/calendar/create.sh
 source "${BASH_SOURCE[0]%/index.sh}/create.sh"
-# shellcheck source=./list.sh disable=SC1091
+# shellcheck source=src/tools/calendar/list.sh
 source "${BASH_SOURCE[0]%/index.sh}/list.sh"
-# shellcheck source=./search.sh disable=SC1091
+# shellcheck source=src/tools/calendar/search.sh
 source "${BASH_SOURCE[0]%/index.sh}/search.sh"
 
 register_calendar_suite() {

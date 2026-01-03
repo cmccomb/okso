@@ -17,11 +17,11 @@
 # Exit codes:
 #   Returns 0 after echoing the supplied TOOL_ARGS.input.
 
-# shellcheck source=../../lib/core/logging.sh disable=SC1091
+# shellcheck source=src/lib/core/logging.sh
 source "${BASH_SOURCE[0]%/tools/final_answer/index.sh}/lib/core/logging.sh"
-# shellcheck source=../../lib/cli/output.sh disable=SC1091
+# shellcheck source=src/lib/cli/output.sh
 source "${BASH_SOURCE[0]%/tools/final_answer/index.sh}/lib/cli/output.sh"
-# shellcheck source=../registry.sh disable=SC1091
+# shellcheck source=src/tools/registry.sh
 source "${BASH_SOURCE[0]%/final_answer/index.sh}/registry.sh"
 
 tool_final_answer() {
