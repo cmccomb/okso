@@ -34,7 +34,6 @@
                 "mail_list_inbox",
                 "mail_list_unread",
                 "notes_list",
-                "executor_fallback",
                 "reminders_list"
               ]
             }

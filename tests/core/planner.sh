@@ -73,27 +73,6 @@ SCRIPT
 	[ "${lines[1]}" = "final_answer" ]
 }
 
-@test "derive_allowed_tools_from_plan expands executor_fallback to available tools" {
-	run bash <<'SCRIPT'
-set -euo pipefail
-export PLANNER_SKIP_TOOL_LOAD=true
-source ./src/lib/planning/planner.sh
-tool_names() { printf "%s\n" terminal notes_create calendar_list; }
-plan_json='[{"tool":"executor_fallback","args":{},"thought":"fallback"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"summarize"}]'
-tools=()
-while IFS= read -r line; do
-        tools+=("$line")
-done < <(derive_allowed_tools_from_plan "${plan_json}")
-printf "%s\n" "${tools[@]}"
-SCRIPT
-
-	[ "$status" -eq 0 ]
-	[ "${lines[0]}" = "terminal" ]
-	[ "${lines[1]}" = "notes_create" ]
-	[ "${lines[2]}" = "calendar_list" ]
-	[ "${lines[3]}" = "final_answer" ]
-}
-
 @test "derive_allowed_tools_from_plan falls back to summary on non-plan payloads" {
 	run bash <<'SCRIPT'
 set -euo pipefail

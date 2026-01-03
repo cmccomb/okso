@@ -475,25 +475,15 @@ derive_allowed_tools_from_plan() {
 		plan_contains_fallback=true
 	fi
 
-	if [[ "${plan_contains_fallback}" == true ]]; then
-		while IFS= read -r tool; do
-			[[ -z "${tool}" ]] && continue
-			if grep -Fxq "${tool}" <<<"${seen}"; then
-				continue
-			fi
-			required+=("${tool}")
-			seen+="${tool}"$'\n'
-		done < <(tool_names)
-	else
-		while IFS= read -r tool; do
-			[[ -z "${tool}" ]] && continue
-			if grep -Fxq "${tool}" <<<"${seen}"; then
-				continue
-			fi
-			required+=("${tool}")
-			seen+="${tool}"$'\n'
-		done < <(jq -r '.[] | .tool // empty' <<<"${plan_json}" 2>/dev/null || true)
-	fi
+  # Collect unique tool names
+  while IFS= read -r tool; do
+    [[ -z "${tool}" ]] && continue
+    if grep -Fxq "${tool}" <<<"${seen}"; then
+      continue
+    fi
+    required+=("${tool}")
+    seen+="${tool}"$'\n'
+  done < <(jq -r '.[] | .tool // empty' <<<"${plan_json}" 2>/dev/null || true)
 
 	if ! grep -Fxq "final_answer" <<<"${seen}"; then
 		required+=("final_answer")
