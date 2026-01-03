@@ -30,7 +30,6 @@
 #   - bash 3.2+
 #   - optional llama.cpp binary
 #   - jq
-#   - gum (for interactive approvals; falls back to POSIX prompts)
 
 # Exit codes:
 #   Functions return non-zero on misuse; fatal errors logged by caller.
@@ -252,8 +251,12 @@ generate_planner_response() {
 	initialize_planner_models
 
 	# Assemble the tool catalog
-	local tools_decl
-	if tools_decl=$(declare -p TOOLS 2>/dev/null) && grep -q 'declare -a' <<<"${tools_decl}"; then
+	local tools_decl=""
+	if declare -p TOOLS >/dev/null 2>&1; then
+		tools_decl="$(declare -p TOOLS)"
+	fi
+
+	if [[ -n "${tools_decl}" ]] && grep -q 'declare -a' <<<"${tools_decl}"; then
 		planner_tools=("${TOOLS[@]}")
 	else
 		planner_tools=()

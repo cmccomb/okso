@@ -70,11 +70,6 @@ convert_html() {
 	local body_path output
 	body_path=$1
 
-	if ! command -v pandoc >/dev/null 2>&1; then
-		printf '%s\n' "pandoc not available" >&2
-		return 1
-	fi
-
 	if ! output=$(pandoc --from=html --to=gfm --wrap=none "${body_path}"); then
 		printf '%s\n' "pandoc failed to convert HTML" >&2
 		return 1
@@ -96,11 +91,6 @@ convert_json() {
 	local body_path formatted
 	body_path=$1
 
-	if ! command -v jq >/dev/null 2>&1; then
-		printf '%s\n' "jq not available" >&2
-		return 1
-	fi
-
 	if ! formatted=$(jq '.' "${body_path}" 2>/dev/null); then
 		printf '%s\n' "invalid JSON" >&2
 		return 1
@@ -114,10 +104,6 @@ convert_xml() {
 	#   $1 - body path
 	local body_path formatted
 	body_path=$1
-	if ! command -v xmllint >/dev/null 2>&1; then
-		printf '%s\n' "xmllint not available" >&2
-		return 1
-	fi
 	if ! formatted=$(xmllint --format "${body_path}"); then
 		printf '%s\n' "invalid XML" >&2
 		return 1
@@ -214,11 +200,6 @@ main() {
 
 	if ! parsed=$(parse_args "$@"); then
 		return 1
-	fi
-
-	if ! command -v jq >/dev/null 2>&1; then
-		printf '%s\n' "jq not available" >&2
-		return 2
 	fi
 
 	path=${parsed%%|*}

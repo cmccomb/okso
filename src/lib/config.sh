@@ -343,7 +343,7 @@ init_environment() {
 	hydrate_model_specs
 
 	# Platform detection
-	if command -v uname >/dev/null 2>&1 && [[ "$(uname -s)" == "Darwin" ]]; then
+	if [[ "$(uname -s)" == "Darwin" ]]; then
 		# shellcheck disable=SC2034
 		IS_MACOS=true
 	fi

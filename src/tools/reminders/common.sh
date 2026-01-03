@@ -33,18 +33,6 @@ reminders_list_name() {
 	printf '%s' "${list}"
 }
 
-reminders_require_platform() {
-	# Ensures Apple Reminders tools only run on macOS with osascript available.
-	if ! assert_osascript_available \
-		"Apple Reminders is only available on macOS" \
-		"osascript missing; cannot reach Apple Reminders" \
-		"${REMINDERS_OSASCRIPT_BIN:-osascript}" \
-		"${TOOL_ARGS:-}"; then
-		return 1
-	fi
-
-	return 0
-}
 
 reminders_extract_title_and_body() {
 	# Splits TOOL_ARGS into a title (first line) and body (remaining lines).

@@ -32,19 +32,6 @@ notes_folder_name() {
 	printf '%s' "${folder}"
 }
 
-notes_require_platform() {
-	# Ensures Apple Notes tools only run on macOS with osascript available.
-	if ! assert_osascript_available \
-		"Apple Notes is only available on macOS" \
-		"osascript missing; cannot reach Apple Notes" \
-		"${NOTES_OSASCRIPT_BIN:-osascript}" \
-		"${TOOL_ARGS:-}"; then
-		return 1
-	fi
-
-	return 0
-}
-
 notes_extract_title_and_body() {
 	# Splits TOOL_ARGS into a title (first line) and body (remaining lines).
 	# Emits two lines to stdout: title then body.

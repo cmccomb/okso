@@ -31,10 +31,6 @@ source "${BASH_SOURCE[0]%/complete.sh}/common.sh"
 tool_reminders_complete() {
 	local title list_script
 
-	if ! reminders_require_platform; then
-		return 0
-	fi
-
 	if ! IFS= read -r -d '' title < <(reminders_extract_title_and_body); then
 		return 1
 	fi

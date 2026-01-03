@@ -42,23 +42,24 @@ llama_with_timeout() {
 	local timeout_seconds
 	timeout_seconds=${LLAMA_TIMEOUT_SECONDS:-0}
 
-	# If timeout is requested and supported, use it
 	if [[ ${timeout_seconds} -gt 0 ]]; then
+		perl - "${timeout_seconds}" "$@" <<'PERL'
+my $timeout = shift @ARGV;
 
-		# Prefer timeout command if available
-		if command -v timeout >/dev/null 2>&1; then
-			timeout "${timeout_seconds}" "$@"
-			return $?
-		fi
+eval {
+  local $SIG{ALRM} = sub { die "TIMEOUT\n" };
+  alarm $timeout;
+  system @ARGV;
+  alarm 0;
+};
 
-		# Fallback to perl-based timeout if available
-		if command -v perl >/dev/null 2>&1; then
-			perl -e '$timeout = shift; eval { local $SIG{ALRM} = sub { die "TIMEOUT\n" }; alarm $timeout; system(@ARGV); alarm 0; }; if ($@ eq "TIMEOUT\n") { exit 124 } else { exit ($? >> 8) }' "${timeout_seconds}" "$@"
-			return $?
-		fi
-
-		# Warn if no supported timeout mechanism found
-		log "WARN" "Timeout requested but unsupported; running without it" "requested_timeout=${timeout_seconds}"
+if ($@ eq "TIMEOUT\n") {
+  exit 124;
+} else {
+  exit ($? >> 8);
+}
+PERL
+		return $?
 	fi
 
 	"$@"

@@ -12,7 +12,6 @@
 #
 # Dependencies:
 #   - bash 3.2+
-#   - gum (optional, for styled help output)
 #
 # Exit codes:
 #   0 for help/version responses; 1 for argument errors.
@@ -22,8 +21,8 @@ CLI_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck source=src/lib/core/logging.sh
 source "${CLI_LIB_DIR}/../core/logging.sh"
 
-build_usage_text() {
-	# Constructs and returns the usage text for the CLI.
+render_usage() {
+	# Renders the usage text for the okso CLI.
 	# Returns:
 	#   usage text on stdout (string)
 
@@ -45,24 +44,6 @@ The script orchestrates a llama.cpp-backed planner with a registry of
 machine-checkable tools. Provide a natural language query after
 "--" to trigger planning, ranking, and execution.
 USAGE
-}
-
-render_usage() {
-	# Renders the usage text, using gum for formatting if available.
-	# Returns:
-	#   usage text on stdout (string)
-
-	local usage_text
-	usage_text="$(build_usage_text)"
-
-	if command -v gum >/dev/null 2>&1; then
-		# gum formatting keeps help text readable when available but the
-		# plain fallback ensures portability.
-		printf '%s\n' "${usage_text}" | gum format
-		return
-	fi
-
-	printf '%s\n' "${usage_text}"
 }
 
 show_help() {

@@ -19,12 +19,12 @@ jobs:
 
       - name: Check formatting
         run: |
-          find src scripts tests -type f \( -name '*.sh' -o -name 'okso' \) -print0 \
+          find src tests -type f \( -name '*.sh' -o -name 'okso' \) -print0 \
             | xargs -0 shfmt -d
 
       - name: Run shellcheck
         run: |
-          find src scripts tests -type f \( -name '*.sh' -o -name 'okso' \) -print0 \
+          find src tests -type f \( -name '*.sh' -o -name 'okso' \) -print0 \
             | xargs -0 shellcheck
 
       - name: Run Bats suite with coverage

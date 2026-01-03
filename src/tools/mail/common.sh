@@ -28,21 +28,6 @@ source "${BASH_SOURCE[0]%/tools/mail/common.sh}/tools/osascript_helpers.sh"
 # shellcheck source=src/tools/registry.sh
 source "${BASH_SOURCE[0]%/mail/common.sh}/registry.sh"
 
-mail_require_platform() {
-	# Ensures Apple Mail tools only run on macOS with osascript available.
-	local context
-	context="$1"
-
-	if ! assert_osascript_available \
-		"Apple Mail is only available on macOS" \
-		"osascript missing; cannot reach Apple Mail" \
-		"${MAIL_OSASCRIPT_BIN:-osascript}" \
-		"${context}"; then
-		return 1
-	fi
-
-	return 0
-}
 
 mail_inbox_limit() {
 	# Prints a positive integer inbox limit.

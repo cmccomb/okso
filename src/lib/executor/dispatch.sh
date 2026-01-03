@@ -66,14 +66,6 @@ confirm_tool() {
 	if [[ -n "${context}" ]]; then
 		prompt+=$'\n'"${context}"
 	fi
-	if command -v gum >/dev/null 2>&1; then
-		if ! gum confirm --affirmative "Run" --negative "Skip" "${prompt}"; then
-			log "WARN" "Tool execution declined" "${tool_name}"
-			printf '[%s skipped]\n' "${tool_name}"
-			return 1
-		fi
-		return 0
-	fi
 
 	# Prompt the user for confirmation
 	printf '%s [y/N/feedback]: ' "${prompt}" >&2

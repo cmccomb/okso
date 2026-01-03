@@ -37,10 +37,6 @@ derive_notes_append_query() {
 tool_notes_append() {
 	local title body folder_script
 
-	if ! notes_require_platform; then
-		return 0
-	fi
-
 	if ! { IFS= read -r -d '' title && IFS= read -r -d '' body; } < <(notes_extract_title_and_body); then
 		return 1
 	fi

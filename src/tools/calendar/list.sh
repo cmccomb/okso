@@ -44,14 +44,11 @@ tool_calendar_list() {
 		return 0
 	fi
 
-	if ! calendar_require_platform ""; then
-		return 0
-	fi
 
 	calendar_script="$(calendar_resolve_calendar_script)"
 
 	log "INFO" "Listing upcoming Apple Calendar events" "$(calendar_name)"
-	calendar_run_script <<APPLESCRIPT
+	calendar_run_script "$@" <<APPLESCRIPT
 on run
         tell application "Calendar"
 ${calendar_script}
