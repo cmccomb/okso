@@ -35,11 +35,15 @@ render_rephrase_prompt() {
 	# Renders the rephrasing prompt with the user query embedded.
 	# Arguments:
 	#   $1 - user query (string)
+	# Returns:
+	#   rendered prompt on stdout; non-zero on failure.
 	local user_query schema_json
 	user_query="$1"
 
+	# Load the schema for validation
 	schema_json="$(load_schema_text pre_planner_search_terms 2>/dev/null || true)"
 
+	# Render the prompt template
 	render_prompt_template "pre_planner_search_terms" USER_QUERY "${user_query}" PLANNER_SEARCH_SCHEMA "${schema_json}"
 }
 
@@ -51,34 +55,35 @@ planner_generate_search_queries() {
 	#   JSON array of 1-3 search queries (strings).
 	local user_query prompt raw max_generation_tokens schema_json
 	user_query="$1"
+
+	# Determine max generation tokens
 	max_generation_tokens=${REPHRASER_MAX_OUTPUT_TOKENS:-256}
 
+	# Load the schema for validation
 	schema_json="$(load_schema_text pre_planner_search_terms 2>/dev/null || true)"
 
+	# Validate max generation tokens
 	if ! [[ "${max_generation_tokens}" =~ ^[0-9]+$ ]] || ((max_generation_tokens < 1)); then
 		max_generation_tokens=256
 	fi
 
+	# Check llama availability
 	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
 		log "WARN" "llama unavailable; using raw query for search" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}" >&2
 		jq -nc --arg query "${user_query}" '[ $query ]'
 		return 0
 	fi
 
+	# Render the rephrase prompt
 	prompt="$(render_rephrase_prompt "${user_query}")" || {
 		log "ERROR" "Failed to render rephrase prompt" "pre_planner_search_terms_prompt_render_failed" >&2
 		jq -nc --arg query "${user_query}" '[ $query ]'
 		return 0
 	}
 
+	# Invoke the rephrase model
 	if ! raw="$(LLAMA_TEMPERATURE=0.7 llama_infer "${prompt}" '' "${max_generation_tokens}" "${schema_json}" "${SEARCH_REPHRASER_MODEL_REPO:-}" "${SEARCH_REPHRASER_MODEL_FILE:-}" "${SEARCH_REPHRASER_CACHE_FILE:-}" "${prompt}")"; then
 		log "WARN" "Rephrase model invocation failed; falling back to user query" "pre_planner_search_terms_infer_failed" >&2
-		jq -nc --arg query "${user_query}" '[ $query ]'
-		return 0
-	fi
-
-	if [[ -z "${raw}" ]]; then
-		log "WARN" "Rephrase model returned empty output" "pre_planner_search_terms_empty" >&2
 		jq -nc --arg query "${user_query}" '[ $query ]'
 		return 0
 	fi

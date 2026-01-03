@@ -44,7 +44,6 @@ initialize_executor_state() {
 		--arg allowed_tools "$3" \
 		--arg plan_entries "$4" \
 		--arg plan_outline "$5" \
-		--argjson max_steps "${MAX_STEPS:-6}" \
 		'{
                         user_query: $user_query,
                         allowed_tools: $allowed_tools,
@@ -53,7 +52,6 @@ initialize_executor_state() {
                         history: [],
                         step: 0,
                         plan_index: 0,
-                        max_steps: $max_steps,
                         final_answer: "",
                         final_answer_action: "",
                         last_action: null

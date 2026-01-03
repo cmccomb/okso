@@ -33,10 +33,14 @@ planner_is_tool_available() {
 	# Arguments:
 	#   $1 - tool name (string)
 	#   $2 - newline-delimited tool names (string)
+	# Returns:
+	#   0 when available; 1 otherwise.
+	local tool
 	local tool available_tools
 	tool="$1"
 	available_tools="$2"
 
+	# Empty tool names are unavailable
 	grep -Fxq "${tool}" <<<"${available_tools}" 2>/dev/null
 }
 
@@ -44,7 +48,8 @@ planner_terminal_command_has_side_effects() {
 	# Determines if a terminal command is likely to produce side effects.
 	# Arguments:
 	#   $1 - terminal args JSON (string)
-	# Returns 0 when side effects are likely; 1 otherwise.
+	# Returns:
+	#   0 when side effects are likely; 1 otherwise.
 	local args_json command first_word
 	args_json=${1:-"{}"}
 	command=$(jq -r '.command // ""' <<<"${args_json}" 2>/dev/null)
@@ -63,6 +68,7 @@ planner_terminal_command_has_side_effects() {
 		return 0
 	fi
 
+	# Whitelisted commands known to be side-effect-free.
 	case "${first_word}" in
 	ls | cat | pwd | head | tail | grep | find)
 		return 1
@@ -86,7 +92,8 @@ python_repl_has_side_effects() {
 	# Detects if a python_repl snippet is likely to mutate state or perform I/O.
 	# Arguments:
 	#   $1 - python_repl args JSON (string)
-	# Returns 0 when side effects are likely; 1 otherwise.
+	# Returns:
+	#   0 when side effects are likely; 1 otherwise.
 	local args_json snippet pattern
 	args_json=${1:-"{}"}
 	snippet=$(jq -r '.code // .snippet // .text // ""' <<<"${args_json}" 2>/dev/null)
@@ -96,6 +103,7 @@ python_repl_has_side_effects() {
 		return 0
 	fi
 
+	# Heuristic patterns indicating side effects.
 	while IFS= read -r pattern; do
 		[[ -z "${pattern}" ]] && continue
 		if grep -Eqi -- "${pattern}" <<<"${snippet}"; then
@@ -138,6 +146,10 @@ planner_step_has_side_effects() {
 	# Arguments:
 	#   $1 - tool name (string)
 	#   $2 - tool args JSON (string)
+	# Returns:
+	#   0 when side effects are likely; 1 otherwise.
+
+	# Early exit for known side-effect-free tools
 	case "$1" in
 	final_answer | web_search | notes_list | notes_read | notes_search | reminders_list | calendar_list | calendar_search | feedback)
 		return 1
@@ -145,24 +157,29 @@ planner_step_has_side_effects() {
 	*) ;;
 	esac
 
+	# Delegate to tool-specific heuristics
 	if [[ "$1" == "python_repl" ]]; then
 		python_repl_has_side_effects "$2"
 		return
 	fi
 
+	# Delegate to terminal command heuristic
 	if [[ "$1" == "terminal" ]]; then
 		planner_terminal_command_has_side_effects "$2"
 		return
 	fi
 
+	# Conservative defaults for other tools
 	if [[ "$1" =~ ^mail_ ]]; then
 		return 0
 	fi
 
+	# Conservative defaults for common side-effecting actions
 	if [[ "$1" =~ (create|append|delete|update|send|write|draft) ]]; then
 		return 0
 	fi
 
+	# Whitelist of known side-effecting tools
 	case "$1" in
 	notes_create | notes_append | reminders_create | calendar_create | mail_send | mail_draft)
 		return 0
@@ -176,16 +193,21 @@ score_planner_candidate() {
 	# Scores a normalized planner response for downstream selection.
 	# Arguments:
 	#   $1 - normalized planner response JSON array (string)
+	# Returns:
+	#   scorecard JSON on stdout; non-zero on failure.
 	local plan_json plan_length max_steps available_tools availability_known
 	local score tie_breaker over_budget rationale_json final_tool
 	local -a rationale=()
 
 	plan_json="$1"
+
+	# Determine max steps from environment or default
 	max_steps=${PLANNER_MAX_PLAN_STEPS:-6}
 	if ! [[ "${max_steps}" =~ ^[0-9]+$ ]] || ((max_steps < 1)); then
 		max_steps=6
 	fi
 
+	# Normalize the plan JSON
 	plan_json="$(normalize_plan <<<"${plan_json}")" || return 1
 	plan_length=$(jq -r 'length' <<<"${plan_json}" 2>/dev/null)
 
@@ -216,6 +238,7 @@ score_planner_candidate() {
 		rationale+=("Plan must terminate with final_answer as the final step.")
 	fi
 
+	# Check tool availability and argument validity
 	available_tools="$(tool_names)"
 	availability_known=true
 	if [[ -z "${available_tools}" ]]; then
@@ -223,6 +246,7 @@ score_planner_candidate() {
 		rationale+=("Tool registry is empty; skipping availability checks.")
 	fi
 
+	# Evaluate each step
 	local idx=0 valid_tools=0 missing_tools=0 invalid_args=0 side_effect_index=-1
 	while IFS= read -r step; do
 		local tool args
@@ -244,6 +268,7 @@ score_planner_candidate() {
 		idx=$((idx + 1))
 	done < <(jq -cr '.[]' <<<"${plan_json}")
 
+	# Finalize scoring
 	score=$((score + (valid_tools * 3)))
 	if ((missing_tools > 0)); then
 		score=$((score - (missing_tools * 25)))
@@ -253,6 +278,7 @@ score_planner_candidate() {
 		rationale+=("All tools are registered in the planner catalog.")
 	fi
 
+	# Argument schema validation
 	if ((invalid_args > 0)); then
 		score=$((score - (invalid_args * 10)))
 		rationale+=("Args fail schema checks for ${invalid_args} step(s).")
@@ -261,6 +287,7 @@ score_planner_candidate() {
 		rationale+=("Planner args satisfy registered tool schemas.")
 	fi
 
+	# Side-effecting action timing
 	if ((side_effect_index == 0 && plan_length > 1)); then
 		score=$((score - 10))
 		rationale+=("First step is side-effecting before gathering information.")
@@ -272,9 +299,16 @@ score_planner_candidate() {
 		rationale+=("No side-effecting tools detected in the plan.")
 	fi
 
+	# Emit final scorecard
 	rationale_json=$(printf '%s\0' "${rationale[@]}" | jq -Rs 'split("\u0000") | map(select(length>0))')
 	log "INFO" "Planner scoring summary" "$(jq -nc --argjson score "${score}" --argjson tie_breaker "${tie_breaker}" --argjson plan_length "${plan_length}" --argjson missing_tools "${missing_tools}" --argjson invalid_args "${invalid_args}" --argjson side_effect_index "${side_effect_index}" '{score:$score,tie_breaker:$tie_breaker,plan_length:$plan_length,missing_tools:$missing_tools,invalid_args:$invalid_args,side_effect_index:$side_effect_index}')" >&2
-	jq -nc --argjson score "${score}" --argjson tie_breaker "${tie_breaker}" --argjson plan_length "${plan_length}" --argjson max_steps "${max_steps}" --argjson rationale "${rationale_json}" '{score:$score,tie_breaker:$tie_breaker,plan_length:$plan_length,max_steps:$max_steps,rationale:$rationale}'
+	jq -nc \
+		--argjson score "${score}" \
+		--argjson tie_breaker "${tie_breaker}" \
+		--argjson plan_length "${plan_length}" \
+		--argjson max_steps "${max_steps}" \
+		--argjson rationale "${rationale_json}" \
+		'{score:$score,tie_breaker:$tie_breaker,plan_length:$plan_length,max_steps:$max_steps,rationale:$rationale}'
 }
 
 export -f planner_is_tool_available

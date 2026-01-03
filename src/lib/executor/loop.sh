@@ -285,7 +285,7 @@ executor_loop() {
 	#   $2 - allowed tools (newline delimited)
 	#   $3 - planner plan entries as JSON array
 	#   $4 - plan outline text
-	local user_query allowed_tools plan_entries plan_outline state_prefix max_steps plan_entry step_index
+	local user_query allowed_tools plan_entries plan_outline state_prefix plan_entry step_index
 	user_query="$1"
 	allowed_tools="$2"
 	plan_entries="$3"
@@ -293,7 +293,6 @@ executor_loop() {
 	state_prefix="executor_state"
 
 	initialize_executor_state "${state_prefix}" "${user_query}" "${allowed_tools}" "${plan_entries}" "${plan_outline}"
-	max_steps=${MAX_STEPS:-6}
 
 	if [[ -z "${plan_entries}" ]]; then
 		log "ERROR" "No planner actions provided" "${user_query}" >&2
@@ -313,10 +312,6 @@ executor_loop() {
 
 	while IFS= read -r plan_entry || [[ -n "$plan_entry" ]]; do
 		((++step_index))
-		if ((step_index > max_steps)); then
-			log "WARN" "Exceeded max steps" "${max_steps}"
-			break
-		fi
 
 		execute_planned_action "${state_prefix}" "${step_index}" "${plan_entry}"
 
