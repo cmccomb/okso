@@ -68,7 +68,7 @@ SCRIPT
 }
 
 @test "planner falls back to tool_names when TOOLS is unset" {
-        run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
+	run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
@@ -82,13 +82,13 @@ export -f tool_names
 planner_collect_tools | paste -sd ',' -
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        catalog=$(printf '%s' "${output}" | tail -n 1)
-        [ "${catalog}" = "web,final_answer" ]
+	[ "$status" -eq 0 ]
+	catalog=$(printf '%s' "${output}" | tail -n 1)
+	[ "${catalog}" = "web,final_answer" ]
 }
 
 @test "planner falls back to tool_names when TOOLS is empty" {
-        run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
+	run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
@@ -103,7 +103,7 @@ export -f tool_names
 planner_collect_tools | paste -sd ',' -
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        catalog=$(printf '%s' "${output}" | tail -n 1)
-        [ "${catalog}" = "scratch,final_answer" ]
+	[ "$status" -eq 0 ]
+	catalog=$(printf '%s' "${output}" | tail -n 1)
+	[ "${catalog}" = "scratch,final_answer" ]
 }
