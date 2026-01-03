@@ -62,11 +62,10 @@ register_mail_list_unread() {
 {"type":"object","properties":{},"additionalProperties":false}
 JSON
 	)
-	register_tool \
-		"mail_list_unread" \
-		"List unread Apple Mail inbox messages." \
-		"mail_list_unread" \
-		"Requires macOS Apple Mail access; returns metadata only." \
-		tool_mail_list_unread \
-		"${args_schema}"
+        register_tool \
+                "mail_list_unread" \
+                "List unread Apple Mail inbox messages." \
+                "Requires macOS Apple Mail access; returns metadata only." \
+                tool_mail_list_unread \
+                "${args_schema}"
 }

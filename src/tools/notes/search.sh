@@ -79,11 +79,10 @@ register_notes_search() {
 	local args_schema
 
 	args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}},"additionalProperties":false}')
-	register_tool \
-		"notes_search" \
-		"Search Apple Notes by title or body." \
-		"notes_search '<query>'" \
-		"Requires macOS Notes access; read-only." \
-		tool_notes_search \
-		"${args_schema}"
+        register_tool \
+                "notes_search" \
+                "Search Apple Notes by title or body." \
+                "Requires macOS Notes access; read-only." \
+                tool_notes_search \
+                "${args_schema}"
 }

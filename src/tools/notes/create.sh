@@ -86,11 +86,10 @@ register_notes_create() {
 {"type":"object","required":["title"],"properties":{"title":{"type":"string","minLength":1},"body":{"type":"string"}},"additionalProperties":false}
 JSON
 	)
-	register_tool \
-		"notes_create" \
-		"Create a new Apple Note using structured fields." \
-		"notes_create {\"title\":\"Title\",\"body\":\"Body text\"}" \
-		"Requires macOS Apple Notes access; content is sent to Notes." \
-		tool_notes_create \
-		"${args_schema}"
+        register_tool \
+                "notes_create" \
+                "Create a new Apple Note using structured fields." \
+                "Requires macOS Apple Notes access; content is sent to Notes." \
+                tool_notes_create \
+                "${args_schema}"
 }

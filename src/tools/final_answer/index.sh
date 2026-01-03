@@ -55,11 +55,10 @@ register_final_answer() {
 	local args_schema
 
 	args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}},"additionalProperties":false}')
-	register_tool \
-		"final_answer" \
-		"Emit the final user-facing answer without performing additional actions. When using final_answer, respond as a calm, courteous 'polite haunting' guide: gently uncanny, never intrusive. Keep the tone soft but decisive, prefer evidence over explanation, and anchor statements to concrete artifacts (filenames/paths/log lines) instead of pronouns. Output should be small, clean, and paste-ready." \
-		"final_answer <final reply>" \
-		"Returns text directly to the user; avoid exposing sensitive data." \
-		tool_final_answer \
-		"${args_schema}"
+        register_tool \
+                "final_answer" \
+                "Emit the final user-facing answer without performing additional actions. When using final_answer, respond as a calm, courteous 'polite haunting' guide: gently uncanny, never intrusive. Keep the tone soft but decisive, prefer evidence over explanation, and anchor statements to concrete artifacts (filenames/paths/log lines) instead of pronouns. Output should be small, clean, and paste-ready." \
+                "Returns text directly to the user; avoid exposing sensitive data." \
+                tool_final_answer \
+                "${args_schema}"
 }

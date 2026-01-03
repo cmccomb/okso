@@ -171,11 +171,10 @@ register_python_repl() {
 	local args_schema
 
 	args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}},"additionalProperties":false}')
-	register_tool \
-		"python_repl" \
-		"Execute Python statements in a temporary sandbox via python -i." \
-		"python_repl 'python code to evaluate'" \
-		"Writes are confined to an ephemeral sandbox directory." \
-		tool_python_repl \
-		"${args_schema}"
+        register_tool \
+                "python_repl" \
+                "Execute Python statements in a temporary sandbox via python -i." \
+                "Writes are confined to an ephemeral sandbox directory." \
+                tool_python_repl \
+                "${args_schema}"
 }

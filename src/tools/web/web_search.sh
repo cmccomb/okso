@@ -124,11 +124,10 @@ register_web_search() {
                 }
         }')
 
-	register_tool \
-		"web_search" \
-		"Search the web via Google Custom Search and return structured results. Modify the search terms used in successive searches to receive more and better information." \
-		"web_search <query>" \
-		"Performs external HTTP requests; avoid sharing sensitive data." \
-		tool_web_search \
-		"${args_schema}"
+        register_tool \
+                "web_search" \
+                "Search the web via Google Custom Search and return structured results. Modify the search terms used in successive searches to receive more and better information." \
+                "Performs external HTTP requests; avoid sharing sensitive data." \
+                tool_web_search \
+                "${args_schema}"
 }

@@ -49,19 +49,18 @@ format_tool_descriptions() {
 }
 
 format_tool_details() {
-	# Arguments:
-	#   $1 - tool name (string)
-	#   $2 - include schema (bool, optional)
-	# Returns:
-	#   Formatted tool details (string)
-	local tool description command safety include_schema args_schema
-	local -a details=()
-	local detail_text=""
-	tool="$1"
-	include_schema="${2:-false}"
-	description="$(tool_description "${tool}")"
-	command="$(tool_command "${tool}")"
-	safety="$(tool_safety "${tool}")"
+        # Arguments:
+        #   $1 - tool name (string)
+        #   $2 - include schema (bool, optional)
+        # Returns:
+        #   Formatted tool details (string)
+        local tool description safety include_schema args_schema
+        local -a details=()
+        local detail_text=""
+        tool="$1"
+        include_schema="${2:-false}"
+        description="$(tool_description "${tool}")"
+        safety="$(tool_safety "${tool}")"
 
 	# Collect available details
 	if [[ -n "${description}" ]]; then
@@ -71,20 +70,15 @@ format_tool_details() {
 	# Include args schema if requested
 	if [[ "${include_schema}" == true ]]; then
 		args_schema="$(tool_args_schema "${tool}")"
-		if [[ -n "${args_schema}" && "${args_schema}" != "{}" ]]; then
-			details+=("Args Schema: ${args_schema}")
-		fi
-	fi
+                if [[ -n "${args_schema}" && "${args_schema}" != "{}" ]]; then
+                        details+=("Args Schema: ${args_schema}")
+                fi
+        fi
 
-	# Include example command if available
-	if [[ -n "${command}" ]]; then
-		details+=("Example: ${command}")
-	fi
-
-	# Include safety information if available
-	if [[ -n "${safety}" ]]; then
-		details+=("Safety: ${safety}")
-	fi
+        # Include safety information if available
+        if [[ -n "${safety}" ]]; then
+                details+=("Safety: ${safety}")
+        fi
 
 	# Combine details into a single string
 	if ((${#details[@]} == 0)); then

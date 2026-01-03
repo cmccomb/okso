@@ -89,11 +89,10 @@ register_calendar_search() {
 	local args_schema
 
 	args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}},"additionalProperties":false}')
-	register_tool \
-		"calendar_search" \
-		"Search Apple Calendar events by title or location." \
-		"calendar_search '<query>'" \
-		"Requires macOS Calendar access; read-only." \
-		tool_calendar_search \
-		"${args_schema}"
+        register_tool \
+                "calendar_search" \
+                "Search Apple Calendar events by title or location." \
+                "Requires macOS Calendar access; read-only." \
+                tool_calendar_search \
+                "${args_schema}"
 }

@@ -441,21 +441,18 @@ terminal_command_enum_json() {
 }
 
 register_terminal() {
-	local args_schema description usage commands_synopsis
+        local args_schema description
 
 	args_schema=$(
 		cat <<JSON
 {"type":"object","required":["command"],"properties":{"command":{"type":"string","enum":$(terminal_command_enum_json)},"args":{"type":"array","items":{"type":"string"}}},"additionalProperties":false}
 JSON
 	)
-	commands_synopsis="terminal <status|pwd|ls|cd|cat|head|tail|find|grep|open|mkdir|rmdir|mv|cp|touch|rm|stat|wc|du|base64|date>"
-	description="Persistent terminal session for navigation, inspection, and safe mutations (pwd, ls, du, cd, cat, head, tail, find, grep, stat, wc, base64 encode/decode, mkdir, rmdir, mv, cp, touch, rm -i default; open on macOS)."
-	usage=${commands_synopsis}
-	register_tool \
-		"terminal" \
-		"${description}" \
-		"${usage}" \
-		"Restricted command set with a per-query working directory; destructive operations default to interactive rm." \
-		tool_terminal \
-		"${args_schema}"
+        description="Persistent terminal session for navigation, inspection, and safe mutations (pwd, ls, du, cd, cat, head, tail, find, grep, stat, wc, base64 encode/decode, mkdir, rmdir, mv, cp, touch, rm -i default; open on macOS)."
+        register_tool \
+                "terminal" \
+                "${description}" \
+                "Restricted command set with a per-query working directory; destructive operations default to interactive rm." \
+                tool_terminal \
+                "${args_schema}"
 }
