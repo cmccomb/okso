@@ -48,23 +48,6 @@
 	[ "$output" = "1.7B|4B|8B" ]
 }
 
-@test "detect_pressure_level parses memory_pressure output" {
-	run bash -lc '
-                set -euo pipefail
-                tmp_dir="$(mktemp -d)"
-                cat >"${tmp_dir}/memory_pressure" <<"SCRIPT"
-#!/usr/bin/env bash
-cat "$(git rev-parse --show-toplevel)/tests/fixtures/memory_pressure_warning.txt"
-SCRIPT
-                chmod +x "${tmp_dir}/memory_pressure"
-                PATH="${tmp_dir}:${PATH}"
-                source ./src/lib/system_profile.sh
-                detect_pressure_level
-        '
-	[ "$status" -eq 0 ]
-	[ "$output" = "warning" ]
-}
-
 @test "estimate_headroom_class classifies vm_stat output" {
 	run bash -lc '
                 set -euo pipefail

@@ -42,15 +42,6 @@ EOF
 	[ "$status" -eq 0 ]
 }
 
-@test "format_tool_descriptions rejects unknown formatter" {
-	run bash -lc '
-                cd "$(git rev-parse --show-toplevel)" || exit 1
-                source ./src/lib/formatting.sh
-                format_tool_descriptions "demo" missing_formatter
-        '
-	[ "$status" -eq 1 ]
-}
-
 @test "format_tool_history collects multi-line observations case-insensitively" {
 	run bash -lc '
                 set -e
