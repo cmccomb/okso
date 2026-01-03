@@ -90,13 +90,51 @@ source "${PLANNING_LIB_DIR}/prompting.sh"
 # shellcheck source=./rephrasing.sh disable=SC1091
 source "${PLANNING_LIB_DIR}/rephrasing.sh"
 if [[ "${PLANNER_SKIP_TOOL_LOAD:-false}" != true ]]; then
-	# shellcheck source=../executor/dispatch.sh disable=SC1091
-	source "${PLANNING_LIB_DIR}/../executor/dispatch.sh"
+        # shellcheck source=../executor/dispatch.sh disable=SC1091
+        source "${PLANNING_LIB_DIR}/../executor/dispatch.sh"
 fi
 
+# Ensures that the TOOLS catalog is declared as an array. This prevents type
+# confusion when users provide the variable as a scalar environment value and
+# guarantees that planner introspection can safely splat the array.
+ensure_planner_tools_array() {
+        local tools_decl
+
+        if tools_decl=$(declare -p TOOLS 2>/dev/null) && grep -q 'declare -a' <<<"${tools_decl}"; then
+                return 0
+        fi
+
+        if [[ -n "${tools_decl:-}" ]]; then
+                log "WARN" "Planner TOOLS must be an array; ignoring incompatible value" "${tools_decl}" >&2 || true
+        fi
+
+        declare -a TOOLS=()
+}
+
+planner_collect_tools() {
+        # Returns the planner tool catalog as a newline-delimited list.
+        # Arguments:
+        #   None
+        # Returns:
+        #   tool names on stdout (one per line)
+
+        ensure_planner_tools_array
+
+        local tools_decl
+        if tools_decl=$(declare -p TOOLS 2>/dev/null) && grep -q 'declare -a' <<<"${tools_decl}"; then
+                printf '%s\n' "${TOOLS[@]}"
+                return 0
+        fi
+
+        while IFS= read -r tool_name; do
+                [[ -z "${tool_name}" ]] && continue
+                printf '%s\n' "${tool_name}"
+        done < <(tool_names)
+}
+
 initialize_planner_models() {
-	# Hydrates planner and executor model specs when callers did not pass
-	# explicit repositories or filenames via the environment. This keeps
+        # Hydrates planner and executor model specs when callers did not pass
+        # explicit repositories or filenames via the environment. This keeps
 	# downstream llama.cpp calls predictable regardless of how the planner
 	# was sourced (CLI invocation vs. tests).
 	if [[ -z "${PLANNER_MODEL_REPO:-}" || -z "${PLANNER_MODEL_FILE:-}" || -z "${EXECUTOR_MODEL_REPO:-}" || -z "${EXECUTOR_MODEL_FILE:-}" ]]; then
@@ -240,28 +278,23 @@ validate_temperature() {
 }
 
 generate_planner_response() {
-	# Arguments:
-	#   $1 - user query (string)
-	# Returns:
-	#   planner response JSON (string)
-	local user_query
-	local -a planner_tools=()
-	user_query="$1"
+        # Arguments:
+        #   $1 - user query (string)
+        # Returns:
+        #   planner response JSON (string)
+        local user_query
+        local -a planner_tools=()
+        user_query="$1"
 
-	# Initialize settings for planner and executor models
-	initialize_planner_models
+        # Initialize settings for planner and executor models
+        initialize_planner_models
 
-	# Assemble the tool catalog
-	local tools_decl
-	if tools_decl=$(declare -p TOOLS 2>/dev/null) && grep -q 'declare -a' <<<"${tools_decl}"; then
-		planner_tools=("${TOOLS[@]}")
-	else
-		planner_tools=()
-		while IFS= read -r tool_name; do
-			[[ -z "${tool_name}" ]] && continue
-			planner_tools+=("${tool_name}")
-		done < <(tool_names)
-	fi
+        # Assemble the tool catalog
+        planner_tools=()
+        while IFS= read -r tool_name; do
+                [[ -z "${tool_name}" ]] && continue
+                planner_tools+=("${tool_name}")
+        done < <(planner_collect_tools)
 
 	# Log the tool catalog for operator visibility
 	local planner_tool_catalog
