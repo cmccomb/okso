@@ -269,13 +269,11 @@ generate_planner_response() {
 	log "DEBUG" "Planner tool catalog" "${planner_tool_catalog}" >&2
 
 	# Build the planner prompt
-	local planner_schema_text planner_prompt_prefix planner_suffix tool_lines prompt search_context
+	local planner_schema_text tool_lines prompt search_context
 	planner_schema_text="$(load_schema_text planner_plan)"
 	tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_line)"
 	search_context="$(planner_fetch_search_context "${user_query}")"
-	planner_prompt_prefix="$(build_planner_prompt_static_prefix "${user_query}" "${tool_lines}" "${search_context}")"
-	planner_suffix="$(build_planner_prompt_dynamic_suffix "${user_query}" "${tool_lines}" "${search_context}")"
-	prompt="${planner_prompt_prefix}${planner_suffix}"
+	prompt="$(build_planner_prompt "${user_query}" "${tool_lines}" "${search_context}")"
 	log "DEBUG" "Generated planner prompt" "${prompt}" >&2
 
 	# Configure sampling parameters
@@ -325,7 +323,7 @@ generate_planner_response() {
 		# selection. Any failure to normalize or score results in the
 		# candidate being skipped, which keeps downstream selection
 		# deterministic and safe.
-		raw_plan="$(LLAMA_TEMPERATURE="${temperature}" llama_infer "${prompt}" '' "${max_generation_tokens}" "${planner_schema_text}" "${PLANNER_MODEL_REPO:-}" "${PLANNER_MODEL_FILE:-}" "${PLANNER_CACHE_FILE:-}" "${planner_prompt_prefix}")" || raw_plan=""
+		raw_plan="$(LLAMA_TEMPERATURE="${temperature}" llama_infer "${prompt}" '' "${max_generation_tokens}" "${planner_schema_text}" "${PLANNER_MODEL_REPO:-}" "${PLANNER_MODEL_FILE:-}" "${PLANNER_CACHE_FILE:-}" "${prompt}")"
 
 		# Normalize the candidate plan and skip unusable outputs
 		if ! normalized_plan="$(normalize_plan <<<"${raw_plan}")"; then

@@ -195,17 +195,11 @@ score_planner_candidate() {
 	#   $1 - normalized planner response JSON array (string)
 	# Returns:
 	#   scorecard JSON on stdout; non-zero on failure.
-	local plan_json plan_length max_steps available_tools availability_known
-	local score tie_breaker over_budget rationale_json final_tool
+	local plan_json plan_length available_tools availability_known
+	local score tie_breaker rationale_json final_tool
 	local -a rationale=()
 
 	plan_json="$1"
-
-	# Determine max steps from environment or default
-	max_steps=${PLANNER_MAX_PLAN_STEPS:-6}
-	if ! [[ "${max_steps}" =~ ^[0-9]+$ ]] || ((max_steps < 1)); then
-		max_steps=6
-	fi
 
 	# Normalize the plan JSON
 	plan_json="$(normalize_plan <<<"${plan_json}")" || return 1
@@ -213,20 +207,16 @@ score_planner_candidate() {
 
 	log_pretty "INFO" "Evaluating planner plan structure" "${plan_json}" >&2
 
-	# Start with a score of 0, and add a tie_breaker based on how well the plan fits within the step budget.
+	# Start at 0; prefer shorter plans in ties
 	score=0
-	tie_breaker=$((max_steps - plan_length))
+	tie_breaker=$((-plan_length))
 
-	# Add a score based on plan length
-	if ((plan_length <= max_steps)); then
-		score=$((score + 20 + tie_breaker))
-		rationale+=("Plan fits within ${max_steps}-step budget.")
-	else
-		over_budget=$((plan_length - max_steps))
-		score=$((score - (over_budget * 10)))
-		tie_breaker=$((-over_budget))
-		rationale+=("Plan exceeds ${max_steps}-step budget by ${over_budget} step(s).")
-	fi
+	# Quadratic length penalty: -(k * L^2)
+	LEN_PENALTY_K=${LEN_PENALTY_K:-1} # tune: 1..5 typical
+	len_penalty=$((LEN_PENALTY_K * plan_length * plan_length))
+
+	score=$((score - len_penalty))
+	rationale+=("Applied quadratic plan-length penalty: -${LEN_PENALTY_K}*${plan_length}^2 = -${len_penalty}.")
 
 	# Add a score based on the final answer tool
 	final_tool=$(jq -r '.[-1].tool // ""' <<<"${plan_json}")
@@ -306,9 +296,8 @@ score_planner_candidate() {
 		--argjson score "${score}" \
 		--argjson tie_breaker "${tie_breaker}" \
 		--argjson plan_length "${plan_length}" \
-		--argjson max_steps "${max_steps}" \
 		--argjson rationale "${rationale_json}" \
-		'{score:$score,tie_breaker:$tie_breaker,plan_length:$plan_length,max_steps:$max_steps,rationale:$rationale}'
+		'{score:$score,tie_breaker:$tie_breaker,plan_length:$plan_length,rationale:$rationale}'
 }
 
 export -f planner_is_tool_available

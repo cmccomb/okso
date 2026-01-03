@@ -8,7 +8,6 @@
 #
 # Environment variables:
 #   CANONICAL_TEXT_ARG_KEY (string): key for single-string tool arguments; default: "input".
-#   MAX_STEPS (int): maximum number of executor actions; default: 6.
 #
 # Dependencies:
 #   - bash 3.2+

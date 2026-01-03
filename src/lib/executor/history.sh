@@ -6,9 +6,6 @@
 # Usage:
 #   source "${BASH_SOURCE[0]%/history.sh}/history.sh"
 #
-# Environment variables:
-#   MAX_STEPS (int): maximum number of executor turns; default: 6.
-#
 # Dependencies:
 #   - bash 3.2+
 #   - jq
