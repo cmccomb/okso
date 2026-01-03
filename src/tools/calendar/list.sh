@@ -51,7 +51,7 @@ tool_calendar_list() {
 	calendar_script="$(calendar_resolve_calendar_script)"
 
 	log "INFO" "Listing upcoming Apple Calendar events" "$(calendar_name)"
-        calendar_run_script "$@" <<APPLESCRIPT
+	calendar_run_script "$@" <<APPLESCRIPT
 on run
         tell application "Calendar"
 ${calendar_script}

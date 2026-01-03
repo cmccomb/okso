@@ -43,7 +43,7 @@ tool_reminders_list() {
 	list_script="$(reminders_resolve_list_script)"
 
 	log "INFO" "Listing Apple Reminders" "$(reminders_list_name)"
-        reminders_run_script "$@" <<APPLESCRIPT
+	reminders_run_script "$@" <<APPLESCRIPT
 on run argv
         tell application "Reminders"
 ${list_script}
