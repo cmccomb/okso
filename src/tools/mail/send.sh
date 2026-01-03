@@ -87,7 +87,6 @@ register_mail_send() {
 	register_tool \
 		"mail_send" \
 		"Send an email via Apple Mail; recipients on line one, subject on line two." \
-		"mail_send 'to@example.com\\nSubject\\nBody'" \
 		"Requires macOS Apple Mail access; sends immediately to listed recipients." \
 		tool_mail_send \
 		"${args_schema}"

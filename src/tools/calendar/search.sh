@@ -92,7 +92,6 @@ register_calendar_search() {
 	register_tool \
 		"calendar_search" \
 		"Search Apple Calendar events by title or location." \
-		"calendar_search '<query>'" \
 		"Requires macOS Calendar access; read-only." \
 		tool_calendar_search \
 		"${args_schema}"

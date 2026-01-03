@@ -82,7 +82,6 @@ register_notes_search() {
 	register_tool \
 		"notes_search" \
 		"Search Apple Notes by title or body." \
-		"notes_search '<query>'" \
 		"Requires macOS Notes access; read-only." \
 		tool_notes_search \
 		"${args_schema}"

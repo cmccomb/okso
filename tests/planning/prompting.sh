@@ -35,7 +35,6 @@ SCRIPT
 set -euo pipefail
 source ./src/lib/planning/prompting.sh
 tool_description() { printf "desc-%s" "$1"; }
-tool_command() { printf "cmd-%s" "$1"; }
 tool_safety() { printf "safe-%s" "$1"; }
 tool_args_schema() { printf '{"type":"object","properties":{"input":{"type":"string"}}}'; }
 prompt=$(build_planner_prompt_with_tools "find files" terminal notes_create)
@@ -52,7 +51,6 @@ SCRIPT
 set -euo pipefail
 source ./src/lib/planning/prompting.sh
 tool_description() { printf "desc-%s" "$1"; }
-tool_command() { printf "cmd-%s" "$1"; }
 tool_safety() { printf "safe-%s" "$1"; }
 tool_args_schema() { printf '{"type":"object","properties":{"input":{"type":"string"}}}'; }
 prompt=$(build_planner_prompt_with_tools "collect data" terminal)

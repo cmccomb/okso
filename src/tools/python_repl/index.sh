@@ -174,7 +174,6 @@ register_python_repl() {
 	register_tool \
 		"python_repl" \
 		"Execute Python statements in a temporary sandbox via python -i." \
-		"python_repl 'python code to evaluate'" \
 		"Writes are confined to an ephemeral sandbox directory." \
 		tool_python_repl \
 		"${args_schema}"

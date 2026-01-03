@@ -65,7 +65,6 @@ JSON
 	register_tool \
 		"notes_list" \
 		"List note titles from the configured Apple Notes folder." \
-		"notes_list (no arguments; returns one title per line)" \
 		"Requires macOS Apple Notes access; read-only." \
 		tool_notes_list \
 		"${args_schema}"

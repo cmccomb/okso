@@ -65,7 +65,6 @@ JSON
 	register_tool \
 		"mail_list_inbox" \
 		"List recent Apple Mail inbox messages." \
-		"mail_list_inbox" \
 		"Requires macOS Apple Mail access; returns metadata only." \
 		tool_mail_list_inbox \
 		"${args_schema}"
