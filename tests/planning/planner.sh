@@ -7,7 +7,7 @@ setup() {
 	chpwd_functions=()
 }
 
-@test "generate_plan_json falls back when llama is unavailable" {
+@test "generate_planner_response falls back when llama is unavailable" {
 	run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
 PLANNER_SKIP_TOOL_LOAD=true
@@ -20,7 +20,7 @@ export -f llama_infer
 planner_fetch_search_context() { printf 'Search context unavailable.'; }
 LLAMA_AVAILABLE=false
 PLANNER_SAMPLE_COUNT=1
-generate_plan_json "tell me a joke"
+generate_planner_response "tell me a joke"
 SCRIPT
 
 	[ "$status" -eq 0 ]

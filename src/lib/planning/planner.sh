@@ -248,8 +248,10 @@ generate_planner_response() {
 	local -a planner_tools=()
 	user_query="$1"
 
+	# Initialize settings for planner and executor models
 	initialize_planner_models
 
+	# Assemble the tool catalog
 	local tools_decl
 	if tools_decl=$(declare -p TOOLS 2>/dev/null) && grep -q 'declare -a' <<<"${tools_decl}"; then
 		planner_tools=("${TOOLS[@]}")
@@ -261,13 +263,14 @@ generate_planner_response() {
 		done < <(tool_names)
 	fi
 
+	# Log the tool catalog for operator visibility
 	local planner_tool_catalog
 	planner_tool_catalog="$(printf '%s\n' "${planner_tools[@]}" | paste -sd ',' -)"
 	log "DEBUG" "Planner tool catalog" "${planner_tool_catalog}" >&2
 
+	# Build the planner prompt
 	local planner_schema_text planner_prompt_prefix planner_suffix tool_lines prompt search_context
 	planner_schema_text="$(load_schema_text planner_plan)"
-
 	tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_line)"
 	search_context="$(planner_fetch_search_context "${user_query}")"
 	planner_prompt_prefix="$(build_planner_prompt_static_prefix "${user_query}" "${tool_lines}" "${search_context}")"
@@ -275,14 +278,17 @@ generate_planner_response() {
 	prompt="${planner_prompt_prefix}${planner_suffix}"
 	log "DEBUG" "Generated planner prompt" "${prompt}" >&2
 
+	# Configure sampling parameters
 	local sample_count temperature debug_log_dir debug_log_file max_generation_tokens
 	sample_count="$(validate_positive_int "${PLANNER_SAMPLE_COUNT:-3}" 3 "PLANNER_SAMPLE_COUNT")"
 	temperature="$(validate_temperature "${PLANNER_TEMPERATURE:-0.7}" 0.7)"
 	max_generation_tokens="$(validate_positive_int "${PLANNER_MAX_OUTPUT_TOKENS:-1024}" 1024 "PLANNER_MAX_OUTPUT_TOKENS")"
+
 	# Capture the sampling configuration early so operators can verify the
 	# breadth of exploration before generation begins. This also doubles as
 	# a trace when investigating unexpected candidate rankings.
 	log "INFO" "Planner sampling configuration" "$(jq -nc --arg sample_count "${sample_count}" --arg temperature "${temperature}" '{sample_count:$sample_count,temperature:$temperature}')" >&2
+
 	# Sample count controls how many candidates are generated and scored.
 	# Validation clamps values below 1 to a single candidate so downstream
 	# selection always has material to review.
@@ -290,14 +296,14 @@ generate_planner_response() {
 		sample_count=1
 	fi
 
+	# Max generation tokens controls the budget for each llama.cpp call.
 	if ! [[ "${max_generation_tokens}" =~ ^[0-9]+$ ]] || ((max_generation_tokens < 1)); then
 		max_generation_tokens=1024
 	fi
 
-	# Temperature is forwarded verbatim to llama.cpp; callers should keep
-	# values in a 0-1 range to avoid erratic generation.
-
+	# Debug log directory defaults to TMPDIR or /tmp when unset.
 	debug_log_dir="${TMPDIR:-/tmp}"
+
 	# Each candidate is appended to PLANNER_DEBUG_LOG as a JSON object with
 	# score, tie-breaker, rationale, and the normalized response. The file
 	# is truncated per invocation to keep the latest run isolated.
@@ -321,17 +327,19 @@ generate_planner_response() {
 		# deterministic and safe.
 		raw_plan="$(LLAMA_TEMPERATURE="${temperature}" llama_infer "${prompt}" '' "${max_generation_tokens}" "${planner_schema_text}" "${PLANNER_MODEL_REPO:-}" "${PLANNER_MODEL_FILE:-}" "${PLANNER_CACHE_FILE:-}" "${planner_prompt_prefix}")" || raw_plan=""
 
-    # Normalize the candidate plan and skip unusable outputs
+		# Normalize the candidate plan and skip unusable outputs
 		if ! normalized_plan="$(normalize_plan <<<"${raw_plan}")"; then
 			log "WARN" "Planner output unusable from llama.cpp" "${raw_plan}" >&2
 			continue
 		fi
 
+		# Score the candidate plan and skip scoring failures
 		if ! candidate_scorecard="$(score_planner_candidate "${normalized_plan}")"; then
 			log "ERROR" "Planner output failed scoring" "${normalized_plan}" >&2
 			continue
 		fi
 
+		# Extract scoring details for logging and selection
 		candidate_score="$(jq -er '.score' <<<"${candidate_scorecard}" 2>/dev/null || printf '0')"
 		candidate_tie_breaker="$(jq -er '.tie_breaker // 0' <<<"${candidate_scorecard}" 2>/dev/null || printf '0')"
 		candidate_rationale="$(jq -c '.rationale // []' <<<"${candidate_scorecard}" 2>/dev/null || printf '[]')"
@@ -346,6 +354,7 @@ generate_planner_response() {
 			--argjson rationale "${candidate_rationale}" \
 			'{index:$index,score:$score,tie_breaker:$tie_breaker,rationale:$rationale}')" >&2
 
+		# Append the candidate to the debug log for post-mortem analysis.
 		jq -nc \
 			--argjson index "${candidate_index}" \
 			--argjson score "${candidate_score}" \
@@ -354,6 +363,7 @@ generate_planner_response() {
 			--argjson response "${normalized_plan}" \
 			'{index:$index, score:$score, tie_breaker:$tie_breaker, rationale:$rationale, response:$response}' >>"${debug_log_file}" 2>/dev/null || true
 
+		# Update the best candidate when the score or tie-breaker improves
 		if ((candidate_score > best_score)) || { ((candidate_score == best_score)) && ((candidate_tie_breaker > best_tie_breaker)); }; then
 			best_score=${candidate_score}
 			best_tie_breaker=${candidate_tie_breaker}
@@ -362,6 +372,7 @@ generate_planner_response() {
 
 	done
 
+	# Return the best candidate or error when none are valid
 	if [[ -z "${best_plan}" ]]; then
 		log "ERROR" "Planner produced no usable candidates; request llama regeneration" "no_valid_candidates" >&2
 		return 1
@@ -373,26 +384,25 @@ generate_planner_response() {
 generate_plan_outline() {
 	# Arguments:
 	#   $1 - user query (string)
+	# Returns:
+	#   plan outline text (string)
 	local response_json
+
+	# Generate the planner response
 	if ! response_json="$(generate_planner_response "$1")"; then
 		return 1
 	fi
+
+	# Convert the plan JSON into an outline
 	plan_json_to_outline "${response_json}"
-}
-
-# Backwards compatibility wrapper; prefer generate_planner_response for new callers.
-generate_plan_json() {
-	local response_json
-	if ! response_json="$(generate_planner_response "$1")"; then
-		return 1
-	fi
-
-	jq -c '.' <<<"${response_json}"
 }
 
 tool_query_deriver() {
 	# Arguments:
 	#   $1 - tool name (string)
+	# Returns:
+	#   name of the query derivation function (string)
+
 	case "$1" in
 	terminal)
 		printf '%s' "derive_terminal_query"
@@ -427,6 +437,8 @@ tool_query_deriver() {
 derive_default_tool_query() {
 	# Arguments:
 	#   $1 - user query (string)
+	# Returns:
+	#   tool query (string)
 	printf '%s\n' "$1"
 }
 
@@ -434,53 +446,62 @@ derive_tool_query() {
 	# Arguments:
 	#   $1 - tool name (string)
 	#   $2 - user query (string)
+	# Returns:
+	#   tool query (string)
 	local tool_name user_query handler
 	tool_name="$1"
 	user_query="$2"
+
+	# Select the appropriate derivation function
 	handler="$(tool_query_deriver "${tool_name}")"
 
+	# Invoke the derivation function
 	"${handler}" "${user_query}"
 }
 
 emit_plan_json() {
+	# Converts plan entries into a normalized JSON array.
+	# Arguments:
+	#   $1 - plan entries string
+	# Returns:
+	#   normalized plan JSON array (string)
+
 	local plan_entries
 	plan_entries="$1"
 
-  # Normalize the plan entries into a JSON array
+	# Normalize the plan entries into a JSON array
 	printf '%s\n' "${plan_entries}" |
 		sed '/^[[:space:]]*$/d' |
 		jq -sc 'map(select(type=="object"))'
 }
 
 derive_allowed_tools_from_plan() {
+	# Derives the required tool list from a planner response.
 	# Arguments:
 	#   $1 - planner response JSON array
+	# Returns:
+	#   newline-delimited list of required tool names (string)
 	local plan_json tool seen
 	plan_json="${1:-[]}"
 
+	# Normalize the plan JSON
 	plan_json="$(normalize_plan <<<"${plan_json}")" || return 1
 
+	# Derive the unique tool list
 	seen=""
 	local -a required=()
-	local plan_contains_fallback=false
-	if jq -e '.[] | select(.tool == "executor_fallback")' <<<"${plan_json}" >/dev/null 2>&1; then
-		plan_contains_fallback=true
-	fi
 
-  # Collect unique tool names
-  while IFS= read -r tool; do
-    [[ -z "${tool}" ]] && continue
-    if grep -Fxq "${tool}" <<<"${seen}"; then
-      continue
-    fi
-    required+=("${tool}")
-    seen+="${tool}"$'\n'
-  done < <(jq -r '.[] | .tool // empty' <<<"${plan_json}" 2>/dev/null || true)
+	# Collect unique tool names
+	while IFS= read -r tool; do
+		[[ -z "${tool}" ]] && continue
+		if grep -Fxq "${tool}" <<<"${seen}"; then
+			continue
+		fi
+		required+=("${tool}")
+		seen+="${tool}"$'\n'
+	done < <(jq -r '.[] | .tool // empty' <<<"${plan_json}" 2>/dev/null || true)
 
-	if ! grep -Fxq "final_answer" <<<"${seen}"; then
-		required+=("final_answer")
-	fi
-
+	# Return the required tool list
 	printf '%s\n' "${required[@]}"
 }
 
@@ -488,8 +509,10 @@ plan_json_to_entries() {
 	local plan_json
 	plan_json="$1"
 
+	# Normalize the plan JSON
 	plan_json="$(normalize_plan <<<"${plan_json}")" || return 1
 
+	# Convert the plan JSON into entries
 	printf '%s' "${plan_json}"
 }
 
