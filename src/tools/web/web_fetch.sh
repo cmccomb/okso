@@ -159,10 +159,10 @@ register_web_fetch() {
                 }
         }')
 
-        register_tool \
-                "web_fetch" \
-                "Retrieve the raw HTTP response body for a URL. Only retrieve URLs that you know exist (e.g. from web_search results)." \
-                "Performs external HTTP requests; avoid sharing sensitive data." \
-                tool_web_fetch \
-                "${args_schema}"
+	register_tool \
+		"web_fetch" \
+		"Retrieve the raw HTTP response body for a URL. Only retrieve URLs that you know exist (e.g. from web_search results)." \
+		"Performs external HTTP requests; avoid sharing sensitive data." \
+		tool_web_fetch \
+		"${args_schema}"
 }

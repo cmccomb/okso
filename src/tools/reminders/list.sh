@@ -57,10 +57,10 @@ register_reminders_list() {
 {"type":"object","properties":{},"additionalProperties":false}
 JSON
 	)
-        register_tool \
-                "reminders_list" \
-                "List incomplete Apple Reminders in the configured list." \
-                "Requires macOS Apple Reminders access; reminder titles are read." \
-                tool_reminders_list \
-                "${args_schema}"
+	register_tool \
+		"reminders_list" \
+		"List incomplete Apple Reminders in the configured list." \
+		"Requires macOS Apple Reminders access; reminder titles are read." \
+		tool_reminders_list \
+		"${args_schema}"
 }

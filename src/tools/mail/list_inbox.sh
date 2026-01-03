@@ -62,10 +62,10 @@ register_mail_list_inbox() {
 {"type":"object","properties":{},"additionalProperties":false}
 JSON
 	)
-        register_tool \
-                "mail_list_inbox" \
-                "List recent Apple Mail inbox messages." \
-                "Requires macOS Apple Mail access; returns metadata only." \
-                tool_mail_list_inbox \
-                "${args_schema}"
+	register_tool \
+		"mail_list_inbox" \
+		"List recent Apple Mail inbox messages." \
+		"Requires macOS Apple Mail access; returns metadata only." \
+		tool_mail_list_inbox \
+		"${args_schema}"
 }

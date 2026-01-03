@@ -94,10 +94,10 @@ register_reminders_create() {
 {"type":"object","required":["title"],"properties":{"title":{"type":"string","minLength":1},"time":{"type":"string"},"notes":{"type":"string"}},"additionalProperties":false}
 JSON
 	)
-        register_tool \
-                "reminders_create" \
-                "Create a new Apple Reminder using structured details." \
-                "Requires macOS Apple Reminders access; content is sent to Reminders." \
-                tool_reminders_create \
-                "${args_schema}"
+	register_tool \
+		"reminders_create" \
+		"Create a new Apple Reminder using structured details." \
+		"Requires macOS Apple Reminders access; content is sent to Reminders." \
+		tool_reminders_create \
+		"${args_schema}"
 }

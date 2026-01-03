@@ -88,10 +88,10 @@ register_mail_draft() {
 	local args_schema
 
 	args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[ $key ],"properties":{($key):{"type":"string","minLength":1}},"additionalProperties":false}')
-        register_tool \
-                "mail_draft" \
-                "Create an Apple Mail draft using the first line for recipients and second for the subject." \
-                "Requires macOS Apple Mail access; content and recipients are sent to Mail." \
-                tool_mail_draft \
-                "${args_schema}"
+	register_tool \
+		"mail_draft" \
+		"Create an Apple Mail draft using the first line for recipients and second for the subject." \
+		"Requires macOS Apple Mail access; content and recipients are sent to Mail." \
+		tool_mail_draft \
+		"${args_schema}"
 }

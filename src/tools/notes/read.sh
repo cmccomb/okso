@@ -68,10 +68,10 @@ register_notes_read() {
 	local args_schema
 
 	args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}},"additionalProperties":false}')
-        register_tool \
-                "notes_read" \
-                "Read an Apple Note's content by title." \
-                "Requires macOS Apple Notes access; read-only." \
-                tool_notes_read \
-                "${args_schema}"
+	register_tool \
+		"notes_read" \
+		"Read an Apple Note's content by title." \
+		"Requires macOS Apple Notes access; read-only." \
+		tool_notes_read \
+		"${args_schema}"
 }
