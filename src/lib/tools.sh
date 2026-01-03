@@ -62,12 +62,6 @@ tools_normalize_path() {
 	local input_path directory basename_part normalized_parts
 	input_path="$1"
 
-	# Use realpath if available
-	if command -v realpath >/dev/null 2>&1 && realpath -m / >/dev/null 2>&1; then
-		realpath -m "${input_path}"
-		return
-	fi
-
 	# Fallback normalization
 	if [[ -e "${input_path}" || -L "${input_path}" ]]; then
 		directory=$(cd -- "$(dirname -- "${input_path}")" && pwd -P) || return 1

@@ -35,9 +35,6 @@ derive_notes_list_query() {
 
 tool_notes_list() {
 	local folder_script
-	if ! notes_require_platform; then
-		return 0
-	fi
 
 	folder_script="$(notes_resolve_folder_script)"
 

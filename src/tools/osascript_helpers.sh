@@ -22,32 +22,6 @@
 # shellcheck source=src/lib/core/logging.sh
 source "${BASH_SOURCE[0]%/tools/osascript_helpers.sh}/lib/core/logging.sh"
 
-assert_osascript_available() {
-	# Ensures osascript-based tools only run on macOS with the binary available.
-	# Arguments:
-	#   $1 - warning message when the platform is unsupported (string; required)
-	#   $2 - warning message when osascript is missing (string; required)
-	#   $3 - osascript binary path or name (string; optional; default "osascript")
-	#   $4 - detail value to include in logs (string; optional)
-	local platform_warning missing_warning osascript_bin detail
-	platform_warning="$1"
-	missing_warning="$2"
-	osascript_bin="${3:-osascript}"
-	detail="$4"
-
-	if [[ -z "${platform_warning}" || -z "${missing_warning}" ]]; then
-		log "ERROR" "assert_osascript_available requires warning messages" "${detail}" || true
-		return 2
-	fi
-
-	if ! command -v "${osascript_bin}" >/dev/null 2>&1; then
-		log "WARN" "${missing_warning}" "${detail}" || true
-		return 1
-	fi
-
-	return 0
-}
-
 osascript_disallow_argument() {
 	# Rejects suspect arguments that could alter osascript invocation.
 	# Arguments:

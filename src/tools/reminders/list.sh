@@ -36,10 +36,6 @@ derive_reminders_list_query() {
 tool_reminders_list() {
 	local list_script
 
-	if ! reminders_require_platform; then
-		return 0
-	fi
-
 	list_script="$(reminders_resolve_list_script)"
 
 	log "INFO" "Listing Apple Reminders" "$(reminders_list_name)"

@@ -39,9 +39,6 @@ tool_notes_read() {
 	text_key="$(canonical_text_arg_key)"
 	title=$(jq -er --arg key "${text_key}" 'if type == "object" then .[$key] // .title // empty else empty end' <<<"${TOOL_ARGS:-{}}" 2>/dev/null || true)
 
-	if ! notes_require_platform; then
-		return 0
-	fi
 
 	if [[ -z "${title//[[:space:]]/}" ]]; then
 		log "ERROR" "Note title is required to read a note" "" || true

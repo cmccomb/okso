@@ -45,9 +45,6 @@ tool_mail_search() {
 | .[$key]
 ' <<<"${args_json}" 2>/dev/null || true)
 
-	if ! mail_require_platform "${term}"; then
-		return 0
-	fi
 
 	if [[ -z "${term//[[:space:]]/}" ]]; then
 		log "ERROR" "Search term is required" "${args_json}" || true

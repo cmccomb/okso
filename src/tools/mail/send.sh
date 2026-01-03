@@ -46,10 +46,6 @@ tool_mail_send() {
 		return 1
 	fi
 
-	if ! mail_require_platform "${envelope}"; then
-		return 0
-	fi
-
 	if ! { IFS= read -r -d '' recipients_line && IFS= read -r -d '' subject && IFS= read -r -d '' body; } < <(mail_extract_envelope "${envelope}"); then
 		log "ERROR" "Unable to parse mail envelope" "${envelope}" || true
 		return 1

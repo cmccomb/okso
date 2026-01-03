@@ -36,22 +36,6 @@ calendar_name() {
 	printf '%s' "${name}"
 }
 
-calendar_require_platform() {
-	# Ensures Apple Calendar tools only run on macOS with osascript available.
-	local context
-	context="$1"
-
-	if ! assert_osascript_available \
-		"Apple Calendar is only available on macOS" \
-		"osascript missing; cannot reach Apple Calendar" \
-		"${CALENDAR_OSASCRIPT_BIN:-osascript}" \
-		"${context}"; then
-		return 1
-	fi
-
-	return 0
-}
-
 calendar_resolve_query() {
 	local text_key query
 	text_key="$(canonical_text_arg_key)"

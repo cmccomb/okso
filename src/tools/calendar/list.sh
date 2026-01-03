@@ -44,9 +44,6 @@ tool_calendar_list() {
 		return 0
 	fi
 
-	if ! calendar_require_platform ""; then
-		return 0
-	fi
 
 	calendar_script="$(calendar_resolve_calendar_script)"
 

@@ -32,10 +32,6 @@ tool_mail_list_unread() {
 	local limit
 	limit=$(mail_inbox_limit)
 
-	if ! mail_require_platform ""; then
-		return 0
-	fi
-
 	log "INFO" "Listing unread Apple Mail inbox messages" "limit=${limit}" || true
 	mail_run_script "${limit}" <<'APPLESCRIPT'
 on run argv

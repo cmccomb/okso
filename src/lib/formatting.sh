@@ -218,12 +218,6 @@ render_boxed_summary() {
 		"$(format_box_section "Tool runs" "${formatted_tools}")" \
 		"$(format_box_section "Final answer" "${final_answer}")")
 
-	# Optionally format with gum if available
-	if command -v gum >/dev/null 2>&1; then
-		# gum format can be slow on large inputs, but for summaries it adds nice markdown rendering.
-		formatted_content="$(printf '%s\n' "${formatted_content}" | gum format)"
-	fi
-
 	render_box "${formatted_content}"
 }
 

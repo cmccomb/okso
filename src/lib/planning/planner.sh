@@ -30,7 +30,6 @@
 #   - bash 3.2+
 #   - optional llama.cpp binary
 #   - jq
-#   - gum (for interactive approvals; falls back to POSIX prompts)
 
 # Exit codes:
 #   Functions return non-zero on misuse; fatal errors logged by caller.

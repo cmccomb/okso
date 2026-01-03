@@ -62,10 +62,6 @@ tool_calendar_create() {
 		return 0
 	fi
 
-	if ! calendar_require_platform "${details}"; then
-		return 0
-	fi
-
 	if ! { IFS= read -r -d '' title && IFS= read -r -d '' start_time && IFS= read -r -d '' location; } < <(calendar_extract_event_fields "${details}"); then
 		return 1
 	fi
