@@ -37,12 +37,12 @@ extract_tool_query() {
 	# Determine the canonical text argument key for the tool
 	text_key="$(canonical_text_arg_key)"
 
-  # Validate tool name
+	# Validate tool name
 	if [[ -z "${args_json}" ]]; then
 		args_json="{}"
 	fi
 
-  # Extract the query from the args JSON
+	# Extract the query from the args JSON
 	query="$(jq -r \
 		--arg key "${text_key}" \
 		'if type == "object" then
@@ -57,7 +57,7 @@ extract_tool_query() {
                         ""
                 end' <<<"${args_json}" 2>/dev/null || printf '')"
 
-  # Fallback to empty string if extraction failed
+	# Fallback to empty string if extraction failed
 	printf '%s' "${query}"
 }
 

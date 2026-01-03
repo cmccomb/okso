@@ -28,12 +28,11 @@ build_planner_prompt() {
 	#   $3 - pre-computed search context (string)
 	# Returns:
 	#   The full prompt text (string).
+	local user_query tool_lines search_context planner_schema current_date current_time current_weekday rendered
 
 	user_query="$1"
 	tool_lines="$2"
 	search_context="$3"
-
-	local user_query tool_lines search_context planner_schema current_date current_time current_weekday rendered
 
 	# Get current date/time info
 	current_date="$(date '+%Y-%m-%d')"

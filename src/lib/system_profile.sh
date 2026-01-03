@@ -31,7 +31,7 @@
 SYSTEM_PROFILE_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 model_repo_for_size() {
-  # Provides the preferred HF repo name for a given model size.
+	# Provides the preferred HF repo name for a given model size.
 	# Arguments:
 	#   $1 - model size label (e.g., 0.6B, 1.7B, 4B)
 	# Returns:
@@ -43,7 +43,7 @@ model_repo_for_size() {
 }
 
 model_file_for_size() {
-  # Provides the preferred GGUF filename for a given model size.
+	# Provides the preferred GGUF filename for a given model size.
 	# Arguments:
 	#   $1 - model size label (e.g., 0.6B, 1.7B, 4B)
 	# Returns:
@@ -55,7 +55,7 @@ model_file_for_size() {
 }
 
 normalize_bool_flag() {
-  # Normalizes various boolean-like inputs to 0/1.
+	# Normalizes various boolean-like inputs to 0/1.
 	# Arguments:
 	#   $1 - value to normalize
 	# Returns:
@@ -70,24 +70,8 @@ normalize_bool_flag() {
 	esac
 }
 
-normalize_pressure_level() {
-  # Normalizes various pressure level inputs to known labels.
-	# Arguments:
-	#   $1 - raw pressure level
-	# Returns:
-	#   'normal', 'warning', 'critical', or 'unknown'
-	case "$1" in
-	normal | warning | critical)
-		printf '%s' "$1"
-		;;
-	*)
-		printf 'unknown'
-		;;
-	esac
-}
-
 normalize_headroom_class() {
-  # Normalizes various headroom class inputs to known labels.
+	# Normalizes various headroom class inputs to known labels.
 	# Arguments:
 	#   $1 - raw headroom class
 	# Returns:
@@ -107,18 +91,18 @@ detect_physical_memory_bytes() {
 	# Returns:
 	#   Physical memory in bytes (string int); empty on failure.
 
-  # Run sysctl to get hw.memsize
+	# Run sysctl to get hw.memsize
 	local raw
 	raw=$(sysctl -n hw.memsize 2>/dev/null | tr -d '[:space:]')
 
-  # Print result
+	# Print result
 	printf '%s' "${raw}"
 }
 
 detect_is_github_actions() {
-  # Detect if running in GitHub Actions environment.
-  # Returns:
-  #   '1' if GITHUB_ACTIONS=true; '0' otherwise
+	# Detect if running in GitHub Actions environment.
+	# Returns:
+	#   '1' if GITHUB_ACTIONS=true; '0' otherwise
 	normalize_bool_flag "${GITHUB_ACTIONS:-0}"
 }
 
@@ -130,22 +114,22 @@ map_resources_to_base_tier() {
 	phys_bytes="$1"
 	is_gha="$2"
 
-  # Validate arguments
+	# Validate arguments
 	if [[ -z "${phys_bytes}" || -z "${is_gha}" ]]; then
 		printf 'default'
 		return 0
 	fi
 
-  # CI environments get 'ci' tier
+	# CI environments get 'ci' tier
 	if [[ "${is_gha}" == "1" ]]; then
 		printf 'ci'
 		return 0
 	fi
 
-  # Map physical memory to tier
+	# Map physical memory to tier
 	mem_gb=$((phys_bytes / 1024 / 1024 / 1024))
 
-  # Determine tier based on memory size
+	# Determine tier based on memory size
 	case ${mem_gb} in
 	'' | *[^0-9]*)
 		printf 'default'
@@ -168,26 +152,79 @@ map_resources_to_base_tier() {
 	esac
 }
 
+normalize_pressure_level() {
+	# Normalizes various pressure level inputs to known labels.
+	# Arguments:
+	#   $1 - raw pressure level
+	# Returns:
+	#   'normal', 'warning', 'critical', or 'unknown'
+
+	local raw
+	raw="$(printf '%s' "${1:-}" |
+		tr '[:upper:]' '[:lower:]' |
+		sed -E 's/^[[:space:]]+|[[:space:]]+$//g')"
+
+	case "${raw}" in
+	normal | warning | critical)
+		printf '%s' "${raw}"
+		;;
+
+	# common synonyms / variants you might see
+	low | moderate | medium | ok | okay | healthy | green)
+		printf 'normal'
+		;;
+	elevated | high | pressure | yellow | amber)
+		printf 'warning'
+		;;
+	severe | very\ high | red | urgent)
+		printf 'critical'
+		;;
+
+	*)
+		printf 'unknown'
+		;;
+	esac
+}
+
 pressure_level_from_output() {
-  # Extract and normalize memory pressure level from memory_pressure output.
+	# Extract and normalize memory pressure level from memory_pressure output.
 	# Arguments:
 	#   $1 - memory_pressure command output
 	# Returns:
-	#  normalized pressure level (string)
-	local output level
-	output="$1"
+	#   normalized pressure level (string): normal|warning|critical|unknown
 
-  # Extract level from output
-	level=$(printf '%s' "${output}" | awk -F': ' '/System-wide memory pressure level:/ {print tolower($2); exit}')
-	if [[ -z "${level}" ]]; then
-		level=$(printf '%s' "${output}" | awk -F': ' '/System-wide memory status:/ {print tolower($2); exit}')
+	local output level free_pct
+
+	output="${1:-}"
+
+	free_pct="$(printf '%s' "${output}" |
+		awk -F': ' '/System-wide memory free percentage:/ {
+        v=$2
+        gsub(/%/,"",v)
+        gsub(/[^0-9]/,"",v)
+        print v
+        exit
+      }')"
+
+	if [[ -z "${free_pct}" ]]; then
+		normalize_pressure_level ""
+		return 0
+	fi
+
+	# Map free% -> pressure label
+	if ((free_pct >= 50)); then
+		level="normal"
+	elif ((free_pct >= 25)); then
+		level="warning"
+	else
+		level="critical"
 	fi
 
 	normalize_pressure_level "${level}"
 }
 
 headroom_ratio_from_vm_stat() {
-  # Calculate free+speculative memory bytes from vm_stat output.
+	# Calculate free+speculative memory bytes from vm_stat output.
 	# Arguments:
 	#   $1 - vm_stat output text
 	# Returns:
@@ -195,7 +232,7 @@ headroom_ratio_from_vm_stat() {
 	local output page_size free_pages speculative_pages page_size_bytes free_bytes
 	output="$1"
 
-  # Extract page size
+	# Extract page size
 	page_size_bytes=$(printf '%s' "${output}" | awk '/page size of/ { if (match($0, /[0-9]+/)) { print substr($0, RSTART, RLENGTH); exit } }')
 	if [[ -z "${page_size_bytes}" || ! "${page_size_bytes}" =~ ^[0-9]+$ ]]; then
 		printf ''
@@ -210,7 +247,7 @@ headroom_ratio_from_vm_stat() {
     }'
 	)
 
-  # Extract speculative pages
+	# Extract speculative pages
 	speculative_pages=$(
 		printf '%s' "$output" |
 			awk '/Pages speculative/ {
@@ -220,78 +257,78 @@ headroom_ratio_from_vm_stat() {
 	free_pages=${free_pages:-0}
 	speculative_pages=${speculative_pages:-0}
 
-  # Calculate total free bytes
+	# Calculate total free bytes
 	if [[ ! "${free_pages}" =~ ^[0-9]+$ || ! "${speculative_pages}" =~ ^[0-9]+$ ]]; then
 		printf ''
 		return
 	fi
 
-  # Compute free + speculative bytes
+	# Compute free + speculative bytes
 	free_bytes=$(((free_pages + speculative_pages) * page_size_bytes))
 	printf '%s' "${free_bytes}"
 }
 
 detect_pressure_level() {
-  # Detect system memory pressure level using memory_pressure command.
-  # Returns:
-  #   Normalized pressure level (string)
+	# Detect system memory pressure level using memory_pressure command.
+	# Returns:
+	#   Normalized pressure level (string)
 
-  # Run memory_pressure and capture output
+	# Run memory_pressure and capture output
 	local output
 	if ! output=$(memory_pressure 2>/dev/null); then
 		printf 'unknown'
 		return 0
 	fi
 
-  # Extract pressure level
+	# Extract pressure level
 	pressure_level_from_output "${output}"
 }
 
 estimate_headroom_class() {
-  # Estimate memory headroom class using vm_stat output.
-  # Returns:
-  #  Normalized headroom class (string)
+	# Estimate memory headroom class using vm_stat output.
+	# Returns:
+	#  Normalized headroom class (string)
 
 	local phys_bytes output free_bytes ratio
 	phys_bytes="${DETECTED_PHYS_MEM_BYTES:-}"
 
-  # Fallback detection if not cached
+	# Fallback detection if not cached
 	if [[ -z "${phys_bytes}" ]]; then
 		phys_bytes=$(detect_physical_memory_bytes 2>/dev/null || printf '')
 	fi
 
-  # Validate physical bytes
+	# Validate physical bytes
 	if [[ -z "${phys_bytes}" ]]; then
 		printf 'unknown'
 		return 0
 	fi
 
-  # Run vm_stat and capture output
+	# Run vm_stat and capture output
 	if ! output=$(vm_stat 2>/dev/null); then
 		printf 'unknown'
 		return 0
 	fi
 
-  # Calculate free + speculative bytes
+	# Calculate free + speculative bytes
 	free_bytes=$(headroom_ratio_from_vm_stat "${output}")
 	if [[ -z "${free_bytes}" ]]; then
 		printf 'unknown'
 		return 0
 	fi
 
-  # Calculate free/total ratio
+	# Calculate free/total ratio
 	ratio=$(awk -v free="${free_bytes}" -v total="${phys_bytes}" 'BEGIN { if (total == 0) { print ""; exit } printf "%.4f", free/total }')
 	if [[ -z "${ratio}" ]]; then
 		printf 'unknown'
 		return 0
 	fi
 
-  # Classify headroom based on ratio
+	# Classify headroom based on ratio
 	awk -v r="${ratio}" 'BEGIN { if (r >= 0.30) { print "comfortable" } else if (r >= 0.10) { print "tight" } else { print "starved" } }'
 }
 
 cap_tier_for_pressure() {
-  # Apply pressure and headroom-based caps to a base tier.
+	# Apply pressure and headroom-based caps to a base tier.
 	# Arguments:
 	#   $1 - base tier
 	#   $2 - pressure level
@@ -303,7 +340,7 @@ cap_tier_for_pressure() {
 	pressure="$(normalize_pressure_level "$2")"
 	headroom="$(normalize_headroom_class "$3")"
 
-  # Apply caps based on pressure and headroom
+	# Apply caps based on pressure and headroom
 	if [[ "${pressure}" == "critical" || "${headroom}" == "starved" ]]; then
 		if [[ "${base}" == "ci" ]]; then
 			printf 'ci'
@@ -313,7 +350,7 @@ cap_tier_for_pressure() {
 		return 0
 	fi
 
-  # Apply moderate cap
+	# Apply moderate cap
 	if [[ "${pressure}" == "warning" || "${headroom}" == "tight" ]]; then
 		case "${base}" in
 		ci)
@@ -329,12 +366,12 @@ cap_tier_for_pressure() {
 		return 0
 	fi
 
-  # No cap applied
+	# No cap applied
 	printf '%s' "${base}"
 }
 
 map_tier_to_models() {
-  # Map a tier label to model size labels for task, default, and heavy roles.
+	# Map a tier label to model size labels for task, default, and heavy roles.
 	# Arguments:
 	#   $1 - tier label
 	# Returns:
@@ -342,7 +379,7 @@ map_tier_to_models() {
 	local tier
 	tier="$1"
 
-  # Map tier to model sizes
+	# Map tier to model sizes
 	case "${tier}" in
 	ci | tiny)
 		printf '0.6B\n0.6B\n0.6B'
@@ -366,26 +403,26 @@ map_tier_to_models() {
 }
 
 load_or_detect_system_profile() {
-  # Load cached system profile or detect and cache it.
-  # Sets global variables:
-  #   DETECTED_PHYS_MEM_BYTES
-  #   DETECTED_PHYS_MEM_GB
-  #   DETECTED_IS_GHA
-  #   DETECTED_BASE_TIER
-  # Returns:
-  #   None.
+	# Load cached system profile or detect and cache it.
+	# Sets global variables:
+	#   DETECTED_PHYS_MEM_BYTES
+	#   DETECTED_PHYS_MEM_GB
+	#   DETECTED_IS_GHA
+	#   DETECTED_BASE_TIER
+	# Returns:
+	#   None.
 
 	local phys_bytes is_gha base_tier now_gb
 	cache_home="${OKSO_CACHE_HOME:-${XDG_CACHE_HOME:-${HOME}/.cache}/okso}"
 	cache_file="${cache_home}/system_profile.env"
 
-  # Load from cache if available
+	# Load from cache if available
 	if [[ -f "${cache_file}" ]]; then
 		# shellcheck source=/dev/null
 		source "${cache_file}"
 	fi
 
-  # Detect missing values
+	# Detect missing values
 	if [[ -z "${DETECTED_PHYS_MEM_BYTES:-}" ]]; then
 		phys_bytes=$(detect_physical_memory_bytes || printf '')
 		if [[ -n "${phys_bytes}" ]]; then
@@ -395,18 +432,18 @@ load_or_detect_system_profile() {
 		fi
 	fi
 
-  # Detect GHA status
+	# Detect GHA status
 	if [[ -z "${DETECTED_IS_GHA:-}" ]]; then
 		is_gha=$(detect_is_github_actions)
 		DETECTED_IS_GHA="${is_gha}"
 	fi
 
-  # Map resources to base tier
+	# Map resources to base tier
 	if [[ -z "${DETECTED_BASE_TIER:-}" && -n "${DETECTED_PHYS_MEM_BYTES:-}" ]]; then
 		DETECTED_BASE_TIER=$(map_resources_to_base_tier "${DETECTED_PHYS_MEM_BYTES}" "${DETECTED_IS_GHA:-0}")
 	fi
 
-  # Cache detections if all present
+	# Cache detections if all present
 	if [[ -n "${DETECTED_PHYS_MEM_BYTES:-}" && -n "${DETECTED_IS_GHA:-}" && -n "${DETECTED_BASE_TIER:-}" ]]; then
 		mkdir -p "${cache_home}"
 		DETECTED_PROFILE_DATE="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
@@ -421,7 +458,7 @@ EOC
 }
 
 resolve_autotune_model_sizes() {
-  # Resolve model sizes for task, default, and heavy roles based on tier.
+	# Resolve model sizes for task, default, and heavy roles based on tier.
 	# Arguments:
 	#   $1 - tier to resolve
 	#   $2 - name of variable to receive task size
@@ -443,7 +480,7 @@ resolve_autotune_model_sizes() {
 	default_val=""
 	heavy_val=""
 
-  # Map tier to model sizes
+	# Map tier to model sizes
 	while IFS= read -r line; do
 		case "${i}" in
 		0) task_val="${line}" ;;

@@ -62,13 +62,13 @@ tools_normalize_path() {
 	local input_path directory basename_part normalized_parts
 	input_path="$1"
 
-  # Use realpath if available
+	# Use realpath if available
 	if command -v realpath >/dev/null 2>&1 && realpath -m / >/dev/null 2>&1; then
 		realpath -m "${input_path}"
 		return
 	fi
 
-  # Fallback normalization
+	# Fallback normalization
 	if [[ -e "${input_path}" || -L "${input_path}" ]]; then
 		directory=$(cd -- "$(dirname -- "${input_path}")" && pwd -P) || return 1
 		basename_part=$(basename -- "${input_path}")
@@ -76,12 +76,12 @@ tools_normalize_path() {
 		return 0
 	fi
 
-  # Manual normalization for non-existent paths
+	# Manual normalization for non-existent paths
 	if [[ "${input_path}" != /* ]]; then
 		input_path="$(pwd -P)/${input_path}"
 	fi
 
-  # Split and process path components
+	# Split and process path components
 	IFS='/' read -r -a normalized_parts <<<"${input_path}"
 	directory=()
 	for part in "${normalized_parts[@]}"; do
@@ -116,7 +116,7 @@ tools_writable_directory_allowed() {
 	candidate="$1"
 	normalized=$(tools_normalize_path "${candidate}") || return 1
 
-  # Check against allowlist
+	# Check against allowlist
 	for allowed in "${TOOL_WRITABLE_DIRECTORY_ALLOWLIST[@]}"; do
 		normalized_allowed=$(tools_normalize_path "${allowed}") || continue
 		if [[ "${normalized}" == "${normalized_allowed}"* ]]; then
@@ -148,9 +148,9 @@ validate_writable_directories() {
 }
 
 initialize_tools() {
-  # Initializes and registers all available tools.
-  # Returns:
-  #   None; returns non-zero on failure.
+	# Initializes and registers all available tools.
+	# Returns:
+	#   None; returns non-zero on failure.
 
 	if ! validate_writable_directories; then
 		return 1

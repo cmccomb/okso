@@ -86,17 +86,17 @@ validate_final_answer_against_query() {
 	trace="${3:-}"
 	output_var="${4:-}"
 
-  # Check llama availability
+	# Check llama availability
 	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
 		log "WARN" "LLM unavailable; skipping final answer validation" || true
 		return 2
 	fi
 
-  # Build the validation prompt
+	# Build the validation prompt
 	local validation_prompt response
 	validation_prompt="$(build_validation_prompt "${user_query}" "${final_answer}" "${trace}")"
 
-  # Load the validation schema
+	# Load the validation schema
 	local schema_text
 	schema_text="$(load_schema_text "final_answer_verification")" || {
 		log "ERROR" "Failed to load validation schema text" || true
@@ -110,10 +110,10 @@ validate_final_answer_against_query() {
 	validator_model_file="${VALIDATOR_MODEL_FILE:-${EXECUTOR_MODEL_FILE:-}}"
 	validator_cache_file="${VALIDATOR_CACHE_FILE:-${EXECUTOR_CACHE_FILE:-}}"
 
-  # Invoke the validator model
+	# Invoke the validator model
 	response="$(llama_infer "${validation_prompt}" "" 512 "${schema_text}" "${validator_model_repo}" "${validator_model_file}" "${validator_cache_file}")"
 
-  # Log the validation result
+	# Log the validation result
 	local satisfied reasoning
 	satisfied="$(jq -r '.satisfied' <<<"${response}")"
 	reasoning="$(jq -r '.reasoning' <<<"${response}")"
