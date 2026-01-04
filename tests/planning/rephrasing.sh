@@ -8,7 +8,7 @@ setup() {
 }
 
 @test "planner_generate_search_queries forwards JSON schema to llama" {
-	run env -i HOME="$HOME" PATH="$PATH" bash <<'SCRIPT'
+        run env -i HOME="$HOME" PATH="$PATH" bash <<'SCRIPT'
 set -euo pipefail
 PLANNER_SKIP_TOOL_LOAD=true
 export PLANNER_SKIP_TOOL_LOAD
@@ -27,11 +27,34 @@ llama_infer() {
 planner_generate_search_queries "whatever" >/dev/null
 SCRIPT
 
-	[ "$status" -eq 0 ]
+        [ "$status" -eq 0 ]
+}
+
+@test "planner_generate_search_queries enables DRY sampling" {
+        run env -i HOME="$HOME" PATH="$PATH" bash <<'SCRIPT'
+set -euo pipefail
+PLANNER_SKIP_TOOL_LOAD=true
+export PLANNER_SKIP_TOOL_LOAD
+source ./src/lib/planning/planner.sh
+LLAMA_AVAILABLE=true
+SEARCH_REPHRASER_MODEL_REPO=fake
+SEARCH_REPHRASER_MODEL_FILE=fake
+llama_infer() {
+  expected="--dry-multiplier 0.35 --dry-base 1.75 --dry-allowed-length 2 --dry-penalty-last-n 1024 --dry-sequence-breaker none"
+  if [[ "${LLAMA_EXTRA_ARGS:-}" != "${expected}" ]]; then
+    printf 'missing-dry' >&2
+    exit 1
+  fi
+  printf '["clean"]'
+}
+planner_generate_search_queries "whatever" >/dev/null
+SCRIPT
+
+        [ "$status" -eq 0 ]
 }
 
 @test "render_rephrase_prompt embeds the planner search schema" {
-	run env -i HOME="$HOME" PATH="$PATH" bash <<'SCRIPT'
+        run env -i HOME="$HOME" PATH="$PATH" bash <<'SCRIPT'
 set -euo pipefail
 PLANNER_SKIP_TOOL_LOAD=true
 export PLANNER_SKIP_TOOL_LOAD
