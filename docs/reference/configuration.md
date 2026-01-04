@@ -23,7 +23,6 @@ VALIDATOR_MODEL_BRANCH=main
 OKSO_RUN_ID=20240101T000000Z
 VERBOSITY=1
 APPROVE_ALL=false
-FORCE_CONFIRM=false
 LLAMA_DEFAULT_CONTEXT_SIZE=4096
 LLAMA_CONTEXT_CAP=8192
 LLAMA_CONTEXT_MARGIN_PERCENT=15
@@ -52,7 +51,6 @@ PLANNER_DEBUG_LOG=${TMPDIR:-/tmp}/okso_planner_candidates.log
 - `LLAMA_TEMPERATURE`: Temperature forwarded to llama.cpp inference; overrides tool-specific defaults when set.
 - `TESTING_PASSTHROUGH`: `true` to bypass llama.cpp for offline or deterministic runs.
 - `APPROVE_ALL`: `true` to skip prompts by default.
-- `FORCE_CONFIRM`: `true` to always prompt, even when approvals are automatic.
 - `VERBOSITY`: `0` (quiet), `1` (info), `2` (debug).
 - `OKSO_GOOGLE_CSE_API_KEY`: Google Custom Search API key used by the `web_search` tool.
 - `OKSO_GOOGLE_CSE_ID`: Google Custom Search Engine ID used by the `web_search` tool.

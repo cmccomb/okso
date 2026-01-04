@@ -215,7 +215,6 @@ load_config() {
 	# Core settings
 	VERBOSITY=${VERBOSITY:-1}
 	APPROVE_ALL=${APPROVE_ALL:-false}
-	FORCE_CONFIRM=${FORCE_CONFIRM:-false}
 	OKSO_RUN_ID=${OKSO_RUN_ID:-$(default_run_id)}
 
 	# Cache configuration

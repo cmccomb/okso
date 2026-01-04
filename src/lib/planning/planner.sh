@@ -18,7 +18,7 @@
 #   EXECUTOR_ENTRYPOINT (string): optional path override for the executor entrypoint script.
 #   TOOLS (array): optional array of tool names available to the planner.
 #   PLAN_ONLY, DRY_RUN (bool): control execution and preview behaviour.
-#   APPROVE_ALL, FORCE_CONFIRM (bool): confirmation toggles.
+#   APPROVE_ALL (bool): confirmation toggles.
 #   VERBOSITY (int): log level.
 #   PLANNER_SKIP_TOOL_LOAD (bool): skip sourcing the tool suite; useful for tests.
 #   PLANNER_SAMPLE_COUNT (int >=1): number of planner generations to sample; values below 1 are coerced to 1.

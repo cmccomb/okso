@@ -268,6 +268,11 @@ execute_planned_action() {
 
 	context="$(format_action_context "${thought}" "${tool}" "${args_after_controls}")"
 	observation="$(execute_tool_with_query "${tool}" "$(extract_tool_query "${tool}" "${args_after_controls}")" "${context}" "${args_after_controls}")"
+	execution_status=$?
+
+	if ((execution_status != 0)); then
+		return ${execution_status}
+	fi
 
 	record_tool_execution "${state_prefix}" "${tool}" "${thought}" "${args_after_controls}" "${observation}" "${step_index}"
 
@@ -313,6 +318,11 @@ executor_loop() {
 		((++step_index))
 
 		execute_planned_action "${state_prefix}" "${step_index}" "${plan_entry}"
+
+		if [[ "$(json_state_get_key "${state_prefix}" "needs_replanning")" == "true" ]]; then
+			executor_replan_with_feedback "${state_prefix}" "$(json_state_get_key "${state_prefix}" "user_feedback")"
+			return $?
+		fi
 
 		if [[ -n "$(json_state_get_key "${state_prefix}" "final_answer")" ]]; then
 			break
