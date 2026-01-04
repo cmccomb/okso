@@ -144,9 +144,9 @@ record_tool_execution() {
 }
 
 finalize_executor_result() {
-        # Finalizes and emits the executor run result.
-        # Arguments:
-        #   $1 - state prefix
+	# Finalizes and emits the executor run result.
+	# Arguments:
+	#   $1 - state prefix
 	local state_name observation final_answer_action needs_replanning user_feedback
 	local final_answer
 	state_name="$1"
@@ -199,113 +199,113 @@ finalize_executor_result() {
 	fi
 
 	# Emit boxed summary
-        emit_boxed_summary \
-                "$(json_state_get_key "${state_name}" "user_query")" \
-                "$(json_state_get_key "${state_name}" "plan_outline")" \
-                "$(state_get_history_lines "${state_name}")" \
-                "${final_answer}"
+	emit_boxed_summary \
+		"$(json_state_get_key "${state_name}" "user_query")" \
+		"$(json_state_get_key "${state_name}" "plan_outline")" \
+		"$(state_get_history_lines "${state_name}")" \
+		"${final_answer}"
 }
 
 ensure_planner_replan_support() {
-        # Ensures planner helpers are available before triggering a replan.
-        # Arguments:
-        #   None.
-        # Returns:
-        #   0 when planner helpers are present; non-zero otherwise.
+	# Ensures planner helpers are available before triggering a replan.
+	# Arguments:
+	#   None.
+	# Returns:
+	#   0 when planner helpers are present; non-zero otherwise.
 
-        if [[ "$(type -t generate_planner_response)" != "function" ]]; then
-                log "WARN" "Planner unavailable for validation-driven rerun" "missing=generate_planner_response" || true
-                return 1
-        fi
+	if [[ "$(type -t generate_planner_response)" != "function" ]]; then
+		log "WARN" "Planner unavailable for validation-driven rerun" "missing=generate_planner_response" || true
+		return 1
+	fi
 
-        local -a required_helpers=(derive_allowed_tools_from_plan plan_json_to_entries plan_json_to_outline executor_loop)
-        local helper
-        for helper in "${required_helpers[@]}"; do
-                if [[ "$(type -t "${helper}")" != "function" ]]; then
-                        log "WARN" "Planner helper unavailable for rerun" "missing=${helper}" || true
-                        return 1
-                fi
-        done
+	local -a required_helpers=(derive_allowed_tools_from_plan plan_json_to_entries plan_json_to_outline executor_loop)
+	local helper
+	for helper in "${required_helpers[@]}"; do
+		if [[ "$(type -t "${helper}")" != "function" ]]; then
+			log "WARN" "Planner helper unavailable for rerun" "missing=${helper}" || true
+			return 1
+		fi
+	done
 
-        return 0
+	return 0
 }
 
 executor_replan_with_feedback() {
-        # Triggers a planner rerun using validator feedback and executes the new plan.
-        # Arguments:
-        #   $1 - executor state prefix (string)
-        #   $2 - feedback text for the planner (string)
-        # Returns:
-        #   Exit status from the downstream executor loop when replanning succeeds;
-        #   non-zero when replanning cannot be attempted.
-        local state_name feedback_text user_query plan_response plan_outline plan_entries allowed_tools
-        state_name="$1"
-        feedback_text="$2"
+	# Triggers a planner rerun using validator feedback and executes the new plan.
+	# Arguments:
+	#   $1 - executor state prefix (string)
+	#   $2 - feedback text for the planner (string)
+	# Returns:
+	#   Exit status from the downstream executor loop when replanning succeeds;
+	#   non-zero when replanning cannot be attempted.
+	local state_name feedback_text user_query plan_response plan_outline plan_entries allowed_tools
+	state_name="$1"
+	feedback_text="$2"
 
-        if [[ "${VALIDATION_REPLAN_ATTEMPTED:-false}" == "true" ]]; then
-                log "WARN" "Skipping validation-driven replanning; attempt already made" || true
-                return 1
-        fi
+	if [[ "${VALIDATION_REPLAN_ATTEMPTED:-false}" == "true" ]]; then
+		log "WARN" "Skipping validation-driven replanning; attempt already made" || true
+		return 1
+	fi
 
-        if ! ensure_planner_replan_support; then
-                return 1
-        fi
+	if ! ensure_planner_replan_support; then
+		return 1
+	fi
 
-        VALIDATION_REPLAN_ATTEMPTED=true
+	VALIDATION_REPLAN_ATTEMPTED=true
 
-        user_query="$(json_state_get_key "${state_name}" "user_query")"
+	user_query="$(json_state_get_key "${state_name}" "user_query")"
 
-        json_state_set_key "${state_name}" "needs_replanning" "true" || true
-        if [[ -n "${feedback_text}" ]]; then
-                json_state_set_key "${state_name}" "user_feedback" "${feedback_text}" || true
-        fi
+	json_state_set_key "${state_name}" "needs_replanning" "true" || true
+	if [[ -n "${feedback_text}" ]]; then
+		json_state_set_key "${state_name}" "user_feedback" "${feedback_text}" || true
+	fi
 
-        log "INFO" "Replanning after failed validation" "${feedback_text}" || true
+	log "INFO" "Replanning after failed validation" "${feedback_text}" || true
 
-        local previous_feedback_context feedback_context_in_env
-        feedback_context_in_env=false
-        if printenv PLANNER_FEEDBACK_CONTEXT >/dev/null 2>&1; then
-                feedback_context_in_env=true
-        fi
+	local previous_feedback_context feedback_context_in_env
+	feedback_context_in_env=false
+	if printenv PLANNER_FEEDBACK_CONTEXT >/dev/null 2>&1; then
+		feedback_context_in_env=true
+	fi
 
-        previous_feedback_context="${PLANNER_FEEDBACK_CONTEXT:-}"
-        PLANNER_FEEDBACK_CONTEXT="${feedback_text}"
-        export PLANNER_FEEDBACK_CONTEXT
+	previous_feedback_context="${PLANNER_FEEDBACK_CONTEXT:-}"
+	PLANNER_FEEDBACK_CONTEXT="${feedback_text}"
+	export PLANNER_FEEDBACK_CONTEXT
 
-        if ! plan_response="$(generate_planner_response "${user_query}")"; then
-                log "ERROR" "Validation-driven replanning failed" "plan_regeneration_error" || true
-                if [[ "${feedback_context_in_env}" == true ]]; then
-                        PLANNER_FEEDBACK_CONTEXT="${previous_feedback_context}"
-                        export PLANNER_FEEDBACK_CONTEXT
-                else
-                        unset PLANNER_FEEDBACK_CONTEXT
-                fi
-                return 1
-        fi
+	if ! plan_response="$(generate_planner_response "${user_query}")"; then
+		log "ERROR" "Validation-driven replanning failed" "plan_regeneration_error" || true
+		if [[ "${feedback_context_in_env}" == true ]]; then
+			PLANNER_FEEDBACK_CONTEXT="${previous_feedback_context}"
+			export PLANNER_FEEDBACK_CONTEXT
+		else
+			unset PLANNER_FEEDBACK_CONTEXT
+		fi
+		return 1
+	fi
 
-        if [[ "${feedback_context_in_env}" == true ]]; then
-                PLANNER_FEEDBACK_CONTEXT="${previous_feedback_context}"
-                export PLANNER_FEEDBACK_CONTEXT
-        else
-                unset PLANNER_FEEDBACK_CONTEXT
-        fi
+	if [[ "${feedback_context_in_env}" == true ]]; then
+		PLANNER_FEEDBACK_CONTEXT="${previous_feedback_context}"
+		export PLANNER_FEEDBACK_CONTEXT
+	else
+		unset PLANNER_FEEDBACK_CONTEXT
+	fi
 
-        if ! plan_outline="$(plan_json_to_outline "${plan_response}")"; then
-                log "ERROR" "Unable to derive plan outline during replanning" || true
-                return 1
-        fi
+	if ! plan_outline="$(plan_json_to_outline "${plan_response}")"; then
+		log "ERROR" "Unable to derive plan outline during replanning" || true
+		return 1
+	fi
 
-        if ! allowed_tools="$(derive_allowed_tools_from_plan "${plan_response}")"; then
-                log "ERROR" "Unable to derive tools during replanning" || true
-                return 1
-        fi
+	if ! allowed_tools="$(derive_allowed_tools_from_plan "${plan_response}")"; then
+		log "ERROR" "Unable to derive tools during replanning" || true
+		return 1
+	fi
 
-        if ! plan_entries="$(plan_json_to_entries "${plan_response}")"; then
-                log "ERROR" "Unable to normalize plan entries during replanning" || true
-                return 1
-        fi
+	if ! plan_entries="$(plan_json_to_entries "${plan_response}")"; then
+		log "ERROR" "Unable to normalize plan entries during replanning" || true
+		return 1
+	fi
 
-        executor_loop "${user_query}" "${allowed_tools}" "${plan_entries}" "${plan_outline}"
+	executor_loop "${user_query}" "${allowed_tools}" "${plan_entries}" "${plan_outline}"
 }
 
 validate_and_optionally_replan() {
@@ -313,7 +313,7 @@ validate_and_optionally_replan() {
 	#   $1 - state prefix
 	#   $2 - final answer text
 	local state_name final_answer user_query history_text
-        local validation_json validator_rc satisfied reasoning feedback_text errexit_was_set
+	local validation_json validator_rc satisfied reasoning feedback_text errexit_was_set
 	local history_pretty
 	state_name="$1"
 	final_answer="$2"
@@ -326,18 +326,18 @@ validate_and_optionally_replan() {
 	log "INFO" "Running final answer validation" || true
 
 	# Always capture output; keep exit code separately.
-        errexit_was_set=false
-        if [[ $- == *e* ]]; then
-                errexit_was_set=true
-                set +e
-        fi
+	errexit_was_set=false
+	if [[ $- == *e* ]]; then
+		errexit_was_set=true
+		set +e
+	fi
 
-        validation_json="$(validate_final_answer_against_query "${user_query}" "${final_answer}" "${history_text}")"
-        validator_rc=$?
+	validation_json="$(validate_final_answer_against_query "${user_query}" "${final_answer}" "${history_text}")"
+	validator_rc=$?
 
-        if [[ "${errexit_was_set}" == true ]]; then
-                set -e
-        fi
+	if [[ "${errexit_was_set}" == true ]]; then
+		set -e
+	fi
 
 	# Interpret validation result
 	if [[ ${validator_rc} -ne 0 ]]; then
@@ -365,26 +365,26 @@ validate_and_optionally_replan() {
 		log_pretty "INFO" "validation_result" "${validation_json}" || true
 
 		# Handle validation outcome
-                if [[ "${satisfied}" == "0" ]]; then
-                        log "WARN" "Final answer did not satisfy query per validator" || true
+		if [[ "${satisfied}" == "0" ]]; then
+			log "WARN" "Final answer did not satisfy query per validator" || true
 
-                        # Persist flags for caller / UI
-                        json_state_set_key "${state_name}" "answer_validation_failed" "true" || true
-                        if [[ -n "${reasoning}" ]]; then
-                                json_state_set_key "${state_name}" "validation_failure_reason" "${reasoning}" || true
-                                log_pretty "WARN" "validation_failure_reason" "${reasoning}" || true
-                        else
-                                json_state_set_key "${state_name}" "validation_failure_reason" "Unknown reason" || true
-                        fi
+			# Persist flags for caller / UI
+			json_state_set_key "${state_name}" "answer_validation_failed" "true" || true
+			if [[ -n "${reasoning}" ]]; then
+				json_state_set_key "${state_name}" "validation_failure_reason" "${reasoning}" || true
+				log_pretty "WARN" "validation_failure_reason" "${reasoning}" || true
+			else
+				json_state_set_key "${state_name}" "validation_failure_reason" "Unknown reason" || true
+			fi
 
-                        feedback_text="${reasoning:-Validator rejected the answer without providing reasoning.}"
-                        if executor_replan_with_feedback "${state_name}" "${feedback_text}"; then
-                                return 0
-                        fi
-                        log "WARN" "Continuing without replanning after validation failure" || true
-                elif [[ "${satisfied}" == "1" ]]; then
-                        log "INFO" "Final answer passed validation" || true
-                else
+			feedback_text="${reasoning:-Validator rejected the answer without providing reasoning.}"
+			if executor_replan_with_feedback "${state_name}" "${feedback_text}"; then
+				return 0
+			fi
+			log "WARN" "Continuing without replanning after validation failure" || true
+		elif [[ "${satisfied}" == "1" ]]; then
+			log "INFO" "Final answer passed validation" || true
+		else
 			# Unexpected schema/content: treat as infra-ish warning.
 			log "WARN" "Validator returned unexpected schema; outputting answer as-is" || true
 		fi
