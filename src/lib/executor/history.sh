@@ -206,12 +206,92 @@ finalize_executor_result() {
 		"${final_answer}"
 }
 
+executor_replan_with_feedback() {
+	# Triggers a planner rerun using validator feedback and executes the new plan.
+	# Arguments:
+	#   $1 - executor state prefix (string)
+	#   $2 - feedback text for the planner (string)
+	# Returns:
+	#   Exit status from the downstream executor loop when replanning succeeds;
+	#   non-zero when replanning cannot be attempted.
+
+	local state_name feedback_text user_query plan_response plan_outline plan_entries allowed_tools
+	state_name="$1"
+	feedback_text="$2"
+
+	# Prevent infinite replanning loops
+	if [[ "${VALIDATION_REPLAN_ATTEMPTED:-false}" == "true" ]]; then
+		log "WARN" "Skipping validation-driven replanning; attempt already made" || true
+		return 1
+	fi
+	VALIDATION_REPLAN_ATTEMPTED=true
+
+	# Save the user query to the state
+	user_query="$(json_state_get_key "${state_name}" "user_query")"
+
+	# Mark state as needing replanning with feedback
+	json_state_set_key "${state_name}" "needs_replanning" "true" || true
+	if [[ -n "${feedback_text}" ]]; then
+		json_state_set_key "${state_name}" "user_feedback" "${feedback_text}" || true
+	fi
+	log "INFO" "Replanning after failed validation" "${feedback_text}" || true
+
+	# Set feedback context for planner
+	local previous_feedback_context feedback_context_in_env
+	feedback_context_in_env=false
+	if printenv PLANNER_FEEDBACK_CONTEXT >/dev/null 2>&1; then
+		feedback_context_in_env=true
+	fi
+	previous_feedback_context="${PLANNER_FEEDBACK_CONTEXT:-}"
+	PLANNER_FEEDBACK_CONTEXT="${feedback_text}"
+	export PLANNER_FEEDBACK_CONTEXT
+
+	# Generate new plan
+	if ! plan_response="$(generate_planner_response "${user_query}")"; then
+		log "ERROR" "Validation-driven replanning failed" "plan_regeneration_error" || true
+		if [[ "${feedback_context_in_env}" == true ]]; then
+			PLANNER_FEEDBACK_CONTEXT="${previous_feedback_context}"
+			export PLANNER_FEEDBACK_CONTEXT
+		else
+			unset PLANNER_FEEDBACK_CONTEXT
+		fi
+		return 1
+	fi
+
+	# Restore previous feedback context
+	if [[ "${feedback_context_in_env}" == true ]]; then
+		PLANNER_FEEDBACK_CONTEXT="${previous_feedback_context}"
+		export PLANNER_FEEDBACK_CONTEXT
+	else
+		unset PLANNER_FEEDBACK_CONTEXT
+	fi
+
+	# Extract plan components
+	if ! plan_outline="$(plan_json_to_outline "${plan_response}")"; then
+		log "ERROR" "Unable to derive plan outline during replanning" || true
+		return 1
+	fi
+
+	if ! allowed_tools="$(derive_allowed_tools_from_plan "${plan_response}")"; then
+		log "ERROR" "Unable to derive tools during replanning" || true
+		return 1
+	fi
+
+	if ! plan_entries="$(plan_json_to_entries "${plan_response}")"; then
+		log "ERROR" "Unable to normalize plan entries during replanning" || true
+		return 1
+	fi
+
+	# Execute new plan
+	executor_loop "${user_query}" "${allowed_tools}" "${plan_entries}" "${plan_outline}"
+}
+
 validate_and_optionally_replan() {
 	# Args:
 	#   $1 - state prefix
 	#   $2 - final answer text
 	local state_name final_answer user_query history_text
-	local validation_json validator_rc satisfied reasoning
+	local validation_json validator_rc satisfied reasoning feedback_text errexit_was_set
 	local history_pretty
 	state_name="$1"
 	final_answer="$2"
@@ -224,8 +304,18 @@ validate_and_optionally_replan() {
 	log "INFO" "Running final answer validation" || true
 
 	# Always capture output; keep exit code separately.
+	errexit_was_set=false
+	if [[ $- == *e* ]]; then
+		errexit_was_set=true
+		set +e
+	fi
+
 	validation_json="$(validate_final_answer_against_query "${user_query}" "${final_answer}" "${history_text}")"
 	validator_rc=$?
+
+	if [[ "${errexit_was_set}" == true ]]; then
+		set -e
+	fi
 
 	# Interpret validation result
 	if [[ ${validator_rc} -ne 0 ]]; then
@@ -264,6 +354,12 @@ validate_and_optionally_replan() {
 			else
 				json_state_set_key "${state_name}" "validation_failure_reason" "Unknown reason" || true
 			fi
+
+			feedback_text="${reasoning:-Validator rejected the answer without providing reasoning.}"
+			if executor_replan_with_feedback "${state_name}" "${feedback_text}"; then
+				return 0
+			fi
+			log "WARN" "Continuing without replanning after validation failure" || true
 		elif [[ "${satisfied}" == "1" ]]; then
 			log "INFO" "Final answer passed validation" || true
 		else

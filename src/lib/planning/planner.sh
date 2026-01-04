@@ -290,7 +290,7 @@ generate_planner_response() {
 	planner_schema_text="$(load_schema_text planner_plan)"
 	tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_line)"
 	search_context="$(planner_fetch_search_context "${user_query}")"
-	prompt="$(build_planner_prompt "${user_query}" "${tool_lines}" "${search_context}")"
+	prompt="$(build_planner_prompt "${user_query}" "${tool_lines}" "${search_context}" "${PLANNER_FEEDBACK_CONTEXT:-}")"
 	log "DEBUG" "Generated planner prompt" "${prompt}" >&2
 
 	# Configure sampling parameters

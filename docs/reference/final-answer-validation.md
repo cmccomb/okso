@@ -15,7 +15,12 @@ The executor can run a lightweight validation pass before emitting the final res
 3. The helper logs the structured result and updates executor state flags:
    - `answer_validation_failed=true` when the validator returns `satisfied: false`
    - `validation_failure_reason` populated with the model-provided reasoning, when available
-4. The executor prints the final answer and execution summary regardless of validation outcome, keeping the user-facing flow predictable.
+4. When `satisfied` is explicitly `false`, the executor logs the reasoning, stores it on state, and
+   forwards the feedback into a fresh planner+executor cycle so the user receives a revised answer.
+   Replanning only runs once per executor invocation and resets the plan outline, history, and
+   allowed tools before executing the replacement plan.
+5. The executor prints the final answer and execution summary regardless of validation outcome,
+   keeping the user-facing flow predictable when validation is unavailable or passes.
 
 Because the validator output already conforms to the JSON schema, no additional Bash-side validation is performed beyond type-friendly parsing.
 
