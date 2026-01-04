@@ -71,21 +71,21 @@ confirm_tool() {
 	printf '%s [y/N/feedback]: ' "${prompt}" >&2
 	read -r reply
 
-        # Check if reply is feedback (not empty and not y/Y/n/N)
-        if [[ -n "${reply}" && "${reply}" != "y" && "${reply}" != "Y" && "${reply}" != "n" && "${reply}" != "N" ]]; then
-                # User provided feedback instead of a simple y/N response
-                log "INFO" "User provided feedback during tool confirmation" "tool=${tool_name}"
-                # Store feedback for planner to consume
-                jq -nc --arg tool "${tool_name}" --arg feedback "${reply}" '{type:"feedback", tool:$tool, feedback:$feedback}'
-                return 2
-        fi
+	# Check if reply is feedback (not empty and not y/Y/n/N)
+	if [[ -n "${reply}" && "${reply}" != "y" && "${reply}" != "Y" && "${reply}" != "n" && "${reply}" != "N" ]]; then
+		# User provided feedback instead of a simple y/N response
+		log "INFO" "User provided feedback during tool confirmation" "tool=${tool_name}"
+		# Store feedback for planner to consume
+		jq -nc --arg tool "${tool_name}" --arg feedback "${reply}" '{type:"feedback", tool:$tool, feedback:$feedback}'
+		return 2
+	fi
 
-        # Check for affirmative response
-        if [[ "${reply}" != "y" && "${reply}" != "Y" ]]; then
-                log "WARN" "Tool execution declined" "${tool_name}"
-                jq -nc --arg tool "${tool_name}" --arg feedback "${reply}" '{type:"refusal", tool:$tool, feedback:($feedback // "")}'
-                return 1
-        fi
+	# Check for affirmative response
+	if [[ "${reply}" != "y" && "${reply}" != "Y" ]]; then
+		log "WARN" "Tool execution declined" "${tool_name}"
+		jq -nc --arg tool "${tool_name}" --arg feedback "${reply}" '{type:"refusal", tool:$tool, feedback:($feedback // "")}'
+		return 1
+	fi
 
 	# If we reach here, the tool is confirmed
 	return 0
@@ -123,33 +123,33 @@ execute_tool_with_query() {
 	fi
 
 	# Request confirmation if needed
-        if [[ "${tool_name}" != "final_answer" ]]; then
+	if [[ "${tool_name}" != "final_answer" ]]; then
 
-                # Only request confirmation if not final_answer
-                if [[ "${requires_confirmation}" == true ]]; then
-                        log "INFO" "Requesting tool confirmation" "$(printf 'tool=%s query=%s' "${tool_name}" "${tool_query}")" >&2
-                fi
+		# Only request confirmation if not final_answer
+		if [[ "${requires_confirmation}" == true ]]; then
+			log "INFO" "Requesting tool confirmation" "$(printf 'tool=%s query=%s' "${tool_name}" "${tool_query}")" >&2
+		fi
 
-                # Prompt for confirmation
-                if ! confirm_tool_output=$(confirm_tool "${tool_name}" "${context}"); then
-                        confirm_status=$?
+		# Prompt for confirmation
+		if ! confirm_tool_output=$(confirm_tool "${tool_name}" "${context}"); then
+			confirm_status=$?
 
-                        # Check if user provided feedback (exit code 2)
-                        if [[ ${confirm_status} -eq 2 ]]; then
-                                # Output the feedback JSON and return 2 to signal replanning needed
-                                printf '%s' "${confirm_tool_output}"
-                                return 2
-                        fi
+			# Check if user provided feedback (exit code 2)
+			if [[ ${confirm_status} -eq 2 ]]; then
+				# Output the feedback JSON and return 2 to signal replanning needed
+				printf '%s' "${confirm_tool_output}"
+				return 2
+			fi
 
-                        # Indicate the tool was declined and return non-zero to signal replanning
-                        if [[ -n "${confirm_tool_output}" ]]; then
-                                printf '%s' "${confirm_tool_output}"
-                        else
-                                jq -nc --arg tool "${tool_name}" '{type:"refusal", tool:$tool, feedback:""}'
-                        fi
-                        return 3
-                fi
-        fi
+			# Indicate the tool was declined and return non-zero to signal replanning
+			if [[ -n "${confirm_tool_output}" ]]; then
+				printf '%s' "${confirm_tool_output}"
+			else
+				jq -nc --arg tool "${tool_name}" '{type:"refusal", tool:$tool, feedback:""}'
+			fi
+			return 3
+		fi
+	fi
 
 	# Execute the tool handler with captured stdout and stderr
 	local stdout_file stderr_file stderr_output
