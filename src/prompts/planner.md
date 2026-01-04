@@ -76,6 +76,9 @@ Return ONLY valid JSON matching the schema.
 ## Context
 Current time: ${current_time} (${current_weekday}, ${current_date})
 
+## Feedback or Constraints
+${planner_feedback}
+
 Search context (if any):
 ${search_context}
 

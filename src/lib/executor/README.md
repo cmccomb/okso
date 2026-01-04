@@ -24,6 +24,15 @@ latest context while leaving planner-provided required arguments untouched. Vali
 `args_control` map attached to each plan entry, ensuring `resolve_action_args` receives the
 context-marked keys and forwards them to the LLM prompt when enrichment is required.
 
+## Validation and replanning
+
+When answer validation is enabled, the executor now attempts a single replanning cycle whenever the
+validator returns `satisfied: false`. The validator's reasoning is logged, stored on the executor
+state for visibility, and forwarded to the planner via `PLANNER_FEEDBACK_CONTEXT` so the follow-up
+plan can address the feedback. Replanning reinitializes executor state—including the plan outline,
+history, and allowed tools—before executing the new plan to avoid mixing traces from the rejected
+response with the replacement run.
+
 Context hints are sanitized before prompting: `resolve_action_args` strips planner annotations from
 the final argument payload, coerces `__context_controlled` into an array, ignores malformed seed
 maps, and preserves original values when llama.cpp is unavailable. This keeps the executor prompt
