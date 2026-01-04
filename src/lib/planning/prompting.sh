@@ -34,7 +34,7 @@ build_planner_prompt_with_tools() {
 	#   $2... - tool names (strings)
 	# Returns:
 	#   planner prompt on stdout; non-zero on failure.
-	local user_query tool_lines tool_schema_text
+	local user_query tool_lines
 	local -a tools=()
 	user_query="$1"
 	shift
@@ -47,10 +47,8 @@ build_planner_prompt_with_tools() {
 		tool_lines=""
 	fi
 
-	tool_schema_text="$(tool_schema_map | jq '.')"
-
 	# Build the prompt
-	build_planner_prompt "${user_query}" "${tool_lines}" "" "" "${tool_schema_text}"
+	build_planner_prompt "${user_query}" "${tool_lines}" ""
 }
 
 plan_json_to_outline() {
