@@ -10,7 +10,7 @@
 #   - bash 3.2+
 
 @test "planner prompt instructs use of executor infill placeholder" {
-        run bash -lc '
+	run bash -lc '
                 set -euo pipefail
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 export PLANNER_SKIP_TOOL_LOAD=true
@@ -22,5 +22,5 @@
                 prompt="$(build_planner_prompt "Summarize" "tool: demo" "none")"
                 grep -q "<<FILL_DURING_EXECUTION>>" <<<"${prompt}"
         '
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }

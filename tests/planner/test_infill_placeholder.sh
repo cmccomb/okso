@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 
 @test "planner schema allows executor fill placeholder for numeric fields" {
-        run env -i PATH="$PATH" HOME="$HOME" VERBOSITY=0 bash --noprofile --norc <<'SCRIPT'
+	run env -i PATH="$PATH" HOME="$HOME" VERBOSITY=0 bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)" || exit 1
 source ./src/tools/registry.sh

@@ -137,7 +137,7 @@ planner_build_plan_schema() {
 
 	base_schema="$(load_schema_text planner_plan | jq -c '.')" || return 1
 
-        tool_schema_json="$(tool_schema_map | jq -c '
+	tool_schema_json="$(tool_schema_map | jq -c '
                 def allow_fill_placeholder(s):
                         if (s|type) != "object" then s
                         else
