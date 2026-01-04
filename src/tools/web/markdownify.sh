@@ -65,48 +65,38 @@ build_preview() {
 }
 
 convert_html() {
+	# Converts HTML content to GitHub-flavored Markdown.
 	# Arguments:
 	#   $1 - body path
+	# Returns:
+	#   Converted markdown text
 	local body_path output
 	body_path=$1
 
-	if command -v pandoc >/dev/null 2>&1; then
-		if output=$(pandoc --from=html --to=gfm --wrap=none "${body_path}" 2>&1); then
-			output=$(printf '%s\n' "${output}" | sed 's/[[:space:]]\+$//' | sed '/^[[:space:]]*$/d')
-
-			if [[ -z ${output} ]]; then
-				printf '%s\n' "empty output from HTML conversion" >&2
-			else
-				printf '%s' "${output}"
-				return 0
-			fi
-		else
-			printf '%s\n' "pandoc failed to convert HTML: ${output}" >&2
-		fi
+	# Convert HTML to GitHub-flavored Markdown using pandoc
+	if ! output=$(pandoc --from=html --to=gfm --wrap=none "${body_path}"); then
+		printf '%s\n' "pandoc failed to convert HTML" >&2
+		return 1
 	fi
 
-	if command -v lynx >/dev/null 2>&1; then
-		if output=$(lynx -dump -stdin <"${body_path}" 2>&1); then
-			output=$(printf '%s\n' "${output}" | sed 's/[[:space:]]\+$//' | sed '/^[[:space:]]*$/d')
+	# Trim trailing whitespace and remove empty lines
+	output=$(printf '%s\n' "${output}" | sed 's/[[:space:]]\+$//' | sed '/^[[:space:]]*$/d')
 
-			if [[ -z ${output} ]]; then
-				printf '%s\n' "empty output from HTML conversion" >&2
-			else
-				printf '%s' "${output}"
-				return 0
-			fi
-		else
-			printf '%s\n' "lynx failed to convert HTML: ${output}" >&2
-		fi
+	# Check for empty output
+	if [[ -z ${output} ]]; then
+		printf '%s\n' "empty output from HTML conversion" >&2
+		return 1
 	fi
 
-	printf '%s\n' "no HTML converter available; install pandoc or lynx" >&2
-	return 1
+	printf '%s' "${output}"
 }
 
 convert_json() {
+	# Converts JSON content to pretty-printed Markdown code block.
 	# Arguments:
 	#   $1 - body path
+	# Returns:
+	#   Converted markdown text
 	local body_path formatted
 	body_path=$1
 
