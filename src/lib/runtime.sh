@@ -237,35 +237,35 @@ render_plan_outputs() {
 }
 
 request_plan_approval() {
-        # Prompts the user to approve the generated plan before execution.
-        # Arguments:
-        #   $1 - plan outline (string; unused today but reserved for context)
-        #   $2 - required tools (newline delimited)
-        #   $3 - plan entries (string)
-        # Returns:
-        #   0 when approved; non-zero otherwise with feedback on stdout.
+	# Prompts the user to approve the generated plan before execution.
+	# Arguments:
+	#   $1 - plan outline (string; unused today but reserved for context)
+	#   $2 - required tools (newline delimited)
+	#   $3 - plan entries (string)
+	# Returns:
+	#   0 when approved; non-zero otherwise with feedback on stdout.
 
-        # If auto-approval is enabled, skip the prompt.
-        if [[ "${APPROVE_ALL}" == true ]]; then
-                return 0
-        fi
+	# If auto-approval is enabled, skip the prompt.
+	if [[ "${APPROVE_ALL}" == true ]]; then
+		return 0
+	fi
 
-        local reply
-        printf 'Approve this plan? [y/N/feedback]: ' >&2
-        read -r reply
+	local reply
+	printf 'Approve this plan? [y/N/feedback]: ' >&2
+	read -r reply
 
-        case "${reply}" in
-        y | Y | yes | Yes | YES)
-                return 0
-                ;;
-        esac
+	case "${reply}" in
+	y | Y | yes | Yes | YES)
+		return 0
+		;;
+	esac
 
-        if [[ -z "${reply}" ]]; then
-                reply="User declined the plan without providing feedback."
-        fi
+	if [[ -z "${reply}" ]]; then
+		reply="User declined the plan without providing feedback."
+	fi
 
-        printf '%s' "${reply}"
-        return 1
+	printf '%s' "${reply}"
+	return 1
 }
 
 select_response_strategy() {

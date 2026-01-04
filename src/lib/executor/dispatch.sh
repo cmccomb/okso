@@ -33,19 +33,19 @@ source "${EXEC_LIB_DIR}/../config.sh"
 source "${EXEC_LIB_DIR}/../tools.sh"
 
 should_prompt_for_tool() {
-        # Default behavior is to prompt unless APPROVE_ALL is explicitly set to true.
-        # Arguments: none
-        # Environment:
-        #   APPROVE_ALL (bool): if true, skip prompts; otherwise prompt
-        #   FORCE_CONFIRM (bool): when true, always prompt regardless of approvals
+	# Default behavior is to prompt unless APPROVE_ALL is explicitly set to true.
+	# Arguments: none
+	# Environment:
+	#   APPROVE_ALL (bool): if true, skip prompts; otherwise prompt
+	#   FORCE_CONFIRM (bool): when true, always prompt regardless of approvals
 
-        if [[ "${FORCE_CONFIRM}" == true ]]; then
-                return 0
-        fi
+	if [[ "${FORCE_CONFIRM}" == true ]]; then
+		return 0
+	fi
 
-        if [[ "${APPROVE_ALL}" == true ]]; then
-                return 1
-        fi
+	if [[ "${APPROVE_ALL}" == true ]]; then
+		return 1
+	fi
 
 	return 0
 }
