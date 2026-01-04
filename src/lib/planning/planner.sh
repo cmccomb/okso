@@ -137,11 +137,7 @@ planner_build_plan_schema() {
 
 	base_schema="$(load_schema_text planner_plan | jq -c '.')" || return 1
 
-	if command -v tool_schema_map >/dev/null 2>&1; then
-		tool_schema_json="$(tool_schema_map)"
-	else
-		tool_schema_json='{}'
-	fi
+  tool_schema_json="$(tool_schema_map)"
 	tools_json="$(printf '%s\n' "$@" | jq -Rsc 'split("\n") | map(select(length > 0))')"
 
 	if [[ "${tools_json}" == "[]" ]]; then
