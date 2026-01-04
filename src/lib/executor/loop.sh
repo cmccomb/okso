@@ -120,6 +120,32 @@ JQ
 	jq -c -n --argjson args "${args_obj}" --argjson planned "${plan_args}" "${jq_filter}" 2>/dev/null
 }
 
+validate_args_against_schema() {
+	# Validates resolved argument JSON against a JSON schema object.
+	# Arguments:
+	#   $1 - candidate args JSON
+	#   $2 - tool schema JSON
+	local candidate schema_json
+	candidate="$1"
+	schema_json="$2"
+
+	if ! jq -e 'type == "object"' <<<"${candidate}" >/dev/null 2>&1; then
+		return 1
+	fi
+
+	if ! jq -e '.' <<<"${schema_json}" >/dev/null 2>&1; then
+		return 0
+	fi
+
+	jq -e --argjson schema "${schema_json}" '
+		($schema.required // []) as $req
+		| reduce $req[] as $key (
+			true;
+			. and (has($key) and (.[$key] != null) and (if (.[ $key ] | type) == "string" then (.[ $key ] | length > 0) else true end))
+		)
+	' <<<"${candidate}" >/dev/null 2>&1
+}
+
 fill_missing_args_with_llm() {
 	# Fills planner-marked context arguments via a single LLM round-trip when possible.
 	# Arguments:
@@ -138,7 +164,7 @@ fill_missing_args_with_llm() {
 	planner_thought="$5"
 	history_text="$6"
 	context_fields_json="$7"
-	schema="$(tool_args_schema "${tool}")"
+	schema="$(jq -c '.' <<<"$(tool_args_schema "${tool}")" 2>/dev/null || printf '{}')"
 
 	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
 		log "WARN" "LLM unavailable; context args remain unchanged" "${tool}" || true
@@ -162,14 +188,54 @@ fill_missing_args_with_llm() {
 
 	log_pretty "INFO" "prompt" "${prompt}"
 
-	response="$(llama_infer "${prompt}" "" 256 "${schema}" "${EXECUTOR_MODEL_REPO:-}" "${EXECUTOR_MODEL_FILE:-}")"
-	if jq -e 'type == "object"' <<<"${response}" >/dev/null 2>&1; then
+	invoke_llm_with_schema() {
+		local llama_temperature_backup response_json
+		llama_temperature_backup="${LLAMA_TEMPERATURE:-}"
+		if [[ "$1" == "strict" ]]; then
+			LLAMA_TEMPERATURE=0
+			export LLAMA_TEMPERATURE
+		fi
+
+		if ! response_json="$(llama_infer "${prompt}" "" 256 "${schema}" "${EXECUTOR_MODEL_REPO:-}" "${EXECUTOR_MODEL_FILE:-}")"; then
+			return 1
+		fi
+
+		if [[ "$1" == "strict" ]]; then
+			if [[ -n "${llama_temperature_backup}" ]]; then
+				LLAMA_TEMPERATURE="${llama_temperature_backup}"
+				export LLAMA_TEMPERATURE
+			else
+				unset LLAMA_TEMPERATURE
+			fi
+		fi
+
+		printf '%s' "${response_json}"
+	}
+
+	response="$(invoke_llm_with_schema "default")" || {
+		log "ERROR" "llama_infer failed during arg fill" "${tool}" || true
+		return 1
+	}
+
+	if validate_args_against_schema "${response}" "${schema}"; then
 		jq -c '.' <<<"${response}"
 		return 0
 	fi
 
-	log "WARN" "LLM returned non-object args; preserving original" "${response}" || true
-	printf '%s' "${args_json}"
+	log "WARN" "LLM returned non-object args; retrying with strict decoding" "${response}" || true
+
+	response="$(invoke_llm_with_schema "strict")" || {
+		log "ERROR" "Strict llama_infer retry failed" "${tool}" || true
+		return 1
+	}
+
+	if validate_args_against_schema "${response}" "${schema}"; then
+		jq -c '.' <<<"${response}"
+		return 0
+	fi
+
+	log "ERROR" "LLM failed to satisfy arg schema" "${response}" || true
+	return 1
 }
 
 extract_context_controls() {
@@ -224,9 +290,14 @@ resolve_action_args() {
 	context_seed_lines="$(jq -r '.context_seed_lines[]?' <<<"${context_metadata}")"
 	resolved_args="$(jq -c '.args' <<<"${context_metadata}")"
 
-	schema="$(tool_args_schema "${tool}")"
+	schema="$(jq -c '.' <<<"$(tool_args_schema "${tool}")" 2>/dev/null || printf '{}')"
 
 	if [[ "${context_fields_json}" == "[]" ]]; then
+		if ! validate_args_against_schema "${resolved_args}" "${schema}"; then
+			printf 'Resolved args failed schema validation\n' >&2
+			return 1
+		fi
+
 		normalize_args_json "${resolved_args}"
 		return 0
 	fi
@@ -239,7 +310,15 @@ resolve_action_args() {
 		history_for_prompt+="${context_seed_lines}"
 	fi
 
-	resolved_args="$(fill_missing_args_with_llm "${tool}" "${resolved_args}" "${user_query}" "${plan_outline}" "${planner_thought}" "${history_for_prompt}" "${context_fields_json}")"
+	if ! resolved_args="$(fill_missing_args_with_llm "${tool}" "${resolved_args}" "${user_query}" "${plan_outline}" "${planner_thought}" "${history_for_prompt}" "${context_fields_json}")"; then
+		printf 'Context argument infill failed\n' >&2
+		return 1
+	fi
+
+	if ! validate_args_against_schema "${resolved_args}" "${schema}"; then
+		printf 'LLM-filled args failed schema validation\n' >&2
+		return 1
+	fi
 
 	normalize_args_json "${resolved_args}"
 }
@@ -263,6 +342,8 @@ execute_planned_action() {
 	history_text="$(state_get_history_lines "${state_prefix}")"
 	if ! args_after_controls="$(resolve_action_args "${tool}" "${args_json}" "${action_json}" "$(json_state_get_key "${state_prefix}" "user_query")" "${history_text}" "$(json_state_get_key "${state_prefix}" "plan_outline")" "${thought}")"; then
 		log "ERROR" "Argument resolution failed" "${tool}" || true
+		json_state_set_key "${state_prefix}" "needs_replanning" "true" || true
+		json_state_set_key "${state_prefix}" "user_feedback" "Unable to validate arguments for ${tool}" || true
 		return 1
 	fi
 
