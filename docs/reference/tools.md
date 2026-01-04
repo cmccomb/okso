@@ -15,7 +15,7 @@ use the canonical `input` property so prompts and schemas can reference `args.in
 - `mail_*`: draft, send, search, or list Apple Mail messages.
 - `final_answer`: emit the assistant's final reply with an `input` string.
 
-`web_fetch` responses include the final URL, HTTP status, content type, headers, byte length, a truncation flag, a preview snippet, and a `body_markdown` field when text-like payloads can be converted. Text responses (HTML, JSON, XML, or plain text) are transformed into Markdown with previews truncated to 1024 characters; HTML conversion prefers `pandoc` but falls back to `lynx -dump` when `pandoc` is missing or fails. Non-text payloads are base64-encoded with `body_encoding` set to `base64` to avoid unsafe binary output. Conversion failures fall back to raw snippets with `body_markdown` set to `null`.
+`web_fetch` responses include the final URL, HTTP status, content type, headers, byte length, a truncation flag, a preview snippet, and a `body_markdown` field when text-like payloads can be converted. Text responses (HTML, JSON, XML, or plain text) are transformed into Markdown with previews truncated to 1024 characters. Non-text payloads are base64-encoded with `body_encoding` set to `base64` to avoid unsafe binary output. Conversion failures fall back to raw snippets with `body_markdown` set to `null`.
 
 For end-to-end scenarios that show how tools fit into approvals and offline runs, see the [Run with approvals](../user-guides/usage.md#run-with-approvals) and [Offline or noninteractive feedback collection](../user-guides/usage.md#offline-or-noninteractive-feedback-collection) walkthroughs.
 
