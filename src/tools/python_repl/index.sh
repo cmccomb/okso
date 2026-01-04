@@ -170,7 +170,7 @@ tool_python_repl() {
 register_python_repl() {
 	local args_schema
 
-	args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}},"additionalProperties":false}')
+        args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}}}')
 	register_tool \
 		"python_repl" \
 		"Execute Python statements in a temporary sandbox via python -i." \

@@ -110,18 +110,17 @@ tool_web_search() {
 register_web_search() {
 	local args_schema
 
-	args_schema=$(jq -nc '{
+        args_schema=$(jq -nc '{
                 type: "object",
-                anyOf: [
-                        {required: ["query"]},
-                        {required: ["input"]}
-                ],
-                additionalProperties: false,
                 properties: {
                         query: {type: "string", minLength: 1, maxLength: 200},
                         input: {type: "string", minLength: 1, maxLength: 200},
                         num: {type: "integer", minimum: 1, maximum: 10}
-                }
+                },
+                oneOf: [
+                        {required: ["query"]},
+                        {required: ["input"]}
+                ]
         }')
 
 	register_tool \

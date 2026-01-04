@@ -65,11 +65,11 @@ APPLESCRIPT
 register_notes_append() {
 	local args_schema
 
-	args_schema=$(
-		cat <<'JSON'
-{"type":"object","required":["title"],"properties":{"title":{"type":"string","minLength":1},"body":{"type":"string"}},"additionalProperties":false}
+        args_schema=$(
+                cat <<'JSON'
+{"type":"object","required":["title"],"properties":{"title":{"type":"string","minLength":1},"body":{"type":"string"}}}
 JSON
-	)
+        )
 	register_tool \
 		"notes_append" \
 		"Append text to an existing Apple Note matched by title." \

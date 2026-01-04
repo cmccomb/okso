@@ -54,7 +54,7 @@ tool_final_answer() {
 register_final_answer() {
 	local args_schema
 
-	args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}},"additionalProperties":false}')
+        args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}}}')
 	register_tool \
 		"final_answer" \
 		"Emit the final user-facing answer without performing additional actions. When using final_answer, respond as a calm, courteous 'polite haunting' guide: gently uncanny, never intrusive. Keep the tone soft but decisive, prefer evidence over explanation, and anchor statements to concrete artifacts (filenames/paths/log lines) instead of pronouns. Output should be small, clean, and paste-ready." \

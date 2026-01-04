@@ -6,8 +6,8 @@ setup() {
 }
 
 prompting_registry_payload() {
-	cat <<'JSON'
-{"names":["terminal","final_answer"],"registry":{"terminal":{"args_schema":{"type":"object","required":["command"],"properties":{"command":{"type":"string","minLength":1}},"additionalProperties":false}},"final_answer":{"args_schema":{"type":"object","required":["input"],"properties":{"input":{"type":"string","minLength":1}},"additionalProperties":false}}}}
+        cat <<'JSON'
+{"names":["terminal","final_answer"],"registry":{"terminal":{"args_schema":{"type":"object","required":["command"],"properties":{"command":{"type":"string","minLength":1}}}},"final_answer":{"args_schema":{"type":"object","required":["input"],"properties":{"input":{"type":"string","minLength":1}}}}}}
 JSON
 }
 

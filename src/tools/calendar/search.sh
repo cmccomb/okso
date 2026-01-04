@@ -88,7 +88,7 @@ APPLESCRIPT
 register_calendar_search() {
 	local args_schema
 
-	args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}},"additionalProperties":false}')
+        args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}}}')
 	register_tool \
 		"calendar_search" \
 		"Search Apple Calendar events by title or location." \
