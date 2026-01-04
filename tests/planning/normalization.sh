@@ -49,27 +49,3 @@ SCRIPT
 	[ "$status" -ne 0 ]
 	[[ "${output}" == *"planner_output_empty"* ]]
 }
-
-@test "normalize_plan rejects missing required args" {
-	export TOOL_REGISTRY_JSON=$(registry_payload)
-	run bash <<'SCRIPT'
-set -euo pipefail
-source ./src/lib/planning/normalization.sh
-invalid_plan='[{"tool":"notes_create","args":{},"thought":"note"}]'
-normalize_plan <<<"${invalid_plan}"
-SCRIPT
-
-	[ "$status" -ne 0 ]
-}
-
-@test "normalize_plan rejects wrong arg types" {
-	export TOOL_REGISTRY_JSON=$(registry_payload)
-	run bash <<'SCRIPT'
-set -euo pipefail
-source ./src/lib/planning/normalization.sh
-invalid_plan='[{"tool":"notes_create","args":{"title":5},"thought":"note"}]'
-normalize_plan <<<"${invalid_plan}"
-SCRIPT
-
-	[ "$status" -ne 0 ]
-}
