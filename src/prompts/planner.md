@@ -27,45 +27,41 @@ User Query:
 "Turn my note titled 'LC-Guard action items' into reminders, and leave the note intact."
 
 Plan:
-{
-  "plan": [
-    {
-      "thought": "Read the source note to extract tasks.",
-      "tool": "notes_read",
-      "args": {"title": "LC-Guard action items"}
-    },
-    {
-      "thought": "Create one reminder per task without editing the note.",
-      "tool": "reminders_create",
-      "args": {"title": "", "time": "", "notes": "Source: LC-Guard action items"}
-    },
-    {
-      "thought": "Confirm reminders and note status to the user.",
-      "tool": "final_answer",
-      "args": {"input": ""}
-    }
-  ]
-}
+[
+  {
+    "thought": "Read the source note to extract tasks.",
+    "tool": "notes_read",
+    "args": {"title": "LC-Guard action items"}
+  },
+  {
+    "thought": "Create one reminder per task without editing the note.",
+    "tool": "reminders_create",
+    "args": {"title": "", "time": "", "notes": "Source: LC-Guard action items"}
+  },
+  {
+    "thought": "Confirm reminders and note status to the user.",
+    "tool": "final_answer",
+    "args": {"input": ""}
+  }
+]
 
 ### Example: Scoped calendar query
 User Query:  
 "List my upcoming calendar events that mention 'proposal' in the title."
 
 Plan:
-{
-  "plan": [
-    {
-      "thought": "Search events matching the keyword.",
-      "tool": "calendar_search",
-      "args": {"input": "proposal"}
-    },
-    {
-      "thought": "Return a concise list of matches.",
-      "tool": "final_answer",
-      "args": {"input": ""}
-    }
-  ]
-}
+[
+  {
+    "thought": "Search events matching the keyword.",
+    "tool": "calendar_search",
+    "args": {"input": "proposal"}
+  },
+  {
+    "thought": "Return a concise list of matches.",
+    "tool": "final_answer",
+    "args": {"input": ""}
+  }
+]
 
 ## Output Contract
 Respond using the following JSON schema:
