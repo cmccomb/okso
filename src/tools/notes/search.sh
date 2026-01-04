@@ -78,7 +78,7 @@ APPLESCRIPT
 register_notes_search() {
 	local args_schema
 
-        args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}}}')
+	args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}}}')
 	register_tool \
 		"notes_search" \
 		"Search Apple Notes by title or body." \

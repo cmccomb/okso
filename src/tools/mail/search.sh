@@ -76,7 +76,7 @@ APPLESCRIPT
 register_mail_search() {
 	local args_schema
 
-        args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}}}')
+	args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}}}')
 	register_tool \
 		"mail_search" \
 		"Search Apple Mail inbox messages by subject, sender, or content." \

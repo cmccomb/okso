@@ -52,11 +52,11 @@ APPLESCRIPT
 register_reminders_list() {
 	local args_schema
 
-        args_schema=$(
-                cat <<'JSON'
+	args_schema=$(
+		cat <<'JSON'
 {"type":"object","properties":{}}
 JSON
-        )
+	)
 	register_tool \
 		"reminders_list" \
 		"List incomplete Apple Reminders in the configured list." \

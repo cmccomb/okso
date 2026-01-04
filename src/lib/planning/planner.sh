@@ -105,10 +105,10 @@ initialize_planner_models() {
 export -f initialize_planner_models
 
 planner_collect_tools() {
-        # Builds the planner tool catalog from caller-provided overrides or the
-        # registered tool registry.
-        # Returns:
-        #   newline-delimited list of tool names on stdout.
+	# Builds the planner tool catalog from caller-provided overrides or the
+	# registered tool registry.
+	# Returns:
+	#   newline-delimited list of tool names on stdout.
 
 	local -a catalog=()
 
@@ -124,35 +124,35 @@ planner_collect_tools() {
 		fi
 	fi
 
-        printf '%s\n' "${catalog[@]}"
+	printf '%s\n' "${catalog[@]}"
 }
 
 planner_build_plan_schema() {
-        # Compiles the planner schema using registered tool argument schemas.
-        # Arguments:
-        #   $@ - tool names available to the planner (strings)
-        # Returns:
-        #   Planner plan schema JSON on stdout; non-zero on failure.
-        local base_schema tool_schema_json tools_json branches
+	# Compiles the planner schema using registered tool argument schemas.
+	# Arguments:
+	#   $@ - tool names available to the planner (strings)
+	# Returns:
+	#   Planner plan schema JSON on stdout; non-zero on failure.
+	local base_schema tool_schema_json tools_json branches
 
-        base_schema="$(load_schema_text planner_plan | jq -c '.')" || return 1
+	base_schema="$(load_schema_text planner_plan | jq -c '.')" || return 1
 
-        if command -v tool_schema_map >/dev/null 2>&1; then
-                tool_schema_json="$(tool_schema_map)"
-        else
-                tool_schema_json='{}'
-        fi
-        tools_json="$(printf '%s\n' "$@" | jq -Rsc 'split("\n") | map(select(length > 0))')"
+	if command -v tool_schema_map >/dev/null 2>&1; then
+		tool_schema_json="$(tool_schema_map)"
+	else
+		tool_schema_json='{}'
+	fi
+	tools_json="$(printf '%s\n' "$@" | jq -Rsc 'split("\n") | map(select(length > 0))')"
 
-        if [[ "${tools_json}" == "[]" ]]; then
-                printf '%s' "${base_schema}"
-                return 0
-        fi
+	if [[ "${tools_json}" == "[]" ]]; then
+		printf '%s' "${base_schema}"
+		return 0
+	fi
 
-        branches=$(jq -nc \
-                --argjson toolSchemas "${tool_schema_json}" \
-                --argjson tools "${tools_json}" \
-                '[
+	branches=$(jq -nc \
+		--argjson toolSchemas "${tool_schema_json}" \
+		--argjson tools "${tools_json}" \
+		'[
                         $tools[] |
                         {
                                 type: "object",
@@ -166,7 +166,7 @@ planner_build_plan_schema() {
                         }
                 ]') || return 1
 
-        jq -c --argjson base "${base_schema}" --argjson anyOf "${branches}" '
+	jq -c --argjson base "${base_schema}" --argjson anyOf "${branches}" '
                 $base | .items = {anyOf: $anyOf}
         '
 }
@@ -330,13 +330,13 @@ generate_planner_response() {
 	planner_tool_catalog="$(printf '%s\n' "${planner_tools[@]}" | paste -sd ',' -)"
 	log "DEBUG" "Planner tool catalog" "${planner_tool_catalog}" >&2
 
-        # Build the planner prompt
-        local planner_schema_text tool_lines prompt search_context
-        planner_schema_text="$(planner_build_plan_schema "${planner_tools[@]}")"
-        tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_line)"
-        search_context="$(planner_fetch_search_context "${user_query}")"
-        prompt="$(build_planner_prompt "${user_query}" "${tool_lines}" "${search_context}" "${PLANNER_FEEDBACK_CONTEXT:-}" "${planner_schema_text}")"
-        log "DEBUG" "Generated planner prompt" "${prompt}" >&2
+	# Build the planner prompt
+	local planner_schema_text tool_lines prompt search_context
+	planner_schema_text="$(planner_build_plan_schema "${planner_tools[@]}")"
+	tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_line)"
+	search_context="$(planner_fetch_search_context "${user_query}")"
+	prompt="$(build_planner_prompt "${user_query}" "${tool_lines}" "${search_context}" "${PLANNER_FEEDBACK_CONTEXT:-}" "${planner_schema_text}")"
+	log "DEBUG" "Generated planner prompt" "${prompt}" >&2
 
 	# Configure sampling parameters
 	local sample_count temperature debug_log_dir debug_log_file max_generation_tokens

@@ -110,7 +110,7 @@ tool_web_search() {
 register_web_search() {
 	local args_schema
 
-        args_schema=$(jq -nc '{
+	args_schema=$(jq -nc '{
                 type: "object",
                 properties: {
                         query: {type: "string", minLength: 1, maxLength: 200},

@@ -57,11 +57,11 @@ APPLESCRIPT
 register_notes_list() {
 	local args_schema
 
-        args_schema=$(
-                cat <<'JSON'
+	args_schema=$(
+		cat <<'JSON'
 {"type":"object","properties":{}}
 JSON
-        )
+	)
 	register_tool \
 		"notes_list" \
 		"List note titles from the configured Apple Notes folder." \

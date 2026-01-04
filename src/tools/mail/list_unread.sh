@@ -57,11 +57,11 @@ APPLESCRIPT
 register_mail_list_unread() {
 	local args_schema
 
-        args_schema=$(
-                cat <<'JSON'
+	args_schema=$(
+		cat <<'JSON'
 {"type":"object","properties":{}}
 JSON
-        )
+	)
 	register_tool \
 		"mail_list_unread" \
 		"List unread Apple Mail inbox messages." \

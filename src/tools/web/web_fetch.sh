@@ -149,7 +149,7 @@ tool_web_fetch() {
 register_web_fetch() {
 	local args_schema
 
-        args_schema=$(jq -nc '{
+	args_schema=$(jq -nc '{
                 type: "object",
                 required: ["url"],
                 properties: {

@@ -57,11 +57,11 @@ APPLESCRIPT
 register_mail_list_inbox() {
 	local args_schema
 
-        args_schema=$(
-                cat <<'JSON'
+	args_schema=$(
+		cat <<'JSON'
 {"type":"object","properties":{}}
 JSON
-        )
+	)
 	register_tool \
 		"mail_list_inbox" \
 		"List recent Apple Mail inbox messages." \

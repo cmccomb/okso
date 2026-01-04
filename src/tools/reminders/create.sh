@@ -89,11 +89,11 @@ APPLESCRIPT
 register_reminders_create() {
 	local args_schema
 
-        args_schema=$(
-                cat <<'JSON'
+	args_schema=$(
+		cat <<'JSON'
 {"type":"object","required":["title"],"properties":{"title":{"type":"string","minLength":1},"time":{"type":"string"},"notes":{"type":"string"}}}
 JSON
-        )
+	)
 	register_tool \
 		"reminders_create" \
 		"Create a new Apple Reminder using structured details." \
