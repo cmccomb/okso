@@ -270,24 +270,9 @@ execute_planned_action() {
 	observation="$(execute_tool_with_query "${tool}" "$(extract_tool_query "${tool}" "${args_after_controls}")" "${context}" "${args_after_controls}")"
 	execution_status=$?
 
-	if ((execution_status == 2)) || ((execution_status == 3)); then
-		local feedback_text
-		feedback_text="$(jq -r '.feedback // empty' <<<"${observation}" 2>/dev/null || echo "")"
-		if [[ -z "${feedback_text}" ]]; then
-			feedback_text="$(printf '%s' "${observation}" | tr -d '\n')"
-		fi
-
-		if [[ -z "${feedback_text}" ]]; then
-			feedback_text="User declined ${tool} without providing feedback."
-		fi
-
-		json_state_set_key "${state_prefix}" "needs_replanning" "true"
-		json_state_set_key "${state_prefix}" "user_feedback" "${feedback_text}" || true
-		log "INFO" "User declined action; triggering replanning" "$(printf 'step=%s tool=%s' "${step_index}" "${tool}")"
-		return 0
-	elif ((execution_status != 0)); then
-		return ${execution_status}
-	fi
+if ((execution_status != 0)); then
+return ${execution_status}
+fi
 
 	record_tool_execution "${state_prefix}" "${tool}" "${thought}" "${args_after_controls}" "${observation}" "${step_index}"
 
