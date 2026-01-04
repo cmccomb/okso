@@ -12,7 +12,6 @@
 # Dependencies:
 #   - bash 3.2+
 #   - jq
-#   - python 3.8+
 #
 # Exit codes:
 #   Functions return non-zero on invalid input.
@@ -21,14 +20,11 @@ PLANNING_NORMALIZATION_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck source=src/lib/core/logging.sh
 source "${PLANNING_NORMALIZATION_DIR}/../core/logging.sh"
-# shellcheck source=src/tools/registry.sh
-source "${PLANNING_NORMALIZATION_DIR}/../../tools/registry.sh"
 
 normalize_plan() {
 	# Normalize planner output into a clean plan array of objects. Structured
 	# generation should already satisfy the schema; this function only enforces the
-	# top-level array shape, presence of the primary fields, and per-tool argument
-	# schemas.
+	# top-level array shape and presence of the primary fields.
 	# Arguments:
 	#   $1 - raw planner output (string; optional; defaults to stdin)
 	# Returns:
