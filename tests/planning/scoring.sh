@@ -7,7 +7,7 @@ setup() {
 }
 
 @test "score_planner_candidate rewards registered tools with satisfiable args" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 export VERBOSITY=0
 source ./src/lib/planning/scoring.sh
@@ -99,11 +99,11 @@ printf "good=%s\n" "${good}"
 printf "bad_status=%s\n" "${bad_status}"
 SCRIPT
 
-        [ "$status" -eq 0 ]
-        good=$(printf '%s\n' "${output}" | grep '^good=' | tail -n 1 | cut -d= -f2)
-        bad_status=$(printf '%s\n' "${output}" | grep '^bad_status=' | tail -n 1 | cut -d= -f2)
-        [[ "${good}" -gt 0 ]]
-        [ "${bad_status}" -ne 0 ]
+	[ "$status" -eq 0 ]
+	good=$(printf '%s\n' "${output}" | grep '^good=' | tail -n 1 | cut -d= -f2)
+	bad_status=$(printf '%s\n' "${output}" | grep '^bad_status=' | tail -n 1 | cut -d= -f2)
+	[[ "${good}" -gt 0 ]]
+	[ "${bad_status}" -ne 0 ]
 }
 
 @test "score_planner_candidate prefers plans that defer side effects" {

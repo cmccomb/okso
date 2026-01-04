@@ -21,27 +21,27 @@ source "${PROMPT_BUILD_PLANNER_DIR}/templates.sh"
 source "${PROMPT_BUILD_PLANNER_DIR}/../schema/schema.sh"
 
 build_planner_prompt() {
-        # Builds a prompt for the high-level planner.
-        # Arguments:
-        #   $1 - user query (string)
-        #   $2 - formatted tool descriptions (string)
-        #   $3 - pre-computed search context (string)
-        #   $4 - optional planner feedback or constraints (string)
-        #   $5 - JSON map of tool argument schemas (string)
-        # Returns:
-        #   The full prompt text (string).
-        local user_query tool_lines search_context planner_schema current_date current_time current_weekday rendered
-        local planner_feedback tool_schemas
+	# Builds a prompt for the high-level planner.
+	# Arguments:
+	#   $1 - user query (string)
+	#   $2 - formatted tool descriptions (string)
+	#   $3 - pre-computed search context (string)
+	#   $4 - optional planner feedback or constraints (string)
+	#   $5 - JSON map of tool argument schemas (string)
+	# Returns:
+	#   The full prompt text (string).
+	local user_query tool_lines search_context planner_schema current_date current_time current_weekday rendered
+	local planner_feedback tool_schemas
 
 	user_query="$1"
 	tool_lines="$2"
 	search_context="$3"
-        planner_feedback="$4"
-        tool_schemas="$5"
+	planner_feedback="$4"
+	tool_schemas="$5"
 
-        if [[ -z "${tool_schemas}" ]]; then
-                tool_schemas="{}"
-        fi
+	if [[ -z "${tool_schemas}" ]]; then
+		tool_schemas="{}"
+	fi
 
 	if [[ -z "${planner_feedback}" ]]; then
 		planner_feedback="None provided."
@@ -58,8 +58,8 @@ build_planner_prompt() {
 	# Render the prompt
 	rendered="$(render_prompt_template "planner" \
 		user_query "${user_query}" \
-                tool_lines "${tool_lines}" \
-                tool_schemas "${tool_schemas}" \
+		tool_lines "${tool_lines}" \
+		tool_schemas "${tool_schemas}" \
 		search_context "${search_context}" \
 		planner_schema "${planner_schema}" \
 		current_date "${current_date}" \

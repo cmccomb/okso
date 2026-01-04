@@ -286,12 +286,12 @@ generate_planner_response() {
 	log "DEBUG" "Planner tool catalog" "${planner_tool_catalog}" >&2
 
 	# Build the planner prompt
-        local planner_schema_text tool_lines prompt search_context tool_schema_text
-        planner_schema_text="$(load_schema_text planner_plan)"
-        tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_line)"
-        tool_schema_text="$(tool_schema_map | jq '.')"
-        search_context="$(planner_fetch_search_context "${user_query}")"
-        prompt="$(build_planner_prompt "${user_query}" "${tool_lines}" "${search_context}" "${PLANNER_FEEDBACK_CONTEXT:-}" "${tool_schema_text}")"
+	local planner_schema_text tool_lines prompt search_context tool_schema_text
+	planner_schema_text="$(load_schema_text planner_plan)"
+	tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_line)"
+	tool_schema_text="$(tool_schema_map | jq '.')"
+	search_context="$(planner_fetch_search_context "${user_query}")"
+	prompt="$(build_planner_prompt "${user_query}" "${tool_lines}" "${search_context}" "${PLANNER_FEEDBACK_CONTEXT:-}" "${tool_schema_text}")"
 	log "DEBUG" "Generated planner prompt" "${prompt}" >&2
 
 	# Configure sampling parameters

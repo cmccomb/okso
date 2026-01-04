@@ -1,21 +1,21 @@
 #!/usr/bin/env bats
 
 setup() {
-        unset -f chpwd _mise_hook 2>/dev/null || true
-        export VERBOSITY=0
-        export LLAMA_AVAILABLE=false
-        export TESTING_PASSTHROUGH=true
-        export TOOL_REGISTRY_JSON=$(planner_registry_payload)
+	unset -f chpwd _mise_hook 2>/dev/null || true
+	export VERBOSITY=0
+	export LLAMA_AVAILABLE=false
+	export TESTING_PASSTHROUGH=true
+	export TOOL_REGISTRY_JSON=$(planner_registry_payload)
 }
 
 planner_registry_payload() {
-        cat <<'JSON'
+	cat <<'JSON'
 {"names":["terminal","notes_create","final_answer","web_search"],"registry":{"terminal":{"args_schema":{"type":"object","required":["command"],"properties":{"command":{"type":"string","minLength":1}},"additionalProperties":false}},"notes_create":{"args_schema":{"type":"object","required":["title"],"properties":{"title":{"type":"string","minLength":1}},"additionalProperties":false}},"final_answer":{"args_schema":{"type":"object","required":["input"],"properties":{"input":{"type":"string","minLength":1}},"additionalProperties":false}},"web_search":{"args_schema":{"type":"object","required":["query"],"properties":{"query":{"type":"string","minLength":1}},"additionalProperties":false}}}}
 JSON
 }
 
 @test "normalize_plan retains structured planner output" {
-run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 export PLANNER_SKIP_TOOL_LOAD=true
 source ./src/lib/planning/planner.sh
@@ -30,7 +30,7 @@ SCRIPT
 }
 
 @test "normalize_plan fails on empty planner output" {
-run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 export PLANNER_SKIP_TOOL_LOAD=true
 source ./src/lib/planning/planner.sh
@@ -42,7 +42,7 @@ SCRIPT
 }
 
 @test "derive_allowed_tools_from_plan gathers unique tools and ensures summary" {
-run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 export PLANNER_SKIP_TOOL_LOAD=true
 source ./src/lib/planning/planner.sh
@@ -62,7 +62,7 @@ SCRIPT
 }
 
 @test "derive_allowed_tools_from_plan unwraps planner response objects" {
-run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 export PLANNER_SKIP_TOOL_LOAD=true
 source ./src/lib/planning/planner.sh
@@ -81,7 +81,7 @@ SCRIPT
 }
 
 @test "derive_allowed_tools_from_plan falls back to summary on non-plan payloads" {
-run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 export PLANNER_SKIP_TOOL_LOAD=true
 source ./src/lib/planning/planner.sh
@@ -94,7 +94,7 @@ SCRIPT
 }
 
 @test "derive_allowed_tools_from_plan de-duplicates web_search entries" {
-run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 export VERBOSITY=0
 export PLANNER_SKIP_TOOL_LOAD=true
@@ -113,7 +113,7 @@ SCRIPT
 }
 
 @test "plan_json_to_entries unwraps planner response objects" {
-run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 export PLANNER_SKIP_TOOL_LOAD=true
 source ./src/lib/planning/planner.sh

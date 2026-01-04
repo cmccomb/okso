@@ -59,24 +59,24 @@ tool_handler() {
 }
 
 tool_args_schema() {
-        local name
-        name="$1"
-        jq -c --arg name "${name}" '.registry[$name].args_schema // {}' <<<"$(tool_registry_json)"
+	local name
+	name="$1"
+	jq -c --arg name "${name}" '.registry[$name].args_schema // {}' <<<"$(tool_registry_json)"
 }
 
 tool_schema_map() {
-        # Returns a mapping of tool names to their argument JSON Schemas.
-        # Returns:
-        #   JSON object keyed by tool name with args_schema values (string)
-        local schemas
-        schemas='{}'
+	# Returns a mapping of tool names to their argument JSON Schemas.
+	# Returns:
+	#   JSON object keyed by tool name with args_schema values (string)
+	local schemas
+	schemas='{}'
 
-        while IFS= read -r tool_name; do
-                [[ -z "${tool_name}" ]] && continue
-                schemas=$(jq -c --arg name "${tool_name}" --argjson schema "$(tool_args_schema "${tool_name}")" '.[$name] = $schema' <<<"${schemas}")
-        done < <(tool_names)
+	while IFS= read -r tool_name; do
+		[[ -z "${tool_name}" ]] && continue
+		schemas=$(jq -c --arg name "${tool_name}" --argjson schema "$(tool_args_schema "${tool_name}")" '.[$name] = $schema' <<<"${schemas}")
+	done < <(tool_names)
 
-        printf '%s' "${schemas}"
+	printf '%s' "${schemas}"
 }
 
 init_tool_registry() {
