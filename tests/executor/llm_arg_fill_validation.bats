@@ -1,11 +1,11 @@
 #!/usr/bin/env bats
 
 setup() {
-        cd "$(git rev-parse --show-toplevel)" || exit 1
+	cd "$(git rev-parse --show-toplevel)" || exit 1
 }
 
 @test "executor retries and aborts on non-object LLM replies" {
-run env -i HOME="$HOME" PATH="$PATH" BATS_TMPDIR="${BATS_TMPDIR}" LLAMA_AVAILABLE=true VERBOSITY=0 bash --noprofile --norc <<'SCRIPT'
+	run env -i HOME="$HOME" PATH="$PATH" BATS_TMPDIR="${BATS_TMPDIR}" LLAMA_AVAILABLE=true VERBOSITY=0 bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 source ./src/lib/executor/loop.sh
@@ -41,8 +41,8 @@ printf 'needs_replanning=%s\n' "$(json_state_get_key "executor_state" "needs_rep
 exit "${status}"
 SCRIPT
 
-[ "$status" -ne 0 ]
-[[ "${output}" == *"llama_calls=2"* ]]
-[[ "${output}" == *"needs_replanning=true"* ]]
-        [[ "${output}" != *"executed"* ]]
+	[ "$status" -ne 0 ]
+	[[ "${output}" == *"llama_calls=2"* ]]
+	[[ "${output}" == *"needs_replanning=true"* ]]
+	[[ "${output}" != *"executed"* ]]
 }
