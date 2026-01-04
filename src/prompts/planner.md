@@ -16,11 +16,6 @@ You are responsible for drafting an execution plan that satisfies a user request
 - Keep all argument strings single-line and under 200 characters.
 - Do NOT include markdown, code blocks, logs, or stack traces in arguments.
 
-### Per-tool JSON Schemas
-Use these schemas when constructing args for each step. Every `args` object MUST satisfy the schema for its `tool`.
-
-${tool_schemas}
-
 ## Available Tools
 ${tool_lines}
 
