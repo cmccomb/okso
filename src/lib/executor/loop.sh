@@ -268,6 +268,26 @@ execute_planned_action() {
 
 	context="$(format_action_context "${thought}" "${tool}" "${args_after_controls}")"
 	observation="$(execute_tool_with_query "${tool}" "$(extract_tool_query "${tool}" "${args_after_controls}")" "${context}" "${args_after_controls}")"
+	execution_status=$?
+
+	if ((execution_status == 2)) || ((execution_status == 3)); then
+		local feedback_text
+		feedback_text="$(jq -r '.feedback // empty' <<<"${observation}" 2>/dev/null || echo "")"
+		if [[ -z "${feedback_text}" ]]; then
+			feedback_text="$(printf '%s' "${observation}" | tr -d '\n')"
+		fi
+
+		if [[ -z "${feedback_text}" ]]; then
+			feedback_text="User declined ${tool} without providing feedback."
+		fi
+
+		json_state_set_key "${state_prefix}" "needs_replanning" "true"
+		json_state_set_key "${state_prefix}" "user_feedback" "${feedback_text}" || true
+		log "INFO" "User declined action; triggering replanning" "$(printf 'step=%s tool=%s' "${step_index}" "${tool}")"
+		return 0
+	elif ((execution_status != 0)); then
+		return ${execution_status}
+	fi
 
 	record_tool_execution "${state_prefix}" "${tool}" "${thought}" "${args_after_controls}" "${observation}" "${step_index}"
 
@@ -313,6 +333,11 @@ executor_loop() {
 		((++step_index))
 
 		execute_planned_action "${state_prefix}" "${step_index}" "${plan_entry}"
+
+		if [[ "$(json_state_get_key "${state_prefix}" "needs_replanning")" == "true" ]]; then
+			executor_replan_with_feedback "${state_prefix}" "$(json_state_get_key "${state_prefix}" "user_feedback")"
+			return $?
+		fi
 
 		if [[ -n "$(json_state_get_key "${state_prefix}" "final_answer")" ]]; then
 			break

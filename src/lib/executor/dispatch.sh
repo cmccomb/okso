@@ -76,14 +76,14 @@ confirm_tool() {
 		# User provided feedback instead of a simple y/N response
 		log "INFO" "User provided feedback during tool confirmation" "tool=${tool_name}"
 		# Store feedback for planner to consume
-		printf '{"type":"feedback","tool":"%s","feedback":"%s"}' "${tool_name}" "$(printf '%s' "${reply}" | jq -Rs .)"
+		jq -nc --arg tool "${tool_name}" --arg feedback "${reply}" '{type:"feedback", tool:$tool, feedback:$feedback}'
 		return 2
 	fi
 
 	# Check for affirmative response
 	if [[ "${reply}" != "y" && "${reply}" != "Y" ]]; then
 		log "WARN" "Tool execution declined" "${tool_name}"
-		printf '[%s skipped]\n' "${tool_name}"
+		jq -nc --arg tool "${tool_name}" --arg feedback "${reply}" '{type:"refusal", tool:$tool, feedback:($feedback // "")}'
 		return 1
 	fi
 
@@ -141,9 +141,13 @@ execute_tool_with_query() {
 				return 2
 			fi
 
-			# Indicate the tool was declined
-			printf 'Declined %s\n' "${tool_name}"
-			return 0
+			# Indicate the tool was declined and return non-zero to signal replanning
+			if [[ -n "${confirm_tool_output}" ]]; then
+				printf '%s' "${confirm_tool_output}"
+			else
+				jq -nc --arg tool "${tool_name}" '{type:"refusal", tool:$tool, feedback:""}'
+			fi
+			return 3
 		fi
 	fi
 
