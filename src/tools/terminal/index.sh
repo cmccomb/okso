@@ -445,7 +445,7 @@ register_terminal() {
 
 	args_schema=$(
 		cat <<JSON
-{"type":"object","required":["command"],"properties":{"command":{"type":"string","enum":$(terminal_command_enum_json)},"args":{"type":"array","items":{"type":"string"}}},"additionalProperties":false}
+{"type":"object","required":["command"],"properties":{"command":{"type":"string","enum":$(terminal_command_enum_json)},"args":{"type":"array","items":{"type":"string"}}}}
 JSON
 	)
 	description="Persistent terminal session for navigation, inspection, and safe mutations (pwd, ls, du, cd, cat, head, tail, find, grep, stat, wc, base64 encode/decode, mkdir, rmdir, mv, cp, touch, rm -i default; open on macOS)."

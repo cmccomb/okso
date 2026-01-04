@@ -38,19 +38,13 @@ normalize_plan() {
 		raw="$(cat)"
 	fi
 
-	# Validate non-empty input
-	if [[ -z "${raw}" ]]; then
-		log "WARN" "normalize_plan: received empty planner output" "planner_output_empty" >&2
-		return 1
-	fi
-
 	# Normalize and validate shape
 	if ! normalized=$(jq -c '
 if (type == "array") then
 map({
-tool: (.tool // ""),
-args: (if (.args // {} | type == "object") then .args else {} end),
-thought: (.thought // "")
+tool: (if (.tool // null | type) == "string" then .tool else error("planner_tool_missing") end),
+args: (if (.args | type) == "object" then .args else error("planner_args_invalid_type") end),
+thought: (if (.thought // null | type) == "string" then .thought else error("planner_thought_missing") end)
 })
 else
 error("planner_output_invalid_shape")

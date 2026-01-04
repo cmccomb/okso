@@ -127,6 +127,47 @@ planner_collect_tools() {
 	printf '%s\n' "${catalog[@]}"
 }
 
+planner_build_plan_schema() {
+	# Compiles the planner schema using registered tool argument schemas.
+	# Arguments:
+	#   $@ - tool names available to the planner (strings)
+	# Returns:
+	#   Planner plan schema JSON on stdout; non-zero on failure.
+	local base_schema tool_schema_json tools_json branches
+
+	base_schema="$(load_schema_text planner_plan | jq -c '.')" || return 1
+
+	tool_schema_json="$(tool_schema_map)"
+	tools_json="$(printf '%s\n' "$@" | jq -Rsc 'split("\n") | map(select(length > 0))')"
+
+	if [[ "${tools_json}" == "[]" ]]; then
+		printf '%s' "${base_schema}"
+		return 0
+	fi
+
+	branches=$(jq -nc \
+		--argjson toolSchemas "${tool_schema_json}" \
+		--argjson tools "${tools_json}" \
+		'[
+                        $tools[] |
+                        {
+                                type: "object",
+                                additionalProperties: false,
+                                required: ["thought", "tool", "args"],
+                                properties: {
+                                        thought: {type: "string", minLength: 5},
+                                        tool: {type: "string", enum: [.]},
+                                        args: ($toolSchemas[.] // {type: "object"})
+                                }
+                        }
+                ]') || return 1
+
+	jq -n -c --argjson base "${base_schema}" --argjson anyOf "${branches}" '
+                $base | .items = {anyOf: $anyOf}
+        '
+}
+export -f planner_build_plan_schema
+
 planner_format_search_context() {
 	# Formats web search JSON into readable prompt text.
 	# Arguments:
@@ -287,10 +328,10 @@ generate_planner_response() {
 
 	# Build the planner prompt
 	local planner_schema_text tool_lines prompt search_context
-	planner_schema_text="$(load_schema_text planner_plan)"
+	planner_schema_text="$(planner_build_plan_schema "${planner_tools[@]}")"
 	tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_line)"
 	search_context="$(planner_fetch_search_context "${user_query}")"
-	prompt="$(build_planner_prompt "${user_query}" "${tool_lines}" "${search_context}" "${PLANNER_FEEDBACK_CONTEXT:-}")"
+	prompt="$(build_planner_prompt "${user_query}" "${tool_lines}" "${search_context}" "${PLANNER_FEEDBACK_CONTEXT:-}" "${planner_schema_text}")"
 	log "DEBUG" "Generated planner prompt" "${prompt}" >&2
 
 	# Configure sampling parameters

@@ -4,7 +4,14 @@ setup() {
 	unset -f chpwd _mise_hook 2>/dev/null || true
 }
 
+registry_payload() {
+	cat <<'JSON'
+{"names":["notes_create","final_answer"],"registry":{"notes_create":{"args_schema":{"type":"object","required":["title"],"properties":{"title":{"type":"string","minLength":1}},"additionalProperties":false}},"final_answer":{"args_schema":{"type":"object","required":["input"],"properties":{"input":{"type":"string","minLength":1}},"additionalProperties":false}}}}
+JSON
+}
+
 @test "normalize_plan accepts top-level plan arrays" {
+	export TOOL_REGISTRY_JSON=$(registry_payload)
 	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/normalization.sh
@@ -21,6 +28,7 @@ SCRIPT
 }
 
 @test "normalize_plan enforces array shape from arguments" {
+	export TOOL_REGISTRY_JSON=$(registry_payload)
 	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/normalization.sh
@@ -31,6 +39,7 @@ SCRIPT
 }
 
 @test "normalize_plan fails cleanly on empty output" {
+	export TOOL_REGISTRY_JSON=$(registry_payload)
 	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/normalization.sh

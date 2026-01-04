@@ -152,7 +152,6 @@ register_web_fetch() {
 	args_schema=$(jq -nc '{
                 type: "object",
                 required: ["url"],
-                additionalProperties: false,
                 properties: {
                         url: {type: "string", format: "uri", minLength: 1},
                         max_bytes: {type: "integer", minimum: 1, maximum: 5242880}
