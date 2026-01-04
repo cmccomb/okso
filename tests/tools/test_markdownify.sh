@@ -14,7 +14,7 @@ teardown() {
 }
 
 @test "markdownify converts html using pandoc" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 body_file="$(mktemp)"
 cp tests/fixtures/web_fetch_sample.html "${body_file}"
@@ -35,11 +35,11 @@ jq -e '
 ' <<<"${output}" >/dev/null
 SCRIPT
 
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "markdownify falls back to lynx when pandoc is unavailable" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 body_file="$(mktemp)"
 cp tests/fixtures/web_fetch_sample.html "${body_file}"
@@ -60,11 +60,11 @@ jq -e '
 ' <<<"${output}" >/dev/null
 SCRIPT
 
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "markdownify formats json bodies" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 body_file="$(mktemp)"
 cp tests/fixtures/web_fetch_sample.json "${body_file}"
@@ -114,11 +114,11 @@ preview=$(jq -r '.preview' <<<"${output}")
 [[ "${preview}" == "ab…" ]]
 SCRIPT
 
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "markdownify errors when no HTML converter exists" {
-        run bash <<'SCRIPT'
+	run bash <<'SCRIPT'
 set -euo pipefail
 body_file="$(mktemp)"
 cp tests/fixtures/web_fetch_sample.html "${body_file}"
@@ -126,6 +126,6 @@ PATH="/bin:/usr/bin"
 ./src/tools/web/markdownify.sh --path "${body_file}" --content-type "text/html" --limit 10
 SCRIPT
 
-        [ "$status" -ne 0 ]
-        [[ "$output" == *"no HTML converter available"* ]]
+	[ "$status" -ne 0 ]
+	[[ "$output" == *"no HTML converter available"* ]]
 }

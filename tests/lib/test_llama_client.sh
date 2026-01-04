@@ -34,7 +34,7 @@ setup() {
 }
 
 @test "llama_infer forwards JSON schema content and stop arguments" {
-        run env BASH_ENV= ENV= bash --noprofile --norc -c '
+	run env BASH_ENV= ENV= bash --noprofile --norc -c '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 args_dir="$(mktemp -d)"
                 args_file="${args_dir}/args.txt"
@@ -61,11 +61,11 @@ SCRIPT
                 [[ "${args[*]}" == *"-r"* ]]
                 [[ "${args[*]}" == *"STOP"* ]]
         '
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "llama_infer forwards optional extra arguments" {
-        run env BASH_ENV= ENV= bash --noprofile --norc -c '
+	run env BASH_ENV= ENV= bash --noprofile --norc -c '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 args_dir="$(mktemp -d)"
                 args_file="${args_dir}/args.txt"
@@ -90,7 +90,7 @@ SCRIPT
                 [[ " ${args[*]} " == *" --dry-base 1.75 "* ]]
                 [[ " ${args[*]} " == *" --dry-allowed-length 2 "* ]]
         '
-        [ "$status" -eq 0 ]
+	[ "$status" -eq 0 ]
 }
 
 @test "llama_infer accepts multiline schema strings" {

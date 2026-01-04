@@ -188,17 +188,17 @@ llama_infer() {
 	fi
 
 	# Add grammar file if provided
-        if [[ -n "${LLAMA_GRAMMAR:-}" ]]; then
-                llama_args+=(--grammar "${LLAMA_GRAMMAR}")
-        fi
+	if [[ -n "${LLAMA_GRAMMAR:-}" ]]; then
+		llama_args+=(--grammar "${LLAMA_GRAMMAR}")
+	fi
 
-        # Append additional llama.cpp arguments when provided
-        if [[ -n "${LLAMA_EXTRA_ARGS:-}" ]]; then
-                local extra_args
-                # shellcheck disable=SC2206 # intended splitting into an array
-                extra_args=( ${LLAMA_EXTRA_ARGS} )
-                llama_args+=("${extra_args[@]}")
-        fi
+	# Append additional llama.cpp arguments when provided
+	if [[ -n "${LLAMA_EXTRA_ARGS:-}" ]]; then
+		local extra_args
+		# shellcheck disable=SC2206 # intended splitting into an array
+		extra_args=(${LLAMA_EXTRA_ARGS})
+		llama_args+=("${extra_args[@]}")
+	fi
 
 	# Prepare prompt context details for logging
 	prompt_context_detail=$(jq -nc \
