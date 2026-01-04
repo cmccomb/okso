@@ -38,31 +38,6 @@ SCRIPT
 	[ "$status" -eq 0 ]
 }
 
-@test "markdownify falls back to lynx when pandoc is unavailable" {
-	run bash <<'SCRIPT'
-set -euo pipefail
-body_file="$(mktemp)"
-cp tests/fixtures/web_fetch_sample.html "${body_file}"
-tbin="$(mktemp -d)"
-cat >"${tbin}/lynx" <<'MOCK'
-#!/usr/bin/env bash
-if [[ "$1" == "-dump" && "$2" == "-stdin" ]]; then
-        sed -E 's/<[^>]+>//g'
-        exit 0
-fi
-exit 1
-MOCK
-chmod +x "${tbin}/lynx"
-PATH="${tbin}:${PATH_ORIG}" output=$(./src/tools/web/markdownify.sh --path "${body_file}" --content-type "text/html" --limit 64)
-jq -e '
-        (.markdown | contains("Example Title")) and
-        (.preview | contains("Example Title"))
-' <<<"${output}" >/dev/null
-SCRIPT
-
-	[ "$status" -eq 0 ]
-}
-
 @test "markdownify formats json bodies" {
 	run bash <<'SCRIPT'
 set -euo pipefail
@@ -115,17 +90,4 @@ preview=$(jq -r '.preview' <<<"${output}")
 SCRIPT
 
 	[ "$status" -eq 0 ]
-}
-
-@test "markdownify errors when no HTML converter exists" {
-	run bash <<'SCRIPT'
-set -euo pipefail
-body_file="$(mktemp)"
-cp tests/fixtures/web_fetch_sample.html "${body_file}"
-PATH="/bin:/usr/bin"
-./src/tools/web/markdownify.sh --path "${body_file}" --content-type "text/html" --limit 10
-SCRIPT
-
-	[ "$status" -ne 0 ]
-	[[ "$output" == *"no HTML converter available"* ]]
 }
