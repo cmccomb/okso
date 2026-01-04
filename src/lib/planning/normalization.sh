@@ -24,25 +24,6 @@ source "${PLANNING_NORMALIZATION_DIR}/../core/logging.sh"
 # shellcheck source=src/tools/registry.sh
 source "${PLANNING_NORMALIZATION_DIR}/../../tools/registry.sh"
 
-validate_plan_against_schemas() {
-	# Validates a normalized plan against registered tool schemas.
-	# Arguments:
-	#   $1 - normalized planner plan JSON (array)
-	#   $2 - JSON object mapping tool names to schemas
-	# Returns:
-	#   0 when valid, non-zero otherwise.
-	local plan_json schema_map
-	plan_json="$1"
-	schema_map="$2"
-
-	if [[ -z "${schema_map}" ]]; then
-		log "WARN" "normalize_plan: tool schema map unavailable" "planner_tool_schemas_missing" >&2
-		return 1
-	fi
-
-	python "${PLANNING_NORMALIZATION_DIR}/schema_validation.py" --plan-json "${plan_json}" --tool-schemas "${schema_map}"
-}
-
 normalize_plan() {
 	# Normalize planner output into a clean plan array of objects. Structured
 	# generation should already satisfy the schema; this function only enforces the
@@ -52,19 +33,13 @@ normalize_plan() {
 	#   $1 - raw planner output (string; optional; defaults to stdin)
 	# Returns:
 	#   normalized plan JSON array on stdout; non-zero on failure.
-	local raw normalized tool_schemas
+	local raw normalized
 
 	# Prefer an explicit argument when provided; fall back to stdin for callers
 	# that stream planner output directly.
 	raw="${1:-}"
 	if [[ -z "${raw}" ]]; then
 		raw="$(cat)"
-	fi
-
-	# Validate non-empty input
-	if [[ -z "${raw}" ]]; then
-		log "WARN" "normalize_plan: received empty planner output" "planner_output_empty" >&2
-		return 1
 	fi
 
 	# Normalize and validate shape
@@ -80,19 +55,6 @@ error("planner_output_invalid_shape")
 end
 ' <<<"${raw}" 2>/dev/null); then
 		log "WARN" "normalize_plan: failed to parse planner output" "planner_output_parse_failed" >&2
-		return 1
-	fi
-
-	# Build the tool schema map for validation
-	tool_schemas="$(tool_schema_map)"
-	if ! jq -e 'type == "object"' <<<"${tool_schemas}" >/dev/null 2>&1; then
-		log "WARN" "normalize_plan: tool schema map invalid" "planner_tool_schemas_invalid" >&2
-		return 1
-	fi
-
-	# Validate args against per-tool schemas
-	if ! validate_plan_against_schemas "${normalized}" "${tool_schemas}"; then
-		log "WARN" "normalize_plan: plan failed per-tool schema validation" "planner_args_validation_failed" >&2
 		return 1
 	fi
 
