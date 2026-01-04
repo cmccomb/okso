@@ -64,8 +64,9 @@ source "${LIB_DIR}/cli/cli.sh"
 source "${LIB_DIR}/runtime.sh"
 
 main() {
-	local settings_prefix
-	local plan_outline required_tools plan_entries plan_action plan_response
+        local settings_prefix
+        local plan_outline required_tools plan_entries plan_action plan_response plan_feedback
+        local feedback_context_in_env previous_feedback_context
 
 	settings_prefix="settings"
 
@@ -80,23 +81,50 @@ main() {
 
 	prepare_environment_with_settings "${settings_prefix}"
 
-	initialize_planner_models
-	# Planner flow:
-	# 1. Generate an outline, 2. identify tools, 3. build concrete plan entries
-	# for execution, then 4. render plan outputs before proceeding.
-	log "INFO" "Starting plan generation" "$(json_state_get_key "${settings_prefix}" "user_query")"
-	plan_response="$(generate_planner_response "$(json_state_get_key "${settings_prefix}" "user_query")")"
-	plan_outline="$(plan_json_to_outline "${plan_response}")"
-	required_tools="$(derive_allowed_tools_from_plan "${plan_response}")"
-	log "INFO" "Planner identified tools" "${required_tools}"
-	plan_entries="$(plan_json_to_entries "${plan_response}")"
+        initialize_planner_models
+        # Planner flow:
+        # 1. Generate an outline, 2. identify tools, 3. build concrete plan entries
+        # for execution, then 4. render plan outputs before proceeding.
+        feedback_context_in_env=false
+        if printenv PLANNER_FEEDBACK_CONTEXT >/dev/null 2>&1; then
+                feedback_context_in_env=true
+                previous_feedback_context="${PLANNER_FEEDBACK_CONTEXT}"
+        fi
 
-	render_plan_outputs plan_action "${settings_prefix}" "${required_tools}" "${plan_entries}" "${plan_outline}" "${plan_response}"
-	if [[ "${plan_action}" == "exit" ]]; then
-		return 0
-	fi
+        while true; do
+                log "INFO" "Starting plan generation" "$(json_state_get_key "${settings_prefix}" "user_query")"
+                plan_response="$(generate_planner_response "$(json_state_get_key "${settings_prefix}" "user_query")")"
+                plan_outline="$(plan_json_to_outline "${plan_response}")"
+                required_tools="$(derive_allowed_tools_from_plan "${plan_response}")"
+                log "INFO" "Planner identified tools" "${required_tools}"
+                plan_entries="$(plan_json_to_entries "${plan_response}")"
 
-	select_response_strategy "${settings_prefix}" "${required_tools}" "${plan_entries}" "${plan_outline}" "${plan_response}"
+                render_plan_outputs plan_action "${settings_prefix}" "${required_tools}" "${plan_entries}" "${plan_outline}" "${plan_response}"
+                if [[ "${plan_action}" == "exit" ]]; then
+                        break
+                fi
+
+                if plan_feedback="$(request_plan_approval "${plan_outline}" "${required_tools}" "${plan_entries}")"; then
+                        break
+                fi
+
+                log "INFO" "Plan not approved; regenerating" "${plan_feedback}"
+                PLANNER_FEEDBACK_CONTEXT="${plan_feedback:-Plan was not approved.}"
+                export PLANNER_FEEDBACK_CONTEXT
+        done
+
+        if [[ "${plan_action}" == "exit" ]]; then
+                return 0
+        fi
+
+        if [[ "${feedback_context_in_env}" == true ]]; then
+                PLANNER_FEEDBACK_CONTEXT="${previous_feedback_context}"
+                export PLANNER_FEEDBACK_CONTEXT
+        else
+                unset PLANNER_FEEDBACK_CONTEXT
+        fi
+
+        select_response_strategy "${settings_prefix}" "${required_tools}" "${plan_entries}" "${plan_outline}" "${plan_response}"
 }
 
 main "$@"
