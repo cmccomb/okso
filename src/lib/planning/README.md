@@ -19,9 +19,10 @@ execute tool calls and emit final answers.
    JSON schema so the model knows what actions exist and how to call them.
 2. **Search query rephrasing:** `rephrasing.sh` asks a lightweight Qwen3 1.7B model to
    generate 1–3 focused web search queries derived from the user's request. llama.cpp
-   constrains decoding with a JSON schema, and the output is validated (non-empty JSON
-   list, max three strings) with automatic fallback to the original query when
-   validation fails.
+   applies DRY sampling (multiplier 0.35, base 1.75, allowed length 2, last-n penalty
+   1024, sequence breaker disabled) and constrains decoding with a JSON schema. The
+   output is validated (non-empty JSON list, max three strings) with automatic fallback
+   to the original query when validation fails.
 3. **Context collection:** `planner_fetch_search_context` executes a web search for each
    rephrased query and aggregates the results into a prompt-ready summary that the
    planner can cite when drafting an outline.

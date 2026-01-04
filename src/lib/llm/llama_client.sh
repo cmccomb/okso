@@ -16,6 +16,7 @@
 #   EXECUTOR_MODEL_REPO (string): Hugging Face repository name for the executor.
 #   EXECUTOR_MODEL_FILE (string): model file within the repository for the executor.
 #   EXECUTOR_CACHE_FILE (string): prompt cache path for executor llama.cpp calls.
+#   LLAMA_EXTRA_ARGS (string): optional additional llama.cpp arguments appended before the prompt.
 #   VERBOSITY (int): log verbosity.
 #
 # Dependencies:
@@ -189,6 +190,14 @@ llama_infer() {
 	# Add grammar file if provided
 	if [[ -n "${LLAMA_GRAMMAR:-}" ]]; then
 		llama_args+=(--grammar "${LLAMA_GRAMMAR}")
+	fi
+
+	# Append additional llama.cpp arguments when provided
+	if [[ -n "${LLAMA_EXTRA_ARGS:-}" ]]; then
+		local extra_args
+		# shellcheck disable=SC2206 # intended splitting into an array
+		extra_args=(${LLAMA_EXTRA_ARGS})
+		llama_args+=("${extra_args[@]}")
 	fi
 
 	# Prepare prompt context details for logging

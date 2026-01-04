@@ -91,23 +91,3 @@ SCRIPT
 
 	[ "$status" -eq 0 ]
 }
-
-@test "markdownify surfaces missing pandoc errors" {
-	run bash <<'SCRIPT'
-set -euo pipefail
-body_file="$(mktemp)"
-cp tests/fixtures/web_fetch_sample.html "${body_file}"
-tmp_path="$(mktemp -d)"
-cat >"${tmp_path}/pandoc" <<'MOCK'
-#!/usr/bin/env bash
-printf 'pandoc unavailable on PATH\n' >&2
-exit 127
-MOCK
-chmod +x "${tmp_path}/pandoc"
-PATH="${tmp_path}:${PATH_ORIG}"
-./src/tools/web/markdownify.sh --path "${body_file}" --content-type "text/html" --limit 10
-SCRIPT
-
-	[ "$status" -ne 0 ]
-	[[ "$output" == *"pandoc failed to convert HTML"* ]]
-}

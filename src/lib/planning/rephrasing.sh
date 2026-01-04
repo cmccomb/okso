@@ -10,6 +10,7 @@
 #   SEARCH_REPHRASER_MODEL_REPO (string): HF repo for search rephrasing llama calls.
 #   SEARCH_REPHRASER_MODEL_FILE (string): model file for search rephrasing llama calls.
 #   SEARCH_REPHRASER_CACHE_FILE (string): prompt cache file for search rephrasing llama.cpp calls.
+#   SEARCH_REPHRASER_DRY_ARGS (string): llama.cpp DRY sampling args for rephrasing calls; defaults to recommended settings.
 #   LLAMA_AVAILABLE (bool): whether llama.cpp can run locally.
 #   REPHRASER_MAX_OUTPUT_TOKENS (int >=1): llama.cpp generation budget for query rephrasing; defaults to 256.
 #
@@ -53,7 +54,7 @@ planner_generate_search_queries() {
 	#   $1 - user query (string)
 	# Returns:
 	#   JSON array of 1-3 search queries (strings).
-	local user_query prompt raw max_generation_tokens schema_json
+	local user_query prompt raw max_generation_tokens schema_json dry_sampling_args
 	user_query="$1"
 
 	# Determine max generation tokens
@@ -66,6 +67,8 @@ planner_generate_search_queries() {
 	if ! [[ "${max_generation_tokens}" =~ ^[0-9]+$ ]] || ((max_generation_tokens < 1)); then
 		max_generation_tokens=256
 	fi
+
+	dry_sampling_args="${SEARCH_REPHRASER_DRY_ARGS:---dry-multiplier 0.35 --dry-base 1.75 --dry-allowed-length 2 --dry-penalty-last-n 1024 --dry-sequence-breaker none}"
 
 	# Check llama availability
 	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
@@ -82,7 +85,7 @@ planner_generate_search_queries() {
 	}
 
 	# Invoke the rephrase model
-	if ! raw="$(LLAMA_TEMPERATURE=0.7 llama_infer "${prompt}" '' "${max_generation_tokens}" "${schema_json}" "${SEARCH_REPHRASER_MODEL_REPO:-}" "${SEARCH_REPHRASER_MODEL_FILE:-}" "${SEARCH_REPHRASER_CACHE_FILE:-}" "${prompt}")"; then
+	if ! raw="$(LLAMA_TEMPERATURE=0.7 LLAMA_EXTRA_ARGS="${dry_sampling_args}" llama_infer "${prompt}" '' "${max_generation_tokens}" "${schema_json}" "${SEARCH_REPHRASER_MODEL_REPO:-}" "${SEARCH_REPHRASER_MODEL_FILE:-}" "${SEARCH_REPHRASER_CACHE_FILE:-}" "${prompt}")"; then
 		log "WARN" "Rephrase model invocation failed; falling back to user query" "pre_planner_search_terms_infer_failed" >&2
 		jq -nc --arg query "${user_query}" '[ $query ]'
 		return 0
