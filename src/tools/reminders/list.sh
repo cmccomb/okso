@@ -54,7 +54,7 @@ register_reminders_list() {
 
 	args_schema=$(
 		cat <<'JSON'
-{"type":"object","properties":{},"additionalProperties":false}
+{"type":"object","properties":{}}
 JSON
 	)
 	register_tool \

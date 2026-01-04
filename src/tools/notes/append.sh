@@ -67,7 +67,7 @@ register_notes_append() {
 
 	args_schema=$(
 		cat <<'JSON'
-{"type":"object","required":["title"],"properties":{"title":{"type":"string","minLength":1},"body":{"type":"string"}},"additionalProperties":false}
+{"type":"object","required":["title"],"properties":{"title":{"type":"string","minLength":1},"body":{"type":"string"}}}
 JSON
 	)
 	register_tool \
