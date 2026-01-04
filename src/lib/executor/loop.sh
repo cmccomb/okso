@@ -74,36 +74,37 @@ format_action_context() {
 }
 
 apply_plan_arg_controls() {
-	# Applies planner-provided arg values and infers context-controlled fields from empty seeds.
+        # Applies planner-provided arg values and infers context-controlled fields from empty seeds.
 	# Arguments:
 	#   $1 - tool name
 	#   $2 - executor args JSON
 	#   $3 - planner plan entry JSON (optional)
 	#   $4 - user query text (unused; kept for API stability)
 	#   $5 - serialized history text (unused; kept for API stability)
-	local tool args_json plan_entry_json user_query history_text args_obj plan_args jq_filter
-	tool="$1"
-	args_json="$2"
-	plan_entry_json="$3"
-	user_query="$4"
-	history_text="$5"
+        local tool args_json plan_entry_json user_query history_text args_obj plan_args jq_filter fill_marker
+        tool="$1"
+        args_json="$2"
+        plan_entry_json="$3"
+        user_query="$4"
+        history_text="$5"
+        fill_marker="<<FILL_DURING_EXECUTION>>"
 
 	# Parse args and plan args as objects, defaulting to empty objects
 	args_obj="$(jq -ce 'if type=="object" then . else {} end' <<<"${args_json}" 2>/dev/null || printf '{}')"
 	plan_args="$(jq -ce '.args // {} | if type=="object" then . else {} end' <<<"${plan_entry_json}" 2>/dev/null || printf '{}')"
 
 	# Infer context-controlled fields: any field with empty string seed is context-controlled
-	jq_filter=$(
-		cat <<'JQ'
+        jq_filter=$(
+                cat <<'JQ'
 # Planner provides plan args; executor starts with empty args
 # For each planner arg:
-#   - If it's an empty string "", mark it as context-controlled (executor fills)
+#   - If it's the fill marker, null, or an empty string "", mark it as context-controlled (executor fills)
 #   - Otherwise use the planner value as-is
 $planned as $p
 | reduce ($p|to_entries[]) as $item (
     {args:$args, context:[], seeds:{}};
     .args[$item.key] = $item.value
-    | if ($item.value == "") then
+    | if ($item.value == $fill_marker or $item.value == null or $item.value == "") then
         (.context += [$item.key])
       else
         (if ($item.value | type) == "string" then .seeds[$item.key] = $item.value else . end)
@@ -114,10 +115,10 @@ $planned as $p
 | (if ($state.context|length>0) then .+{__context_controlled:$state.context} else . end)
 | (if ($state.seeds|length>0) then .+{__context_seeds:$state.seeds} else . end)
 JQ
-	)
+        )
 
-	# Apply the jq filter to merge args and mark context-controlled fields
-	jq -c -n --argjson args "${args_obj}" --argjson planned "${plan_args}" "${jq_filter}" 2>/dev/null
+        # Apply the jq filter to merge args and mark context-controlled fields
+        jq -c -n --argjson args "${args_obj}" --argjson planned "${plan_args}" --arg fill_marker "${fill_marker}" "${jq_filter}" 2>/dev/null
 }
 
 fill_missing_args_with_llm() {

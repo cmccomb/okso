@@ -137,7 +137,22 @@ planner_build_plan_schema() {
 
 	base_schema="$(load_schema_text planner_plan | jq -c '.')" || return 1
 
-	tool_schema_json="$(tool_schema_map)"
+        tool_schema_json="$(tool_schema_map | jq -c '
+                def allow_fill_placeholder(s):
+                        if (s|type) != "object" then s
+                        else
+                                (s
+                                        | if has("properties") then .properties |= with_entries(.value |= allow_fill_placeholder) end
+                                        | if has("items") then .items |= allow_fill_placeholder end
+                                        | if has("anyOf") then .anyOf |= map(allow_fill_placeholder) end
+                                        | if has("oneOf") then .oneOf |= map(allow_fill_placeholder) end
+                                        | if has("allOf") then .allOf |= map(allow_fill_placeholder) end
+                                )
+                                | {anyOf:[., {const:"<<FILL_DURING_EXECUTION>>"}]}
+                        end;
+
+                map_values(allow_fill_placeholder)
+        ')"
 	tools_json="$(printf '%s\n' "$@" | jq -Rsc 'split("\n") | map(select(length > 0))')"
 
 	if [[ "${tools_json}" == "[]" ]]; then
