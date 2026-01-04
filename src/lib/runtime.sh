@@ -237,7 +237,7 @@ render_plan_outputs() {
 
 	# Surface the exact tool calls that will be executed for approval
 	if [[ -n "${plan_entries}" ]]; then
-if planned_calls="$(printf '%s' "${plan_entries}" | jq -c 'to_entries | map({step:(.key+1), tool:(.value.tool // "unknown"), description:(.value.query // (.value.args // {} | tostring)), thought:(.value.thought // "")})' 2>/dev/null)"; then
+		if planned_calls="$(printf '%s' "${plan_entries}" | jq -c 'to_entries | map({step:(.key+1), tool:(.value.tool // "unknown"), description:(.value.query // (.value.args // {} | tostring)), thought:(.value.thought // "")})' 2>/dev/null)"; then
 			log_pretty "INFO" "Planned tool calls" "${planned_calls}"
 		else
 			log "WARN" "Unable to format planned tool calls for approval" "$(printf 'plan_entries=%s' "${plan_entries}")"

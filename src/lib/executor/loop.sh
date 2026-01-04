@@ -270,9 +270,9 @@ execute_planned_action() {
 	observation="$(execute_tool_with_query "${tool}" "$(extract_tool_query "${tool}" "${args_after_controls}")" "${context}" "${args_after_controls}")"
 	execution_status=$?
 
-if ((execution_status != 0)); then
-return ${execution_status}
-fi
+	if ((execution_status != 0)); then
+		return ${execution_status}
+	fi
 
 	record_tool_execution "${state_prefix}" "${tool}" "${thought}" "${args_after_controls}" "${observation}" "${step_index}"
 
