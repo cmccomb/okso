@@ -211,8 +211,6 @@ planner_fetch_search_context() {
 	user_query="$1"
 
 	# Derive search queries
-
-	log "DEBUG" "here"
 	if ! queries_json="$(planner_generate_search_queries "${user_query}")"; then
 		log "WARN" "Failed to derive search queries; defaulting to raw query" "pre_planner_search_terms_failed" >&2
 		queries_json="$(jq -nc --arg query "${user_query}" '[ $query ]' 2>/dev/null || printf '["%s"]' "${user_query}")"
