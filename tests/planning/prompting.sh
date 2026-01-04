@@ -1,11 +1,18 @@
 #!/usr/bin/env bats
 
 setup() {
-	unset -f chpwd _mise_hook 2>/dev/null || true
+        unset -f chpwd _mise_hook 2>/dev/null || true
+        export TOOL_REGISTRY_JSON=$(prompting_registry_payload)
+}
+
+prompting_registry_payload() {
+        cat <<'JSON'
+{"names":["terminal","final_answer"],"registry":{"terminal":{"args_schema":{"type":"object","required":["command"],"properties":{"command":{"type":"string","minLength":1}},"additionalProperties":false}},"final_answer":{"args_schema":{"type":"object","required":["input"],"properties":{"input":{"type":"string","minLength":1}},"additionalProperties":false}}}}
+JSON
 }
 
 @test "plan_json_to_outline numbers steps from raw planner text" {
-	run bash <<'SCRIPT'
+run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/prompting.sh
 raw_plan='[{"tool":"terminal","args":{"command":"ls"},"thought":"list"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"wrap up"}]'
@@ -18,7 +25,7 @@ SCRIPT
 }
 
 @test "plan_json_to_outline requires array payloads" {
-	run bash <<'SCRIPT'
+run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/prompting.sh
 response='[{"tool":"terminal","args":{"command":"ls"},"thought":"step one"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]'

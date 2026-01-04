@@ -4,8 +4,15 @@ setup() {
 	unset -f chpwd _mise_hook 2>/dev/null || true
 }
 
+registry_payload() {
+        cat <<'JSON'
+{"names":["notes_create","final_answer"],"registry":{"notes_create":{"args_schema":{"type":"object","required":["title"],"properties":{"title":{"type":"string","minLength":1}},"additionalProperties":false}},"final_answer":{"args_schema":{"type":"object","required":["input"],"properties":{"input":{"type":"string","minLength":1}},"additionalProperties":false}}}}
+JSON
+}
+
 @test "normalize_plan accepts top-level plan arrays" {
-	run bash <<'SCRIPT'
+        export TOOL_REGISTRY_JSON=$(registry_payload)
+        run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/normalization.sh
 raw_response='[{"tool":"notes_create","args":{"title":"t"},"thought":"note"},{"tool":"final_answer","args":{"input":"done"},"thought":"reply"}]'
@@ -21,7 +28,8 @@ SCRIPT
 }
 
 @test "normalize_plan enforces array shape from arguments" {
-	run bash <<'SCRIPT'
+        export TOOL_REGISTRY_JSON=$(registry_payload)
+        run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/normalization.sh
 normalize_plan '{"plan": "not an array"}'
@@ -31,12 +39,37 @@ SCRIPT
 }
 
 @test "normalize_plan fails cleanly on empty output" {
-	run bash <<'SCRIPT'
+        export TOOL_REGISTRY_JSON=$(registry_payload)
+        run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/normalization.sh
 normalize_plan <<<""
 SCRIPT
 
-	[ "$status" -ne 0 ]
-	[[ "${output}" == *"planner_output_empty"* ]]
+        [ "$status" -ne 0 ]
+        [[ "${output}" == *"planner_output_empty"* ]]
+}
+
+@test "normalize_plan rejects missing required args" {
+        export TOOL_REGISTRY_JSON=$(registry_payload)
+        run bash <<'SCRIPT'
+set -euo pipefail
+source ./src/lib/planning/normalization.sh
+invalid_plan='[{"tool":"notes_create","args":{},"thought":"note"}]'
+normalize_plan <<<"${invalid_plan}"
+SCRIPT
+
+        [ "$status" -ne 0 ]
+}
+
+@test "normalize_plan rejects wrong arg types" {
+        export TOOL_REGISTRY_JSON=$(registry_payload)
+        run bash <<'SCRIPT'
+set -euo pipefail
+source ./src/lib/planning/normalization.sh
+invalid_plan='[{"tool":"notes_create","args":{"title":5},"thought":"note"}]'
+normalize_plan <<<"${invalid_plan}"
+SCRIPT
+
+        [ "$status" -ne 0 ]
 }
