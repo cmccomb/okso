@@ -188,13 +188,18 @@ fill_missing_args_with_llm() {
 		printf '%s' "${response_json}"
 	}
 
-	response="$(invoke_llm_with_schema "strict")" || {
-		log "ERROR" "llama_infer failed during arg fill" "${tool}" || true
-		return 1
-	}
+        response="$(invoke_llm_with_schema "strict")" || {
+                log "ERROR" "llama_infer failed during arg fill" "${tool}" || true
+                return 1
+        }
 
-	jq -c '.' <<<"${response}"
-	return 0
+        if ! response_json="$(jq -ce 'if type == "object" then . else empty end' <<<"${response}" 2>/dev/null)"; then
+                log "ERROR" "Invalid llama response for arg fill" "tool=${tool} response=${response}" || true
+                return 1
+        fi
+
+        printf '%s' "${response_json}"
+        return 0
 }
 
 extract_context_controls() {
