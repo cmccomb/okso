@@ -24,7 +24,9 @@ ${planner_thought}
 ## Task Rules
 - Do NOT add or remove keys.
 - Populate empty fields using information from the execution history.
-- Do NOT include placeholder tokens such as: `TODO`, `TBD`, `__MISSING__`, `[insert]`, `<todo>`, `lorem ipsum`.
+- Do NOT include placeholder tokens such as:
+  `TODO`, `TBD`, `__MISSING__`, `[insert]`, `<todo>`, `lorem ipsum`.
+- If required information is missing, explain the limitation directly in the field value.
 
 ## Output Contract
 Respond using the following JSON schema:
