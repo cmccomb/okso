@@ -5,6 +5,7 @@ setup() {
 	export VERBOSITY=0
 	export LLAMA_AVAILABLE=false
 	export TESTING_PASSTHROUGH=true
+	# shellcheck disable=SC2155
 	export TOOL_REGISTRY_JSON=$(planner_registry_payload)
 }
 

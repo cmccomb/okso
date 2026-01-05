@@ -11,6 +11,8 @@ JSON
 }
 
 @test "normalize_plan accepts top-level plan arrays" {
+	# shellcheck disable=SC2155
+	# shellcheck disable=SC2030
 	export TOOL_REGISTRY_JSON=$(registry_payload)
 	run bash <<'SCRIPT'
 set -euo pipefail
@@ -28,6 +30,9 @@ SCRIPT
 }
 
 @test "normalize_plan enforces array shape from arguments" {
+	# shellcheck disable=SC2155
+	# shellcheck disable=SC2030
+	# shellcheck disable=SC2031
 	export TOOL_REGISTRY_JSON=$(registry_payload)
 	run bash <<'SCRIPT'
 set -euo pipefail
@@ -39,6 +44,9 @@ SCRIPT
 }
 
 @test "normalize_plan fails cleanly on empty output" {
+
+	# shellcheck disable=SC2031
+	# shellcheck disable=SC2155
 	export TOOL_REGISTRY_JSON=$(registry_payload)
 	run bash <<'SCRIPT'
 set -euo pipefail
