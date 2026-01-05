@@ -30,17 +30,15 @@ source "${EXEC_LIB_DIR}/../tools.sh"
 execute_tool_with_query() {
 	# Arguments:
 	#   $1 - tool name
-	#   $2 - tool query (legacy string)
-	#   $3 - human-readable context
-	#   $4 - structured args JSON
+	#   $2 - tool query
+	#   $3 - structured args JSON
 	# Returns:
 	#   JSON object with keys: output (string), error (string), exit_code (int)
 
-	local tool_name tool_query context handler output status tool_args_json
+	local tool_name tool_query handler output status tool_args_json
 	tool_name="$1"
 	tool_query="$2"
-	context="$3"
-	tool_args_json="$4"
+	tool_args_json="$3"
 
 	# Lookup the tool handler
 	handler="$(tool_handler "${tool_name}")"

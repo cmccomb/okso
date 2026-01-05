@@ -304,7 +304,7 @@ execute_planned_action() {
 	fi
 
 	context="$(format_action_context "${thought}" "${tool}" "${args_after_controls}")"
-	observation="$(execute_tool_with_query "${tool}" "$(extract_tool_query "${tool}" "${args_after_controls}")" "${context}" "${args_after_controls}")"
+	observation="$(execute_tool_with_query "${tool}" "$(extract_tool_query "${args_after_controls}")" "${context}" "${args_after_controls}")"
 	execution_status=$?
 
 	if ((execution_status != 0)); then
