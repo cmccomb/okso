@@ -24,7 +24,7 @@
 #   - bash 3.2+
 #   - jq
 #   - llama.cpp binaries
-#   - prompt/templates.sh for template rendering
+#   - llm/templates.sh for template rendering
 
 VALIDATION_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 VALIDATION_PARENT_DIR=$(cd -- "${VALIDATION_LIB_DIR}/.." && pwd)
@@ -35,8 +35,8 @@ source "${VALIDATION_PARENT_DIR}/core/logging.sh"
 source "${VALIDATION_PARENT_DIR}/llm/llama_client.sh"
 # shellcheck source=src/lib/schema/schema.sh
 source "${VALIDATION_PARENT_DIR}/schema/schema.sh"
-# shellcheck source=src/lib/prompt/templates.sh
-source "${VALIDATION_PARENT_DIR}/prompt/templates.sh"
+# shellcheck source=src/lib/llm/templates.sh
+source "${VALIDATION_PARENT_DIR}/llm/templates.sh"
 
 build_validation_prompt() {
 	# Builds a prompt for validating a final answer against the original query.

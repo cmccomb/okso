@@ -24,8 +24,8 @@ source "${PLANNING_PROMPTING_DIR}/../formatting.sh"
 source "${PLANNING_PROMPTING_DIR}/../schema/schema.sh"
 # shellcheck source=src/lib/planning/normalization.sh
 source "${PLANNING_PROMPTING_DIR}/normalization.sh"
-# shellcheck source=src/lib/prompt/templates.sh
-source "${PLANNING_PROMPTING_DIR}/../prompt/templates.sh"
+# shellcheck source=src/lib/llm/templates.sh
+source "${PLANNING_PROMPTING_DIR}/../llm/templates.sh"
 
 build_planner_prompt() {
 	# Builds a prompt for the high-level planner.

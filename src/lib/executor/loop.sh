@@ -29,8 +29,8 @@ source "${EXECUTOR_LIB_DIR}/../core/logging.sh"
 source "${EXECUTOR_LIB_DIR}/../core/json_state.sh"
 # shellcheck source=/src/lib/tools/query.sh
 source "${EXECUTOR_LIB_DIR}/../tools/query.sh"
-# shellcheck source=/src/lib/prompt/templates.sh
-source "${EXECUTOR_LIB_DIR}/../prompt/templates.sh"
+# shellcheck source=/src/lib/llm/templates.sh
+source "${EXECUTOR_LIB_DIR}/../llm/templates.sh"
 # shellcheck source=src/lib/executor/history.sh
 source "${EXECUTOR_LIB_DIR}/history.sh"
 # shellcheck source=src/lib/executor/dispatch.sh
