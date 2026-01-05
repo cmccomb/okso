@@ -2,6 +2,7 @@
 
 setup() {
 	unset -f chpwd _mise_hook 2>/dev/null || true
+	# shellcheck disable=SC2155
 	export TOOL_REGISTRY_JSON=$(prompting_registry_payload)
 }
 
