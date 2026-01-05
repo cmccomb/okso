@@ -33,8 +33,8 @@ VALIDATION_PARENT_DIR=$(cd -- "${VALIDATION_LIB_DIR}/.." && pwd)
 source "${VALIDATION_PARENT_DIR}/core/logging.sh"
 # shellcheck source=src/lib/llm/llama_client.sh
 source "${VALIDATION_PARENT_DIR}/llm/llama_client.sh"
-# shellcheck source=src/lib/schema/schema.sh
-source "${VALIDATION_PARENT_DIR}/schema/schema.sh"
+# shellcheck source=src/lib/llm/schema.sh
+source "${VALIDATION_PARENT_DIR}/llm/schema.sh"
 # shellcheck source=src/lib/llm/templates.sh
 source "${VALIDATION_PARENT_DIR}/llm/templates.sh"
 
