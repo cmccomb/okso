@@ -66,9 +66,9 @@ source "${PLANNING_LIB_DIR}/../core/errors.sh"
 source "${PLANNING_LIB_DIR}/../core/logging.sh"
 # shellcheck source=src/lib/tools/index.sh
 if [[ "${PLANNER_SKIP_TOOL_LOAD:-false}" != true ]]; then
-        source "${PLANNING_LIB_DIR}/../tools/index.sh"
+	source "${PLANNING_LIB_DIR}/../tools/index.sh"
 else
-        log "DEBUG" "Skipping tool suite load" "planner_skip_tool_load=true" >&2
+	log "DEBUG" "Skipping tool suite load" "planner_skip_tool_load=true" >&2
 fi
 # shellcheck source=src/lib/prompt/build_planner.sh
 source "${PLANNING_LIB_DIR}/../prompt/build_planner.sh"
