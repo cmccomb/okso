@@ -10,7 +10,7 @@ setup() {
 @test "render_plan_outputs logs planned tool calls for approval" {
 	run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
-source ./src/lib/runtime.sh
+source ./src/lib/settings/runtime.sh
 
 log_pretty() { echo "${1}|${2}|${3}"; }
 log() { echo "${1}|${2}|${3}"; }

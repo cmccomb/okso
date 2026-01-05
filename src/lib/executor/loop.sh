@@ -19,8 +19,8 @@
 
 EXECUTOR_LIB_DIR=${EXECUTOR_LIB_DIR:-$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)}
 
-# shellcheck source=/src/lib/formatting.sh
-source "${EXECUTOR_LIB_DIR}/../formatting.sh"
+# shellcheck source=/src/lib/cli/output.sh
+source "${EXECUTOR_LIB_DIR}/../cli/output.sh"
 # shellcheck source=/src/lib/llm/llama_client.sh
 source "${EXECUTOR_LIB_DIR}/../llm/llama_client.sh"
 # shellcheck source=/src/lib/core/logging.sh

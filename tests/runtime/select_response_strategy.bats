@@ -11,7 +11,7 @@ setup() {
 	run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
 
-source ./src/lib/runtime.sh
+source ./src/lib/settings/runtime.sh
 
 apply_settings_to_globals() {
         USER_QUERY=""

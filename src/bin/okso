@@ -52,16 +52,16 @@ source "${LIB_DIR}/core/errors.sh"
 source "${LIB_DIR}/core/logging.sh"
 # shellcheck source=src/lib/core/json_state.sh
 source "${LIB_DIR}/core/json_state.sh"
-# shellcheck source=src/lib/config.sh
-source "${LIB_DIR}/config.sh"
-# shellcheck source=src/lib/tools.sh
-source "${LIB_DIR}/tools.sh"
+# shellcheck source=src/lib/settings/config.sh
+source "${LIB_DIR}/settings/config.sh"
+# shellcheck source=src/lib/tools/index.sh
+source "${LIB_DIR}/tools/index.sh"
 # shellcheck source=src/lib/planning/planner.sh
 source "${LIB_DIR}/planning/planner.sh"
 # shellcheck source=src/lib/cli/cli.sh
 source "${LIB_DIR}/cli/cli.sh"
-# shellcheck source=src/lib/runtime.sh
-source "${LIB_DIR}/runtime.sh"
+# shellcheck source=src/lib/settings/runtime.sh
+source "${LIB_DIR}/settings/runtime.sh"
 
 main() {
 	local settings_prefix
