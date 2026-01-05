@@ -17,7 +17,7 @@ setup() {
 }
 
 @test "json_state helpers persist values and history" {
-  # shellcheck disable=SC1091
+	# shellcheck disable=SC1091
 	source ./src/lib/core/json_state.sh
 	prefix=state_case
 	json_state_set_key "${prefix}" "foo" "bar"
@@ -32,7 +32,7 @@ setup() {
 }
 
 @test "json_state_get_document falls back on invalid JSON" {
-  # shellcheck disable=SC1091
+	# shellcheck disable=SC1091
 	source ./src/lib/core/json_state.sh
 	prefix=invalid_state_case
 	json_var=$(json_state_namespace_var "${prefix}")
@@ -42,7 +42,7 @@ setup() {
 }
 
 @test "invalid documents are cached as sanitized fallbacks" {
-  # shellcheck disable=SC1091
+	# shellcheck disable=SC1091
 	source ./src/lib/core/json_state.sh
 	prefix=invalid_cached_state_case
 	json_var=$(json_state_namespace_var "${prefix}")
@@ -58,7 +58,7 @@ setup() {
 }
 
 @test "cache is used when namespace resets" {
-  # shellcheck disable=SC1091
+	# shellcheck disable=SC1091
 	source ./src/lib/core/json_state.sh
 	prefix=cache_reuse_case
 	json_state_set_document "${prefix}" '{"cached":true}'
@@ -69,7 +69,7 @@ setup() {
 }
 
 @test "history append gracefully repairs malformed JSON" {
-  # shellcheck disable=SC1091
+	# shellcheck disable=SC1091
 	source ./src/lib/core/json_state.sh
 	prefix=broken_history
 	json_var=$(json_state_namespace_var "${prefix}")
