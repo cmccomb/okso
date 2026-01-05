@@ -28,7 +28,7 @@ The prior `scripts/install.sh` bootstrapper and hosted installer bundle are no l
 
 If you prefer to manage dependencies yourself:
 
-1. Ensure `bash`, `jq`, `pandoc`, `xmllint` (`libxml2`), `rg`, `fd`, and a `llama.cpp` binary are on your `PATH` (macOS includes `mdfind` for Spotlight-backed searches).
+1. Ensure `jq`, `pandoc`, `xmllint` (`libxml2`), and a `llama.cpp` binary are on your `PATH` (macOS includes `mdfind` for Spotlight-backed searches).
 2. Clone the repository and run the CLI directly:
    ```bash
    ./src/bin/okso --help
