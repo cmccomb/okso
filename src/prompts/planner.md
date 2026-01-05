@@ -12,7 +12,7 @@ You are responsible for drafting an execution plan that satisfies a user request
 - Use ONLY argument names defined by each tool’s schema.
 - For each argument:
   - Provide a concrete value to use OR
-  - Use the literal placeholder `<<FILL_DURING_EXECUTION>>` (or an empty string "") to defer filling to the executor. Include these placeholder values whenever the executor is expected to infill a field, even for non-string arguments.
+  - Use the literal placeholder `<<FILL_DURING_EXECUTION>>` to defer filling to the executor. Include these placeholder values whenever the executor is expected to infill a field, even for non-string arguments.
 - Keep all argument strings single-line and under 200 characters.
 - Do NOT include markdown, code blocks, logs, or stack traces in arguments.
 
