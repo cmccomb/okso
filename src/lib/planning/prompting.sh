@@ -19,15 +19,11 @@
 PLANNING_PROMPTING_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck source=src/lib/formatting.sh
-source "${PLANNING_PROMPTING_DIR}/../formatting.sh"
+source "${PLANNING_PROMPTING_DIR}/../cli/output.sh"
 # shellcheck source=src/lib/llm/schema.sh
 source "${PLANNING_PROMPTING_DIR}/../llm/schema.sh"
 # shellcheck source=src/lib/cli/output.sh
 source "${PLANNING_PROMPTING_DIR}/../cli/output.sh"
-# shellcheck source=src/lib/prompt/build_planner.sh
-source "${PLANNING_PROMPTING_DIR}/../prompt/build_planner.sh"
-# shellcheck source=src/lib/schema/schema.sh
-source "${PLANNING_PROMPTING_DIR}/../schema/schema.sh"
 # shellcheck source=src/lib/planning/normalization.sh
 source "${PLANNING_PROMPTING_DIR}/normalization.sh"
 # shellcheck source=src/lib/llm/templates.sh
