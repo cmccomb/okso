@@ -14,7 +14,7 @@
 #   Functions print rendered templates and return 0 on success.
 
 PROMPT_TEMPLATES_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-PROMPTS_DIR="${PROMPT_TEMPLATES_DIR%/lib/prompt}/prompts"
+PROMPTS_DIR="${PROMPT_TEMPLATES_DIR}/../../prompts"
 
 # shellcheck source=src/lib/core/logging.sh
 source "${PROMPT_TEMPLATES_DIR}/../core/logging.sh"

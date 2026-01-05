@@ -70,10 +70,8 @@ if [[ "${PLANNER_SKIP_TOOL_LOAD:-false}" != true ]]; then
 else
 	log "DEBUG" "Skipping tool suite load" "planner_skip_tool_load=true" >&2
 fi
-# shellcheck source=src/lib/prompt/build_planner.sh
-source "${PLANNING_LIB_DIR}/../prompt/build_planner.sh"
-# shellcheck source=src/lib/schema/schema.sh
-source "${PLANNING_LIB_DIR}/../schema/schema.sh"
+# shellcheck source=src/lib/llm/schema.sh
+source "${PLANNING_LIB_DIR}/../llm/schema.sh"
 # shellcheck source=src/lib/core/json_state.sh
 source "${PLANNING_LIB_DIR}/../core/json_state.sh"
 # shellcheck source=src/lib/llm/llama_client.sh
