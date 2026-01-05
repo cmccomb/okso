@@ -23,12 +23,12 @@
 
 PLANNING_REPHRASING_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# shellcheck source=src/lib/prompt/templates.sh
-source "${PLANNING_REPHRASING_DIR}/../prompt/templates.sh"
+# shellcheck source=src/lib/llm/templates.sh
+source "${PLANNING_REPHRASING_DIR}/../llm/templates.sh"
 # shellcheck source=src/lib/core/logging.sh
 source "${PLANNING_REPHRASING_DIR}/../core/logging.sh"
-# shellcheck source=src/lib/schema/schema.sh
-source "${PLANNING_REPHRASING_DIR}/../schema/schema.sh"
+# shellcheck source=src/lib/llm/schema.sh
+source "${PLANNING_REPHRASING_DIR}/../llm/schema.sh"
 # shellcheck source=src/lib/llm/llama_client.sh
 source "${PLANNING_REPHRASING_DIR}/../llm/llama_client.sh"
 
