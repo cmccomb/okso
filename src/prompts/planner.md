@@ -36,12 +36,12 @@ Plan:
   {
     "thought": "Create one reminder per task without editing the note.",
     "tool": "reminders_create",
-    "args": {"title": "", "time": "", "notes": "Source: LC-Guard action items"}
+    "args": {"title": "<<FILL_DURING_EXECUTION>>", "time": "<<FILL_DURING_EXECUTION>>", "notes": "<<FILL_DURING_EXECUTION>>"}
   },
   {
     "thought": "Confirm reminders and note status to the user.",
     "tool": "final_answer",
-    "args": {"input": ""}
+    "args": {"input": "<<FILL_DURING_EXECUTION>>"}
   }
 ]
 
@@ -59,7 +59,7 @@ Plan:
   {
     "thought": "Return a concise list of matches.",
     "tool": "final_answer",
-    "args": {"input": ""}
+    "args": {"input": "<<FILL_DURING_EXECUTION>>"}
   }
 ]
 
