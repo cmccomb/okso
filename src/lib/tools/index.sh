@@ -4,7 +4,7 @@
 # Tool registration aggregator for the okso assistant CLI.
 #
 # Usage:
-#   source "${BASH_SOURCE[0]%/tools.sh}/tools.sh"
+#   source "${BASH_SOURCE[0]%/index.sh}/index.sh"
 #
 # Environment variables:
 #   TOOL_QUERY (string): populated before handler execution.
@@ -20,13 +20,13 @@
 #   Functions emit errors via log and return non-zero when misused.
 
 TOOLS_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-TOOLS_SRC_ROOT=$(cd -- "${TOOLS_LIB_DIR}/.." && pwd)
+TOOLS_SRC_ROOT=$(cd -- "${TOOLS_LIB_DIR}/../.." && pwd)
 TOOLS_DIR="${TOOLS_SRC_ROOT}/tools"
 
 # shellcheck source=src/lib/core/errors.sh
-source "${TOOLS_LIB_DIR}/core/errors.sh"
+source "${TOOLS_LIB_DIR}/../core/errors.sh"
 # shellcheck source=src/lib/core/logging.sh
-source "${TOOLS_LIB_DIR}/core/logging.sh"
+source "${TOOLS_LIB_DIR}/../core/logging.sh"
 # shellcheck source=src/tools/registry.sh
 source "${TOOLS_DIR}/registry.sh"
 TOOL_WRITABLE_DIRECTORY_ALLOWLIST=(

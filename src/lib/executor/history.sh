@@ -19,8 +19,8 @@ EXECUTOR_LIB_DIR=${EXECUTOR_LIB_DIR:-$(cd -- "$(dirname "${BASH_SOURCE[0]}")" &&
 source "${EXECUTOR_LIB_DIR}/../core/logging.sh"
 # shellcheck source=src/lib/core/json_state.sh
 source "${EXECUTOR_LIB_DIR}/../core/json_state.sh"
-# shellcheck source=src/lib/formatting.sh
-source "${EXECUTOR_LIB_DIR}/../formatting.sh"
+# shellcheck source=src/lib/cli/output.sh
+source "${EXECUTOR_LIB_DIR}/../cli/output.sh"
 # shellcheck source=src/lib/validation/validation.sh
 source "${EXECUTOR_LIB_DIR}/../validation/validation.sh"
 

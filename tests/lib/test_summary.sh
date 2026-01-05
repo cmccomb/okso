@@ -13,7 +13,7 @@
 	run bash -lc '
                 set -e
                 cd "$(git rev-parse --show-toplevel)" || exit 1
-                source ./src/lib/formatting.sh
+                source ./src/lib/cli/output.sh
                 
                 # Input that looks like it was already formatted (e.g. from previous run or weird state)
                 history=$(printf -- " -  - Step 1\n  action: search\n  observation: result")

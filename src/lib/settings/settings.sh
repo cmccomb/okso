@@ -24,10 +24,10 @@
 # Exit codes:
 #   Functions return non-zero on misuse or jq failures; callers should handle failures.
 
-CORE_SETTINGS_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+SETTINGS_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck source=src/lib/core/json_state.sh
-source "${CORE_SETTINGS_LIB_DIR}/json_state.sh"
+source "${SETTINGS_LIB_DIR}/../core/json_state.sh"
 
 # Settings consumers should call json_state_* helpers directly for reads and writes
 # to avoid duplicating wrapper functions. This module provides only the
