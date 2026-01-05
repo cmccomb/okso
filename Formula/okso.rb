@@ -7,9 +7,6 @@ class Okso < Formula
 
   head "https://github.com/cmccomb/okso.git", branch: "main"
 
-  depends_on "bash"
-  depends_on "coreutils"
-  depends_on "fd"
   depends_on "jq"
   depends_on "libxml2"
   depends_on "llama.cpp"
