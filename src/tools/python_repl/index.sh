@@ -25,53 +25,68 @@ source "${BASH_SOURCE[0]%/tools/python_repl/index.sh}/lib/core/logging.sh"
 source "${BASH_SOURCE[0]%/python_repl/index.sh}/registry.sh"
 
 python_repl_create_sandbox() {
-        # Outputs the sandbox path.
-        local sandbox_dir # string temporary directory path
-        sandbox_dir=$(mktemp -d "${TMPDIR:-/tmp}/python_repl.XXXXXX") || return 1
-        printf '%s\n' "${sandbox_dir}"
+	# Outputs the sandbox path.
+	# Returns:
+	#   Outputs the sandbox directory path (string).
+
+	local sandbox_dir
+	sandbox_dir=$(mktemp -d "${TMPDIR:-/tmp}/python_repl.XXXXXX") || return 1
+	printf '%s\n' "${sandbox_dir}"
 }
 
 python_repl_sandbox_path_file() {
-        # Outputs the sandbox path tracking file.
-        printf '%s\n' "${TMPDIR:-/tmp}/python_repl_sandbox_path"
+	# Outputs the sandbox path tracking file.
+	# Returns:
+	#   Outputs the sandbox path file (string).
+	printf '%s\n' "${TMPDIR:-/tmp}/python_repl_sandbox_path"
 }
 
 python_repl_get_sandbox() {
-        # Outputs the sandbox path, reusing an existing one if present.
-        local sandbox_file existing_sandbox sandbox_dir
-        sandbox_file="$(python_repl_sandbox_path_file)"
+	# Outputs the sandbox path, reusing an existing one if present.
+	# Returns:
+	#   Outputs the sandbox directory path (string).
+	#   Exit code 0 on success, non-zero on failure.
+	local sandbox_file existing_sandbox sandbox_dir
 
-        if [[ -s "${sandbox_file}" ]]; then
-                existing_sandbox="$(<"${sandbox_file}")"
-                if [[ -d "${existing_sandbox}" ]]; then
-                        printf '%s\n' "${existing_sandbox}"
-                        return 0
-                fi
+	# Check for existing sandbox
+	sandbox_file="$(python_repl_sandbox_path_file)"
 
-                rm -f "${sandbox_file}"
-        fi
+	# Reuse existing sandbox if valid
+	if [[ -s "${sandbox_file}" ]]; then
+		existing_sandbox="$(<"${sandbox_file}")"
+		if [[ -d "${existing_sandbox}" ]]; then
+			printf '%s\n' "${existing_sandbox}"
+			return 0
+		fi
 
-        sandbox_dir=$(python_repl_create_sandbox)
-        if [[ -z "${sandbox_dir}" ]]; then
-                return 1
-        fi
+		rm -f "${sandbox_file}"
+	fi
 
-        if ! printf '%s' "${sandbox_dir}" >"${sandbox_file}"; then
-                rm -rf "${sandbox_dir}"
-                return 1
-        fi
+	# Create new sandbox
+	sandbox_dir=$(python_repl_create_sandbox)
+	if [[ -z "${sandbox_dir}" ]]; then
+		return 1
+	fi
 
-        printf '%s\n' "${sandbox_dir}"
+	# Track the new sandbox path
+	if ! printf '%s' "${sandbox_dir}" >"${sandbox_file}"; then
+		rm -rf "${sandbox_dir}"
+		return 1
+	fi
+
+	printf '%s\n' "${sandbox_dir}"
 }
 
 python_repl_write_startup() {
+	# Writes the Python REPL startup script enforcing sandboxed file access.
 	# Arguments:
 	#   $1 - sandbox directory (string)
-	# Outputs the startup file path.
-	local sandbox_dir startup_path # string
+	# Returns:
+	#   Outputs the startup script path.
+	local sandbox_dir startup_path
 	sandbox_dir="$1"
 	startup_path="${sandbox_dir}/startup.py"
-        cat <<'PY' >"${startup_path}" || return 1
+	cat <<'PY' >"${startup_path}" || return 1
 import builtins
 import os
 import pathlib
@@ -104,10 +119,10 @@ PY
 }
 
 python_repl_wrap_query() {
-        # Arguments:
-        #   $1 - user-supplied Python statements (string) (unused; kept for compatibility)
-        # Outputs a wrapped script that captures exceptions with exit codes and persists state.
-        cat <<'PY'
+	# Arguments:
+	#   $1 - user-supplied Python statements (string) (unused; kept for compatibility)
+	# Outputs a wrapped script that captures exceptions with exit codes and persists state.
+	cat <<'PY'
 import builtins
 import os
 import pathlib
@@ -177,6 +192,8 @@ PY
 
 python_repl_resolve_query() {
 	# Resolves the Python input text from TOOL_ARGS.
+	# Returns:
+	#   Outputs the Python statements (string).
 	local args_json text_key jq_error_file jq_error query
 	text_key="$(canonical_text_arg_key)"
 	args_json="${TOOL_ARGS:-}"
@@ -211,25 +228,35 @@ python_repl_resolve_query() {
 }
 
 tool_python_repl() {
+	# Executes Python statements in an isolated REPL sandbox.
+	# Returns:
+	#   Exit code 0 on success, non-zero on failure.
+
 	local query sandbox_dir startup_file repl_input status text_key create_status startup_status # strings and status code
+
+	# Resolve input query
 	text_key="$(canonical_text_arg_key)"
 
+	# Get the Python statements to execute
 	if ! query=$(python_repl_resolve_query); then
 		return 1
 	fi
 
+	# Validate query presence
 	if [[ -z "${query}" ]]; then
 		log "ERROR" "Missing TOOL_ARGS.${text_key}" "${TOOL_ARGS}"
 		return 1
 	fi
 
-        sandbox_dir=$(python_repl_get_sandbox)
-        create_status=$?
-        if [[ ${create_status} -ne 0 ]]; then
-                log "ERROR" "Failed to create sandbox" "${query}"
+	# Create or reuse sandbox
+	sandbox_dir=$(python_repl_get_sandbox)
+	create_status=$?
+	if [[ ${create_status} -ne 0 ]]; then
+		log "ERROR" "Failed to create sandbox" "${query}"
 		return "${create_status}"
 	fi
 
+	# Write startup script
 	startup_file=$(python_repl_write_startup "${sandbox_dir}")
 	startup_status=$?
 	if [[ ${startup_status} -ne 0 ]]; then
@@ -238,22 +265,27 @@ tool_python_repl() {
 		return "${startup_status}"
 	fi
 
-        repl_input=$(python_repl_wrap_query "${query}")
-        repl_input+=$'\n\nexit()\n'
+	# Prepare REPL input
+	repl_input=$(python_repl_wrap_query "${query}")
+	repl_input+=$'\n\nexit()\n'
 
-        PYTHON_REPL_STARTUP="${startup_file}" \
-                PYTHON_REPL_SANDBOX="${sandbox_dir}" \
-                PYTHON_REPL_STATE_FILE="${sandbox_dir}/.python_state.pkl" \
-                PYTHON_REPL_INPUT="${query}" \
-                PYTHONNOUSERSITE=1 \
-                python3.12 -I <<<"${repl_input}"
-        status=$?
-        return "${status}"
+	PYTHON_REPL_STARTUP="${startup_file}" \
+		PYTHON_REPL_SANDBOX="${sandbox_dir}" \
+		PYTHON_REPL_STATE_FILE="${sandbox_dir}/.python_state.pkl" \
+		PYTHON_REPL_INPUT="${query}" \
+		PYTHONNOUSERSITE=1 \
+		python3.12 -I <<<"${repl_input}"
+	status=$?
+	return "${status}"
 }
 
 register_python_repl() {
+	# Registers the python_repl tool.
+	# Returns:
+	#   Exit code 0 on success, non-zero on failure.
 	local args_schema
 
+	# Define the arguments schema
 	args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}}}')
 	register_tool \
 		"python_repl" \
