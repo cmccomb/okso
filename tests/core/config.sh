@@ -8,7 +8,7 @@ setup() {
 @test "parse_model_spec fills in default file when none provided" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-source ./src/lib/config.sh
+source ./src/lib/settings/config.sh
 parts=()
 while IFS= read -r line; do
 	parts+=("$line")
@@ -24,7 +24,7 @@ SCRIPT
 @test "normalize_approval_flags coerces unexpected input to prompts" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-source ./src/lib/config.sh
+source ./src/lib/settings/config.sh
 VERBOSITY=0
 APPROVE_ALL="notabool"
 normalize_approval_flags
@@ -44,7 +44,7 @@ DEFAULT_MODEL_FILE="demo.gguf"
 APPROVE_ALL=false
 NOTES_DIR="$(mktemp -d)"
 CONFIG_FILE=""
-source ./src/lib/config.sh
+source ./src/lib/settings/config.sh
 load_config
 init_environment
 printf "%s\n" "${LLAMA_AVAILABLE}"
@@ -65,7 +65,7 @@ OKSO_GOOGLE_CSE_API_KEY="config-key"
 OKSO_GOOGLE_CSE_ID="config-id"
 EOF
 CONFIG_FILE="${config_file}"
-source ./src/lib/config.sh
+source ./src/lib/settings/config.sh
 load_config
 printf "%s\n%s\n" "${GOOGLE_SEARCH_API_KEY}" "${GOOGLE_SEARCH_CX}"
 rm -f "${config_file}"
@@ -87,7 +87,7 @@ EOF
 export OKSO_GOOGLE_CSE_API_KEY="env-key"
 export OKSO_GOOGLE_CSE_ID="env-id"
 CONFIG_FILE="${config_file}"
-source ./src/lib/config.sh
+source ./src/lib/settings/config.sh
 load_config
 printf "%s\n%s\n" "${GOOGLE_SEARCH_API_KEY}" "${GOOGLE_SEARCH_CX}"
 rm -f "${config_file}"
@@ -117,7 +117,7 @@ export REACT_MODEL_BRANCH="env-react"
 export VERBOSITY=2
 export APPROVE_ALL=true
 CONFIG_FILE="${config_file}"
-source ./src/lib/config.sh
+source ./src/lib/settings/config.sh
 load_config
 printf "%s\n" \
         "${PLANNER_MODEL_SPEC}" "${PLANNER_MODEL_BRANCH}" \
@@ -146,7 +146,7 @@ EXECUTOR_MODEL_BRANCH="executor-branch"
 VERBOSITY=2
 APPROVE_ALL=true
 CONFIG_FILE="${config_file}"
-source ./src/lib/config.sh
+source ./src/lib/settings/config.sh
 load_config
 write_config_file >/dev/null
 bash -n "${config_file}"
@@ -217,7 +217,7 @@ export DEFAULT_PLANNER_MODEL_FILE_BASE="planner-base.gguf"
 export DEFAULT_PLANNER_MODEL_BRANCH_BASE="release"
 export DEFAULT_REACT_MODEL_SPEC_BASE="${DEFAULT_MODEL_REPO_BASE}:${DEFAULT_MODEL_FILE_BASE}"
 export DEFAULT_REACT_MODEL_BRANCH_BASE="${DEFAULT_MODEL_BRANCH_BASE}"
-source ./src/lib/config.sh
+source ./src/lib/settings/config.sh
 load_config
 hydrate_model_specs
 printf '%s\n' \

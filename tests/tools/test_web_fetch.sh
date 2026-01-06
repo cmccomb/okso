@@ -41,7 +41,7 @@ SCRIPT
 	run bash <<'SCRIPT'
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
-source ./src/lib/tools.sh
+source ./src/lib/tools/index.sh
 init_tool_registry
 initialize_tools
 names=()

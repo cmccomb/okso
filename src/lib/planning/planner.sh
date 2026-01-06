@@ -64,22 +64,20 @@ PLANNING_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${PLANNING_LIB_DIR}/../core/errors.sh"
 # shellcheck source=src/lib/core/logging.sh
 source "${PLANNING_LIB_DIR}/../core/logging.sh"
-# shellcheck source=src/lib/tools.sh
+# shellcheck source=src/lib/tools/index.sh
 if [[ "${PLANNER_SKIP_TOOL_LOAD:-false}" != true ]]; then
-	source "${PLANNING_LIB_DIR}/../tools.sh"
+	source "${PLANNING_LIB_DIR}/../tools/index.sh"
 else
 	log "DEBUG" "Skipping tool suite load" "planner_skip_tool_load=true" >&2
 fi
-# shellcheck source=src/lib/prompt/build_planner.sh
-source "${PLANNING_LIB_DIR}/../prompt/build_planner.sh"
-# shellcheck source=src/lib/schema/schema.sh
-source "${PLANNING_LIB_DIR}/../schema/schema.sh"
+# shellcheck source=src/lib/llm/schema.sh
+source "${PLANNING_LIB_DIR}/../llm/schema.sh"
 # shellcheck source=src/lib/core/json_state.sh
 source "${PLANNING_LIB_DIR}/../core/json_state.sh"
 # shellcheck source=src/lib/llm/llama_client.sh
 source "${PLANNING_LIB_DIR}/../llm/llama_client.sh"
-# shellcheck source=src/lib/config.sh
-source "${PLANNING_LIB_DIR}/../config.sh"
+# shellcheck source=src/lib/settings/config.sh
+source "${PLANNING_LIB_DIR}/../settings/config.sh"
 # shellcheck source=src/lib/planning/normalization.sh
 source "${PLANNING_LIB_DIR}/normalization.sh"
 # shellcheck source=src/lib/planning/scoring.sh

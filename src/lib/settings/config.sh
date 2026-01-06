@@ -33,8 +33,8 @@
 CONFIG_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck source=src/lib/core/logging.sh
-source "${CONFIG_LIB_DIR}/core/logging.sh"
-# shellcheck source=src/lib/system_profile.sh
+source "${CONFIG_LIB_DIR}/../core/logging.sh"
+# shellcheck source=src/lib/settings/system_profile.sh
 source "${CONFIG_LIB_DIR}/system_profile.sh"
 
 # Model defaults (populated via autotune to ensure deterministic sizing)

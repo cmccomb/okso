@@ -72,7 +72,7 @@ SCRIPT
 @test "executor prompt template exposes infill placeholders" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-source ./src/lib/prompt/templates.sh
+source ./src/lib/llm/templates.sh
 template="$(load_prompt_template executor)"
 grep -F '${tool}' <<<"${template}"
 grep -F '${args_json}' <<<"${template}"

@@ -54,15 +54,15 @@
 RUNTIME_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck source=src/lib/core/errors.sh
-source "${RUNTIME_LIB_DIR}/core/errors.sh"
-# shellcheck source=src/lib/formatting.sh
-source "${RUNTIME_LIB_DIR}/formatting.sh"
+source "${RUNTIME_LIB_DIR}/../core/errors.sh"
+# shellcheck source=src/lib/cli/output.sh
+source "${RUNTIME_LIB_DIR}/../cli/output.sh"
 # shellcheck source=src/lib/tools/query.sh
-source "${RUNTIME_LIB_DIR}/tools/query.sh"
+source "${RUNTIME_LIB_DIR}/../tools/query.sh"
 # shellcheck source=src/lib/core/json_state.sh
-source "${RUNTIME_LIB_DIR}/core/json_state.sh"
-# shellcheck source=src/lib/core/settings.sh
-source "${RUNTIME_LIB_DIR}/core/settings.sh"
+source "${RUNTIME_LIB_DIR}/../core/json_state.sh"
+# shellcheck source=src/lib/settings/settings.sh
+source "${RUNTIME_LIB_DIR}/settings.sh"
 
 set_by_name() {
 	# Sets a variable by name using printf for safety.
