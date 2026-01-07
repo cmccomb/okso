@@ -119,10 +119,9 @@ tool_web_fetch() {
 		fi
 
 		if [[ -n "${body_markdown}" && -n "${anchor_query}" ]]; then
-			local match_pos match_len snippet_start snippet_end total_len prefix suffix window
+			local match_pos snippet_start snippet_end total_len prefix suffix window
 			match_pos=$(awk -v q="${anchor_query}" 'BEGIN{IGNORECASE=1} {pos=index(tolower($0), tolower(q)); if (pos>0) {print pos; exit}}' <<<"${body_markdown}")
 			if [[ -n "${match_pos}" ]]; then
-				match_len=${#anchor_query}
 				total_len=${#body_markdown}
 				snippet_start=$((match_pos - 1 - (snippet_limit / 2)))
 				if ((snippet_start < 0)); then
