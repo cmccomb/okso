@@ -73,6 +73,7 @@ extract_urls_from_text() {
 
 collect_web_fetch_allowlist() {
 	# Builds a JSON array of allowed URLs for web_fetch.
+	# Handles web_search observations stored directly or wrapped in tool output metadata.
 	# Arguments:
 	#   $1 - history text (newline-delimited JSON entries)
 	#   $2 - user query
@@ -88,11 +89,33 @@ collect_web_fetch_allowlist() {
 		{
 			if [[ -n "${history_text}" ]]; then
 				jq -n -r '
-                        [inputs | select(length > 0) | try (fromjson) catch empty]
+                        def parse_entry:
+                          if type == "string" then
+                            try (fromjson) catch empty
+                          elif type == "object" then
+                            .
+                          else
+                            empty
+                          end;
+
+                        def search_items:
+                          if (.observation | type) != "object" then
+                            []
+                          elif (.observation.items? | type) == "array" then
+                            .observation.items
+                          elif (.observation.output? | type) == "string" then
+                            (try (.observation.output | fromjson) catch empty | .items? // [])
+                          else
+                            []
+                          end;
+
+                        [inputs | select(length > 0) | parse_entry]
                         | map(select(type == "object"))
                         | .[]
                         | select(.action.tool == "web_search")
-                        | .observation.items[]?.url
+                        | search_items
+                        | .[]?
+                        | .url
                 ' <<<"${history_text}" 2>/dev/null || true
 			fi
 			extract_urls_from_text "${user_query}"
