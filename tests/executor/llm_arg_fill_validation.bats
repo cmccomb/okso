@@ -35,3 +35,33 @@ SCRIPT
 	echo "$json_output" | jq -e '.count == "<<FILL_DURING_EXECUTION>>"' >/dev/null
 	echo "$json_output" | jq -e '.note == "keep"' >/dev/null
 }
+
+@test "build_infill_schema constrains web_fetch url enum from web_search history" {
+	run env -i PATH="$PATH" HOME="$HOME" VERBOSITY=0 bash --noprofile --norc <<'SCRIPT'
+set -euo pipefail
+source ./src/lib/executor/loop.sh
+schema='{"type":"object","required":["url"],"properties":{"url":{"type":"string","format":"uri","minLength":1},"max_bytes":{"type":"integer","minimum":1,"maximum":10}}}'
+entry=$(jq -nc '{step:1,thought:"search",action:{tool:"web_search",args:{query:"steelers next game"}},observation:{output:"{\"items\":[{\"url\":\"https://example.com\"},{\"url\":\"https://example.org\"}]}",error:"",exit_code:0}}')
+history_text="${entry}"
+output="$(build_infill_schema "web_fetch" "${schema}" "${history_text}" '["url"]')"
+echo "${output}"
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	json_output="$(printf '%s\n' "$output" | tail -n 1)"
+	echo "$json_output" | jq -e '.properties.url.enum | sort == ["https://example.com","https://example.org"]' >/dev/null
+}
+
+@test "build_infill_schema removes empty url enum when history is missing" {
+	run env -i PATH="$PATH" HOME="$HOME" VERBOSITY=0 bash --noprofile --norc <<'SCRIPT'
+set -euo pipefail
+source ./src/lib/executor/loop.sh
+schema='{"type":"object","required":["url"],"properties":{"url":{"type":"string","format":"uri","minLength":1,"enum":[]}}}'
+output="$(build_infill_schema "web_fetch" "${schema}" "" '["url"]')"
+echo "${output}"
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	json_output="$(printf '%s\n' "$output" | tail -n 1)"
+	echo "$json_output" | jq -e '(.properties.url | has("enum")) | not' >/dev/null
+}

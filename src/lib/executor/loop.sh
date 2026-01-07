@@ -121,6 +121,72 @@ JQ
 	jq -c -n --argjson args "${args_obj}" --argjson planned "${plan_args}" --arg fill_marker "${fill_marker}" "${jq_filter}" 2>/dev/null
 }
 
+build_infill_schema() {
+	# Builds a constrained JSON schema for argument infill, enriched with execution context.
+	# Arguments:
+	#   $1 - tool name (string)
+	#   $2 - base args schema JSON (string)
+	#   $3 - serialized history text (string; newline-delimited JSON entries)
+	#   $4 - context fields JSON array (string)
+	# Returns:
+	#   JSON schema string.
+	local tool schema_json history_text context_fields_json url_enum
+	tool="$1"
+	schema_json="$2"
+	history_text="$3"
+	context_fields_json="$4"
+
+	if [[ -z "${schema_json}" ]]; then
+		schema_json="{}"
+	fi
+
+	if [[ "${tool}" != "web_fetch" ]]; then
+		printf '%s' "${schema_json}"
+		return 0
+	fi
+
+	if ! jq -e 'index("url")' <<<"${context_fields_json:-[]}" >/dev/null 2>&1; then
+		printf '%s' "${schema_json}"
+		return 0
+	fi
+
+	if [[ -z "${history_text}" ]]; then
+		jq -c 'if .properties.url? then .properties.url |= del(.enum) else . end' <<<"${schema_json}"
+		return 0
+	fi
+
+	url_enum=$(
+		printf '%s\n' "${history_text}" | jq -s '
+                  def parse_output($entry):
+                          if ($entry.observation | type) != "object" then null
+                          else ($entry.observation.output // empty) end
+                          | if type == "string" then (try fromjson catch null) else null end;
+                  [
+                          .[]
+                          | select(.action.tool == "web_search")
+                          | parse_output(.)
+                          | select(type == "object")
+                          | .items[]?.url
+                  ]
+                  | map(select(type == "string" and length > 0))
+                  | unique
+          ' 2>/dev/null
+	) || url_enum="[]"
+
+	if [[ "${url_enum}" == "[]" ]]; then
+		jq -c 'if .properties.url? then .properties.url |= del(.enum) else . end' <<<"${schema_json}"
+		return 0
+	fi
+
+	jq -c --argjson enum "${url_enum}" '
+                if .properties.url? then
+                        .properties.url |= (. + {enum: $enum})
+                else
+                        .
+                end
+        ' <<<"${schema_json}"
+}
+
 fill_missing_args_with_llm() {
 	# Fills planner-marked context arguments via a single LLM round-trip when possible.
 	# Arguments:
@@ -133,7 +199,7 @@ fill_missing_args_with_llm() {
 	#   $7 - JSON array of context-controlled fields
 	# Returns:
 	#   JSON string with filled args, or original args if LLM unavailable or fails.
-	local tool args_json user_query plan_outline planner_thought schema prompt response context_fields_json
+	local tool args_json user_query plan_outline planner_thought schema prompt response context_fields_json history_text
 	tool="$1"
 	args_json="$2"
 	user_query="$3"
@@ -142,6 +208,7 @@ fill_missing_args_with_llm() {
 	history_text="$6"
 	context_fields_json="$7"
 	schema="$(jq -c '.' <<<"$(tool_args_schema "${tool}")" 2>/dev/null || printf '{}')"
+	schema="$(build_infill_schema "${tool}" "${schema}" "${history_text}" "${context_fields_json}")"
 
 	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
 		log "WARN" "LLM unavailable; context args remain unchanged" "${tool}" || true

@@ -38,6 +38,11 @@ the final argument payload, coerces `__context_controlled` into an array, ignore
 maps, and preserves original values when llama.cpp is unavailable. This keeps the executor prompt
 stable even when upstream planners emit inconsistent metadata.
 
+When `web_fetch` requires URL infill, the executor enriches the JSON schema passed to llama.cpp by
+extracting URLs from prior `web_search` observations in the execution history. This ensures the
+constrained decoder only allows URLs that were actually observed, while avoiding empty enum
+constraints when no URLs are available.
+
 ## Dependencies
 
 - bash 3.2+
