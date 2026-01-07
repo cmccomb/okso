@@ -7,7 +7,7 @@
 #   source "${BASH_SOURCE[0]%/tools/web/web_fetch.sh}/tools/web/web_fetch.sh"
 #
 # Environment variables:
-#   TOOL_ARGS (JSON object): structured args with required `url` and optional `max_bytes`.
+#   TOOL_ARGS (JSON object): structured args with required `url` and optional `snippet` or `search_query`.
 #
 # Dependencies:
 #   - bash 3.2+
@@ -31,7 +31,10 @@ source "${SRC_ROOT}/tools/registry.sh"
 
 web_fetch_parse_args() {
 	# Parses TOOL_ARGS JSON for the web_fetch tool.
-	# Returns a JSON object with `url` and `max_bytes`.
+	# Arguments:
+	#   None
+	# Returns:
+	#   A JSON object with `url`, `snippet`, and `search_query`.
 	local args_json err
 	args_json="${TOOL_ARGS:-}" || true
 
@@ -39,14 +42,10 @@ web_fetch_parse_args() {
                 if (type != "object") then error("args must be object") end
                 | if (.url? == null) then error("missing url") end
                 | if (.url | type) != "string" or (.url | length) == 0 then error("url must be non-empty string") end
-                | if (.max_bytes? != null) then
-                        if (.max_bytes | type) != "number" or (.max_bytes | floor) != .max_bytes then error("max_bytes must be integer") end
-                        | if (.max_bytes < 1 or .max_bytes > 5242880) then error("max_bytes must be between 1 and 5242880") end
-                else
-                        .max_bytes = 1048576
-                end
-                | if ((del(.url, .max_bytes) | length) != 0) then error("unexpected properties") end
-                | {url: .url, max_bytes: (.max_bytes // 1)}
+                | if (.snippet? != null and ((.snippet | type) != "string")) then error("snippet must be string") end
+                | if (.search_query? != null and ((.search_query | type) != "string")) then error("search_query must be string") end
+                | if ((del(.url, .snippet, .search_query) | length) != 0) then error("unexpected properties") end
+                | {url: .url, snippet: (.snippet // ""), search_query: (.search_query // "")}
         ' <<<"${args_json}" 2>&1); then
 		log "ERROR" "Invalid web_fetch arguments" "${err}" >&2
 		return 1
@@ -57,13 +56,18 @@ web_fetch_parse_args() {
 tool_web_fetch() {
 	# Downloads the response body for a URL, enforcing size limits and returning JSON metadata.
 	local parsed_args url max_bytes response payload body_path content_type truncated body_size headers final_url body_encoding body_snippet snippet_limit body_markdown
+	local anchor_query anchor_match anchor_note
 
 	if ! parsed_args=$(web_fetch_parse_args); then
 		return 1
 	fi
 
 	url=$(jq -r '.url' <<<"${parsed_args}")
-	max_bytes=$(jq -r '.max_bytes' <<<"${parsed_args}")
+	max_bytes=${WEB_FETCH_MAX_BYTES:-5242880}
+	anchor_query=$(jq -r '.snippet // ""' <<<"${parsed_args}")
+	if [[ -z "${anchor_query}" ]]; then
+		anchor_query=$(jq -r '.search_query // ""' <<<"${parsed_args}")
+	fi
 
 	log "INFO" "Fetching URL" "${url}" >&2
 
@@ -116,6 +120,35 @@ tool_web_fetch() {
 			log "WARN" "Markdown conversion failed" "${converter_output}" >&2
 			body_snippet=$(head -c "${snippet_limit}" "${body_path}")
 		fi
+
+		if [[ -n "${body_markdown}" && -n "${anchor_query}" ]]; then
+			local match_pos snippet_start snippet_end total_len prefix suffix window
+			match_pos=$(awk -v q="${anchor_query}" 'BEGIN{IGNORECASE=1} {pos=index(tolower($0), tolower(q)); if (pos>0) {print pos; exit}}' <<<"${body_markdown}")
+			if [[ -n "${match_pos}" ]]; then
+				total_len=${#body_markdown}
+				snippet_start=$((match_pos - 1 - (snippet_limit / 2)))
+				if ((snippet_start < 0)); then
+					snippet_start=0
+				fi
+				snippet_end=$((snippet_start + snippet_limit))
+				if ((snippet_end > total_len)); then
+					snippet_end=${total_len}
+				fi
+				window=${body_markdown:${snippet_start}:$((snippet_end - snippet_start))}
+				prefix=""
+				suffix=""
+				if ((snippet_start > 0)); then
+					prefix="…"
+				fi
+				if ((snippet_end < total_len)); then
+					suffix="…"
+				fi
+				body_snippet="${prefix}${window}${suffix}"
+				anchor_match="true"
+			else
+				anchor_match="false"
+			fi
+		fi
 	fi
 
 	local status_code
@@ -132,6 +165,18 @@ tool_web_fetch() {
 		return 0
 	fi
 
+	if [[ "${anchor_match}" == "true" ]]; then
+		anchor_note="... [Showing content surrounding search match]"
+	elif [[ -n "${anchor_query}" ]]; then
+		anchor_note="... [Search match not found; showing start of page]"
+	else
+		anchor_note=""
+	fi
+
+	if [[ -n "${anchor_note}" ]]; then
+		body_snippet="${body_snippet}"$'\n\n'"${anchor_note}"
+	fi
+
 	jq -nc \
 		--arg url "${url}" \
 		--arg final_url "${final_url:-${url}}" \
@@ -140,10 +185,12 @@ tool_web_fetch() {
 		--arg body_snippet "${body_snippet}" \
 		--arg body_markdown "${body_markdown}" \
 		--arg body_encoding "${body_encoding}" \
+		--arg anchor_query "${anchor_query}" \
+		--argjson anchor_match "$(if [[ "${anchor_match}" == "true" ]]; then printf 'true'; else printf 'false'; fi)" \
 		--argjson status "$(jq -r '.status' <<<"${payload}")" \
 		--argjson bytes "${body_size}" \
 		--argjson truncated "${truncated}" \
-		'{url: $url, final_url: $final_url, status: $status, content_type: $content_type, headers: $headers, bytes: $bytes, truncated: $truncated, body_encoding: $body_encoding, body_snippet: $body_snippet, body_markdown: (if ($body_markdown | length) > 0 then $body_markdown else null end)}'
+		'{url: $url, final_url: $final_url, status: $status, content_type: $content_type, headers: $headers, bytes: $bytes, truncated: $truncated, body_encoding: $body_encoding, body_snippet: $body_snippet, body_markdown: (if ($body_markdown | length) > 0 then $body_markdown else null end), anchor_query: (if ($anchor_query | length) > 0 then $anchor_query else null end), anchor_match: $anchor_match}'
 }
 
 register_web_fetch() {
@@ -154,7 +201,8 @@ register_web_fetch() {
                 required: ["url"],
                 properties: {
                         url: {type: "string", format: "uri", minLength: 1},
-                        max_bytes: {type: "integer", minimum: 1, maximum: 5242880}
+                        snippet: {type: "string"},
+                        search_query: {type: "string"}
                 }
         }')
 
