@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 #
-# Web search tool backed by Google Custom Search API.
+# Web search tool backed by Google Custom Search API. Does some cool tricks.
 #
 # Usage:
 #   source "${BASH_SOURCE[0]%/tools/web/web_search.sh}/tools/web/web_search.sh"
