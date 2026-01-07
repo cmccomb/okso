@@ -31,7 +31,10 @@ source "${SRC_ROOT}/tools/registry.sh"
 
 web_fetch_parse_args() {
 	# Parses TOOL_ARGS JSON for the web_fetch tool.
-	# Returns a JSON object with `url`, `snippet`, and `search_query`.
+	# Arguments:
+	#   None
+	# Returns:
+	#   A JSON object with `url`, `snippet`, and `search_query`.
 	local args_json err
 	args_json="${TOOL_ARGS:-}" || true
 
