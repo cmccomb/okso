@@ -57,6 +57,109 @@ normalize_args_json() {
 	printf '%s' "${normalized}"
 }
 
+extract_urls_from_text() {
+	# Extracts absolute URLs from plain text.
+	# Arguments:
+	#   $1 - text blob
+	local text
+	text="$1"
+
+	if [[ -z "${text}" ]]; then
+		return 0
+	fi
+
+	printf '%s' "${text}" | grep -Eo 'https?://[^[:space:]\")\]<>]+' 2>/dev/null || true
+}
+
+collect_web_fetch_allowlist() {
+	# Builds a JSON array of allowed URLs for web_fetch.
+	# Handles web_search observations stored directly or wrapped in tool output metadata.
+	# Arguments:
+	#   $1 - history text (newline-delimited JSON entries)
+	#   $2 - user query
+	#   $3 - plan outline
+	#   $4 - planner thought
+	local history_text user_query plan_outline planner_thought urls_json
+	history_text="$1"
+	user_query="$2"
+	plan_outline="$3"
+	planner_thought="$4"
+
+	urls_json=$(
+		{
+			if [[ -n "${history_text}" ]]; then
+				jq -n -r '
+                        def parse_entry:
+                          if type == "string" then
+                            try (fromjson) catch empty
+                          elif type == "object" then
+                            .
+                          else
+                            empty
+                          end;
+
+                        def search_items:
+                          if (.observation | type) != "object" then
+                            []
+                          elif (.observation.items? | type) == "array" then
+                            .observation.items
+                          elif (.observation.output? | type) == "string" then
+                            (try (.observation.output | fromjson) catch empty | .items? // [])
+                          else
+                            []
+                          end;
+
+                        [inputs | select(length > 0) | parse_entry]
+                        | map(select(type == "object"))
+                        | .[]
+                        | select(.action.tool == "web_search")
+                        | search_items
+                        | .[]?
+                        | .url
+                ' <<<"${history_text}" 2>/dev/null || true
+			fi
+			extract_urls_from_text "${user_query}"
+			extract_urls_from_text "${plan_outline}"
+			extract_urls_from_text "${planner_thought}"
+		} | sed -E 's/[),.]+$//' | sort -u | jq -Rsc 'split("\n") | map(select(length>0))'
+	)
+
+	printf '%s' "${urls_json}"
+}
+
+patch_web_fetch_schema() {
+	# Applies a URL allowlist to the web_fetch schema.
+	# Arguments:
+	#   $1 - JSON array of allowed URLs
+	local urls_json base_schema patched_schema
+	urls_json="$1"
+
+	base_schema="$(tool_args_schema "web_fetch")"
+	if [[ -z "${base_schema}" ]]; then
+		base_schema='{}'
+	fi
+
+	patched_schema="$(jq -c \
+		--argjson urls "${urls_json}" \
+		'
+                .type = "object"
+                | .properties = (.properties // {})
+                | .properties.url = ((.properties.url // {type:"string"}) + {type:"string", enum:$urls})
+                | .required = ((.required // []) + ["url"] | unique)
+        ' <<<"${base_schema}")"
+
+	if [[ -z "${patched_schema}" ]]; then
+		log "WARN" "Failed to build web_fetch allowlist schema" "${urls_json}" || true
+		return 0
+	fi
+
+	if [[ "${urls_json}" == "[]" ]]; then
+		log "WARN" "No allowlisted URLs for web_fetch; schema will reject all URLs" "" || true
+	fi
+
+	update_tool_args_schema "web_fetch" "${patched_schema}" || true
+}
+
 format_action_context() {
 	# Arguments:
 	#   $1 - thought text
@@ -296,6 +399,16 @@ execute_planned_action() {
 	thought="$(jq -r '.thought' <<<"${action_json}")"
 
 	history_text="$(state_get_history_lines "${state_prefix}")"
+
+	if [[ "${tool}" == "web_fetch" ]]; then
+		local allowlist_json
+		allowlist_json="$(collect_web_fetch_allowlist \
+			"${history_text}" \
+			"$(json_state_get_key "${state_prefix}" "user_query")" \
+			"$(json_state_get_key "${state_prefix}" "plan_outline")" \
+			"${thought}")"
+		patch_web_fetch_schema "${allowlist_json}"
+	fi
 	if ! args_after_controls="$(resolve_action_args "${tool}" "${args_json}" "${action_json}" "$(json_state_get_key "${state_prefix}" "user_query")" "${history_text}" "$(json_state_get_key "${state_prefix}" "plan_outline")" "${thought}")"; then
 		log "ERROR" "Argument resolution failed" "${tool}" || true
 		json_state_set_key "${state_prefix}" "needs_replanning" "true" || true
