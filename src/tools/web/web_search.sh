@@ -99,7 +99,6 @@ tool_web_search() {
                         title: (.title // ""),
                         url: (.link // ""),
                         snippet: (.snippet // ""),
-                        displayLink: (.displayLink // "")
                 })
         }' <<<"${response}" || {
 		log "ERROR" "Failed to parse Google API response" "${response}" >&2
