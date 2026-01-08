@@ -292,7 +292,7 @@ register_web_fetch() {
       "type": "string",
       "format": "uri",
       "minLength": 1
-      },
+      }
   }
 }
 JSON
