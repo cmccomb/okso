@@ -205,7 +205,18 @@ tool_web_fetch() {
 
 		if [[ -n "${body_markdown}" && -n "${anchor_query}" ]]; then
 			local match_pos snippet_start snippet_end total_len prefix suffix window
-			match_pos=$(awk -v q="${anchor_query}" 'BEGIN{IGNORECASE=1} {pos=index(tolower($0), tolower(q)); if (pos>0) {print pos; exit}}' <<<"${body_markdown}")
+			match_pos=$(
+				awk -v q="${anchor_query}" '
+    BEGIN { q = tolower(q); off = 0 }
+    {
+      line = tolower($0)
+      p = index(line, q)
+      if (p > 0) { print off + p; exit }
+      off += length($0) + 1   # +1 for the newline awk strips
+    }
+  ' <<<"${body_markdown}"
+			)
+
 			if [[ -n "${match_pos}" ]]; then
 				total_len=${#body_markdown}
 				snippet_start=$((match_pos - 1 - (snippet_limit / 2)))
