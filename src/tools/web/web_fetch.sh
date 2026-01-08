@@ -141,17 +141,17 @@ tool_web_fetch() {
 	local body_encoding body_snippet snippet_limit body_markdown
 	local anchor_query anchor_match anchor_note anchor_source snippet
 
-  # Parse and validate arguments
+	# Parse and validate arguments
 	if ! parsed_args=$(web_fetch_parse_args); then
 		return 1
 	fi
 
-  # Extract URL
+	# Extract URL
 	url=$(jq -r '.url' <<<"${parsed_args}")
 	max_bytes=${WEB_FETCH_MAX_BYTES:-5242880}
 	anchor_match="false"
 
-  # Attempt to get snippet from web_search results
+	# Attempt to get snippet from web_search results
 	if snippet=$(web_fetch_snippet_for_url "${url}" 2>/dev/null); then
 		anchor_query="${snippet}"
 		anchor_source="web_search"
@@ -160,7 +160,7 @@ tool_web_fetch() {
 		anchor_source="rephrase"
 	fi
 
-  # Perform HTTP request
+	# Perform HTTP request
 	log "INFO" "Fetching URL" "${url}" >&2
 	response=$(web_http_request "${url}" "${max_bytes}" --header 'Accept: */*')
 	if [[ -z "${response}" ]]; then
@@ -168,7 +168,7 @@ tool_web_fetch() {
 		return 1
 	fi
 
-  # Parse HTTP helper payload
+	# Parse HTTP helper payload
 	payload=$(jq -er '.' <<<"${response}" 2>/dev/null) || {
 		log "ERROR" "Invalid HTTP helper payload" "${response}" >&2
 		return 1
