@@ -316,47 +316,47 @@ validate_and_optionally_replan() {
 		set -e
 	fi
 
-  # Validator ran successfully; interpret result.
-  # Accept satisfied as bool or int; default to null.
-  satisfied="$(
-    jq -r '
+	# Validator ran successfully; interpret result.
+	# Accept satisfied as bool or int; default to null.
+	satisfied="$(
+		jq -r '
       if (.satisfied|type)=="boolean" then (if .satisfied then 1 else 0 end)
       elif (.satisfied|type)=="number" then (if .satisfied!=0 then 1 else 0 end)
       else null end
     ' <<<"${validation_json}" 2>/dev/null
-  )"
+	)"
 
-  # Extract reasoning if present
-  reasoning="$(
-    jq -r '.reasoning // empty' <<<"${validation_json}" 2>/dev/null
-  )"
+	# Extract reasoning if present
+	reasoning="$(
+		jq -r '.reasoning // empty' <<<"${validation_json}" 2>/dev/null
+	)"
 
-  log_pretty "INFO" "validation_result" "${validation_json}" || true
+	log_pretty "INFO" "validation_result" "${validation_json}" || true
 
-  # Handle validation outcome
-  if [[ "${satisfied}" == "0" ]]; then
-    log "WARN" "Final answer did not satisfy query per validator" || true
+	# Handle validation outcome
+	if [[ "${satisfied}" == "0" ]]; then
+		log "WARN" "Final answer did not satisfy query per validator" || true
 
-    # Persist flags for caller / UI
-    json_state_set_key "${state_name}" "answer_validation_failed" "true" || true
-    if [[ -n "${reasoning}" ]]; then
-      json_state_set_key "${state_name}" "validation_failure_reason" "${reasoning}" || true
-      log_pretty "WARN" "validation_failure_reason" "${reasoning}" || true
-    else
-      json_state_set_key "${state_name}" "validation_failure_reason" "Unknown reason" || true
-    fi
+		# Persist flags for caller / UI
+		json_state_set_key "${state_name}" "answer_validation_failed" "true" || true
+		if [[ -n "${reasoning}" ]]; then
+			json_state_set_key "${state_name}" "validation_failure_reason" "${reasoning}" || true
+			log_pretty "WARN" "validation_failure_reason" "${reasoning}" || true
+		else
+			json_state_set_key "${state_name}" "validation_failure_reason" "Unknown reason" || true
+		fi
 
-    feedback_text="${reasoning:-Validator rejected the answer without providing reasoning.}"
-    if executor_replan_with_feedback "${state_name}" "${feedback_text}"; then
-      return 0
-    fi
-    log "WARN" "Continuing without replanning after validation failure" || true
-  elif [[ "${satisfied}" == "1" ]]; then
-    log "INFO" "Final answer passed validation" || true
-  else
-    # Unexpected schema/content: treat as infra-ish warning.
-    log "WARN" "Validator returned unexpected schema; outputting answer as-is" || true
-  fi
+		feedback_text="${reasoning:-Validator rejected the answer without providing reasoning.}"
+		if executor_replan_with_feedback "${state_name}" "${feedback_text}"; then
+			return 0
+		fi
+		log "WARN" "Continuing without replanning after validation failure" || true
+	elif [[ "${satisfied}" == "1" ]]; then
+		log "INFO" "Final answer passed validation" || true
+	else
+		# Unexpected schema/content: treat as infra-ish warning.
+		log "WARN" "Validator returned unexpected schema; outputting answer as-is" || true
+	fi
 
 	# Emit final answer regardless.
 	history_pretty="$(format_tool_history "${history_text}")"
