@@ -133,16 +133,25 @@ web_fetch_generate_search_query() {
 
 tool_web_fetch() {
 	# Downloads the response body for a URL, enforcing size limits and returning JSON metadata.
-	local parsed_args url max_bytes response payload body_path content_type truncated body_size headers final_url body_encoding body_snippet snippet_limit body_markdown
+	# Arguments:
+	#   None (reads from TOOL_ARGS)
+	# Returns:
+	#   JSON object with fetch results or error observation.
+	local parsed_args url max_bytes response payload body_path content_type truncated body_size headers final_url
+	local body_encoding body_snippet snippet_limit body_markdown
 	local anchor_query anchor_match anchor_note anchor_source snippet
 
+  # Parse and validate arguments
 	if ! parsed_args=$(web_fetch_parse_args); then
 		return 1
 	fi
 
+  # Extract URL
 	url=$(jq -r '.url' <<<"${parsed_args}")
 	max_bytes=${WEB_FETCH_MAX_BYTES:-5242880}
 	anchor_match="false"
+
+  # Attempt to get snippet from web_search results
 	if snippet=$(web_fetch_snippet_for_url "${url}" 2>/dev/null); then
 		anchor_query="${snippet}"
 		anchor_source="web_search"
@@ -151,19 +160,19 @@ tool_web_fetch() {
 		anchor_source="rephrase"
 	fi
 
+  # Perform HTTP request
 	log "INFO" "Fetching URL" "${url}" >&2
-
 	response=$(web_http_request "${url}" "${max_bytes}" --header 'Accept: */*')
 	if [[ -z "${response}" ]]; then
 		log "ERROR" "Failed to fetch URL" "${url}" >&2
 		return 1
 	fi
 
+  # Parse HTTP helper payload
 	payload=$(jq -er '.' <<<"${response}" 2>/dev/null) || {
 		log "ERROR" "Invalid HTTP helper payload" "${response}" >&2
 		return 1
 	}
-
 	body_path=$(jq -r '.body_path' <<<"${payload}")
 	content_type=$(jq -r '.content_type // "application/octet-stream"' <<<"${payload}")
 	truncated=$(jq -r '.truncated' <<<"${payload}")
@@ -175,6 +184,7 @@ tool_web_fetch() {
 	snippet_limit=1024
 	body_encoding="text"
 	body_markdown=""
+
 	if [[ -n "${content_type}" ]]; then
 		local content_type_lower
 		content_type_lower=$(printf '%s' "${content_type}" | tr '[:upper:]' '[:lower:]')
@@ -187,11 +197,13 @@ tool_web_fetch() {
 	fi
 
 	if [[ "${body_encoding}" == "base64" ]]; then
+		# IMPORTANT: body_snippet must remain valid base64 if body_encoding=base64.
 		body_snippet=$(head -c "${snippet_limit}" "${body_path}" | base64 | tr -d '\n')
 	else
 		local converter_output
 		if converter_output=$("${WEB_TOOLS_DIR}/markdownify.sh" --path "${body_path}" --content-type "${content_type}" --limit "${snippet_limit}" 2>&1); then
-			if body_markdown=$(jq -er '.markdown' <<<"${converter_output}" 2>/dev/null) && body_snippet=$(jq -er '.preview' <<<"${converter_output}" 2>/dev/null); then
+			if body_markdown=$(jq -er '.markdown' <<<"${converter_output}" 2>/dev/null) &&
+				body_snippet=$(jq -er '.preview' <<<"${converter_output}" 2>/dev/null); then
 				true
 			else
 				log "WARN" "Invalid markdownify output" "${converter_output}" >&2
@@ -203,18 +215,21 @@ tool_web_fetch() {
 			body_snippet=$(head -c "${snippet_limit}" "${body_path}")
 		fi
 
+		# If we have markdown + an anchor query, attempt to center the preview window
+		# around the *first* match (case-insensitive), using an absolute offset into the full markdown.
 		if [[ -n "${body_markdown}" && -n "${anchor_query}" ]]; then
 			local match_pos snippet_start snippet_end total_len prefix suffix window
+
 			match_pos=$(
 				awk -v q="${anchor_query}" '
-    BEGIN { q = tolower(q); off = 0 }
-    {
-      line = tolower($0)
-      p = index(line, q)
-      if (p > 0) { print off + p; exit }
-      off += length($0) + 1   # +1 for the newline awk strips
-    }
-  ' <<<"${body_markdown}"
+					BEGIN { q = tolower(q); off = 0 }
+					{
+						line = tolower($0)
+						p = index(line, q)
+						if (p > 0) { print off + p; exit }
+						off += length($0) + 1  # +1 for the newline awk strips
+					}
+				' <<<"${body_markdown}"
 			)
 
 			if [[ -n "${match_pos}" ]]; then
@@ -227,6 +242,7 @@ tool_web_fetch() {
 				if ((snippet_end > total_len)); then
 					snippet_end=${total_len}
 				fi
+
 				window=${body_markdown:${snippet_start}:$((snippet_end - snippet_start))}
 				prefix=""
 				suffix=""
@@ -236,6 +252,7 @@ tool_web_fetch() {
 				if ((snippet_end < total_len)); then
 					suffix="…"
 				fi
+
 				body_snippet="${prefix}${window}${suffix}"
 				anchor_match="true"
 			else
@@ -254,10 +271,12 @@ tool_web_fetch() {
 			--arg url "${url}" \
 			--arg status "${status_code}" \
 			--arg body "${body_snippet}" \
-			' { observation: "Failed to fetch \($url): HTTP \($status). Response body: \($body)" }'
+			'{ observation: "Failed to fetch \($url): HTTP \($status). Response body: \($body)" }'
 		return 0
 	fi
 
+	# Only append anchor_note to body_snippet when body_snippet is text.
+	# For base64 previews, appending plain text would corrupt the base64 payload.
 	if [[ "${anchor_source}" == "web_search" ]]; then
 		if [[ "${anchor_match}" == "true" ]]; then
 			anchor_note="... [Showing content surrounding search match]"
@@ -270,7 +289,7 @@ tool_web_fetch() {
 		anchor_note=""
 	fi
 
-	if [[ -n "${anchor_note}" ]]; then
+	if [[ -n "${anchor_note}" && "${body_encoding}" == "text" ]]; then
 		body_snippet="${body_snippet}"$'\n\n'"${anchor_note}"
 	fi
 
@@ -287,7 +306,20 @@ tool_web_fetch() {
 		--argjson status "$(jq -r '.status' <<<"${payload}")" \
 		--argjson bytes "${body_size}" \
 		--argjson truncated "${truncated}" \
-		'{url: $url, final_url: $final_url, status: $status, content_type: $content_type, headers: $headers, bytes: $bytes, truncated: $truncated, body_encoding: $body_encoding, body_snippet: $body_snippet, body_markdown: (if ($body_markdown | length) > 0 then $body_markdown else null end), anchor_query: (if ($anchor_query | length) > 0 then $anchor_query else null end), anchor_match: $anchor_match}'
+		'{
+			url: $url,
+			final_url: $final_url,
+			status: $status,
+			content_type: $content_type,
+			headers: $headers,
+			bytes: $bytes,
+			truncated: $truncated,
+			body_encoding: $body_encoding,
+			body_snippet: $body_snippet,
+			body_markdown: (if ($body_markdown | length) > 0 then $body_markdown else null end),
+			anchor_query: (if ($anchor_query | length) > 0 then $anchor_query else null end),
+			anchor_match: $anchor_match
+		}'
 }
 
 register_web_fetch() {
