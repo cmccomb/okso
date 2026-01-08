@@ -282,23 +282,14 @@ tool_web_fetch() {
 register_web_fetch() {
 	local args_schema
 
-	schema_text=$(
-		cat <<'JSON'
-{
-  "type": "object",
-  "required": ["url"],
-  "properties": {
-    "url": {
-      "type": "string",
-      "format": "uri",
-      "minLength": 1
-      }
-  }
-}
-JSON
-	)
-
-	args_schema=$(jq -n --argjson schema "$schema_text" '$schema')
+	args_schema=$(jq -nc '{
+                type: "object",
+                required: ["url"],
+                properties: {
+                        url: {type: "string", format: "uri", minLength: 1},
+                        max_bytes: {type: "integer", minimum: 1, maximum: 5242880}
+                }
+        }')
 
 	register_tool \
 		"web_fetch" \
