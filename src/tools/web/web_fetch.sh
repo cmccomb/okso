@@ -287,7 +287,6 @@ register_web_fetch() {
                 required: ["url"],
                 properties: {
                         url: {type: "string", format: "uri", minLength: 1},
-                        max_bytes: {type: "integer", minimum: 1, maximum: 5242880}
                 }
         }')
 
