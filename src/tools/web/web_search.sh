@@ -110,28 +110,14 @@ tool_web_search() {
 register_web_search() {
 	local args_schema
 
-	schema_text=$(
-		cat <<'JSON'
-{
-  type: "object",
-  required: ["query"],
-  properties: {
-    query: {
-      type: "string",
-      minLength: 1,
-      maxLength: 200
-    },
-    num: {
-      type: "integer",
-      minimum: 1,
-      maximum: 10
-    }
-  }
-}
-JSON
-	)
-
-	args_schema=$(jq -n --argjson schema "$schema_text" '$schema')
+	args_schema=$(jq -nc '{
+                type: "object",
+                required: ["query"],
+                properties: {
+                        query: {type: "string", minLength: 1, maxLength: 200},
+                        num: {type: "integer", minimum: 1, maximum: 10}
+                }
+        }')
 
 	register_tool \
 		"web_search" \

@@ -134,7 +134,13 @@ register_tool() {
 
                 if is_single_string_schema then
                         (.properties|keys[] | .) as $prop
-                        | ($prop == $key)
+                        | if $prop == $key then
+                                true
+                          elif $prop == "url" and (.properties.url.format? == "uri") then
+                                true
+                          else
+                                false
+                          end
                 else
                         true
                 end
