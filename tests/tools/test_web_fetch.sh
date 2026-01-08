@@ -19,6 +19,16 @@ SCRIPT
 	[ "$status" -ne 0 ]
 }
 
+@test "web_fetch rejects unexpected args" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+source ./src/tools/web/web_fetch.sh
+TOOL_ARGS='{"url":"https://example.com","snippet":"nope"}' tool_web_fetch
+SCRIPT
+
+	[ "$status" -ne 0 ]
+}
+
 @test "web_fetch surfaces curl failures" {
 	run bash <<'SCRIPT'
 set -euo pipefail
@@ -72,7 +82,13 @@ if [[ "$1" == "-dump" && "$2" == "-stdin" ]]; then
 fi
 exit 1
 MOCK
+cat >"${mock_bin}/pandoc" <<'MOCK'
+#!/usr/bin/env bash
+input="${@: -1}"
+sed -E 's/<[^>]+>//g' "${input}"
+MOCK
 chmod +x "${mock_bin}/lynx"
+chmod +x "${mock_bin}/pandoc"
 export PATH="${mock_bin}:$PATH"
 mock_response=$(jq -nc --arg body_path "${body_file}" --arg final_url "https://example.com/final" --arg content_type "text/html" --arg headers "X-Test: 1" '{status:200, final_url:$final_url, content_type:$content_type, headers:$headers, bytes:200, truncated:false, body_path:$body_path}')
 source ./src/tools/web/web_fetch.sh
@@ -83,6 +99,48 @@ echo "${output}"
 jq -e '.body_encoding == "text"' <<<"${output}" >/dev/null
 jq -e '(.body_markdown | length) > 0' <<<"${output}" >/dev/null
 jq -e '(.body_snippet | contains("Example Title"))' <<<"${output}" >/dev/null
+SCRIPT
+
+	[ "$status" -eq 0 ]
+}
+
+@test "web_fetch anchors previews to web_search snippets when available" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+body_file="$(mktemp)"
+cat >"${body_file}" <<'BODY'
+Welcome to the test page.
+Here is the unique snippet to anchor.
+More details follow below.
+BODY
+mock_response=$(jq -nc --arg body_path "${body_file}" --arg content_type "text/plain" '{status:200, final_url:"https://example.com/test", content_type:$content_type, headers:"", bytes:120, truncated:false, body_path:$body_path}')
+source ./src/tools/web/web_fetch.sh
+web_http_request() { printf '%s' "${mock_response}"; }
+export WEB_FETCH_SEARCH_SNIPPETS='{"https://example.com/test":"unique snippet"}'
+TOOL_ARGS='{"url":"https://example.com/test"}'
+output=$(tool_web_fetch)
+echo "${output}"
+jq -e '.anchor_match == true' <<<"${output}" >/dev/null
+jq -e '(.body_snippet | contains("unique snippet"))' <<<"${output}" >/dev/null
+jq -e '(.body_snippet | contains("Showing content surrounding search match"))' <<<"${output}" >/dev/null
+SCRIPT
+
+	[ "$status" -eq 0 ]
+}
+
+@test "web_fetch generates a search query when no web_search snippet is present" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+body_file="$(mktemp)"
+printf '%s' "Sample body content" >"${body_file}"
+mock_response=$(jq -nc --arg body_path "${body_file}" --arg content_type "text/plain" '{status:200, final_url:"https://example.com/path/to/page", content_type:$content_type, headers:"", bytes:20, truncated:false, body_path:$body_path}')
+source ./src/tools/web/web_fetch.sh
+web_http_request() { printf '%s' "${mock_response}"; }
+export LLAMA_AVAILABLE=false
+TOOL_ARGS='{"url":"https://example.com/path/to/page"}'
+output=$(tool_web_fetch)
+echo "${output}"
+jq -e '.anchor_query | contains("site:example.com")' <<<"${output}" >/dev/null
 SCRIPT
 
 	[ "$status" -eq 0 ]

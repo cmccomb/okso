@@ -127,6 +127,52 @@ collect_web_fetch_allowlist() {
 	printf '%s' "${urls_json}"
 }
 
+collect_web_fetch_snippet_map() {
+	# Builds a JSON object mapping URLs to web_search snippets for web_fetch.
+	# Arguments:
+	#   $1 - history text (newline-delimited JSON entries)
+	local history_text snippet_json
+	history_text="$1"
+
+	snippet_json=$(
+		if [[ -z "${history_text}" ]]; then
+			printf '{}'
+			return 0
+		fi
+
+		jq -n -r '
+                        def parse_entry:
+                          if type == "string" then
+                            try (fromjson) catch empty
+                          elif type == "object" then
+                            .
+                          else
+                            empty
+                          end;
+
+                        def search_items:
+                          if (.observation | type) != "object" then
+                            []
+                          elif (.observation.items? | type) == "array" then
+                            .observation.items
+                          elif (.observation.output? | type) == "string" then
+                            (try (.observation.output | fromjson) catch empty | .items? // [])
+                          else
+                            []
+                          end;
+
+                        [inputs | select(length > 0) | parse_entry]
+                        | map(select(type == "object"))
+                        | .[]
+                        | select(.action.tool == "web_search")
+                        | search_items
+                        | reduce .[]? as $item ({}; if (($item.url? | type) == "string") and (($item.snippet? | type) == "string") and ($item.url | length) > 0 and ($item.snippet | length) > 0 then .[$item.url] = $item.snippet else . end)
+                ' <<<"${history_text}" 2>/dev/null || printf '{}'
+	)
+
+	printf '%s' "${snippet_json}"
+}
+
 patch_web_fetch_schema() {
 	# Applies a URL allowlist to the web_fetch schema.
 	# Arguments:
@@ -389,7 +435,7 @@ execute_planned_action() {
 	#   $2 - step index
 	#   $3 - validated action JSON
 	local state_prefix step_index action_json tool args_json thought args_after_controls
-	local observation context history_text
+	local observation context history_text web_fetch_snippets
 	state_prefix="$1"
 	step_index="$2"
 	action_json="$3"
@@ -408,6 +454,7 @@ execute_planned_action() {
 			"$(json_state_get_key "${state_prefix}" "plan_outline")" \
 			"${thought}")"
 		patch_web_fetch_schema "${allowlist_json}"
+		web_fetch_snippets="$(collect_web_fetch_snippet_map "${history_text}")"
 	fi
 	if ! args_after_controls="$(resolve_action_args "${tool}" "${args_json}" "${action_json}" "$(json_state_get_key "${state_prefix}" "user_query")" "${history_text}" "$(json_state_get_key "${state_prefix}" "plan_outline")" "${thought}")"; then
 		log "ERROR" "Argument resolution failed" "${tool}" || true
@@ -417,7 +464,11 @@ execute_planned_action() {
 	fi
 
 	context="$(format_action_context "${thought}" "${tool}" "${args_after_controls}")"
-	observation="$(execute_tool_with_query "${tool}" "$(extract_tool_query "${tool}" "${args_after_controls}")" "${context}" "${args_after_controls}")"
+	if [[ "${tool}" == "web_fetch" ]]; then
+		observation="$(WEB_FETCH_SEARCH_SNIPPETS="${web_fetch_snippets:-{}}" execute_tool_with_query "${tool}" "$(extract_tool_query "${tool}" "${args_after_controls}")" "${context}" "${args_after_controls}")"
+	else
+		observation="$(execute_tool_with_query "${tool}" "$(extract_tool_query "${tool}" "${args_after_controls}")" "${context}" "${args_after_controls}")"
+	fi
 	execution_status=$?
 
 	if ((execution_status != 0)); then
