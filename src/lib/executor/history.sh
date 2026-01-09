@@ -41,11 +41,13 @@ initialize_executor_state() {
 		--arg allowed_tools "$3" \
 		--arg plan_entries "$4" \
 		--arg plan_outline "$5" \
+		--arg execution_started_at "$(date +%s)" \
 		'{
                         user_query: $user_query,
                         allowed_tools: $allowed_tools,
                         plan_entries: $plan_entries,
                         plan_outline: $plan_outline,
+                        execution_started_at: $execution_started_at,
                         history: [],
                         step: 0,
                         plan_index: 0,
@@ -198,12 +200,17 @@ finalize_executor_result() {
 		log_pretty "INFO" "Execution summary" "$(format_tool_history "$(state_get_history_lines "${state_name}")")"
 	fi
 
-	# Emit boxed summary
-	emit_boxed_summary \
-		"$(json_state_get_key "${state_name}" "user_query")" \
-		"$(json_state_get_key "${state_name}" "plan_outline")" \
-		"$(state_get_history_lines "${state_name}")" \
-		"${final_answer}"
+	local history_text execution_duration execution_body final_body validation_body
+	history_text="$(state_get_history_lines "${state_name}")"
+	execution_duration="$(format_duration_from "$(json_state_get_key "${state_name}" "execution_started_at")")"
+	execution_body="$(format_execution_steps_summary "${history_text}")"
+	render_step_box "Execution Steps" "${execution_duration}" "${execution_body}"
+
+	final_body="$(format_final_answer_summary "${final_answer}")"
+	render_step_box "Final Answer" "$(format_duration_seconds 0)" "${final_body}"
+
+	validation_body="$(format_validation_summary "Skipped" "Answer validation disabled")"
+	render_step_box "Validation" "$(format_duration_seconds 0)" "${validation_body}"
 }
 
 executor_replan_with_feedback() {
@@ -292,7 +299,8 @@ validate_and_optionally_replan() {
 	#   $2 - final answer text
 	local state_name final_answer user_query history_text
 	local validation_json validator_rc satisfied reasoning feedback_text errexit_was_set
-	local history_pretty
+	local history_pretty validation_start_time validation_duration validation_status validation_reason
+	local execution_duration execution_body final_body validation_body
 	state_name="$1"
 	final_answer="$2"
 
@@ -310,8 +318,10 @@ validate_and_optionally_replan() {
 		set +e
 	fi
 
+	validation_start_time="$(date +%s)"
 	validation_json="$(validate_final_answer_against_query "${user_query}" "${final_answer}" "${history_text}")"
 	validator_rc=$?
+	validation_duration="$(format_duration_from "${validation_start_time}")"
 
 	if [[ "${errexit_was_set}" == true ]]; then
 		set -e
@@ -323,6 +333,13 @@ validate_and_optionally_replan() {
 		log "WARN" "Answer validation check encountered an error; outputting answer as-is" "rc=${validator_rc}" || true
 		if [[ -n "${validation_json}" ]]; then
 			log_pretty "DEBUG" "validation_output" "${validation_json}" || true
+		fi
+		if [[ ${validator_rc} -eq 2 ]]; then
+			validation_status="Skipped"
+			validation_reason="Validator unavailable"
+		else
+			validation_status="Failed"
+			validation_reason="Validation error"
 		fi
 	else
 		# Validator ran successfully; interpret result.
@@ -345,6 +362,8 @@ validate_and_optionally_replan() {
 		# Handle validation outcome
 		if [[ "${satisfied}" == "0" ]]; then
 			log "WARN" "Final answer did not satisfy query per validator" || true
+			validation_status="Failed"
+			validation_reason="${reasoning:-Validator rejected the answer without providing reasoning.}"
 
 			# Persist flags for caller / UI
 			json_state_set_key "${state_name}" "answer_validation_failed" "true" || true
@@ -362,9 +381,13 @@ validate_and_optionally_replan() {
 			log "WARN" "Continuing without replanning after validation failure" || true
 		elif [[ "${satisfied}" == "1" ]]; then
 			log "INFO" "Final answer passed validation" || true
+			validation_status="Passed"
+			validation_reason="${reasoning}"
 		else
 			# Unexpected schema/content: treat as infra-ish warning.
 			log "WARN" "Validator returned unexpected schema; outputting answer as-is" || true
+			validation_status="Unknown"
+			validation_reason="Validator response missing expected fields"
 		fi
 	fi
 
@@ -378,11 +401,15 @@ validate_and_optionally_replan() {
 		log_pretty "INFO" "Execution summary" "${history_pretty}"
 	fi
 
-	emit_boxed_summary \
-		"${user_query}" \
-		"$(json_state_get_key "${state_name}" "plan_outline")" \
-		"${history_text}" \
-		"${final_answer}"
+	execution_duration="$(format_duration_from "$(json_state_get_key "${state_name}" "execution_started_at")")"
+	execution_body="$(format_execution_steps_summary "${history_text}")"
+	render_step_box "Execution Steps" "${execution_duration}" "${execution_body}"
+
+	final_body="$(format_final_answer_summary "${final_answer}")"
+	render_step_box "Final Answer" "$(format_duration_seconds 0)" "${final_body}"
+
+	validation_body="$(format_validation_summary "${validation_status:-Unknown}" "${validation_reason:-}")"
+	render_step_box "Validation" "${validation_duration:-$(format_duration_seconds 0)}" "${validation_body}"
 }
 
 export -f validate_and_optionally_replan

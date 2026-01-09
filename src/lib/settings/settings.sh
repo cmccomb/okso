@@ -106,7 +106,7 @@ create_default_settings() {
                         rephraser_model_repo: "",
                         rephraser_model_file: "",
                         approve_all: "false",
-                        verbosity: "1",
+                        verbosity: "0",
                         notes_dir: $notes_dir,
                         llama_available: "true",
                         use_executor_llama: $use_executor_llama,

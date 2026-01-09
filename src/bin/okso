@@ -11,7 +11,8 @@
 #   -V, --version         Show version information.
 #   -y, --yes, --no-confirm
 #                         Approve all tool runs without prompting.
-#   -v, --verbose LEVEL   Set log verbosity level (integer, e.g., -v 1, -v 2).
+#   -v, --verbose [LEVEL] Enable verbose logs (optionally set integer level).
+#   -vv, -vvv             Increase verbosity (INFO/DEBUG).
 #   -q, --quiet           Silence informational logs.
 #
 # Environment:
@@ -67,6 +68,7 @@ main() {
 	local settings_prefix
 	local plan_outline required_tools plan_entries plan_action plan_response plan_feedback
 	local feedback_context_in_env previous_feedback_context
+	local plan_start_time plan_duration plan_summary_body
 
 	settings_prefix="settings"
 
@@ -92,12 +94,15 @@ main() {
 	fi
 
 	while true; do
+		plan_start_time="$(date +%s)"
 		log "INFO" "Starting plan generation" "$(json_state_get_key "${settings_prefix}" "user_query")"
 		plan_response="$(generate_planner_response "$(json_state_get_key "${settings_prefix}" "user_query")")"
 		plan_outline="$(plan_json_to_outline "${plan_response}")"
 		required_tools="$(derive_allowed_tools_from_plan "${plan_response}")"
 		log "INFO" "Planner identified tools" "${required_tools}"
 		plan_entries="$(plan_json_to_entries "${plan_response}")"
+		plan_duration="$(format_duration_from "${plan_start_time}")"
+		plan_summary_body="$(format_plan_summary "${plan_outline}" "${required_tools}" "${plan_entries}")"
 
 		render_plan_outputs plan_action "${settings_prefix}" "${required_tools}" "${plan_entries}" "${plan_outline}" "${plan_response}"
 		if [[ "${plan_action}" == "exit" ]]; then
@@ -116,6 +121,8 @@ main() {
 	if [[ "${plan_action}" == "exit" ]]; then
 		return 0
 	fi
+
+	render_step_box "Plan Identification" "${plan_duration}" "${plan_summary_body}"
 
 	if [[ "${feedback_context_in_env}" == true ]]; then
 		PLANNER_FEEDBACK_CONTEXT="${previous_feedback_context}"
