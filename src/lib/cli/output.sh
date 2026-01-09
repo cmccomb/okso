@@ -237,7 +237,7 @@ format_header_line() {
 		width=0
 	fi
 
-	if (( ${#left} + ${#right} + 1 > width )); then
+	if ((${#left} + ${#right} + 1 > width)); then
 		printf '%s | %s' "${left}" "${right}"
 		return 0
 	fi
