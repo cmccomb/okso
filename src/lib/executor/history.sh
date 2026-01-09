@@ -291,7 +291,7 @@ validate_and_optionally_replan() {
 	#   $1 - state prefix
 	#   $2 - final answer text
 	local state_name final_answer user_query history_text
-	local validation_json validator_rc satisfied reasoning feedback_text errexit_was_set
+	local validation_json satisfied reasoning feedback_text errexit_was_set
 	local history_pretty
 	state_name="$1"
 	final_answer="$2"
