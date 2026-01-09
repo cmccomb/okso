@@ -23,6 +23,8 @@ EXECUTOR_LIB_DIR=${EXECUTOR_LIB_DIR:-$(cd -- "$(dirname "${BASH_SOURCE[0]}")" &&
 source "${EXECUTOR_LIB_DIR}/../cli/output.sh"
 # shellcheck source=/src/lib/llm/llama_client.sh
 source "${EXECUTOR_LIB_DIR}/../llm/llama_client.sh"
+# shellcheck source=/src/lib/llm/context_budget.sh
+source "${EXECUTOR_LIB_DIR}/../llm/context_budget.sh"
 # shellcheck source=/src/lib/core/logging.sh
 source "${EXECUTOR_LIB_DIR}/../core/logging.sh"
 # shellcheck source=/src/lib/core/json_state.sh
@@ -55,6 +57,24 @@ normalize_args_json() {
 
 	# Return normalized JSON
 	printf '%s' "${normalized}"
+}
+
+build_prompt_safe_history() {
+	# Builds a prompt-safe history string for LLM arg fill.
+	# Arguments:
+	#   $1 - history text (newline-delimited JSON entries)
+	# Returns:
+	#   Summarized history text (string)
+	local history_text summarized
+	history_text="$1"
+
+	if [[ -z "${history_text}" ]]; then
+		printf '%s' "${history_text}"
+		return 0
+	fi
+
+	summarized="$(summarize_executor_history "${history_text}")"
+	printf '%s' "${summarized}"
 }
 
 extract_urls_from_text() {
@@ -283,6 +303,7 @@ fill_missing_args_with_llm() {
 	# Returns:
 	#   JSON string with filled args, or original args if LLM unavailable or fails.
 	local tool args_json user_query plan_outline planner_thought schema prompt response context_fields_json
+	local history_text prompt_raw prompt_safe_history max_completion_tokens
 	tool="$1"
 	args_json="$2"
 	user_query="$3"
@@ -291,12 +312,29 @@ fill_missing_args_with_llm() {
 	history_text="$6"
 	context_fields_json="$7"
 	schema="$(jq -c '.' <<<"$(tool_args_schema "${tool}")" 2>/dev/null || printf '{}')"
+	max_completion_tokens=256
 
 	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
 		log "WARN" "LLM unavailable; context args remain unchanged" "${tool}" || true
 		printf '%s' "${args_json}"
 		return 0
 	fi
+
+	if ! prompt_raw="$(render_prompt_template "executor" \
+		tool "${tool}" \
+		user_query "${user_query}" \
+		plan_outline "${plan_outline}" \
+		planner_thought "${planner_thought}" \
+		args_json "${args_json}" \
+		args_schema "${schema}" \
+		context_fields "${context_fields_json}" \
+		history_text "${history_text}")"; then
+		log "WARN" "Failed to render executor prompt" "${tool}" || true
+		printf '%s' "${args_json}"
+		return 0
+	fi
+
+	prompt_safe_history="$(apply_prompt_context_budget "${prompt_raw}" "${history_text}" "${max_completion_tokens}" "executor_history")"
 
 	if ! prompt="$(render_prompt_template "executor" \
 		tool "${tool}" \
@@ -306,7 +344,7 @@ fill_missing_args_with_llm() {
 		args_json "${args_json}" \
 		args_schema "${schema}" \
 		context_fields "${context_fields_json}" \
-		history_text "${history_text}")"; then
+		history_text "${prompt_safe_history}")"; then
 		log "WARN" "Failed to render executor prompt" "${tool}" || true
 		printf '%s' "${args_json}"
 		return 0
@@ -322,7 +360,7 @@ fill_missing_args_with_llm() {
 			export LLAMA_TEMPERATURE
 		fi
 
-		if ! response_json="$(llama_infer "${prompt}" "" 256 "${schema}" "${EXECUTOR_MODEL_REPO:-}" "${EXECUTOR_MODEL_FILE:-}")"; then
+		if ! response_json="$(llama_infer "${prompt}" "" "${max_completion_tokens}" "${schema}" "${EXECUTOR_MODEL_REPO:-}" "${EXECUTOR_MODEL_FILE:-}")"; then
 			return 1
 		fi
 
@@ -413,6 +451,7 @@ resolve_action_args() {
 	fi
 
 	history_for_prompt="${history_text}"
+	history_for_prompt="$(build_prompt_safe_history "${history_for_prompt}")"
 	if [[ -n "${context_seed_lines}" ]]; then
 		history_for_prompt+=$'\n'
 		history_for_prompt+="Context arg seeds:"

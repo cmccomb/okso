@@ -54,6 +54,36 @@ web_fetch_parse_args() {
 	printf '%s' "${err}"
 }
 
+web_fetch_normalize_snippet() {
+	# Normalizes a snippet for anchor matching.
+	# Arguments:
+	#   $1 - snippet text (string)
+	# Returns:
+	#   Normalized snippet text (string)
+	local snippet cleaned phrase
+	local max_words max_chars
+	snippet="$1"
+	max_words=8
+	max_chars=80
+
+	if [[ -z "${snippet}" ]]; then
+		return 1
+	fi
+
+	cleaned=$(printf '%s' "${snippet}" | tr '\r\n' ' ' | sed -E 's/\.{3,}/ /g; s/…/ /g; s/[[:punct:]]+/ /g; s/[[:space:]]+/ /g; s/^ //; s/ $//')
+	if [[ -z "${cleaned}" ]]; then
+		return 1
+	fi
+
+	phrase=$(printf '%s' "${cleaned}" | awk -v max_words="${max_words}" '{for (i=1;i<=NF && i<=max_words;i++){printf (i==1?$i:" "$i)}}')
+	if ((${#phrase} > max_chars)); then
+		phrase="${phrase:0:max_chars}"
+		phrase="$(printf '%s' "${phrase}" | sed -E 's/[[:space:]]+$//')"
+	fi
+
+	printf '%s' "${phrase}"
+}
+
 web_fetch_snippet_for_url() {
 	# Retrieves a snippet for the URL from web_search metadata.
 	# Arguments:
@@ -131,6 +161,68 @@ web_fetch_generate_search_query() {
 	printf '%s' "${query}"
 }
 
+web_fetch_anchor_preview() {
+	# Anchors a preview snippet around a query if possible.
+	# Arguments:
+	#   $1 - body markdown (string)
+	#   $2 - base snippet (string)
+	#   $3 - anchor query (string)
+	#   $4 - snippet limit (int)
+	# Returns:
+	#   JSON payload with keys: snippet (string), matched (bool)
+	local body_markdown base_snippet anchor_query snippet_limit
+	local match_pos snippet_start snippet_end total_len window prefix suffix anchored_snippet
+	body_markdown="$1"
+	base_snippet="$2"
+	anchor_query="$3"
+	snippet_limit="$4"
+
+	if [[ -z "${body_markdown}" || -z "${anchor_query}" ]]; then
+		jq -nc --arg snippet "${base_snippet}" --argjson matched false '{snippet: $snippet, matched: $matched}'
+		return 0
+	fi
+
+	match_pos=$(
+		awk -v q="${anchor_query}" '
+			BEGIN { q = tolower(q); off = 0 }
+			{
+				line = tolower($0)
+				p = index(line, q)
+				if (p > 0) { print off + p; exit }
+				off += length($0) + 1  # +1 for the newline awk strips
+			}
+		' <<<"${body_markdown}"
+	)
+
+	if [[ -z "${match_pos}" ]]; then
+		jq -nc --arg snippet "${base_snippet}" --argjson matched false '{snippet: $snippet, matched: $matched}'
+		return 0
+	fi
+
+	total_len=${#body_markdown}
+	snippet_start=$((match_pos - 1 - (snippet_limit / 2)))
+	if ((snippet_start < 0)); then
+		snippet_start=0
+	fi
+	snippet_end=$((snippet_start + snippet_limit))
+	if ((snippet_end > total_len)); then
+		snippet_end=${total_len}
+	fi
+
+	window=${body_markdown:${snippet_start}:$((snippet_end - snippet_start))}
+	prefix=""
+	suffix=""
+	if ((snippet_start > 0)); then
+		prefix="…"
+	fi
+	if ((snippet_end < total_len)); then
+		suffix="…"
+	fi
+	anchored_snippet="${prefix}${window}${suffix}"
+
+	jq -nc --arg snippet "${anchored_snippet}" --argjson matched true '{snippet: $snippet, matched: $matched}'
+}
+
 tool_web_fetch() {
 	# Downloads the response body for a URL, enforcing size limits and returning JSON metadata.
 	# Arguments:
@@ -139,7 +231,7 @@ tool_web_fetch() {
 	#   JSON object with fetch results or error observation.
 	local parsed_args url max_bytes response payload body_path content_type truncated body_size headers final_url
 	local body_encoding body_snippet snippet_limit body_markdown
-	local anchor_query anchor_match anchor_note anchor_source snippet
+	local anchor_query anchor_match anchor_note anchor_source snippet raw_snippet normalized_snippet
 
 	# Parse and validate arguments
 	if ! parsed_args=$(web_fetch_parse_args); then
@@ -153,7 +245,13 @@ tool_web_fetch() {
 
 	# Attempt to get snippet from web_search results
 	if snippet=$(web_fetch_snippet_for_url "${url}" 2>/dev/null); then
-		anchor_query="${snippet}"
+		raw_snippet="${snippet}"
+		normalized_snippet="$(web_fetch_normalize_snippet "${raw_snippet}" 2>/dev/null || true)"
+		if [[ -n "${normalized_snippet}" ]]; then
+			anchor_query="${normalized_snippet}"
+		else
+			anchor_query="${raw_snippet}"
+		fi
 		anchor_source="web_search"
 	else
 		anchor_query="$(web_fetch_generate_search_query "${url}")"
@@ -218,45 +316,21 @@ tool_web_fetch() {
 		# If we have markdown + an anchor query, attempt to center the preview window
 		# around the *first* match (case-insensitive), using an absolute offset into the full markdown.
 		if [[ -n "${body_markdown}" && -n "${anchor_query}" ]]; then
-			local match_pos snippet_start snippet_end total_len prefix suffix window
+			local anchor_result fallback_query
 
-			match_pos=$(
-				awk -v q="${anchor_query}" '
-					BEGIN { q = tolower(q); off = 0 }
-					{
-						line = tolower($0)
-						p = index(line, q)
-						if (p > 0) { print off + p; exit }
-						off += length($0) + 1  # +1 for the newline awk strips
-					}
-				' <<<"${body_markdown}"
-			)
+			anchor_result="$(web_fetch_anchor_preview "${body_markdown}" "${body_snippet}" "${anchor_query}" "${snippet_limit}")"
+			body_snippet="$(jq -r '.snippet' <<<"${anchor_result}")"
+			anchor_match="$(jq -r '.matched' <<<"${anchor_result}")"
 
-			if [[ -n "${match_pos}" ]]; then
-				total_len=${#body_markdown}
-				snippet_start=$((match_pos - 1 - (snippet_limit / 2)))
-				if ((snippet_start < 0)); then
-					snippet_start=0
+			if [[ "${anchor_match}" != "true" && "${anchor_source}" == "web_search" ]]; then
+				fallback_query="$(web_fetch_generate_search_query "${url}")"
+				if [[ -n "${fallback_query}" ]]; then
+					anchor_query="${fallback_query}"
+					anchor_source="rephrase"
+					anchor_result="$(web_fetch_anchor_preview "${body_markdown}" "${body_snippet}" "${anchor_query}" "${snippet_limit}")"
+					body_snippet="$(jq -r '.snippet' <<<"${anchor_result}")"
+					anchor_match="$(jq -r '.matched' <<<"${anchor_result}")"
 				fi
-				snippet_end=$((snippet_start + snippet_limit))
-				if ((snippet_end > total_len)); then
-					snippet_end=${total_len}
-				fi
-
-				window=${body_markdown:${snippet_start}:$((snippet_end - snippet_start))}
-				prefix=""
-				suffix=""
-				if ((snippet_start > 0)); then
-					prefix="…"
-				fi
-				if ((snippet_end < total_len)); then
-					suffix="…"
-				fi
-
-				body_snippet="${prefix}${window}${suffix}"
-				anchor_match="true"
-			else
-				anchor_match="false"
 			fi
 		fi
 	fi
