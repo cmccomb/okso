@@ -128,6 +128,55 @@ SCRIPT
 	[ "$status" -eq 0 ]
 }
 
+@test "web_fetch normalizes snippets with ellipses and punctuation for anchoring" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+body_file="$(mktemp)"
+cat >"${body_file}" <<'BODY'
+Intro text.
+Alpha beta gamma delta should match after normalization.
+More content.
+BODY
+mock_response=$(jq -nc --arg body_path "${body_file}" --arg content_type "text/plain" '{status:200, final_url:"https://example.com/test", content_type:$content_type, headers:"", bytes:120, truncated:false, body_path:$body_path}')
+source ./src/tools/web/web_fetch.sh
+web_http_request() { printf '%s' "${mock_response}"; }
+export WEB_FETCH_SEARCH_SNIPPETS='{"https://example.com/test":"Alpha... beta!!! gamma??"}'
+TOOL_ARGS='{"url":"https://example.com/test"}'
+output=$(tool_web_fetch)
+echo "${output}"
+jq -e '.anchor_match == true' <<<"${output}" >/dev/null
+jq -e '.anchor_query == "Alpha beta gamma"' <<<"${output}" >/dev/null
+jq -e '(.body_snippet | contains("Alpha beta gamma"))' <<<"${output}" >/dev/null
+SCRIPT
+
+	[ "$status" -eq 0 ]
+}
+
+@test "web_fetch falls back to a generated query when snippet anchoring fails" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+body_file="$(mktemp)"
+cat >"${body_file}" <<'BODY'
+Intro text.
+Fallback phrase should anchor this preview.
+More content.
+BODY
+mock_response=$(jq -nc --arg body_path "${body_file}" --arg content_type "text/plain" '{status:200, final_url:"https://example.com/test", content_type:$content_type, headers:"", bytes:120, truncated:false, body_path:$body_path}')
+source ./src/tools/web/web_fetch.sh
+web_http_request() { printf '%s' "${mock_response}"; }
+web_fetch_generate_search_query() { printf '%s' "fallback phrase"; }
+export WEB_FETCH_SEARCH_SNIPPETS='{"https://example.com/test":"no match here"}'
+TOOL_ARGS='{"url":"https://example.com/test"}'
+output=$(tool_web_fetch)
+echo "${output}"
+jq -e '.anchor_match == true' <<<"${output}" >/dev/null
+jq -e '.anchor_query == "fallback phrase"' <<<"${output}" >/dev/null
+jq -e '(.body_snippet | test("fallback phrase"; "i"))' <<<"${output}" >/dev/null
+SCRIPT
+
+	[ "$status" -eq 0 ]
+}
+
 @test "web_fetch generates a search query when no web_search snippet is present" {
 	run bash <<'SCRIPT'
 set -euo pipefail

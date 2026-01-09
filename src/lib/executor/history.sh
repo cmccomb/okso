@@ -10,6 +10,9 @@
 #   - bash 3.2+
 #   - jq
 #
+# Environment variables:
+#   EXECUTOR_HISTORY_SNIPPET_LIMIT (int): maximum characters to preserve for web_fetch body_markdown summaries (default: 240).
+#
 # Exit codes:
 #   Functions return non-zero on state failures.
 
@@ -23,6 +26,70 @@ source "${EXECUTOR_LIB_DIR}/../core/json_state.sh"
 source "${EXECUTOR_LIB_DIR}/../cli/output.sh"
 # shellcheck source=src/lib/validation/validation.sh
 source "${EXECUTOR_LIB_DIR}/../validation/validation.sh"
+
+summarize_executor_history() {
+	# Summarizes history entries for prompt-safe reuse.
+	# Arguments:
+	#   $1 - history text (newline-delimited JSON entries)
+	# Returns:
+	#   Summarized history text (newline-delimited JSON entries)
+	local history_text limit line summarized_line
+	local -a summarized_lines=()
+	history_text="$1"
+	limit=${EXECUTOR_HISTORY_SNIPPET_LIMIT:-240}
+
+	if [[ -z "${history_text}" ]]; then
+		printf '%s' "${history_text}"
+		return 0
+	fi
+
+	while IFS= read -r line || [[ -n "${line}" ]]; do
+		if [[ -z "${line}" ]]; then
+			summarized_lines+=("")
+			continue
+		fi
+
+		if ! summarized_line=$(jq -c --argjson limit "${limit}" '
+                        if type != "object" then
+                                .
+                        elif (.action.tool? // "") != "web_fetch" then
+                                .
+                        elif (.observation | type) != "object" then
+                                .
+                        else
+                                .observation as $obs
+                                | .observation = ($obs | {
+                                        url: .url,
+                                        final_url: .final_url,
+                                        status: .status,
+                                        content_type: .content_type,
+                                        anchor_query: .anchor_query,
+                                        anchor_match: .anchor_match,
+                                        body_encoding: .body_encoding,
+                                        body_snippet: .body_snippet,
+                                        body_markdown: (
+                                                if (.body_snippet // "") != "" then
+                                                        .body_snippet
+                                                elif (.body_markdown // "") != "" then
+                                                        (.body_markdown | tostring | .[0:$limit])
+                                                else
+                                                        null
+                                                end
+                                        ),
+                                        bytes: .bytes,
+                                        truncated: .truncated
+                                })
+                        end
+                ' <<<"${line}" 2>/dev/null); then
+			summarized_lines+=("${line}")
+			continue
+		fi
+
+		summarized_lines+=("${summarized_line}")
+	done <<<"${history_text}"
+
+	printf '%s\n' "${summarized_lines[@]}"
+}
 
 initialize_executor_state() {
 	# Initializes the executor state document with user query, tools, and plan.
