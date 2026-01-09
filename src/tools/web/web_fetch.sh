@@ -290,7 +290,21 @@ tool_web_fetch() {
 	fi
 
 	if [[ -n "${anchor_note}" && "${body_encoding}" == "text" ]]; then
-		body_snippet="${body_snippet}"$'\n\n'"${anchor_note}"
+		local note_sep note_len avail
+		note_sep=$'\n\n'
+		note_len=$((${#note_sep} + ${#anchor_note}))
+
+		# If note somehow exceeds limit (unlikely), degrade gracefully.
+		if ((note_len >= snippet_limit)); then
+			body_snippet="${anchor_note:0:snippet_limit}"
+		else
+			avail=$((snippet_limit - note_len))
+			# Trim preview to make room for the note, then append.
+			if ((${#body_snippet} > avail)); then
+				body_snippet="${body_snippet:0:avail}"
+			fi
+			body_snippet="${body_snippet}${note_sep}${anchor_note}"
+		fi
 	fi
 
 	jq -nc \
