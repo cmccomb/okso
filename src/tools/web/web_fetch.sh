@@ -383,13 +383,21 @@ tool_web_fetch() {
 register_web_fetch() {
 	local args_schema
 
-	args_schema=$(jq -nc '{
-                type: "object",
-                required: ["url"],
-                properties: {
-                        url: {type: "string", format: "uri", minLength: 1},
-                }
-        }')
+	args_schema=$(
+		jq -c . <<'JSON'
+{
+  "type": "object",
+  "required": ["url"],
+  "properties": {
+    "url": {
+      "type": "string",
+      "format": "uri",
+      "minLength": 1
+    }
+  }
+}
+JSON
+	)
 
 	register_tool \
 		"web_fetch" \

@@ -109,14 +109,26 @@ tool_web_search() {
 register_web_search() {
 	local args_schema
 
-	args_schema=$(jq -nc '{
-                type: "object",
-                required: ["query"],
-                properties: {
-                        query: {type: "string", minLength: 1, maxLength: 200},
-                        num: {type: "integer", minimum: 1, maximum: 10}
-                }
-        }')
+	args_schema=$(
+		jq -c . <<'JSON'
+{
+  "type": "object",
+  "required": ["query"],
+  "properties": {
+    "query": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "num": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10
+    }
+  }
+}
+JSON
+	)
 
 	register_tool \
 		"web_search" \
