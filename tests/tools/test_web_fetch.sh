@@ -96,6 +96,10 @@ web_http_request() { printf '%s' "${mock_response}"; }
 TOOL_ARGS='{"url":"https://example.com"}'
 output=$(tool_web_fetch)
 echo "${output}"
+jq -e '.content_type == "text/html"' <<<"${output}" >/dev/null
+jq -e '.headers == "X-Test: 1"' <<<"${output}" >/dev/null
+jq -e '.bytes == 200' <<<"${output}" >/dev/null
+jq -e '.truncated == false' <<<"${output}" >/dev/null
 jq -e '.body_encoding == "text"' <<<"${output}" >/dev/null
 jq -e '(.body_markdown | length) > 0' <<<"${output}" >/dev/null
 jq -e '(.body_snippet | contains("Example Title"))' <<<"${output}" >/dev/null
@@ -122,7 +126,6 @@ output=$(tool_web_fetch)
 echo "${output}"
 jq -e '.anchor_match == true' <<<"${output}" >/dev/null
 jq -e '(.body_snippet | contains("unique snippet"))' <<<"${output}" >/dev/null
-jq -e '(.body_snippet | contains("Showing content surrounding search match"))' <<<"${output}" >/dev/null
 SCRIPT
 
 	[ "$status" -eq 0 ]
@@ -152,32 +155,7 @@ SCRIPT
 	[ "$status" -eq 0 ]
 }
 
-@test "web_fetch falls back to a generated query when snippet anchoring fails" {
-	run bash <<'SCRIPT'
-set -euo pipefail
-body_file="$(mktemp)"
-cat >"${body_file}" <<'BODY'
-Intro text.
-Fallback phrase should anchor this preview.
-More content.
-BODY
-mock_response=$(jq -nc --arg body_path "${body_file}" --arg content_type "text/plain" '{status:200, final_url:"https://example.com/test", content_type:$content_type, headers:"", bytes:120, truncated:false, body_path:$body_path}')
-source ./src/tools/web/web_fetch.sh
-web_http_request() { printf '%s' "${mock_response}"; }
-web_fetch_generate_search_query() { printf '%s' "fallback phrase"; }
-export WEB_FETCH_SEARCH_SNIPPETS='{"https://example.com/test":"no match here"}'
-TOOL_ARGS='{"url":"https://example.com/test"}'
-output=$(tool_web_fetch)
-echo "${output}"
-jq -e '.anchor_match == true' <<<"${output}" >/dev/null
-jq -e '.anchor_query == "fallback phrase"' <<<"${output}" >/dev/null
-jq -e '(.body_snippet | test("fallback phrase"; "i"))' <<<"${output}" >/dev/null
-SCRIPT
-
-	[ "$status" -eq 0 ]
-}
-
-@test "web_fetch generates a search query when no web_search snippet is present" {
+@test "web_fetch skips anchoring when no web_search snippet is present" {
 	run bash <<'SCRIPT'
 set -euo pipefail
 body_file="$(mktemp)"
@@ -185,11 +163,11 @@ printf '%s' "Sample body content" >"${body_file}"
 mock_response=$(jq -nc --arg body_path "${body_file}" --arg content_type "text/plain" '{status:200, final_url:"https://example.com/path/to/page", content_type:$content_type, headers:"", bytes:20, truncated:false, body_path:$body_path}')
 source ./src/tools/web/web_fetch.sh
 web_http_request() { printf '%s' "${mock_response}"; }
-export LLAMA_AVAILABLE=false
 TOOL_ARGS='{"url":"https://example.com/path/to/page"}'
 output=$(tool_web_fetch)
 echo "${output}"
-jq -e '.anchor_query | contains("site:example.com")' <<<"${output}" >/dev/null
+jq -e '.anchor_query == ""' <<<"${output}" >/dev/null
+jq -e '.anchor_match == false' <<<"${output}" >/dev/null
 SCRIPT
 
 	[ "$status" -eq 0 ]

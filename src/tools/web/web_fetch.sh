@@ -29,8 +29,6 @@ source "${SRC_ROOT}/lib/core/logging.sh"
 source "${WEB_TOOLS_DIR}/http.sh"
 # shellcheck source=src/tools/registry.sh
 source "${SRC_ROOT}/tools/registry.sh"
-# shellcheck source=src/lib/planning/rephrasing.sh
-source "${SRC_ROOT}/lib/planning/rephrasing.sh"
 
 web_fetch_parse_args() {
 	# Parses TOOL_ARGS JSON for the web_fetch tool.
@@ -130,59 +128,6 @@ web_fetch_snippet_for_url() {
 	printf '%s' "${snippet}"
 }
 
-web_fetch_build_search_seed() {
-	# Builds a base search query using the URL hostname and path.
-	# Arguments:
-	#   $1 - URL string
-	# Returns:
-	#   Prints a seed query string.
-	local url host path path_query seed
-	url="$1"
-
-	host=$(printf '%s' "${url}" | sed -E 's#^[a-zA-Z]+://##; s#/.*##; s#:.*##')
-	path=$(printf '%s' "${url}" | sed -E 's#^[a-zA-Z]+://##; s#^[^/]+##; s#[?#].*##')
-	path=${path#/}
-	path_query=$(printf '%s' "${path}" | tr '/_?-' '    ' | tr -s ' ')
-
-	if [[ -n "${host}" ]]; then
-		seed="site:${host}"
-		if [[ -n "${path_query}" ]]; then
-			seed+=" ${path_query}"
-		fi
-	else
-		seed="${url}"
-	fi
-
-	printf '%s' "${seed}"
-}
-
-web_fetch_generate_search_query() {
-	# Generates a search query using the rephrasing utilities.
-	# Arguments:
-	#   $1 - URL string
-	# Returns:
-	#   Prints a query string.
-	local url seed queries query llama_available
-	url="$1"
-
-	seed="$(web_fetch_build_search_seed "${url}")"
-
-	llama_available="${LLAMA_AVAILABLE:-false}"
-	export LLAMA_AVAILABLE="${llama_available}"
-
-	if ! queries="$(planner_generate_search_queries "${seed}" 2>/dev/null)"; then
-		printf '%s' "${seed}"
-		return 0
-	fi
-
-	query="$(jq -r 'if type == "array" then .[0] // "" else "" end' <<<"${queries}" 2>/dev/null)"
-	if [[ -z "${query}" ]]; then
-		query="${seed}"
-	fi
-
-	printf '%s' "${query}"
-}
-
 web_fetch_anchor_preview() {
 	# Anchors a preview snippet around a query if possible.
 	# Arguments:
@@ -250,21 +195,24 @@ tool_web_fetch() {
 	#
 	# Output (always):
 	#   {
-	#     url, final_url, status, content_type, bytes, truncated,
-	#     encoding: "text"|"base64",
-	#     preview: "<=1024 chars",
-	#     anchored: true|false,
+	#     url, final_url, status, content_type, headers, bytes, truncated,
+	#     body_encoding: "text"|"base64",
+	#     body_snippet: "<=1024 chars",
+	#     body_markdown: "<=1024 chars" | null,
+	#     anchor_query: "<=80 chars",
+	#     anchor_match: true|false,
 	#     error: null|string
 	#   }
 	#
 	# Notes:
-	# - Does NOT return headers, full markdown, or anchor_query.
-	# - Guarantees preview <= 1024 chars for both text and base64.
-	# - Keeps anchoring behavior for text when markdownify output is available.
+	# - Does NOT return the full response body.
+	# - Guarantees body_snippet <= 1024 chars for both text and base64.
+	# - Anchors text previews only when markdownify output is available.
 
 	local parsed_args url max_bytes response payload body_path content_type final_url status_code
-	local encoding preview preview_limit
-	local anchor_query anchor_match anchor_source snippet raw_snippet normalized_snippet
+	local headers bytes truncated
+	local body_encoding body_snippet preview_limit
+	local anchor_query anchor_match snippet raw_snippet normalized_snippet
 	local bytes_in converter_output body_markdown
 
 	# Parse and validate arguments
@@ -276,16 +224,13 @@ tool_web_fetch() {
 	max_bytes=${WEB_FETCH_MAX_BYTES:-5242880}
 	preview_limit=1024
 	anchor_match="false"
+	anchor_query=""
 
 	# Seed an anchor query (from web_search snippet when possible)
 	if snippet="$(web_fetch_snippet_for_url "${url}" 2>/dev/null)"; then
 		raw_snippet="${snippet}"
 		normalized_snippet="$(web_fetch_normalize_snippet "${raw_snippet}" 2>/dev/null || true)"
 		anchor_query="${normalized_snippet:-${raw_snippet}}"
-		anchor_source="web_search"
-	else
-		anchor_query="$(web_fetch_generate_search_query "${url}")"
-		anchor_source="rephrase"
 	fi
 
 	# Fetch
@@ -306,60 +251,52 @@ tool_web_fetch() {
 	content_type="$(jq -r '.content_type // "application/octet-stream"' <<<"${payload}")"
 	final_url="$(jq -r '.final_url // ""' <<<"${payload}")"
 	status_code="$(jq -r '.status // 0' <<<"${payload}")"
+	headers="$(jq -r '.headers // ""' <<<"${payload}")"
+	bytes="$(jq -r '.bytes // 0' <<<"${payload}")"
+	truncated="$(jq -r '.truncated // false' <<<"${payload}")"
 
 	# Decide encoding
-	encoding="text"
+	body_encoding="text"
 	if [[ -n "${content_type}" ]]; then
 		local ct_lower
 		ct_lower="$(printf '%s' "${content_type}" | tr '[:upper:]' '[:lower:]')"
 		case "${ct_lower}" in
 		text/* | *json* | *xml*) ;;
-		*) encoding="base64" ;;
+		*) body_encoding="base64" ;;
 		esac
 	fi
 
 	body_markdown=""
-	preview=""
+	body_snippet=""
 
-	if [[ "${encoding}" == "base64" ]]; then
+	if [[ "${body_encoding}" == "base64" ]]; then
 		# 1024 base64 chars corresponds to 768 bytes input (1024 * 3/4)
 		bytes_in=768
-		preview="$(head -c "${bytes_in}" "${body_path}" | base64 | tr -d '\n' | head -c "${preview_limit}")"
+		body_snippet="$(head -c "${bytes_in}" "${body_path}" | base64 | tr -d '\n' | head -c "${preview_limit}")"
+		body_markdown=""
 	else
 		# Prefer markdownify for cleaner text + anchoring
 		if converter_output="$("${WEB_TOOLS_DIR}/markdownify.sh" --path "${body_path}" --content-type "${content_type}" --limit "${preview_limit}" 2>&1)"; then
 			# preview is already limited by markdownify
-			preview="$(jq -r '.preview // ""' <<<"${converter_output}" 2>/dev/null)"
+			body_snippet="$(jq -r '.preview // ""' <<<"${converter_output}" 2>/dev/null)"
 			body_markdown="$(jq -r '.markdown // ""' <<<"${converter_output}" 2>/dev/null)"
 		else
 			log "WARN" "Markdown conversion failed" "${converter_output}" >&2
-			preview="$(head -c "${preview_limit}" "${body_path}")"
+			body_snippet="$(head -c "${preview_limit}" "${body_path}")"
 			body_markdown=""
 		fi
 
 		# Anchor the preview around the query when we have markdown
 		if [[ -n "${body_markdown}" && -n "${anchor_query}" ]]; then
-			local anchor_result fallback_query
-			anchor_result="$(web_fetch_anchor_preview "${body_markdown}" "${preview}" "${anchor_query}" "${preview_limit}")"
-			preview="$(jq -r '.snippet // ""' <<<"${anchor_result}" 2>/dev/null)"
+			local anchor_result
+			anchor_result="$(web_fetch_anchor_preview "${body_markdown}" "${body_snippet}" "${anchor_query}" "${preview_limit}")"
+			body_snippet="$(jq -r '.snippet // ""' <<<"${anchor_result}" 2>/dev/null)"
 			anchor_match="$(jq -r '.matched // false' <<<"${anchor_result}" 2>/dev/null)"
-
-			# If we relied on a web_search snippet but didn't match, try a rephrase fallback once
-			if [[ "${anchor_match}" != "true" && "${anchor_source}" == "web_search" ]]; then
-				fallback_query="$(web_fetch_generate_search_query "${url}")"
-				if [[ -n "${fallback_query}" ]]; then
-					anchor_query="${fallback_query}"
-					anchor_source="rephrase"
-					anchor_result="$(web_fetch_anchor_preview "${body_markdown}" "${preview}" "${anchor_query}" "${preview_limit}")"
-					preview="$(jq -r '.snippet // ""' <<<"${anchor_result}" 2>/dev/null)"
-					anchor_match="$(jq -r '.matched // false' <<<"${anchor_result}" 2>/dev/null)"
-				fi
-			fi
 		fi
 
 		# Hard cap, just in case (defensive)
-		if ((${#preview} > preview_limit)); then
-			preview="${preview:0:preview_limit}"
+		if ((${#body_snippet} > preview_limit)); then
+			body_snippet="${body_snippet:0:preview_limit}"
 		fi
 	fi
 
@@ -371,16 +308,30 @@ tool_web_fetch() {
 		jq -nc \
 			--arg url "${url}" \
 			--arg final_url "${final_url:-${url}}" \
-			--arg preview "${preview}" \
+			--arg content_type "${content_type}" \
+			--arg headers "${headers}" \
+			--argjson bytes "${bytes}" \
+			--argjson truncated "${truncated}" \
+			--arg body_encoding "${body_encoding}" \
+			--arg body_snippet "${body_snippet}" \
+			--arg body_markdown "${body_markdown}" \
+			--arg anchor_query "${anchor_query}" \
 			--arg error "HTTP ${status_code}" \
 			--argjson status "${status_code}" \
-			--argjson anchored "$(if [[ "${anchor_match}" == "true" ]]; then printf 'true'; else printf 'false'; fi)" \
+			--argjson anchor_match "$(if [[ "${anchor_match}" == "true" ]]; then printf 'true'; else printf 'false'; fi)" \
 			'{
 				url: $url,
 				final_url: $final_url,
 				status: $status,
-				preview: $preview,
-				anchored: $anchored,
+				content_type: $content_type,
+				headers: $headers,
+				bytes: $bytes,
+				truncated: $truncated,
+				body_encoding: $body_encoding,
+				body_snippet: $body_snippet,
+				body_markdown: ($body_markdown | if length > 0 then . else null end),
+				anchor_query: $anchor_query,
+				anchor_match: $anchor_match,
 				error: $error
 			}'
 		return 0
@@ -389,15 +340,29 @@ tool_web_fetch() {
 	jq -nc \
 		--arg url "${url}" \
 		--arg final_url "${final_url:-${url}}" \
-		--arg preview "${preview}" \
+		--arg content_type "${content_type}" \
+		--arg headers "${headers}" \
+		--argjson bytes "${bytes}" \
+		--argjson truncated "${truncated}" \
+		--arg body_encoding "${body_encoding}" \
+		--arg body_snippet "${body_snippet}" \
+		--arg body_markdown "${body_markdown}" \
+		--arg anchor_query "${anchor_query}" \
 		--argjson status "${status_code}" \
-		--argjson anchored "$(if [[ "${anchor_match}" == "true" ]]; then printf 'true'; else printf 'false'; fi)" \
+		--argjson anchor_match "$(if [[ "${anchor_match}" == "true" ]]; then printf 'true'; else printf 'false'; fi)" \
 		'{
 			url: $url,
 			final_url: $final_url,
 			status: $status,
-			preview: $preview,
-			anchored: $anchored,
+			content_type: $content_type,
+			headers: $headers,
+			bytes: $bytes,
+			truncated: $truncated,
+			body_encoding: $body_encoding,
+			body_snippet: $body_snippet,
+			body_markdown: ($body_markdown | if length > 0 then . else null end),
+			anchor_query: $anchor_query,
+			anchor_match: $anchor_match,
 			error: null
 		}'
 }
