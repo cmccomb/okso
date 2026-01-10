@@ -53,3 +53,31 @@ SCRIPT
 
 	[ "$status" -eq 0 ]
 }
+
+@test "web_fetch_snippet_for_url matches normalized urls from web_search snippets" {
+	run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
+set -euo pipefail
+source ./src/lib/executor/loop.sh
+source ./src/tools/web/web_fetch.sh
+
+history_entry=$(
+	jq -nc \
+		--arg url "https://example.com/docs)" \
+		--arg snippet "Example snippet text" \
+		'{
+                  step: 1,
+                  thought: "Use web_search to find docs",
+                  action: {tool: "web_search", args: {query: "example docs"}},
+                  observation: {output: ({"items":[{"url": $url, "snippet": $snippet}]} | tojson), error: "", exit_code: 0}
+                }'
+)
+
+WEB_FETCH_SEARCH_SNIPPETS="$(collect_web_fetch_snippet_map "${history_entry}")"
+export WEB_FETCH_SEARCH_SNIPPETS
+
+snippet="$(web_fetch_snippet_for_url "https://example.com/docs")"
+[[ "${snippet}" == "Example snippet text" ]]
+SCRIPT
+
+	[ "$status" -eq 0 ]
+}

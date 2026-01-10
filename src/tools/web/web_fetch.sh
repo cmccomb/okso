@@ -84,20 +84,42 @@ web_fetch_normalize_snippet() {
 	printf '%s' "${phrase}"
 }
 
+web_fetch_normalize_url() {
+	# Normalizes URLs by stripping trailing punctuation to align with web_fetch allowlists.
+	# Arguments:
+	#   $1 - URL string
+	# Returns:
+	#   Normalized URL string.
+	local url
+	url="$1"
+
+	if [[ -z "${url}" ]]; then
+		return 1
+	fi
+
+	printf '%s' "${url}" | sed -E 's/[),.]+$//'
+}
+
 web_fetch_snippet_for_url() {
 	# Retrieves a snippet for the URL from web_search metadata.
+	# Checks both raw and normalized URLs so lookups match allowlist normalization.
 	# Arguments:
 	#   $1 - URL string
 	# Returns:
 	#   Prints snippet if found; returns non-zero otherwise.
-	local url snippet
+	local url normalized_url snippet
 	url="$1"
+	normalized_url="$(web_fetch_normalize_url "${url}")" || normalized_url=""
 
 	if [[ -z "${WEB_FETCH_SEARCH_SNIPPETS:-}" ]]; then
 		return 1
 	fi
 
-	if ! snippet=$(jq -r --arg url "${url}" 'if type == "object" then .[$url] // "" else "" end' <<<"${WEB_FETCH_SEARCH_SNIPPETS}" 2>/dev/null); then
+	if ! snippet=$(jq -r \
+		--arg url "${url}" \
+		--arg normalized_url "${normalized_url}" \
+		'if type == "object" then .[$url] // .[$normalized_url] // "" else "" end' \
+		<<<"${WEB_FETCH_SEARCH_SNIPPETS}" 2>/dev/null); then
 		return 1
 	fi
 
