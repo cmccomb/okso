@@ -224,189 +224,159 @@ web_fetch_anchor_preview() {
 }
 
 tool_web_fetch() {
-	# Downloads the response body for a URL, enforcing size limits and returning JSON metadata.
-	# Arguments:
-	#   None (reads from TOOL_ARGS)
-	# Returns:
-	#   JSON object with fetch results or error observation.
-	local parsed_args url max_bytes response payload body_path content_type truncated body_size headers final_url
-	local body_encoding body_snippet snippet_limit body_markdown
-	local anchor_query anchor_match anchor_note anchor_source snippet raw_snippet normalized_snippet
+	# Downloads the response body for a URL, enforcing size limits and returning a small, LM-friendly JSON.
+	#
+	# Output (always):
+	#   {
+	#     url, final_url, status, content_type, bytes, truncated,
+	#     encoding: "text"|"base64",
+	#     preview: "<=1024 chars",
+	#     anchored: true|false,
+	#     error: null|string
+	#   }
+	#
+	# Notes:
+	# - Does NOT return headers, full markdown, or anchor_query.
+	# - Guarantees preview <= 1024 chars for both text and base64.
+	# - Keeps anchoring behavior for text when markdownify output is available.
+
+	local parsed_args url max_bytes response payload body_path content_type final_url status_code
+	local encoding preview preview_limit
+	local anchor_query anchor_match anchor_source snippet raw_snippet normalized_snippet
+	local bytes_in converter_output body_markdown
 
 	# Parse and validate arguments
 	if ! parsed_args=$(web_fetch_parse_args); then
 		return 1
 	fi
 
-	# Extract URL
-	url=$(jq -r '.url' <<<"${parsed_args}")
+	url="$(jq -r '.url' <<<"${parsed_args}")"
 	max_bytes=${WEB_FETCH_MAX_BYTES:-5242880}
+	preview_limit=1024
 	anchor_match="false"
 
-	# Attempt to get snippet from web_search results
-	if snippet=$(web_fetch_snippet_for_url "${url}" 2>/dev/null); then
+	# Seed an anchor query (from web_search snippet when possible)
+	if snippet="$(web_fetch_snippet_for_url "${url}" 2>/dev/null)"; then
 		raw_snippet="${snippet}"
 		normalized_snippet="$(web_fetch_normalize_snippet "${raw_snippet}" 2>/dev/null || true)"
-		if [[ -n "${normalized_snippet}" ]]; then
-			anchor_query="${normalized_snippet}"
-		else
-			anchor_query="${raw_snippet}"
-		fi
+		anchor_query="${normalized_snippet:-${raw_snippet}}"
 		anchor_source="web_search"
 	else
 		anchor_query="$(web_fetch_generate_search_query "${url}")"
 		anchor_source="rephrase"
 	fi
 
-	# Perform HTTP request
+	# Fetch
 	log "INFO" "Fetching URL" "${url}" >&2
-	response=$(web_http_request "${url}" "${max_bytes}" --header 'Accept: */*')
+	response="$(web_http_request "${url}" "${max_bytes}" --header 'Accept: */*')"
 	if [[ -z "${response}" ]]; then
 		log "ERROR" "Failed to fetch URL" "${url}" >&2
 		return 1
 	fi
 
 	# Parse HTTP helper payload
-	payload=$(jq -er '.' <<<"${response}" 2>/dev/null) || {
+	payload="$(jq -er '.' <<<"${response}" 2>/dev/null)" || {
 		log "ERROR" "Invalid HTTP helper payload" "${response}" >&2
 		return 1
 	}
-	body_path=$(jq -r '.body_path' <<<"${payload}")
-	content_type=$(jq -r '.content_type // "application/octet-stream"' <<<"${payload}")
-	truncated=$(jq -r '.truncated' <<<"${payload}")
-	body_size=$(jq -r '.bytes // 0' <<<"${payload}")
-	headers=$(jq -r '.headers // ""' <<<"${payload}")
-	final_url=$(jq -r '.final_url // ""' <<<"${payload}")
 
-	# snippet_limit (integer): maximum characters for preview snippets.
-	snippet_limit=1024
-	body_encoding="text"
-	body_markdown=""
+	body_path="$(jq -r '.body_path' <<<"${payload}")"
+	content_type="$(jq -r '.content_type // "application/octet-stream"' <<<"${payload}")"
+	final_url="$(jq -r '.final_url // ""' <<<"${payload}")"
+	status_code="$(jq -r '.status // 0' <<<"${payload}")"
 
+	# Decide encoding
+	encoding="text"
 	if [[ -n "${content_type}" ]]; then
-		local content_type_lower
-		content_type_lower=$(printf '%s' "${content_type}" | tr '[:upper:]' '[:lower:]')
-		case "${content_type_lower}" in
+		local ct_lower
+		ct_lower="$(printf '%s' "${content_type}" | tr '[:upper:]' '[:lower:]')"
+		case "${ct_lower}" in
 		text/* | *json* | *xml*) ;;
-		*)
-			body_encoding="base64"
-			;;
+		*) encoding="base64" ;;
 		esac
 	fi
 
-	if [[ "${body_encoding}" == "base64" ]]; then
-		# IMPORTANT: body_snippet must remain valid base64 if body_encoding=base64.
-		body_snippet=$(head -c "${snippet_limit}" "${body_path}" | base64 | tr -d '\n')
+	body_markdown=""
+	preview=""
+
+	if [[ "${encoding}" == "base64" ]]; then
+		# 1024 base64 chars corresponds to 768 bytes input (1024 * 3/4)
+		bytes_in=768
+		preview="$(head -c "${bytes_in}" "${body_path}" | base64 | tr -d '\n' | head -c "${preview_limit}")"
 	else
-		local converter_output
-		if converter_output=$("${WEB_TOOLS_DIR}/markdownify.sh" --path "${body_path}" --content-type "${content_type}" --limit "${snippet_limit}" 2>&1); then
-			if body_markdown=$(jq -er '.markdown' <<<"${converter_output}" 2>/dev/null) &&
-				body_snippet=$(jq -er '.preview' <<<"${converter_output}" 2>/dev/null); then
-				true
-			else
-				log "WARN" "Invalid markdownify output" "${converter_output}" >&2
-				body_markdown=""
-				body_snippet=$(head -c "${snippet_limit}" "${body_path}")
-			fi
+		# Prefer markdownify for cleaner text + anchoring
+		if converter_output="$("${WEB_TOOLS_DIR}/markdownify.sh" --path "${body_path}" --content-type "${content_type}" --limit "${preview_limit}" 2>&1)"; then
+			# preview is already limited by markdownify
+			preview="$(jq -r '.preview // ""' <<<"${converter_output}" 2>/dev/null)"
+			body_markdown="$(jq -r '.markdown // ""' <<<"${converter_output}" 2>/dev/null)"
 		else
 			log "WARN" "Markdown conversion failed" "${converter_output}" >&2
-			body_snippet=$(head -c "${snippet_limit}" "${body_path}")
+			preview="$(head -c "${preview_limit}" "${body_path}")"
+			body_markdown=""
 		fi
 
-		# If we have markdown + an anchor query, attempt to center the preview window
-		# around the *first* match (case-insensitive), using an absolute offset into the full markdown.
+		# Anchor the preview around the query when we have markdown
 		if [[ -n "${body_markdown}" && -n "${anchor_query}" ]]; then
 			local anchor_result fallback_query
+			anchor_result="$(web_fetch_anchor_preview "${body_markdown}" "${preview}" "${anchor_query}" "${preview_limit}")"
+			preview="$(jq -r '.snippet // ""' <<<"${anchor_result}" 2>/dev/null)"
+			anchor_match="$(jq -r '.matched // false' <<<"${anchor_result}" 2>/dev/null)"
 
-			anchor_result="$(web_fetch_anchor_preview "${body_markdown}" "${body_snippet}" "${anchor_query}" "${snippet_limit}")"
-			body_snippet="$(jq -r '.snippet' <<<"${anchor_result}")"
-			anchor_match="$(jq -r '.matched' <<<"${anchor_result}")"
-
+			# If we relied on a web_search snippet but didn't match, try a rephrase fallback once
 			if [[ "${anchor_match}" != "true" && "${anchor_source}" == "web_search" ]]; then
 				fallback_query="$(web_fetch_generate_search_query "${url}")"
 				if [[ -n "${fallback_query}" ]]; then
 					anchor_query="${fallback_query}"
 					anchor_source="rephrase"
-					anchor_result="$(web_fetch_anchor_preview "${body_markdown}" "${body_snippet}" "${anchor_query}" "${snippet_limit}")"
-					body_snippet="$(jq -r '.snippet' <<<"${anchor_result}")"
-					anchor_match="$(jq -r '.matched' <<<"${anchor_result}")"
+					anchor_result="$(web_fetch_anchor_preview "${body_markdown}" "${preview}" "${anchor_query}" "${preview_limit}")"
+					preview="$(jq -r '.snippet // ""' <<<"${anchor_result}" 2>/dev/null)"
+					anchor_match="$(jq -r '.matched // false' <<<"${anchor_result}" 2>/dev/null)"
 				fi
 			fi
 		fi
+
+		# Hard cap, just in case (defensive)
+		if ((${#preview} > preview_limit)); then
+			preview="${preview:0:preview_limit}"
+		fi
 	fi
 
-	local status_code
-	status_code=$(jq -r '.status' <<<"${payload}")
-
+	# Clean up body file now that we have preview
 	rm -f "${body_path}"
 
+	# Error shaping: keep it simple, but include preview + status
 	if [[ "${status_code}" -ge 400 ]]; then
 		jq -nc \
 			--arg url "${url}" \
-			--arg status "${status_code}" \
-			--arg body "${body_snippet}" \
-			'{ observation: "Failed to fetch \($url): HTTP \($status). Response body: \($body)" }'
+			--arg final_url "${final_url:-${url}}" \
+			--arg preview "${preview}" \
+			--arg error "HTTP ${status_code}" \
+			--argjson status "${status_code}" \
+			--argjson anchored "$(if [[ "${anchor_match}" == "true" ]]; then printf 'true'; else printf 'false'; fi)" \
+			'{
+				url: $url,
+				final_url: $final_url,
+				status: $status,
+				preview: $preview,
+				anchored: $anchored,
+				error: $error
+			}'
 		return 0
-	fi
-
-	# Only append anchor_note to body_snippet when body_snippet is text.
-	# For base64 previews, appending plain text would corrupt the base64 payload.
-	if [[ "${anchor_source}" == "web_search" ]]; then
-		if [[ "${anchor_match}" == "true" ]]; then
-			anchor_note="... [Showing content surrounding search match]"
-		elif [[ -n "${anchor_query}" ]]; then
-			anchor_note="... [Search match not found; showing start of page]"
-		else
-			anchor_note=""
-		fi
-	else
-		anchor_note=""
-	fi
-
-	if [[ -n "${anchor_note}" && "${body_encoding}" == "text" ]]; then
-		local note_sep note_len avail
-		note_sep=$'\n\n'
-		note_len=$((${#note_sep} + ${#anchor_note}))
-
-		# If note somehow exceeds limit (unlikely), degrade gracefully.
-		if ((note_len >= snippet_limit)); then
-			body_snippet="${anchor_note:0:snippet_limit}"
-		else
-			avail=$((snippet_limit - note_len))
-			# Trim preview to make room for the note, then append.
-			if ((${#body_snippet} > avail)); then
-				body_snippet="${body_snippet:0:avail}"
-			fi
-			body_snippet="${body_snippet}${note_sep}${anchor_note}"
-		fi
 	fi
 
 	jq -nc \
 		--arg url "${url}" \
 		--arg final_url "${final_url:-${url}}" \
-		--arg content_type "${content_type}" \
-		--arg headers "${headers}" \
-		--arg body_snippet "${body_snippet}" \
-		--arg body_markdown "${body_markdown}" \
-		--arg body_encoding "${body_encoding}" \
-		--arg anchor_query "${anchor_query}" \
-		--argjson anchor_match "$(if [[ "${anchor_match}" == "true" ]]; then printf 'true'; else printf 'false'; fi)" \
-		--argjson status "$(jq -r '.status' <<<"${payload}")" \
-		--argjson bytes "${body_size}" \
-		--argjson truncated "${truncated}" \
+		--arg preview "${preview}" \
+		--argjson status "${status_code}" \
+		--argjson anchored "$(if [[ "${anchor_match}" == "true" ]]; then printf 'true'; else printf 'false'; fi)" \
 		'{
 			url: $url,
 			final_url: $final_url,
 			status: $status,
-			content_type: $content_type,
-			headers: $headers,
-			bytes: $bytes,
-			truncated: $truncated,
-			body_encoding: $body_encoding,
-			body_snippet: $body_snippet,
-			body_markdown: (if ($body_markdown | length) > 0 then $body_markdown else null end),
-			anchor_query: (if ($anchor_query | length) > 0 then $anchor_query else null end),
-			anchor_match: $anchor_match
+			preview: $preview,
+			anchored: $anchored,
+			error: null
 		}'
 }
 
