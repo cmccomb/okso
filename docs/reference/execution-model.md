@@ -26,6 +26,8 @@ After the plan is approved, the runtime requests a single structured tool call:
 
 Each executor decision and observation is streamed to the terminal. Use `--dry-run` when you want to inspect the generated plan and tool calls without executing anything.
 
+Execution summaries keep tool observations machine-readable by emitting compact JSON for tool outputs (for example, a web search observation remains `{"items":[...],"total_results":5}` instead of a bulleted list). Use the `format_tool_history_pretty()` helper in `src/lib/cli/output.sh` if you need a human-formatted view.
+
 ## Configuration hooks
 
 - `USE_REACT_LLAMA`: toggles the executor llama.cpp call (defaults to enabled).

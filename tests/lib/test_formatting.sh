@@ -60,3 +60,18 @@ EOF
         '
 	[ "$status" -eq 0 ]
 }
+
+@test "format_tool_history preserves web_search JSON observations" {
+	run bash -s <<'EOF'
+set -e
+cd "$(git rev-parse --show-toplevel)" || exit 1
+source ./src/lib/cli/output.sh
+
+observation_json='{"items":[{"title":"Example result","snippet":"Snippet text","url":"https://example.com"}],"total_results":1}'
+history_line='{"step":1,"thought":"Search for examples","action":{"tool":"web_search","args":{"query":"example"}},"observation":{"items":[{"title":"Example result","snippet":"Snippet text","url":"https://example.com"}],"total_results":1}}'
+
+output=$(format_tool_history "${history_line}")
+printf "%s" "${output}" | grep -Fq "${observation_json}"
+EOF
+	[ "$status" -eq 0 ]
+}
