@@ -104,7 +104,7 @@ normalize_web_fetch_url() {
 		return 1
 	fi
 
-	printf '%s' "${url}" | sed -E 's/[),.]+$//'
+	printf '%s\n' "${url}" | sed -E 's/[),.]+$//'
 }
 
 collect_web_fetch_allowlist() {
