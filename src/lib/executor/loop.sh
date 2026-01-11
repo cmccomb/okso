@@ -546,7 +546,7 @@ execute_planned_action() {
 
 	context="$(format_action_context "${thought}" "${tool}" "${args_after_controls}")"
 	if [[ "${tool}" == "web_fetch" ]]; then
-		observation="$(WEB_FETCH_SEARCH_SNIPPETS="${web_fetch_snippets:-{}}" execute_tool_with_query "${tool}" "$(extract_tool_query "${tool}" "${args_after_controls}")" "${context}" "${args_after_controls}")"
+		observation="$(WEB_FETCH_SEARCH_SNIPPETS="${web_fetch_snippets}" execute_tool_with_query "${tool}" "$(extract_tool_query "${tool}" "${args_after_controls}")" "${context}" "${args_after_controls}")"
 	else
 		observation="$(execute_tool_with_query "${tool}" "$(extract_tool_query "${tool}" "${args_after_controls}")" "${context}" "${args_after_controls}")"
 	fi

@@ -82,22 +82,6 @@ web_fetch_normalize_snippet() {
 	printf '%s' "${phrase}"
 }
 
-web_fetch_normalize_url() {
-	# Normalizes URLs by stripping trailing punctuation to align with web_fetch allowlists.
-	# Arguments:
-	#   $1 - URL string
-	# Returns:
-	#   Normalized URL string.
-	local url
-	url="$1"
-
-	if [[ -z "${url}" ]]; then
-		return 1
-	fi
-
-	printf '%s' "${url}" | sed -E 's/[),.]+$//'
-}
-
 web_fetch_snippet_for_url() {
 	# Retrieves a snippet for the URL from web_search metadata.
 	# Checks both raw and normalized URLs so lookups match allowlist normalization.
@@ -105,21 +89,22 @@ web_fetch_snippet_for_url() {
 	#   $1 - URL string
 	# Returns:
 	#   Prints snippet if found; returns non-zero otherwise.
-	local url normalized_url snippet
+	local url snippet
 	url="$1"
-	normalized_url="$(web_fetch_normalize_url "${url}")" || normalized_url=""
-
 	if [[ -z "${WEB_FETCH_SEARCH_SNIPPETS:-}" ]]; then
 		return 1
 	fi
 
-	if ! snippet=$(jq -r \
-		--arg url "${url}" \
-		--arg normalized_url "${normalized_url}" \
-		'if type == "object" then .[$url] // .[$normalized_url] // "" else "" end' \
-		<<<"${WEB_FETCH_SEARCH_SNIPPETS}" 2>/dev/null); then
-		return 1
+	# If WEB_FETCH_SEARCH_SNIPPETS ends in double closing curly brackets, remove one of them
+	if [[ "${WEB_FETCH_SEARCH_SNIPPETS}" == *"}}" ]]; then
+		WEB_FETCH_SEARCH_SNIPPETS="${WEB_FETCH_SEARCH_SNIPPETS%?}"
 	fi
+
+	# Find the snippet for the exact URL
+	snippet=$(jq -r \
+		--arg url "${url}" \
+		'if type == "object" then .[$url] // "" else "" end' \
+		<<<"${WEB_FETCH_SEARCH_SNIPPETS}")
 
 	if [[ -z "${snippet}" ]]; then
 		return 1
@@ -227,11 +212,10 @@ tool_web_fetch() {
 	anchor_query=""
 
 	# Seed an anchor query (from web_search snippet when possible)
-	if snippet="$(web_fetch_snippet_for_url "${url}" 2>/dev/null)"; then
-		raw_snippet="${snippet}"
-		normalized_snippet="$(web_fetch_normalize_snippet "${raw_snippet}" 2>/dev/null || true)"
-		anchor_query="${normalized_snippet:-${raw_snippet}}"
-	fi
+	snippet="$(web_fetch_snippet_for_url "${url}")"
+	raw_snippet="${snippet}"
+	normalized_snippet="$(web_fetch_normalize_snippet "${raw_snippet}" 2>/dev/null || true)"
+	anchor_query="${normalized_snippet:-${raw_snippet}}"
 
 	# Fetch
 	log "INFO" "Fetching URL" "${url}" >&2
