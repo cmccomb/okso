@@ -61,13 +61,13 @@ web_fetch_normalize_snippet() {
 	local snippet cleaned
 	snippet="$1"
 
-  # Early exit if snippet is empty
+	# Early exit if snippet is empty
 	if [[ -z "${snippet}" ]]; then
 		return 1
 	fi
 
-  # Clean snippet: remove terminal ellipses " ..."
-  cleaned="$(sed -E 's/[[:space:]]*…$//; s/[[:space:]]*\.\.\.$//' <<<"${snippet}")"
+	# Clean snippet: remove terminal ellipses " ..."
+	cleaned="$(sed -E 's/[[:space:]]*…$//; s/[[:space:]]*\.\.\.$//' <<<"${snippet}")"
 
 	# Exit if cleaned snippet is empty
 	if [[ -z "${cleaned}" ]]; then
@@ -75,6 +75,132 @@ web_fetch_normalize_snippet() {
 	fi
 
 	printf '%s' "${cleaned}"
+}
+
+web_fetch_normalize_text() {
+	# Normalizes text for token comparison.
+	# Arguments:
+	#   $1 - input text (string)
+	# Returns:
+	#   Normalized text (string)
+	local text normalized
+	text="$1"
+
+	if [[ -z "${text}" ]]; then
+		printf '%s' ""
+		return 0
+	fi
+
+	normalized="$(
+		printf '%s' "${text}" |
+			sed -E \
+				-e 's/[“”]/"/g' \
+				-e "s/[‘’]/'/g" \
+				-e 's/[—–]/-/g' \
+				-e 's/…/.../g' |
+			tr '[:upper:]' '[:lower:]' |
+			sed -E \
+				-e 's/(jan(uary)?|feb(ruary)?|mar(ch)?|apr(il)?|may|jun(e)?|jul(y)?|aug(ust)?|sep(t(ember)?)?|oct(ober)?|nov(ember)?|dec(ember)?) +[0-9]{1,2},? +[0-9]{4}//g' \
+				-e 's/[[:punct:]]+/ /g' \
+				-e 's/[[:space:]]+/ /g; s/^ //; s/ $//'
+	)"
+
+	printf '%s' "${normalized}"
+}
+
+web_fetch_extract_tokens_with_positions() {
+	# Extracts tokens with character spans from original text.
+	# Arguments:
+	#   $1 - input text (string)
+	# Returns:
+	#   Lines of: token<TAB>start_offset<TAB>end_offset (0-based, end exclusive)
+	awk '
+		BEGIN { pos = 0 }
+		{
+			line = $0
+			while (match(line, /[[:alnum:]]+/)) {
+				token = substr(line, RSTART, RLENGTH)
+				start = pos + RSTART - 1
+				end = start + RLENGTH
+				printf "%s\t%d\t%d\n", token, start, end
+				line = substr(line, RSTART + RLENGTH)
+				pos += RSTART + RLENGTH - 1
+			}
+			pos += length(line) + 1
+		}
+	' <<<"$1"
+}
+
+web_fetch_best_token_window() {
+	# Finds the best matching token window between snippet and body tokens.
+	# Arguments:
+	#   $1 - snippet tokens (space-delimited string)
+	#   $2 - body tokens (space-delimited string)
+	#   $3 - window size (int)
+	#   $4 - step size (int)
+	# Returns:
+	#   "start_index end_index score" (0-based indexes, score float)
+	awk -v snippet="$1" -v body="$2" -v win="$3" -v step="$4" '
+		BEGIN {
+			sn = split(snippet, s, " ")
+			bn = split(body, b, " ")
+			if (sn == 0 || bn == 0) {
+				print "-1 -1 0"
+				exit
+			}
+			if (step < 1) {
+				step = 1
+			}
+			if (win > bn) {
+				win = bn
+			}
+			for (i = 1; i <= sn; i++) {
+				if (s[i] != "") {
+					s_count[s[i]]++
+				}
+			}
+			best = -1
+			best_end = -1
+			best_score = 0
+			for (start = 1; start <= bn; start += step) {
+				end = start + win - 1
+				if (end > bn) {
+					end = bn
+				}
+				delete seen
+				inter = 0
+				union = 0
+				for (i = start; i <= end; i++) {
+					if (b[i] == "") {
+						continue
+					}
+					if (!(b[i] in seen)) {
+						seen[b[i]] = 1
+						union++
+						if (b[i] in s_count) {
+							inter++
+						}
+					}
+				}
+				for (token in s_count) {
+					if (!(token in seen)) {
+						union++
+					}
+				}
+				score = union > 0 ? inter / union : 0
+				if (score > best_score) {
+					best_score = score
+					best = start
+					best_end = end
+				}
+			}
+			if (best < 0) {
+				print "-1 -1 0"
+				exit
+			}
+			printf "%d %d %.6f\n", best - 1, best_end - 1, best_score
+		}
+	'
 }
 
 web_fetch_snippet_for_url() {
@@ -118,7 +244,10 @@ web_fetch_anchor_preview() {
 	# Returns:
 	#   JSON payload with keys: snippet (string), matched (bool)
 	local body_markdown base_snippet anchor_query snippet_limit
-	local match_pos snippet_start snippet_end total_len window prefix suffix anchored_snippet
+	local total_len window prefix suffix anchored_snippet
+	local normalized_query normalized_body snippet_tokens body_token_lines
+	local -a body_tokens body_starts body_ends
+	local window_size window_step best_match best_start best_end best_span_start best_span_end
 	body_markdown="$1"
 	base_snippet="$2"
 	anchor_query="$3"
@@ -129,40 +258,94 @@ web_fetch_anchor_preview() {
 		return 0
 	fi
 
-	match_pos=$(
-		awk -v q="${anchor_query}" '
-			BEGIN { q = tolower(q); off = 0 }
-			{
-				line = tolower($0)
-				p = index(line, q)
-				if (p > 0) { print off + p; exit }
-				off += length($0) + 1  # +1 for the newline awk strips
-			}
-		' <<<"${body_markdown}"
-	)
+	normalized_query="$(web_fetch_normalize_text "${anchor_query}")"
+	normalized_body="$(web_fetch_normalize_text "${body_markdown}")"
 
-	if [[ -z "${match_pos}" ]]; then
+	if [[ -z "${normalized_query}" || -z "${normalized_body}" ]]; then
+		jq -nc --arg snippet "${base_snippet}" --argjson matched false '{snippet: $snippet, matched: $matched}'
+		return 0
+	fi
+
+	window_size=60
+	window_step=$((window_size / 2))
+
+	if ! body_token_lines="$(web_fetch_extract_tokens_with_positions "${body_markdown}")"; then
+		jq -nc --arg snippet "${base_snippet}" --argjson matched false '{snippet: $snippet, matched: $matched}'
+		return 0
+	fi
+
+	while IFS=$'\t' read -r raw_token raw_start raw_end; do
+		if [[ -z "${raw_token}" ]]; then
+			continue
+		fi
+		body_tokens+=("$(web_fetch_normalize_text "${raw_token}")")
+		body_starts+=("${raw_start}")
+		body_ends+=("${raw_end}")
+	done <<<"${body_token_lines}"
+
+	if ((${#body_tokens[@]} == 0)); then
+		jq -nc --arg snippet "${base_snippet}" --argjson matched false '{snippet: $snippet, matched: $matched}'
+		return 0
+	fi
+
+	local -a filtered_tokens filtered_starts filtered_ends
+	local i token_lower next_token next_next_token
+	local month_regex='^(jan|january|feb|february|mar|march|apr|april|may|jun|june|jul|july|aug|august|sep|sept|september|oct|october|nov|november|dec|december)$'
+
+	i=0
+	while ((i < ${#body_tokens[@]})); do
+		token_lower="${body_tokens[i]}"
+		next_token="${body_tokens[i + 1]:-}"
+		next_next_token="${body_tokens[i + 2]:-}"
+		if [[ "${token_lower}" =~ ${month_regex} && "${next_token}" =~ ^[0-9]{1,2}$ && "${next_next_token}" =~ ^[0-9]{4}$ ]]; then
+			i=$((i + 3))
+			continue
+		fi
+		if [[ -n "${token_lower}" ]]; then
+			filtered_tokens+=("${token_lower}")
+			filtered_starts+=("${body_starts[i]}")
+			filtered_ends+=("${body_ends[i]}")
+		fi
+		i=$((i + 1))
+	done
+
+	if ((${#filtered_tokens[@]} == 0)); then
+		jq -nc --arg snippet "${base_snippet}" --argjson matched false '{snippet: $snippet, matched: $matched}'
+		return 0
+	fi
+
+	snippet_tokens="${normalized_query}"
+	best_match="$(web_fetch_best_token_window "${snippet_tokens}" "${filtered_tokens[*]}" "${window_size}" "${window_step}")"
+	best_start="$(awk '{print $1}' <<<"${best_match}")"
+	best_end="$(awk '{print $2}' <<<"${best_match}")"
+
+	if [[ "${best_start}" -lt 0 || "${best_end}" -lt 0 ]]; then
+		jq -nc --arg snippet "${base_snippet}" --argjson matched false '{snippet: $snippet, matched: $matched}'
+		return 0
+	fi
+
+	best_span_start="${filtered_starts[best_start]}"
+	best_span_end="${filtered_ends[best_end]}"
+
+	if [[ -z "${best_span_start}" || -z "${best_span_end}" ]]; then
 		jq -nc --arg snippet "${base_snippet}" --argjson matched false '{snippet: $snippet, matched: $matched}'
 		return 0
 	fi
 
 	total_len=${#body_markdown}
-	snippet_start=$((match_pos - 1 - (snippet_limit / 2)))
-	if ((snippet_start < 0)); then
-		snippet_start=0
-	fi
-	snippet_end=$((snippet_start + snippet_limit))
-	if ((snippet_end > total_len)); then
-		snippet_end=${total_len}
+	window=${body_markdown:${best_span_start}:$((best_span_end - best_span_start))}
+
+	if ((${#window} > snippet_limit)); then
+		window=${window:0:snippet_limit}
+		best_span_end=$((best_span_start + snippet_limit))
 	fi
 
-	window=${body_markdown:${snippet_start}:$((snippet_end - snippet_start))}
 	prefix=""
 	suffix=""
-	if ((snippet_start > 0)); then
+	if ((best_span_start > 0)); then
 		prefix="…"
 	fi
-	if ((snippet_end < total_len)); then
+	if ((best_span_end < total_len)); then
 		suffix="…"
 	fi
 	anchored_snippet="${prefix}${window}${suffix}"
@@ -223,7 +406,7 @@ tool_web_fetch() {
 		return 1
 	}
 
-  # Extract fields
+	# Extract fields
 	body_path="$(jq -r '.body_path' <<<"${payload}")"
 	content_type="$(jq -r '.content_type // "application/octet-stream"' <<<"${payload}")"
 	status_code="$(jq -r '.status // 0' <<<"${payload}")"
@@ -232,15 +415,15 @@ tool_web_fetch() {
 	body_markdown=""
 	body_snippet=""
 
-  # Convert the body to markdown
-  converter_output="$("${WEB_TOOLS_DIR}/markdownify.sh" --path "${body_path}" --content-type "${content_type}" --limit "${preview_limit}")"
-  body_snippet="$(jq -r '.preview // ""' <<<"${converter_output}" 2>/dev/null)"
-  body_markdown="$(jq -r '.markdown // ""' <<<"${converter_output}" 2>/dev/null)"
+	# Convert the body to markdown
+	converter_output="$("${WEB_TOOLS_DIR}/markdownify.sh" --path "${body_path}" --content-type "${content_type}" --limit "${preview_limit}")"
+	body_snippet="$(jq -r '.preview // ""' <<<"${converter_output}" 2>/dev/null)"
+	body_markdown="$(jq -r '.markdown // ""' <<<"${converter_output}" 2>/dev/null)"
 
-  # Anchor the preview around the query
-  local anchor_result
-  anchor_result="$(web_fetch_anchor_preview "${body_markdown}" "${body_snippet}" "${anchor_query}" "${preview_limit}")"
-  anchor_match="$(jq -r '.matched // false' <<<"${anchor_result}" 2>/dev/null)"
+	# Anchor the preview around the query
+	local anchor_result
+	anchor_result="$(web_fetch_anchor_preview "${body_markdown}" "${body_snippet}" "${anchor_query}" "${preview_limit}")"
+	anchor_match="$(jq -r '.matched // false' <<<"${anchor_result}" 2>/dev/null)"
 
 	# Clean up body file now that we have preview
 	rm -f "${body_path}"
