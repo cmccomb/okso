@@ -61,13 +61,13 @@ web_fetch_normalize_snippet() {
 	local snippet cleaned
 	snippet="$1"
 
-  # Early exit if snippet is empty
+	# Early exit if snippet is empty
 	if [[ -z "${snippet}" ]]; then
 		return 1
 	fi
 
-  # Clean snippet: remove terminal ellipses " ..."
-  cleaned="$(sed -E 's/[[:space:]]*…$//; s/[[:space:]]*\.\.\.$//' <<<"${snippet}")"
+	# Clean snippet: remove terminal ellipses " ..."
+	cleaned="$(sed -E 's/[[:space:]]*…$//; s/[[:space:]]*\.\.\.$//' <<<"${snippet}")"
 
 	# Exit if cleaned snippet is empty
 	if [[ -z "${cleaned}" ]]; then
@@ -92,14 +92,14 @@ web_fetch_normalize_text() {
 	fi
 
 	normalized="$(
-		printf '%s' "${text}" \
-			| sed -E \
+		printf '%s' "${text}" |
+			sed -E \
 				-e 's/[“”]/"/g' \
 				-e "s/[‘’]/'/g" \
 				-e 's/[—–]/-/g' \
-				-e 's/…/.../g' \
-			| tr '[:upper:]' '[:lower:]' \
-			| sed -E \
+				-e 's/…/.../g' |
+			tr '[:upper:]' '[:lower:]' |
+			sed -E \
 				-e 's/(jan(uary)?|feb(ruary)?|mar(ch)?|apr(il)?|may|jun(e)?|jul(y)?|aug(ust)?|sep(t(ember)?)?|oct(ober)?|nov(ember)?|dec(ember)?) +[0-9]{1,2},? +[0-9]{4}//g' \
 				-e 's/[[:punct:]]+/ /g' \
 				-e 's/[[:space:]]+/ /g; s/^ //; s/ $//'
@@ -406,7 +406,7 @@ tool_web_fetch() {
 		return 1
 	}
 
-  # Extract fields
+	# Extract fields
 	body_path="$(jq -r '.body_path' <<<"${payload}")"
 	content_type="$(jq -r '.content_type // "application/octet-stream"' <<<"${payload}")"
 	status_code="$(jq -r '.status // 0' <<<"${payload}")"
@@ -415,15 +415,15 @@ tool_web_fetch() {
 	body_markdown=""
 	body_snippet=""
 
-  # Convert the body to markdown
-  converter_output="$("${WEB_TOOLS_DIR}/markdownify.sh" --path "${body_path}" --content-type "${content_type}" --limit "${preview_limit}")"
-  body_snippet="$(jq -r '.preview // ""' <<<"${converter_output}" 2>/dev/null)"
-  body_markdown="$(jq -r '.markdown // ""' <<<"${converter_output}" 2>/dev/null)"
+	# Convert the body to markdown
+	converter_output="$("${WEB_TOOLS_DIR}/markdownify.sh" --path "${body_path}" --content-type "${content_type}" --limit "${preview_limit}")"
+	body_snippet="$(jq -r '.preview // ""' <<<"${converter_output}" 2>/dev/null)"
+	body_markdown="$(jq -r '.markdown // ""' <<<"${converter_output}" 2>/dev/null)"
 
-  # Anchor the preview around the query
-  local anchor_result
-  anchor_result="$(web_fetch_anchor_preview "${body_markdown}" "${body_snippet}" "${anchor_query}" "${preview_limit}")"
-  anchor_match="$(jq -r '.matched // false' <<<"${anchor_result}" 2>/dev/null)"
+	# Anchor the preview around the query
+	local anchor_result
+	anchor_result="$(web_fetch_anchor_preview "${body_markdown}" "${body_snippet}" "${anchor_query}" "${preview_limit}")"
+	anchor_match="$(jq -r '.matched // false' <<<"${anchor_result}" 2>/dev/null)"
 
 	# Clean up body file now that we have preview
 	rm -f "${body_path}"
