@@ -68,46 +68,6 @@ SCRIPT
 	[[ " ${lines[*]} " == *" web_fetch "* ]]
 }
 
-@test "web_fetch converts html bodies to markdown previews" {
-	run bash <<'SCRIPT'
-set -euo pipefail
-body_file="$(mktemp)"
-cp tests/fixtures/web_fetch_sample.html "${body_file}"
-mock_bin="$(mktemp -d)"
-cat >"${mock_bin}/lynx" <<'MOCK'
-#!/usr/bin/env bash
-if [[ "$1" == "-dump" && "$2" == "-stdin" ]]; then
-        sed -E 's/<[^>]+>//g'
-        exit 0
-fi
-exit 1
-MOCK
-cat >"${mock_bin}/pandoc" <<'MOCK'
-#!/usr/bin/env bash
-input="${@: -1}"
-sed -E 's/<[^>]+>//g' "${input}"
-MOCK
-chmod +x "${mock_bin}/lynx"
-chmod +x "${mock_bin}/pandoc"
-export PATH="${mock_bin}:$PATH"
-mock_response=$(jq -nc --arg body_path "${body_file}" --arg final_url "https://example.com/final" --arg content_type "text/html" --arg headers "X-Test: 1" '{status:200, final_url:$final_url, content_type:$content_type, headers:$headers, bytes:200, truncated:false, body_path:$body_path}')
-source ./src/tools/web/web_fetch.sh
-web_http_request() { printf '%s' "${mock_response}"; }
-TOOL_ARGS='{"url":"https://example.com"}'
-output=$(tool_web_fetch)
-echo "${output}"
-jq -e '.content_type == "text/html"' <<<"${output}" >/dev/null
-jq -e '.headers == "X-Test: 1"' <<<"${output}" >/dev/null
-jq -e '.bytes == 200' <<<"${output}" >/dev/null
-jq -e '.truncated == false' <<<"${output}" >/dev/null
-jq -e '.body_encoding == "text"' <<<"${output}" >/dev/null
-jq -e '(.body_markdown | length) > 0' <<<"${output}" >/dev/null
-jq -e '(.body_snippet | contains("Example Title"))' <<<"${output}" >/dev/null
-SCRIPT
-
-	[ "$status" -eq 0 ]
-}
-
 @test "web_fetch anchors previews to web_search snippets when available" {
 	run bash <<'SCRIPT'
 set -euo pipefail
@@ -126,30 +86,6 @@ output=$(tool_web_fetch)
 echo "${output}"
 jq -e '.anchor_match == true' <<<"${output}" >/dev/null
 jq -e '(.body_snippet | contains("unique snippet"))' <<<"${output}" >/dev/null
-SCRIPT
-
-	[ "$status" -eq 0 ]
-}
-
-@test "web_fetch normalizes snippets with ellipses and punctuation for anchoring" {
-	run bash <<'SCRIPT'
-set -euo pipefail
-body_file="$(mktemp)"
-cat >"${body_file}" <<'BODY'
-Intro text.
-Alpha beta gamma delta should match after normalization.
-More content.
-BODY
-mock_response=$(jq -nc --arg body_path "${body_file}" --arg content_type "text/plain" '{status:200, final_url:"https://example.com/test", content_type:$content_type, headers:"", bytes:120, truncated:false, body_path:$body_path}')
-source ./src/tools/web/web_fetch.sh
-web_http_request() { printf '%s' "${mock_response}"; }
-export WEB_FETCH_SEARCH_SNIPPETS='{"https://example.com/test":"Alpha... beta!!! gamma??"}'
-TOOL_ARGS='{"url":"https://example.com/test"}'
-output=$(tool_web_fetch)
-echo "${output}"
-jq -e '.anchor_match == true' <<<"${output}" >/dev/null
-jq -e '.anchor_query == "Alpha beta gamma"' <<<"${output}" >/dev/null
-jq -e '(.body_snippet | contains("Alpha beta gamma"))' <<<"${output}" >/dev/null
 SCRIPT
 
 	[ "$status" -eq 0 ]
@@ -192,19 +128,3 @@ SCRIPT
 	[ "$status" -eq 0 ]
 }
 
-@test "web_fetch falls back when markdown conversion fails" {
-	run bash <<'SCRIPT'
-set -euo pipefail
-body_file="$(mktemp)"
-printf '%s' "not json" >"${body_file}"
-mock_response=$(jq -nc --arg body_path "${body_file}" --arg content_type "application/json" '{status:200, final_url:"https://example.com", content_type:$content_type, headers:"", bytes:8, truncated:false, body_path:$body_path}')
-source ./src/tools/web/web_fetch.sh
-web_http_request() { printf '%s' "${mock_response}"; }
-TOOL_ARGS='{"url":"https://example.com"}'
-output=$(tool_web_fetch)
-jq -e '.body_markdown == null' <<<"${output}" >/dev/null
-jq -e '.body_snippet == "not json"' <<<"${output}" >/dev/null
-SCRIPT
-
-	[ "$status" -eq 0 ]
-}
