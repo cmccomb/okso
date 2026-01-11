@@ -58,7 +58,7 @@ web_fetch_normalize_snippet() {
 	#   $1 - snippet text (string)
 	# Returns:
 	#   Normalized snippet text (string)
-	local snippet cleaned phrase
+	local snippet cleaned
 	snippet="$1"
 
   # Early exit if snippet is empty
@@ -74,7 +74,7 @@ web_fetch_normalize_snippet() {
 		return 1
 	fi
 
-	printf '%s' "${phrase}"
+	printf '%s' "${cleaned}"
 }
 
 web_fetch_snippet_for_url() {
