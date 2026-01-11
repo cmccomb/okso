@@ -91,9 +91,26 @@ extract_urls_from_text() {
 	printf '%s' "${text}" | grep -Eo 'https?://[^[:space:]\")\]<>]+' 2>/dev/null || true
 }
 
+normalize_web_fetch_url() {
+	# Normalizes URLs by stripping trailing punctuation to align with web_fetch allowlists.
+	# Arguments:
+	#   $1 - URL string
+	# Returns:
+	#   Normalized URL string.
+	local url
+	url="$1"
+
+	if [[ -z "${url}" ]]; then
+		return 1
+	fi
+
+	printf '%s' "${url}" | sed -E 's/[),.]+$//'
+}
+
 collect_web_fetch_allowlist() {
 	# Builds a JSON array of allowed URLs for web_fetch.
 	# Handles web_search observations stored directly or wrapped in tool output metadata.
+	# Normalizes URLs by stripping trailing punctuation.
 	# Arguments:
 	#   $1 - history text (newline-delimited JSON entries)
 	#   $2 - user query
@@ -141,7 +158,9 @@ collect_web_fetch_allowlist() {
 			extract_urls_from_text "${user_query}"
 			extract_urls_from_text "${plan_outline}"
 			extract_urls_from_text "${planner_thought}"
-		} | sed -E 's/[),.]+$//' | sort -u | jq -Rsc 'split("\n") | map(select(length>0))'
+		} | while IFS= read -r url; do
+			normalize_web_fetch_url "${url}"
+		done | sort -u | jq -Rsc 'split("\n") | map(select(length>0))'
 	)
 
 	printf '%s' "${urls_json}"
@@ -149,9 +168,10 @@ collect_web_fetch_allowlist() {
 
 collect_web_fetch_snippet_map() {
 	# Builds a JSON object mapping URLs to web_search snippets for web_fetch.
+	# Stores snippets under both raw and normalized URLs to match allowlist normalization.
 	# Arguments:
 	#   $1 - history text (newline-delimited JSON entries)
-	local history_text snippet_json
+	local history_text snippet_json snippet_entries snippet_map entry url snippet normalized_url
 	history_text="$1"
 
 	snippet_json=$(
@@ -160,7 +180,7 @@ collect_web_fetch_snippet_map() {
 			return 0
 		fi
 
-		jq -n -r '
+		snippet_entries="$(jq -n -c '
                         def parse_entry:
                           if type == "string" then
                             try (fromjson) catch empty
@@ -186,8 +206,30 @@ collect_web_fetch_snippet_map() {
                         | .[]
                         | select(.action.tool == "web_search")
                         | search_items
-                        | reduce .[]? as $item ({}; if (($item.url? | type) == "string") and (($item.snippet? | type) == "string") and ($item.url | length) > 0 and ($item.snippet | length) > 0 then .[$item.url] = $item.snippet else . end)
-                ' <<<"${history_text}" 2>/dev/null || printf '{}'
+                        | .[]?
+                        | select((.url? | type) == "string" and (.snippet? | type) == "string")
+                        | select((.url | length) > 0 and (.snippet | length) > 0)
+                        | {url: .url, snippet: .snippet}
+                ' <<<"${history_text}" 2>/dev/null)" || true
+
+		snippet_map='{}'
+		while IFS= read -r entry; do
+			[[ -z "${entry}" ]] && continue
+			url="$(jq -r '.url' <<<"${entry}")"
+			snippet="$(jq -r '.snippet' <<<"${entry}")"
+			if [[ -z "${url}" || -z "${snippet}" ]]; then
+				continue
+			fi
+			normalized_url="$(normalize_web_fetch_url "${url}")"
+			snippet_map="$(jq -c \
+				--arg url "${url}" \
+				--arg snippet "${snippet}" \
+				--arg normalized_url "${normalized_url}" \
+				'. + {($url): $snippet} + (if ($normalized_url | length) > 0 and $normalized_url != $url then {($normalized_url): $snippet} else {} end)' \
+				<<<"${snippet_map}")"
+		done <<<"${snippet_entries}"
+
+		printf '%s' "${snippet_map}"
 	)
 
 	printf '%s' "${snippet_json}"
