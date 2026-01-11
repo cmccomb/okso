@@ -33,6 +33,12 @@ summarize_executor_history() {
 	#   $1 - history text (newline-delimited JSON entries)
 	# Returns:
 	#   Summarized history text (newline-delimited JSON entries)
+	# Notes:
+	#   For web_fetch observations that use the enriched wrapper format
+	#   ({output: "<json>", exit_code: <int>, error: "<string>"}), the
+	#   output payload is parsed as JSON and summarized like a normal
+	#   web_fetch observation. If the output JSON cannot be parsed,
+	#   the original history line is preserved to avoid data loss.
 	local history_text limit line summarized_line
 	local -a summarized_lines=()
 	history_text="$1"
@@ -50,6 +56,12 @@ summarize_executor_history() {
 		fi
 
 		if ! summarized_line=$(jq -c --argjson limit "${limit}" '
+                        def normalize_observation:
+                                if (type == "object" and has("output") and has("exit_code")) then
+                                        try (.output | fromjson) catch error("invalid_observation_json")
+                                else
+                                        .
+                                end;
                         if type != "object" then
                                 .
                         elif (.action.tool? // "") != "web_fetch" then
@@ -57,28 +69,32 @@ summarize_executor_history() {
                         elif (.observation | type) != "object" then
                                 .
                         else
-                                .observation as $obs
-                                | .observation = ($obs | {
-                                        url: .url,
-                                        final_url: .final_url,
-                                        status: .status,
-                                        content_type: .content_type,
-                                        anchor_query: .anchor_query,
-                                        anchor_match: .anchor_match,
-                                        body_encoding: .body_encoding,
-                                        body_snippet: .body_snippet,
-                                        body_markdown: (
-                                                if (.body_snippet // "") != "" then
-                                                        .body_snippet
-                                                elif (.body_markdown // "") != "" then
-                                                        (.body_markdown | tostring | .[0:$limit])
-                                                else
-                                                        null
-                                                end
-                                        ),
-                                        bytes: .bytes,
-                                        truncated: .truncated
-                                })
+                                (.observation | normalize_observation) as $obs
+                                | if ($obs | type) != "object" then
+                                        .
+                                else
+                                        .observation = ($obs | {
+                                                url: .url,
+                                                final_url: .final_url,
+                                                status: .status,
+                                                content_type: .content_type,
+                                                anchor_query: .anchor_query,
+                                                anchor_match: .anchor_match,
+                                                body_encoding: .body_encoding,
+                                                body_snippet: .body_snippet,
+                                                body_markdown: (
+                                                        if (.body_snippet // "") != "" then
+                                                                .body_snippet
+                                                        elif (.body_markdown // "") != "" then
+                                                                (.body_markdown | tostring | .[0:$limit])
+                                                        else
+                                                                null
+                                                        end
+                                                ),
+                                                bytes: .bytes,
+                                                truncated: .truncated
+                                        })
+                                end
                         end
                 ' <<<"${line}" 2>/dev/null); then
 			summarized_lines+=("${line}")
