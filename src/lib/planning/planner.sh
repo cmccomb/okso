@@ -317,14 +317,16 @@ validate_temperature() {
 	printf '%s' "${sanitized}"
 }
 
-generate_planner_response() {
+generate_planner_response_with_context() {
 	# Arguments:
 	#   $1 - user query (string)
+	#   $2 - preformatted search context (string)
 	# Returns:
 	#   planner response JSON (string)
-	local user_query
+	local user_query search_context
 	local -a planner_tools=()
 	user_query="$1"
+	search_context="$2"
 
 	# Initialize settings for planner and executor models
 	initialize_planner_models
@@ -342,10 +344,9 @@ generate_planner_response() {
 	log "DEBUG" "Planner tool catalog" "${planner_tool_catalog}" >&2
 
 	# Build the planner prompt
-	local planner_schema_text tool_lines prompt search_context
+	local planner_schema_text tool_lines prompt
 	planner_schema_text="$(planner_build_plan_schema "${planner_tools[@]}")"
 	tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_line)"
-	search_context="$(planner_fetch_search_context "${user_query}")"
 	prompt="$(build_planner_prompt "${user_query}" "${tool_lines}" "${search_context}" "${PLANNER_FEEDBACK_CONTEXT:-}" "${planner_schema_text}")"
 	log "DEBUG" "Generated planner prompt" "${prompt}" >&2
 
@@ -450,6 +451,17 @@ generate_planner_response() {
 	fi
 
 	printf '%s' "${best_plan}"
+}
+
+generate_planner_response() {
+	# Arguments:
+	#   $1 - user query (string)
+	# Returns:
+	#   planner response JSON (string)
+	local user_query search_context
+	user_query="$1"
+	search_context="$(planner_fetch_search_context "${user_query}")"
+	generate_planner_response_with_context "${user_query}" "${search_context}"
 }
 
 generate_plan_outline() {
