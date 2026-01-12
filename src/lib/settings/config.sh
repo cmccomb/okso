@@ -149,7 +149,7 @@ log_model_autotune_summary() {
 		IFS=','
 		printf '%s' "${fragments[*]}"
 	)
-	log "INFO" "model autotune: base=${base} eff=${effective}" "${summary_detail}"
+	log "DEBUG" "model autotune: base=${base} eff=${effective}" "${summary_detail}"
 }
 
 default_run_id() {

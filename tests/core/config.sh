@@ -258,6 +258,24 @@ SCRIPT
 	[ "${lines[13]}" = "beta" ]
 }
 
+@test "log_model_autotune_summary uses debug level" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+source ./src/lib/settings/config.sh
+log() { printf '%s\n' "$1"; }
+MODEL_AUTOTUNE_BASE_TIER="default"
+MODEL_AUTOTUNE_EFFECTIVE_TIER="default"
+MODEL_AUTOTUNE_PRESSURE_LEVEL="normal"
+MODEL_AUTOTUNE_HEADROOM_CLASS="comfortable"
+DETECTED_PHYS_MEM_GB=16
+DETECTED_IS_GHA=0
+log_model_autotune_summary
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "DEBUG" ]
+}
+
 @test "cli --yes flag sets APPROVE_ALL" {
 	run bash <<'SCRIPT'
 set -euo pipefail

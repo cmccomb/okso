@@ -269,7 +269,7 @@ render_step_box() {
 		width_limit=20
 	fi
 
-	header_line="$(format_header_line "${duration}" "${step_name}" "${width_limit}")"
+	header_line="$(format_header_line "${step_name}" "${duration}" "${width_limit}")"
 	lines+=("${header_line}")
 
 	if [[ -z "${body}" ]]; then
