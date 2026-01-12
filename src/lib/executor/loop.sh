@@ -255,7 +255,6 @@ validate_web_fetch_snippet_map() {
 
 	printf '%s' "${snippet_json}"
 }
-
 prepare_web_fetch_context() {
 	# Prepares allowlist schema and snippet map for web_fetch.
 	# Arguments:
@@ -263,17 +262,32 @@ prepare_web_fetch_context() {
 	#   $2 - user query text
 	#   $3 - plan outline text
 	#   $4 - planner thought text
-	local history_text user_query plan_outline planner_thought allowlist_json snippet_json
+	#   $5 - (optional) name of variable to receive snippet map JSON
+	# Returns:
+	#   If $5 is set, assigns snippet map JSON to that variable and prints nothing.
+	#   Otherwise prints snippet map JSON.
+
+	local history_text user_query plan_outline planner_thought out_var
+	local allowlist_json snippet_json
+
 	history_text="$1"
 	user_query="$2"
 	plan_outline="$3"
 	planner_thought="$4"
+	out_var="${5:-}"
 
 	allowlist_json="$(collect_web_fetch_allowlist "${history_text}" "${user_query}" "${plan_outline}" "${planner_thought}")"
 	patch_web_fetch_schema "${allowlist_json}"
 
 	snippet_json="$(collect_web_fetch_snippet_map "${history_text}")"
-	validate_web_fetch_snippet_map "${snippet_json}"
+	snippet_json="$(validate_web_fetch_snippet_map "${snippet_json}")"
+
+	if [[ -n "${out_var}" ]]; then
+		printf -v "${out_var}" '%s' "${snippet_json}"
+		return 0
+	fi
+
+	printf '%s' "${snippet_json}"
 }
 
 patch_web_fetch_schema() {
@@ -516,23 +530,25 @@ resolve_action_args() {
 
 	resolved_args="$(apply_plan_arg_controls "${tool}" "${args_json}" "${plan_entry_json}" "${user_query}" "${history_text}")"
 
+	# Extract context metadata
 	if ! context_metadata="$(extract_context_controls "${resolved_args}")"; then
 		printf 'Invalid args JSON after planner controls\n' >&2
 		return 1
 	fi
 
+	# Extract context fields and seeds
 	context_fields_json="$(jq -c '.context_fields' <<<"${context_metadata}")"
 	context_seed_lines="$(jq -r '.context_seed_lines[]?' <<<"${context_metadata}")"
 	resolved_args="$(jq -c '.args' <<<"${context_metadata}")"
-
 	schema="$(jq -c '.' <<<"$(tool_args_schema "${tool}")" 2>/dev/null || printf '{}')"
 
+	# If no context-controlled fields, return normalized args
 	if [[ "${context_fields_json}" == "[]" ]]; then
-
 		normalize_args_json "${resolved_args}"
 		return 0
 	fi
 
+	# Build prompt-safe history
 	history_for_prompt="${history_text}"
 	history_for_prompt="$(build_prompt_safe_history "${history_for_prompt}")"
 	if [[ -n "${context_seed_lines}" ]]; then
@@ -542,11 +558,13 @@ resolve_action_args() {
 		history_for_prompt+="${context_seed_lines}"
 	fi
 
+	# Fill context-controlled args via LLM
 	if ! resolved_args="$(fill_missing_args_with_llm "${tool}" "${resolved_args}" "${user_query}" "${plan_outline}" "${planner_thought}" "${history_for_prompt}" "${context_fields_json}")"; then
 		printf 'Context argument infill failed\n' >&2
 		return 1
 	fi
 
+	# Return normalized final args JSON
 	normalize_args_json "${resolved_args}"
 }
 
@@ -562,19 +580,26 @@ execute_planned_action() {
 	step_index="$2"
 	action_json="$3"
 
+	# Extract action fields
 	tool="$(jq -r '.tool' <<<"${action_json}")"
 	args_json="$(jq -c '.args' <<<"${action_json}")"
 	thought="$(jq -r '.thought' <<<"${action_json}")"
 
+	# Get execution
 	history_text="$(state_get_history_lines "${state_prefix}")"
 
+	# Prepare web_fetch context if needed
 	if [[ "${tool}" == "web_fetch" ]]; then
-		web_fetch_snippets="$(prepare_web_fetch_context \
+		prepare_web_fetch_context \
 			"${history_text}" \
 			"$(json_state_get_key "${state_prefix}" "user_query")" \
 			"$(json_state_get_key "${state_prefix}" "plan_outline")" \
-			"${thought}")"
+			"${thought}" \
+			web_fetch_snippets
+		web_fetch_snippets="${web_fetch_snippets:-{}}"
 	fi
+
+	# Resolve args with planner controls and context infill
 	if ! args_after_controls="$(resolve_action_args "${tool}" "${args_json}" "${action_json}" "$(json_state_get_key "${state_prefix}" "user_query")" "${history_text}" "$(json_state_get_key "${state_prefix}" "plan_outline")" "${thought}")"; then
 		log "ERROR" "Argument resolution failed" "${tool}" || true
 		json_state_set_key "${state_prefix}" "needs_replanning" "true" || true
@@ -582,6 +607,7 @@ execute_planned_action() {
 		return 1
 	fi
 
+	# Execute the tool with context
 	context="$(format_action_context "${thought}" "${tool}" "${args_after_controls}")"
 	if [[ "${tool}" == "web_fetch" ]]; then
 		observation="$(WEB_FETCH_SEARCH_SNIPPETS="${web_fetch_snippets}" execute_tool_with_query "${tool}" "$(extract_tool_query "${tool}" "${args_after_controls}")" "${context}" "${args_after_controls}")"
@@ -590,12 +616,15 @@ execute_planned_action() {
 	fi
 	execution_status=$?
 
+	# Handle execution failure
 	if ((execution_status != 0)); then
 		return ${execution_status}
 	fi
 
+	# Record the tool execution
 	record_tool_execution "${state_prefix}" "${tool}" "${thought}" "${args_after_controls}" "${observation}" "${step_index}"
 
+	# Handle final answer
 	if [[ "${tool}" == "final_answer" ]]; then
 		json_state_set_key "${state_prefix}" "final_answer_action" "${observation}"
 		json_state_set_key "${state_prefix}" "final_answer" "${observation}"
