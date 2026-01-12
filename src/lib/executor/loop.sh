@@ -235,6 +235,47 @@ collect_web_fetch_snippet_map() {
 	printf '%s' "${snippet_json}"
 }
 
+validate_web_fetch_snippet_map() {
+	# Validates the web_fetch snippet map JSON and defaults to {} on failure.
+	# Arguments:
+	#   $1 - snippet map JSON (string)
+	local snippet_json
+	snippet_json="${1:-}"
+
+	if [[ -z "${snippet_json}" ]]; then
+		printf '{}'
+		return 0
+	fi
+
+	if ! jq -e 'type == "object"' >/dev/null 2>&1 <<<"${snippet_json}"; then
+		log "WARN" "Invalid WEB_FETCH_SEARCH_SNIPPETS; defaulting to {}" "${snippet_json}" || true
+		printf '{}'
+		return 0
+	fi
+
+	printf '%s' "${snippet_json}"
+}
+
+prepare_web_fetch_context() {
+	# Prepares allowlist schema and snippet map for web_fetch.
+	# Arguments:
+	#   $1 - history text (newline-delimited JSON entries)
+	#   $2 - user query text
+	#   $3 - plan outline text
+	#   $4 - planner thought text
+	local history_text user_query plan_outline planner_thought allowlist_json snippet_json
+	history_text="$1"
+	user_query="$2"
+	plan_outline="$3"
+	planner_thought="$4"
+
+	allowlist_json="$(collect_web_fetch_allowlist "${history_text}" "${user_query}" "${plan_outline}" "${planner_thought}")"
+	patch_web_fetch_schema "${allowlist_json}"
+
+	snippet_json="$(collect_web_fetch_snippet_map "${history_text}")"
+	validate_web_fetch_snippet_map "${snippet_json}"
+}
+
 patch_web_fetch_schema() {
 	# Applies a URL allowlist to the web_fetch schema.
 	# Arguments:
@@ -528,14 +569,11 @@ execute_planned_action() {
 	history_text="$(state_get_history_lines "${state_prefix}")"
 
 	if [[ "${tool}" == "web_fetch" ]]; then
-		local allowlist_json
-		allowlist_json="$(collect_web_fetch_allowlist \
+		web_fetch_snippets="$(prepare_web_fetch_context \
 			"${history_text}" \
 			"$(json_state_get_key "${state_prefix}" "user_query")" \
 			"$(json_state_get_key "${state_prefix}" "plan_outline")" \
 			"${thought}")"
-		patch_web_fetch_schema "${allowlist_json}"
-		web_fetch_snippets="$(collect_web_fetch_snippet_map "${history_text}")"
 	fi
 	if ! args_after_controls="$(resolve_action_args "${tool}" "${args_json}" "${action_json}" "$(json_state_get_key "${state_prefix}" "user_query")" "${history_text}" "$(json_state_get_key "${state_prefix}" "plan_outline")" "${thought}")"; then
 		log "ERROR" "Argument resolution failed" "${tool}" || true
