@@ -223,11 +223,6 @@ llama_infer() {
 	start_time_ns=$(date +%s)
 	start_time_ns=$((start_time_ns * 1000000000))
 
-	# Log debug info
-	if [[ "${VERBOSITY:-0}" -ge 2 ]]; then
-		log "DEBUG" "llama args" "${llama_arg_string}"
-	fi
-
 	# Run llama.cpp with timeout
 	llama_output=$(llama_with_timeout "${llama_args[@]}" 2>"${stderr_file}")
 	exit_code=$?

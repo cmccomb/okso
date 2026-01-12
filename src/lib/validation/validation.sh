@@ -125,13 +125,6 @@ validate_final_answer_against_query() {
 	else
 		printf '%s' "${response}"
 	fi
-
-	# Return based on satisfaction
-	if [[ "${satisfied}" == "true" ]]; then
-		return 0
-	else
-		return 1
-	fi
 }
 
 export -f validate_final_answer_against_query

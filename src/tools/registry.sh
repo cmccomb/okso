@@ -64,6 +64,30 @@ tool_args_schema() {
 	jq -c --arg name "${name}" '.registry[$name].args_schema // {}' <<<"$(tool_registry_json)"
 }
 
+update_tool_args_schema() {
+	# Arguments:
+	#   $1 - tool name
+	#   $2 - args schema JSON
+	if [[ $# -lt 2 ]]; then
+		log "ERROR" "update_tool_args_schema requires tool name and schema" "$*"
+		return 1
+	fi
+
+	local name schema
+	name="$1"
+	schema="$2"
+
+	if ! jq -e --arg name "${name}" '.registry[$name] != null' <<<"$(tool_registry_json)" >/dev/null 2>&1; then
+		log "ERROR" "Unknown tool for schema update" "${name}" || true
+		return 1
+	fi
+
+	TOOL_REGISTRY_JSON=$(jq -c \
+		--arg name "${name}" \
+		--argjson schema "${schema}" \
+		'.registry[$name].args_schema = $schema' <<<"$(tool_registry_json)")
+}
+
 tool_schema_map() {
 	# Returns a mapping of tool names to their argument JSON Schemas.
 	# Returns:
@@ -110,7 +134,13 @@ register_tool() {
 
                 if is_single_string_schema then
                         (.properties|keys[] | .) as $prop
-                        | ($prop == $key)
+                        | if $prop == $key then
+                                true
+                          elif $prop == "url" and (.properties.url.format? == "uri") then
+                                true
+                          else
+                                false
+                          end
                 else
                         true
                 end

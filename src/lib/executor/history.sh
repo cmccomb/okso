@@ -10,6 +10,9 @@
 #   - bash 3.2+
 #   - jq
 #
+# Environment variables:
+#   EXECUTOR_HISTORY_SNIPPET_LIMIT (int): maximum characters to preserve for web_fetch body_markdown summaries (default: 240).
+#
 # Exit codes:
 #   Functions return non-zero on state failures.
 
@@ -23,6 +26,86 @@ source "${EXECUTOR_LIB_DIR}/../core/json_state.sh"
 source "${EXECUTOR_LIB_DIR}/../cli/output.sh"
 # shellcheck source=src/lib/validation/validation.sh
 source "${EXECUTOR_LIB_DIR}/../validation/validation.sh"
+
+summarize_executor_history() {
+	# Summarizes history entries for prompt-safe reuse.
+	# Arguments:
+	#   $1 - history text (newline-delimited JSON entries)
+	# Returns:
+	#   Summarized history text (newline-delimited JSON entries)
+	# Notes:
+	#   For web_fetch observations that use the enriched wrapper format
+	#   ({output: "<json>", exit_code: <int>, error: "<string>"}), the
+	#   output payload is parsed as JSON and summarized like a normal
+	#   web_fetch observation. If the output JSON cannot be parsed,
+	#   the original history line is preserved to avoid data loss.
+	local history_text limit line summarized_line
+	local -a summarized_lines=()
+	history_text="$1"
+	limit=${EXECUTOR_HISTORY_SNIPPET_LIMIT:-240}
+
+	if [[ -z "${history_text}" ]]; then
+		printf '%s' "${history_text}"
+		return 0
+	fi
+
+	while IFS= read -r line || [[ -n "${line}" ]]; do
+		if [[ -z "${line}" ]]; then
+			summarized_lines+=("")
+			continue
+		fi
+
+		if ! summarized_line=$(jq -c --argjson limit "${limit}" '
+                        def normalize_observation:
+                                if (type == "object" and has("output") and has("exit_code")) then
+                                        try (.output | fromjson) catch error("invalid_observation_json")
+                                else
+                                        .
+                                end;
+                        if type != "object" then
+                                .
+                        elif (.action.tool? // "") != "web_fetch" then
+                                .
+                        elif (.observation | type) != "object" then
+                                .
+                        else
+                                (.observation | normalize_observation) as $obs
+                                | if ($obs | type) != "object" then
+                                        .
+                                else
+                                        .observation = ($obs | {
+                                                url: .url,
+                                                final_url: .final_url,
+                                                status: .status,
+                                                content_type: .content_type,
+                                                anchor_query: .anchor_query,
+                                                anchor_match: .anchor_match,
+                                                body_encoding: .body_encoding,
+                                                body_snippet: .body_snippet,
+                                                body_markdown: (
+                                                        if (.body_snippet // "") != "" then
+                                                                .body_snippet
+                                                        elif (.body_markdown // "") != "" then
+                                                                (.body_markdown | tostring | .[0:$limit])
+                                                        else
+                                                                null
+                                                        end
+                                                ),
+                                                bytes: .bytes,
+                                                truncated: .truncated
+                                        })
+                                end
+                        end
+                ' <<<"${line}" 2>/dev/null); then
+			summarized_lines+=("${line}")
+			continue
+		fi
+
+		summarized_lines+=("${summarized_line}")
+	done <<<"${history_text}"
+
+	printf '%s\n' "${summarized_lines[@]}"
+}
 
 initialize_executor_state() {
 	# Initializes the executor state document with user query, tools, and plan.
@@ -298,9 +381,14 @@ validate_and_optionally_replan() {
 	#   $1 - state prefix
 	#   $2 - final answer text
 	local state_name final_answer user_query history_text
+
+	# Validation outputs / control
 	local validation_json validator_rc satisfied reasoning feedback_text errexit_was_set
-	local history_pretty validation_start_time validation_duration validation_status validation_reason
-	local execution_duration execution_body final_body validation_body
+	local validation_start_time validation_duration validation_status validation_reason
+
+	# UI render helpers
+	local history_pretty execution_duration execution_body final_body validation_body
+
 	state_name="$1"
 	final_answer="$2"
 
@@ -327,6 +415,10 @@ validate_and_optionally_replan() {
 		set -e
 	fi
 
+	# Defaults (so rendering always works)
+	validation_status="Unknown"
+	validation_reason=""
+
 	# Interpret validation result
 	if [[ ${validator_rc} -ne 0 ]]; then
 		# Validator infra failure: we got *some* output (maybe), but tool failed.
@@ -334,6 +426,7 @@ validate_and_optionally_replan() {
 		if [[ -n "${validation_json}" ]]; then
 			log_pretty "DEBUG" "validation_output" "${validation_json}" || true
 		fi
+
 		if [[ ${validator_rc} -eq 2 ]]; then
 			validation_status="Skipped"
 			validation_reason="Validator unavailable"
@@ -408,7 +501,7 @@ validate_and_optionally_replan() {
 	final_body="$(format_final_answer_summary "${final_answer}")"
 	render_step_box "Final Answer" "$(format_duration_seconds 0)" "${final_body}"
 
-	validation_body="$(format_validation_summary "${validation_status:-Unknown}" "${validation_reason:-}")"
+	validation_body="$(format_validation_summary "${validation_status}" "${validation_reason}")"
 	render_step_box "Validation" "${validation_duration:-$(format_duration_seconds 0)}" "${validation_body}"
 }
 

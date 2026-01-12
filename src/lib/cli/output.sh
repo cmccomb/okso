@@ -472,14 +472,114 @@ format_tool_example_line() {
 	format_tool_line "$1"
 }
 
-format_tool_history() {
+format_tool_observation_raw() {
+	# Formats a tool observation for machine-readable logs.
+	# Arguments:
+	#   $1 - tool history JSON line (string)
+	#   $2 - tool name (string)
+	# Returns:
+	#   Compact JSON or raw string observation (string)
+	local line
+	line="$1"
+
+	if jq -e '.observation | type == "string"' <<<"${line}" >/dev/null 2>&1; then
+		jq -r '.observation' <<<"${line}"
+		return 0
+	fi
+
+	jq -c '.observation' <<<"${line}"
+}
+
+format_tool_observation_pretty() {
+	# Formats a tool observation for human-readable logs.
+	# Arguments:
+	#   $1 - tool history JSON line (string)
+	#   $2 - tool name (string)
+	# Returns:
+	#   Human-friendly observation string
+	local line tool obs obs_obj
+	line="$1"
+	tool="$2"
+
+	if jq -e '.observation | type == "object"' <<<"${line}" >/dev/null 2>&1; then
+		obs_obj=$(jq -c '.observation' <<<"${line}")
+
+		# Check for enriched format first to handle failures generally
+		if jq -e '.output != null and .exit_code != null' <<<"${obs_obj}" >/dev/null 2>&1; then
+			local exit_code output error
+			exit_code=$(jq -r '.exit_code' <<<"${obs_obj}")
+			output=$(jq -r '.output' <<<"${obs_obj}")
+			error=$(jq -r '.error' <<<"${obs_obj}")
+
+			if ((exit_code != 0)); then
+				obs="FAILED (exit code ${exit_code})"
+				if [[ -n "${output}" ]]; then
+					obs+=$'\n'"Output: ${output}"
+				fi
+				if [[ -n "${error}" ]]; then
+					obs+=$'\n'"Error: ${error}"
+				fi
+			else
+				# Success, try tool-specific formatting on the output string
+				if [[ "${tool}" == "web_search" ]]; then
+					if jq -e '.items | type == "array"' <<<"${output}" >/dev/null 2>&1; then
+						obs=$(jq -r '.items | map("- " + .title + ": " + .snippet + " (URL: " + .url + ")") | join("\n")' <<<"${output}")
+						[[ -z "${obs}" ]] && obs="(no results)"
+					else
+						obs=$(jq -r '.observation // .' <<<"${output}")
+					fi
+				elif [[ "${tool}" == "web_fetch" ]]; then
+					if jq -e '.url != null and .body_snippet != null' <<<"${output}" >/dev/null 2>&1; then
+						obs=$(jq -r '"URL: " + .url + "\nContent: " + .body_snippet' <<<"${output}")
+					else
+						obs=$(jq -r '.observation // .' <<<"${output}")
+					fi
+				elif jq -e '.observation != null' <<<"${output}" >/dev/null 2>&1; then
+					obs=$(jq -r '.observation' <<<"${output}" 2>/dev/null || printf '%s' "${output}")
+				else
+					obs="${output}"
+				fi
+			fi
+		else
+			# Object but not enriched format (backward compatibility or direct state)
+			if [[ "${tool}" == "web_search" ]]; then
+				if jq -e '.items | type == "array"' <<<"${obs_obj}" >/dev/null 2>&1; then
+					obs=$(jq -r '.items | map("- " + .title + ": " + .snippet + " (URL: " + .url + ")") | join("\n")' <<<"${obs_obj}")
+					[[ -z "${obs}" ]] && obs="(no results)"
+				else
+					obs=$(jq -r '.observation // .' <<<"${obs_obj}")
+				fi
+			elif [[ "${tool}" == "web_fetch" ]]; then
+				if jq -e '.url != null and .body_snippet != null' <<<"${obs_obj}" >/dev/null 2>&1; then
+					obs=$(jq -r '"URL: " + .url + "\nContent: " + .body_snippet' <<<"${obs_obj}")
+				else
+					obs=$(jq -r '.observation // .' <<<"${obs_obj}")
+				fi
+			elif jq -e '.observation != null' <<<"${obs_obj}" >/dev/null 2>&1; then
+				obs=$(jq -r '.observation' <<<"${obs_obj}" 2>/dev/null || printf '%s' "${obs_obj}")
+			else
+				obs=$(jq -c '.' <<<"${obs_obj}")
+			fi
+		fi
+	elif jq -e '.observation | type == "string"' <<<"${line}" >/dev/null 2>&1; then
+		obs=$(jq -r '.observation' <<<"${line}")
+	else
+		obs=$(jq -c '.observation' <<<"${line}")
+	fi
+
+	printf '%s' "${obs}"
+}
+
+format_tool_history_with_formatter() {
 	# Arguments:
 	#   $1 - tool invocation history (newline-delimited string)
+	#   $2 - observation formatter function name (string)
 	# Returns:
-	#   Grouped, human-friendly bullet list of tool runs (string)
-	local tool_history line current_step current_action current_observation collecting_observation
+	#   Grouped tool run list (string)
+	local tool_history formatter line current_step current_action current_observation collecting_observation
 	local -a output_lines=()
 	tool_history="$1"
+	formatter="$2"
 	current_step=""
 	current_action=""
 	current_observation=""
@@ -514,74 +614,7 @@ format_tool_history() {
 			tool=$(jq -r '.action.tool' <<<"${line}")
 			args=$(jq -c '.action.args' <<<"${line}")
 			thought=$(jq -r '.thought' <<<"${line}")
-
-			# Pretty print observation if it's JSON object
-			if jq -e '.observation | type == "object"' <<<"${line}" >/dev/null 2>&1; then
-				local obs_obj
-				obs_obj=$(jq -c '.observation' <<<"${line}")
-
-				# Check for enriched format first to handle failures generally
-				if jq -e '.output != null and .exit_code != null' <<<"${obs_obj}" >/dev/null 2>&1; then
-					local exit_code output error
-					exit_code=$(jq -r '.exit_code' <<<"${obs_obj}")
-					output=$(jq -r '.output' <<<"${obs_obj}")
-					error=$(jq -r '.error' <<<"${obs_obj}")
-
-					if ((exit_code != 0)); then
-						obs="FAILED (exit code ${exit_code})"
-						if [[ -n "${output}" ]]; then
-							obs+=$'\n'"Output: ${output}"
-						fi
-						if [[ -n "${error}" ]]; then
-							obs+=$'\n'"Error: ${error}"
-						fi
-					else
-						# Success, try tool-specific formatting on the output string
-						if [[ "${tool}" == "web_search" ]]; then
-							if jq -e '.items | type == "array"' <<<"${output}" >/dev/null 2>&1; then
-								obs=$(jq -r '.items | map("- " + .title + ": " + .snippet + " (URL: " + .url + ")") | join("\n")' <<<"${output}")
-								[[ -z "${obs}" ]] && obs="(no results)"
-							else
-								obs=$(jq -r '.observation // .' <<<"${output}")
-							fi
-						elif [[ "${tool}" == "web_fetch" ]]; then
-							if jq -e '.url != null and .body_snippet != null' <<<"${output}" >/dev/null 2>&1; then
-								obs=$(jq -r '"URL: " + .url + "\nContent: " + .body_snippet' <<<"${output}")
-							else
-								obs=$(jq -r '.observation // .' <<<"${output}")
-							fi
-						elif jq -e '.observation != null' <<<"${output}" >/dev/null 2>&1; then
-							obs=$(jq -r '.observation' <<<"${output}" 2>/dev/null || printf '%s' "${output}")
-						else
-							obs="${output}"
-						fi
-					fi
-				else
-					# Object but not enriched format (backward compatibility or direct state)
-					if [[ "${tool}" == "web_search" ]]; then
-						if jq -e '.items | type == "array"' <<<"${obs_obj}" >/dev/null 2>&1; then
-							obs=$(jq -r '.items | map("- " + .title + ": " + .snippet + " (URL: " + .url + ")") | join("\n")' <<<"${obs_obj}")
-							[[ -z "${obs}" ]] && obs="(no results)"
-						else
-							obs=$(jq -r '.observation // .' <<<"${obs_obj}")
-						fi
-					elif [[ "${tool}" == "web_fetch" ]]; then
-						if jq -e '.url != null and .body_snippet != null' <<<"${obs_obj}" >/dev/null 2>&1; then
-							obs=$(jq -r '"URL: " + .url + "\nContent: " + .body_snippet' <<<"${obs_obj}")
-						else
-							obs=$(jq -r '.observation // .' <<<"${obs_obj}")
-						fi
-					elif jq -e '.observation != null' <<<"${obs_obj}" >/dev/null 2>&1; then
-						obs=$(jq -r '.observation' <<<"${obs_obj}" 2>/dev/null || printf '%s' "${obs_obj}")
-					else
-						obs=$(jq -c '.' <<<"${obs_obj}")
-					fi
-				fi
-			elif jq -e '.observation | type == "string"' <<<"${line}" >/dev/null 2>&1; then
-				obs=$(jq -r '.observation' <<<"${line}")
-			else
-				obs=$(jq -c '.observation' <<<"${line}")
-			fi
+			obs="$("${formatter}" "${line}" "${tool}")"
 
 			current_action="${thought} (tool: ${tool}, args: ${args})"
 			current_observation="${obs}"
@@ -646,6 +679,22 @@ format_tool_history() {
 	append_current_entry
 
 	printf '%s\n' "${output_lines[@]}"
+}
+
+format_tool_history() {
+	# Arguments:
+	#   $1 - tool invocation history (newline-delimited string)
+	# Returns:
+	#   Grouped, machine-readable tool run list (string)
+	format_tool_history_with_formatter "$1" format_tool_observation_raw
+}
+
+format_tool_history_pretty() {
+	# Arguments:
+	#   $1 - tool invocation history (newline-delimited string)
+	# Returns:
+	#   Grouped, human-friendly tool run list (string)
+	format_tool_history_with_formatter "$1" format_tool_observation_pretty
 }
 
 emit_boxed_summary() {

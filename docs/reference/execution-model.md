@@ -21,10 +21,12 @@ See [Planner sampling](./planner-sampling.md) for detailed scoring heuristics an
 
 After the plan is approved, the runtime requests a single structured tool call:
 
-- **Default behaviour:** llama.cpp receives the executor prompt (no persona or transcript) and must emit one JSON action that matches the executor schema. Planner output provides seed values for all arguments; empty string seeds indicate fields the executor must fill from observations, while non-empty seeds are used as-is. Fill mode is inferred from seed presence; missing required values result in validation errors that stop execution.
+- **Default behaviour:** llama.cpp receives the executor prompt (no persona or transcript) and must emit one JSON action that matches the executor schema. Planner output provides seed values for all arguments; empty string seeds indicate fields the executor must fill from observations, while non-empty seeds are used as-is. Fill mode is inferred from seed presence; missing required values result in validation errors that stop execution. During arg-fill, the executor summarizes web fetch observations and applies prompt context budgets before calling the model.
 - **Fallback behaviour:** if llama.cpp is unavailable or `USE_REACT_LLAMA=false` is set, okso replays the planned tool calls deterministically using the planner-provided arguments.
 
 Each executor decision and observation is streamed to the terminal. Use `--dry-run` when you want to inspect the generated plan and tool calls without executing anything.
+
+Execution summaries keep tool observations machine-readable by emitting compact JSON for tool outputs (for example, a web search observation remains `{"items":[...],"total_results":5}` instead of a bulleted list). Use the `format_tool_history_pretty()` helper in `src/lib/cli/output.sh` if you need a human-formatted view.
 
 ## Configuration hooks
 
