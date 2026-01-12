@@ -91,6 +91,34 @@ SCRIPT
 	[ "$status" -eq 0 ]
 }
 
+@test "web_fetch warns and skips anchoring when snippet map JSON is invalid" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+body_file="$(mktemp)"
+cat >"${body_file}" <<'BODY'
+Welcome to the test page.
+Here is the unique snippet to anchor.
+More details follow below.
+BODY
+mock_response=$(jq -nc --arg body_path "${body_file}" --arg content_type "text/plain" '{status:200, final_url:"https://example.com/test", content_type:$content_type, headers:"", bytes:120, truncated:false, body_path:$body_path}')
+source ./src/lib/executor/loop.sh
+source ./src/tools/web/web_fetch.sh
+web_http_request() { printf '%s' "${mock_response}"; }
+malformed_snippets='{"https://example.com/test":"unique snippet"}}'
+log_file="$(mktemp)"
+sanitized_snippets="$(validate_web_fetch_snippet_map "${malformed_snippets}" 2>"${log_file}")"
+export WEB_FETCH_SEARCH_SNIPPETS="${sanitized_snippets}"
+TOOL_ARGS='{"url":"https://example.com/test"}'
+output=$(tool_web_fetch)
+jq -e '.anchor_match == false' <<<"${output}" >/dev/null
+jq -e '.anchor_query == ""' <<<"${output}" >/dev/null
+grep -q '"level":"WARN"' "${log_file}"
+grep -q 'Invalid WEB_FETCH_SEARCH_SNIPPETS' "${log_file}"
+SCRIPT
+
+	[ "$status" -eq 0 ]
+}
+
 @test "web_fetch skips anchoring when no web_search snippet is present" {
 	run bash <<'SCRIPT'
 set -euo pipefail

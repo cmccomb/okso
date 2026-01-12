@@ -223,14 +223,8 @@ web_fetch_snippet_for_url() {
 		return 1
 	fi
 
-	# Validate JSON; if it's invalid AND looks like it has one extra trailing '}', trim and retry.
-	if ! jq -e . >/dev/null 2>&1 <<<"${WEB_FETCH_SEARCH_SNIPPETS}"; then
-		if [[ "${WEB_FETCH_SEARCH_SNIPPETS}" == *"}" ]]; then
-			local repaired="${WEB_FETCH_SEARCH_SNIPPETS%?}"
-			if jq -e . >/dev/null 2>&1 <<<"${repaired}"; then
-				WEB_FETCH_SEARCH_SNIPPETS="${repaired}"
-			fi
-		fi
+	if ! jq -e 'type == "object"' >/dev/null 2>&1 <<<"${WEB_FETCH_SEARCH_SNIPPETS}"; then
+		return 1
 	fi
 
 	# Find the snippet for the exact URL
