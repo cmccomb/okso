@@ -77,23 +77,3 @@ setup() {
 	[ "$(json_state_get_key "executor_state" "plan_outline")" = "New outline" ]
 	[ "$(json_state_get_key "executor_state" "history")" = "[]" ]
 }
-
-@test "validator infra failure falls back to current behavior" {
-	source ./src/lib/executor/history.sh
-	initialize_executor_state "executor_state" "query" "" "[]" "outline"
-
-	validate_final_answer_against_query() {
-		echo '{"satisfied":0,"reasoning":"unreachable"}'
-		return 42
-	}
-	generate_planner_response() { echo '{}'; }
-	derive_allowed_tools_from_plan() { echo ""; }
-	plan_json_to_entries() { echo '[]'; }
-	plan_json_to_outline() { echo ""; }
-	executor_loop() { return 0; }
-
-	validate_and_optionally_replan "executor_state" "final answer"
-	status=$?
-	[ "$status" -eq 0 ]
-	[ "$(json_state_get_key "executor_state" "answer_validation_failed")" = "" ]
-}

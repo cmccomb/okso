@@ -1,0 +1,10 @@
+{
+  "url": "https://example.com/docs",
+  "final_url": "https://example.com/docs",
+  "status": 200,
+  "content_type": "text/html",
+  "body_snippet": null,
+  "body_markdown": "# Example Documentation\n\nHello from web_fetch.",
+  "bytes": 512,
+  "truncated": false
+}

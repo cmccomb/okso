@@ -23,6 +23,8 @@ EXECUTOR_LIB_DIR=${EXECUTOR_LIB_DIR:-$(cd -- "$(dirname "${BASH_SOURCE[0]}")" &&
 source "${EXECUTOR_LIB_DIR}/../cli/output.sh"
 # shellcheck source=/src/lib/llm/llama_client.sh
 source "${EXECUTOR_LIB_DIR}/../llm/llama_client.sh"
+# shellcheck source=/src/lib/llm/context_budget.sh
+source "${EXECUTOR_LIB_DIR}/../llm/context_budget.sh"
 # shellcheck source=/src/lib/core/logging.sh
 source "${EXECUTOR_LIB_DIR}/../core/logging.sh"
 # shellcheck source=/src/lib/core/json_state.sh
@@ -55,6 +57,270 @@ normalize_args_json() {
 
 	# Return normalized JSON
 	printf '%s' "${normalized}"
+}
+
+build_prompt_safe_history() {
+	# Builds a prompt-safe history string for LLM arg fill.
+	# Arguments:
+	#   $1 - history text (newline-delimited JSON entries)
+	# Returns:
+	#   Summarized history text (string)
+	local history_text summarized
+	history_text="$1"
+
+	if [[ -z "${history_text}" ]]; then
+		printf '%s' "${history_text}"
+		return 0
+	fi
+
+	summarized="$(summarize_executor_history "${history_text}")"
+	printf '%s' "${summarized}"
+}
+
+extract_urls_from_text() {
+	# Extracts absolute URLs from plain text.
+	# Arguments:
+	#   $1 - text blob
+	local text
+	text="$1"
+
+	if [[ -z "${text}" ]]; then
+		return 0
+	fi
+
+	printf '%s' "${text}" | grep -Eo 'https?://[^[:space:]\")\]<>]+' 2>/dev/null || true
+}
+
+normalize_web_fetch_url() {
+	# Normalizes URLs by stripping trailing punctuation to align with web_fetch allowlists.
+	# Arguments:
+	#   $1 - URL string
+	# Returns:
+	#   Normalized URL string.
+	local url
+	url="$1"
+
+	if [[ -z "${url}" ]]; then
+		return 1
+	fi
+
+	printf '%s\n' "${url}" | sed -E 's/[),.]+$//'
+}
+
+collect_web_fetch_allowlist() {
+	# Builds a JSON array of allowed URLs for web_fetch.
+	# Handles web_search observations stored directly or wrapped in tool output metadata.
+	# Normalizes URLs by stripping trailing punctuation.
+	# Arguments:
+	#   $1 - history text (newline-delimited JSON entries)
+	#   $2 - user query
+	#   $3 - plan outline
+	#   $4 - planner thought
+	local history_text user_query plan_outline planner_thought urls_json
+	history_text="$1"
+	user_query="$2"
+	plan_outline="$3"
+	planner_thought="$4"
+
+	urls_json=$(
+		{
+			if [[ -n "${history_text}" ]]; then
+				jq -n -r '
+                        def parse_entry:
+                          if type == "string" then
+                            try (fromjson) catch empty
+                          elif type == "object" then
+                            .
+                          else
+                            empty
+                          end;
+
+                        def search_items:
+                          if (.observation | type) != "object" then
+                            []
+                          elif (.observation.items? | type) == "array" then
+                            .observation.items
+                          elif (.observation.output? | type) == "string" then
+                            (try (.observation.output | fromjson) catch empty | .items? // [])
+                          else
+                            []
+                          end;
+
+                        [inputs | select(length > 0) | parse_entry]
+                        | map(select(type == "object"))
+                        | .[]
+                        | select(.action.tool == "web_search")
+                        | search_items
+                        | .[]?
+                        | .url
+                ' <<<"${history_text}" 2>/dev/null || true
+			fi
+			extract_urls_from_text "${user_query}"
+			extract_urls_from_text "${plan_outline}"
+			extract_urls_from_text "${planner_thought}"
+		} | while IFS= read -r url; do
+			normalize_web_fetch_url "${url}"
+		done | sort -u | jq -Rsc 'split("\n") | map(select(length>0))'
+	)
+
+	printf '%s' "${urls_json}"
+}
+
+collect_web_fetch_snippet_map() {
+	# Builds a JSON object mapping URLs to web_search snippets for web_fetch.
+	# Stores snippets under both raw and normalized URLs to match allowlist normalization.
+	# Arguments:
+	#   $1 - history text (newline-delimited JSON entries)
+	local history_text snippet_json snippet_entries snippet_map entry url snippet normalized_url
+	history_text="$1"
+
+	snippet_json=$(
+		if [[ -z "${history_text}" ]]; then
+			printf '{}'
+			return 0
+		fi
+
+		snippet_entries="$(jq -n -c '
+                        def parse_entry:
+                          if type == "string" then
+                            try (fromjson) catch empty
+                          elif type == "object" then
+                            .
+                          else
+                            empty
+                          end;
+
+                        def search_items:
+                          if (.observation | type) != "object" then
+                            []
+                          elif (.observation.items? | type) == "array" then
+                            .observation.items
+                          elif (.observation.output? | type) == "string" then
+                            (try (.observation.output | fromjson) catch empty | .items? // [])
+                          else
+                            []
+                          end;
+
+                        [inputs | select(length > 0) | parse_entry]
+                        | map(select(type == "object"))
+                        | .[]
+                        | select(.action.tool == "web_search")
+                        | search_items
+                        | .[]?
+                        | select((.url? | type) == "string" and (.snippet? | type) == "string")
+                        | select((.url | length) > 0 and (.snippet | length) > 0)
+                        | {url: .url, snippet: .snippet}
+                ' <<<"${history_text}" 2>/dev/null)" || true
+
+		snippet_map='{}'
+		while IFS= read -r entry; do
+			[[ -z "${entry}" ]] && continue
+			url="$(jq -r '.url' <<<"${entry}")"
+			snippet="$(jq -r '.snippet' <<<"${entry}")"
+			if [[ -z "${url}" || -z "${snippet}" ]]; then
+				continue
+			fi
+			normalized_url="$(normalize_web_fetch_url "${url}")"
+			snippet_map="$(jq -c \
+				--arg url "${url}" \
+				--arg snippet "${snippet}" \
+				--arg normalized_url "${normalized_url}" \
+				'. + {($url): $snippet} + (if ($normalized_url | length) > 0 and $normalized_url != $url then {($normalized_url): $snippet} else {} end)' \
+				<<<"${snippet_map}")"
+		done <<<"${snippet_entries}"
+
+		printf '%s' "${snippet_map}"
+	)
+
+	printf '%s' "${snippet_json}"
+}
+
+validate_web_fetch_snippet_map() {
+	# Validates the web_fetch snippet map JSON and defaults to {} on failure.
+	# Arguments:
+	#   $1 - snippet map JSON (string)
+	local snippet_json
+	snippet_json="${1:-}"
+
+	if [[ -z "${snippet_json}" ]]; then
+		printf '{}'
+		return 0
+	fi
+
+	if ! jq -e 'type == "object"' >/dev/null 2>&1 <<<"${snippet_json}"; then
+		log "WARN" "Invalid WEB_FETCH_SEARCH_SNIPPETS; defaulting to {}" "${snippet_json}" || true
+		printf '{}'
+		return 0
+	fi
+
+	printf '%s' "${snippet_json}"
+}
+prepare_web_fetch_context() {
+	# Prepares allowlist schema and snippet map for web_fetch.
+	# Arguments:
+	#   $1 - history text (newline-delimited JSON entries)
+	#   $2 - user query text
+	#   $3 - plan outline text
+	#   $4 - planner thought text
+	#   $5 - (optional) name of variable to receive snippet map JSON
+	# Returns:
+	#   If $5 is set, assigns snippet map JSON to that variable and prints nothing.
+	#   Otherwise prints snippet map JSON.
+
+	local history_text user_query plan_outline planner_thought out_var
+	local allowlist_json snippet_json
+
+	history_text="$1"
+	user_query="$2"
+	plan_outline="$3"
+	planner_thought="$4"
+	out_var="${5:-}"
+
+	allowlist_json="$(collect_web_fetch_allowlist "${history_text}" "${user_query}" "${plan_outline}" "${planner_thought}")"
+	patch_web_fetch_schema "${allowlist_json}"
+
+	snippet_json="$(collect_web_fetch_snippet_map "${history_text}")"
+	snippet_json="$(validate_web_fetch_snippet_map "${snippet_json}")"
+
+	if [[ -n "${out_var}" ]]; then
+		printf -v "${out_var}" '%s' "${snippet_json}"
+		return 0
+	fi
+
+	printf '%s' "${snippet_json}"
+}
+
+patch_web_fetch_schema() {
+	# Applies a URL allowlist to the web_fetch schema.
+	# Arguments:
+	#   $1 - JSON array of allowed URLs
+	local urls_json base_schema patched_schema
+	urls_json="$1"
+
+	base_schema="$(tool_args_schema "web_fetch")"
+	if [[ -z "${base_schema}" ]]; then
+		base_schema='{}'
+	fi
+
+	patched_schema="$(jq -c \
+		--argjson urls "${urls_json}" \
+		'
+                .type = "object"
+                | .properties = (.properties // {})
+                | .properties.url = ((.properties.url // {type:"string"}) + {type:"string", enum:$urls})
+                | .required = ((.required // []) + ["url"] | unique)
+        ' <<<"${base_schema}")"
+
+	if [[ -z "${patched_schema}" ]]; then
+		log "WARN" "Failed to build web_fetch allowlist schema" "${urls_json}" || true
+		return 0
+	fi
+
+	if [[ "${urls_json}" == "[]" ]]; then
+		log "WARN" "No allowlisted URLs for web_fetch; schema will reject all URLs" "" || true
+	fi
+
+	update_tool_args_schema "web_fetch" "${patched_schema}" || true
 }
 
 format_action_context() {
@@ -134,6 +400,7 @@ fill_missing_args_with_llm() {
 	# Returns:
 	#   JSON string with filled args, or original args if LLM unavailable or fails.
 	local tool args_json user_query plan_outline planner_thought schema prompt response context_fields_json
+	local history_text prompt_raw prompt_safe_history max_completion_tokens
 	tool="$1"
 	args_json="$2"
 	user_query="$3"
@@ -142,12 +409,29 @@ fill_missing_args_with_llm() {
 	history_text="$6"
 	context_fields_json="$7"
 	schema="$(jq -c '.' <<<"$(tool_args_schema "${tool}")" 2>/dev/null || printf '{}')"
+	max_completion_tokens=256
 
 	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
 		log "WARN" "LLM unavailable; context args remain unchanged" "${tool}" || true
 		printf '%s' "${args_json}"
 		return 0
 	fi
+
+	if ! prompt_raw="$(render_prompt_template "executor" \
+		tool "${tool}" \
+		user_query "${user_query}" \
+		plan_outline "${plan_outline}" \
+		planner_thought "${planner_thought}" \
+		args_json "${args_json}" \
+		args_schema "${schema}" \
+		context_fields "${context_fields_json}" \
+		history_text "${history_text}")"; then
+		log "WARN" "Failed to render executor prompt" "${tool}" || true
+		printf '%s' "${args_json}"
+		return 0
+	fi
+
+	prompt_safe_history="$(apply_prompt_context_budget "${prompt_raw}" "${history_text}" "${max_completion_tokens}" "executor_history")"
 
 	if ! prompt="$(render_prompt_template "executor" \
 		tool "${tool}" \
@@ -157,7 +441,7 @@ fill_missing_args_with_llm() {
 		args_json "${args_json}" \
 		args_schema "${schema}" \
 		context_fields "${context_fields_json}" \
-		history_text "${history_text}")"; then
+		history_text "${prompt_safe_history}")"; then
 		log "WARN" "Failed to render executor prompt" "${tool}" || true
 		printf '%s' "${args_json}"
 		return 0
@@ -173,7 +457,7 @@ fill_missing_args_with_llm() {
 			export LLAMA_TEMPERATURE
 		fi
 
-		if ! response_json="$(llama_infer "${prompt}" "" 256 "${schema}" "${EXECUTOR_MODEL_REPO:-}" "${EXECUTOR_MODEL_FILE:-}")"; then
+		if ! response_json="$(llama_infer "${prompt}" "" "${max_completion_tokens}" "${schema}" "${EXECUTOR_MODEL_REPO:-}" "${EXECUTOR_MODEL_FILE:-}")"; then
 			return 1
 		fi
 
@@ -246,24 +530,27 @@ resolve_action_args() {
 
 	resolved_args="$(apply_plan_arg_controls "${tool}" "${args_json}" "${plan_entry_json}" "${user_query}" "${history_text}")"
 
+	# Extract context metadata
 	if ! context_metadata="$(extract_context_controls "${resolved_args}")"; then
 		printf 'Invalid args JSON after planner controls\n' >&2
 		return 1
 	fi
 
+	# Extract context fields and seeds
 	context_fields_json="$(jq -c '.context_fields' <<<"${context_metadata}")"
 	context_seed_lines="$(jq -r '.context_seed_lines[]?' <<<"${context_metadata}")"
 	resolved_args="$(jq -c '.args' <<<"${context_metadata}")"
-
 	schema="$(jq -c '.' <<<"$(tool_args_schema "${tool}")" 2>/dev/null || printf '{}')"
 
+	# If no context-controlled fields, return normalized args
 	if [[ "${context_fields_json}" == "[]" ]]; then
-
 		normalize_args_json "${resolved_args}"
 		return 0
 	fi
 
+	# Build prompt-safe history
 	history_for_prompt="${history_text}"
+	history_for_prompt="$(build_prompt_safe_history "${history_for_prompt}")"
 	if [[ -n "${context_seed_lines}" ]]; then
 		history_for_prompt+=$'\n'
 		history_for_prompt+="Context arg seeds:"
@@ -271,11 +558,13 @@ resolve_action_args() {
 		history_for_prompt+="${context_seed_lines}"
 	fi
 
+	# Fill context-controlled args via LLM
 	if ! resolved_args="$(fill_missing_args_with_llm "${tool}" "${resolved_args}" "${user_query}" "${plan_outline}" "${planner_thought}" "${history_for_prompt}" "${context_fields_json}")"; then
 		printf 'Context argument infill failed\n' >&2
 		return 1
 	fi
 
+	# Return normalized final args JSON
 	normalize_args_json "${resolved_args}"
 }
 
@@ -286,16 +575,31 @@ execute_planned_action() {
 	#   $2 - step index
 	#   $3 - validated action JSON
 	local state_prefix step_index action_json tool args_json thought args_after_controls
-	local observation context history_text
+	local observation context history_text web_fetch_snippets
 	state_prefix="$1"
 	step_index="$2"
 	action_json="$3"
 
+	# Extract action fields
 	tool="$(jq -r '.tool' <<<"${action_json}")"
 	args_json="$(jq -c '.args' <<<"${action_json}")"
 	thought="$(jq -r '.thought' <<<"${action_json}")"
 
+	# Get execution
 	history_text="$(state_get_history_lines "${state_prefix}")"
+
+	# Prepare web_fetch context if needed
+	if [[ "${tool}" == "web_fetch" ]]; then
+		prepare_web_fetch_context \
+			"${history_text}" \
+			"$(json_state_get_key "${state_prefix}" "user_query")" \
+			"$(json_state_get_key "${state_prefix}" "plan_outline")" \
+			"${thought}" \
+			web_fetch_snippets
+		web_fetch_snippets="${web_fetch_snippets:-{}}"
+	fi
+
+	# Resolve args with planner controls and context infill
 	if ! args_after_controls="$(resolve_action_args "${tool}" "${args_json}" "${action_json}" "$(json_state_get_key "${state_prefix}" "user_query")" "${history_text}" "$(json_state_get_key "${state_prefix}" "plan_outline")" "${thought}")"; then
 		log "ERROR" "Argument resolution failed" "${tool}" || true
 		json_state_set_key "${state_prefix}" "needs_replanning" "true" || true
@@ -303,16 +607,24 @@ execute_planned_action() {
 		return 1
 	fi
 
+	# Execute the tool with context
 	context="$(format_action_context "${thought}" "${tool}" "${args_after_controls}")"
-	observation="$(execute_tool_with_query "${tool}" "$(extract_tool_query "${tool}" "${args_after_controls}")" "${context}" "${args_after_controls}")"
+	if [[ "${tool}" == "web_fetch" ]]; then
+		observation="$(WEB_FETCH_SEARCH_SNIPPETS="${web_fetch_snippets}" execute_tool_with_query "${tool}" "$(extract_tool_query "${tool}" "${args_after_controls}")" "${context}" "${args_after_controls}")"
+	else
+		observation="$(execute_tool_with_query "${tool}" "$(extract_tool_query "${tool}" "${args_after_controls}")" "${context}" "${args_after_controls}")"
+	fi
 	execution_status=$?
 
+	# Handle execution failure
 	if ((execution_status != 0)); then
 		return ${execution_status}
 	fi
 
+	# Record the tool execution
 	record_tool_execution "${state_prefix}" "${tool}" "${thought}" "${args_after_controls}" "${observation}" "${step_index}"
 
+	# Handle final answer
 	if [[ "${tool}" == "final_answer" ]]; then
 		json_state_set_key "${state_prefix}" "final_answer_action" "${observation}"
 		json_state_set_key "${state_prefix}" "final_answer" "${observation}"

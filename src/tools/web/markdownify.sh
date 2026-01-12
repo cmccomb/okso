@@ -74,7 +74,7 @@ convert_html() {
 	body_path=$1
 
 	# Convert HTML to GitHub-flavored Markdown using pandoc
-	if ! output=$(pandoc --from=html --to=gfm --wrap=none "${body_path}"); then
+	if ! output=$(pandoc --from=html --to=plain-raw_html --wrap=none "${body_path}"); then
 		printf '%s\n' "pandoc failed to convert HTML" >&2
 		return 1
 	fi

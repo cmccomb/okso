@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 #
-# Web search tool backed by Google Custom Search API.
+# Web search tool backed by Google Custom Search API. Does some cool tricks.
 #
 # Usage:
 #   source "${BASH_SOURCE[0]%/tools/web/web_search.sh}/tools/web/web_search.sh"
@@ -99,7 +99,6 @@ tool_web_search() {
                         title: (.title // ""),
                         url: (.link // ""),
                         snippet: (.snippet // ""),
-                        displayLink: (.displayLink // "")
                 })
         }' <<<"${response}" || {
 		log "ERROR" "Failed to parse Google API response" "${response}" >&2
@@ -110,14 +109,26 @@ tool_web_search() {
 register_web_search() {
 	local args_schema
 
-	args_schema=$(jq -nc '{
-                type: "object",
-                required: ["query"],
-                properties: {
-                        query: {type: "string", minLength: 1, maxLength: 200},
-                        num: {type: "integer", minimum: 1, maximum: 10}
-                }
-        }')
+	args_schema=$(
+		jq -c . <<'JSON'
+{
+  "type": "object",
+  "required": ["query"],
+  "properties": {
+    "query": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "num": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10
+    }
+  }
+}
+JSON
+	)
 
 	register_tool \
 		"web_search" \
