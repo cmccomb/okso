@@ -1,28 +1,28 @@
-# Final answer validation
+# Final answer evaluation
 
-The executor can run a lightweight validation pass before emitting the final response. When enabled, the helper sends a structured prompt to `llama.cpp` and expects a schema-constrained JSON object that indicates whether the answer satisfies the original query. Validation never blocks output: the executor always prints the answer and summary while optionally annotating state for consumers.
+The executor can run a lightweight evaluation pass before emitting the final response. When enabled, the helper sends a structured prompt to `llama.cpp` and expects a schema-constrained JSON object that selects whether the answer should pass through, be rephrased, or trigger replanning. Evaluation never blocks output: the executor always prints the answer and summary while optionally annotating state for consumers.
 
 ## Components
 
-- Validation helper: `src/lib/validation/validation.sh`
-- Schema: `src/schemas/final_answer_verification.schema.json`
-- Integration point: `validate_and_optionally_replan()` in `src/lib/executor/history.sh`
+- Evaluation helper: `src/lib/validation/validation.sh`
+- Schema: `src/schemas/final_answer_evaluation.schema.json`
+- Integration point: `evaluate_and_optionally_replan()` in `src/lib/executor/history.sh`
 
 ## Flow
 
 1. `finalize_executor_result()` builds the final answer from tool output or the `final_answer` action.
-2. When `ENABLE_ANSWER_VALIDATION=true` and `LLAMA_AVAILABLE=true`, `validate_final_answer_against_query()` renders the prompt from `src/prompts/final_answer_verification.md` and calls `llama_infer` with the validation schema.
+2. When `ENABLE_ANSWER_VALIDATION=true` and `LLAMA_AVAILABLE=true`, `evaluate_final_answer_against_query()` renders the prompt from `src/prompts/final_answer_evaluation.md` and calls `llama_infer` with the evaluation schema.
 3. The helper logs the structured result and updates executor state flags:
-   - `answer_validation_failed=true` when the validator returns `satisfied: false`
+   - `answer_validation_failed=true` when the evaluator returns `REPLAN`
    - `validation_failure_reason` populated with the model-provided reasoning, when available
-4. When `satisfied` is explicitly `false`, the executor logs the reasoning, stores it on state, and
+4. When the evaluator returns `REPLAN`, the executor logs the reasoning, stores it on state, and
    forwards the feedback into a fresh planner+executor cycle so the user receives a revised answer.
    Replanning only runs once per executor invocation and resets the plan outline, history, and
    allowed tools before executing the replacement plan.
-5. The executor prints the final answer and execution summary regardless of validation outcome,
+5. The executor prints the final answer and execution summary regardless of evaluation outcome,
    keeping the user-facing flow predictable when validation is unavailable or passes.
 
-Because the validator output already conforms to the JSON schema, no additional Bash-side validation is performed beyond type-friendly parsing.
+Because the evaluator output already conforms to the JSON schema, no additional Bash-side validation is performed beyond type-friendly parsing.
 
 ## Configuration
 
@@ -37,4 +37,3 @@ export VALIDATOR_MODEL_REPO="bartowski/Qwen_Qwen3-4B-GGUF"
 export VALIDATOR_MODEL_FILE="Qwen_Qwen3-4B-Q4_K_M.gguf"
 export VALIDATOR_CACHE_FILE="${HOME}/.cache/okso/validator.promptcache"
 ```
-

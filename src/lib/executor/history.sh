@@ -267,9 +267,9 @@ finalize_executor_result() {
 	# Store final answer back into state
 	json_state_set_key "${state_name}" "final_answer" "${final_answer}"
 
-	# Validate final answer if enabled
+	# Evaluate final answer if enabled
 	if [[ "${ENABLE_ANSWER_VALIDATION:-true}" == "true" ]]; then
-		validate_and_optionally_replan "${state_name}" "${final_answer}"
+		evaluate_and_optionally_replan "${state_name}" "${final_answer}"
 		return $?
 	fi
 
@@ -304,7 +304,7 @@ executor_replan_with_feedback() {
 
 	# Prevent infinite replanning loops
 	if [[ "${VALIDATION_REPLAN_ATTEMPTED:-false}" == "true" ]]; then
-		log "WARN" "Skipping validation-driven replanning; attempt already made" || true
+		log "WARN" "Skipping evaluation-driven replanning; attempt already made" || true
 		return 1
 	fi
 	VALIDATION_REPLAN_ATTEMPTED=true
@@ -317,7 +317,7 @@ executor_replan_with_feedback() {
 	if [[ -n "${feedback_text}" ]]; then
 		json_state_set_key "${state_name}" "user_feedback" "${feedback_text}" || true
 	fi
-	log "INFO" "Replanning after failed validation" "${feedback_text}" || true
+	log "INFO" "Replanning after failed evaluation" "${feedback_text}" || true
 
 	# Set feedback context for planner
 	local previous_feedback_context feedback_context_in_env
@@ -331,7 +331,7 @@ executor_replan_with_feedback() {
 
 	# Generate new plan
 	if ! plan_response="$(generate_planner_response "${user_query}")"; then
-		log "ERROR" "Validation-driven replanning failed" "plan_regeneration_error" || true
+		log "ERROR" "Evaluation-driven replanning failed" "plan_regeneration_error" || true
 		if [[ "${feedback_context_in_env}" == true ]]; then
 			PLANNER_FEEDBACK_CONTEXT="${previous_feedback_context}"
 			export PLANNER_FEEDBACK_CONTEXT
@@ -369,12 +369,12 @@ executor_replan_with_feedback() {
 	executor_loop "${user_query}" "${allowed_tools}" "${plan_entries}" "${plan_outline}"
 }
 
-validate_and_optionally_replan() {
+evaluate_and_optionally_replan() {
 	# Args:
 	#   $1 - state prefix
 	#   $2 - final answer text
 	local state_name final_answer user_query history_text
-	local validation_json satisfied reasoning feedback_text errexit_was_set
+	local evaluation_json evaluation_type reasoning output feedback_text errexit_was_set
 	local history_pretty
 	state_name="$1"
 	final_answer="$2"
@@ -383,8 +383,8 @@ validate_and_optionally_replan() {
 	user_query="$(json_state_get_key "${state_name}" "user_query")"
 	history_text="$(state_get_history_lines "${state_name}")"
 
-	# Run final answer validation
-	log "INFO" "Running final answer validation" || true
+	# Run final answer evaluation
+	log "INFO" "Running final answer evaluation" || true
 
 	# Always capture output; keep exit code separately.
 	errexit_was_set=false
@@ -393,52 +393,50 @@ validate_and_optionally_replan() {
 		set +e
 	fi
 
-	validation_json="$(validate_final_answer_against_query "${user_query}" "${final_answer}" "${history_text}")"
+	evaluation_json="$(evaluate_final_answer_against_query "${user_query}" "${final_answer}" "${history_text}")"
 
 	if [[ "${errexit_was_set}" == true ]]; then
 		set -e
 	fi
 
-	# Validator ran successfully; interpret result.
-	# Accept satisfied as bool or int; default to null.
-	satisfied="$(
-		jq -r '
-      if (.satisfied|type)=="boolean" then (if .satisfied then 1 else 0 end)
-      elif (.satisfied|type)=="number" then (if .satisfied!=0 then 1 else 0 end)
-      else null end
-    ' <<<"${validation_json}" 2>/dev/null
-	)"
-
-	# Extract reasoning if present
-	reasoning="$(
-		jq -r '.reasoning // empty' <<<"${validation_json}" 2>/dev/null
-	)"
-
-	log_pretty "INFO" "validation_result" "${validation_json}" || true
-
-	# Handle validation outcome
-	if [[ "${satisfied}" == "0" ]]; then
-		log "WARN" "Final answer did not satisfy query per validator" || true
-
-		# Persist flags for caller / UI
-		json_state_set_key "${state_name}" "answer_validation_failed" "true" || true
-		if [[ -n "${reasoning}" ]]; then
-			json_state_set_key "${state_name}" "validation_failure_reason" "${reasoning}" || true
-			log_pretty "WARN" "validation_failure_reason" "${reasoning}" || true
-		else
-			json_state_set_key "${state_name}" "validation_failure_reason" "Unknown reason" || true
-		fi
-
-		feedback_text="${reasoning:-Validator rejected the answer without providing reasoning.}"
-		if executor_replan_with_feedback "${state_name}" "${feedback_text}"; then
-			return 0
-		fi
-		log "WARN" "Continuing without replanning after validation failure" || true
-	elif [[ "${satisfied}" == "1" ]]; then
-		log "INFO" "Final answer passed validation" || true
+	if [[ -z "${evaluation_json}" ]]; then
+		log "WARN" "Evaluator returned empty response; outputting answer as-is" || true
 	else
-		# Unexpected schema/content: treat as infra-ish warning.
-		log "WARN" "Validator returned unexpected schema; outputting answer as-is" || true
+		evaluation_type="$(jq -r '.evaluation_type // empty' <<<"${evaluation_json}" 2>/dev/null)"
+		reasoning="$(jq -r '.reasoning // empty' <<<"${evaluation_json}" 2>/dev/null)"
+		output="$(jq -r '.output // empty' <<<"${evaluation_json}" 2>/dev/null)"
+
+		log_pretty "INFO" "evaluation_result" "${evaluation_json}" || true
+
+		case "${evaluation_type}" in
+		PASS | REPHRASE)
+			if [[ -n "${output}" ]]; then
+				final_answer="${output}"
+				json_state_set_key "${state_name}" "final_answer" "${final_answer}"
+			fi
+			log "INFO" "Final answer accepted by evaluator" || true
+			;;
+		REPLAN)
+			log "WARN" "Evaluator requested replanning" || true
+
+			json_state_set_key "${state_name}" "answer_validation_failed" "true" || true
+			if [[ -n "${reasoning}" ]]; then
+				json_state_set_key "${state_name}" "validation_failure_reason" "${reasoning}" || true
+				log_pretty "WARN" "validation_failure_reason" "${reasoning}" || true
+			else
+				json_state_set_key "${state_name}" "validation_failure_reason" "Unknown reason" || true
+			fi
+
+			feedback_text="${output:-${reasoning:-Evaluator requested replanning without providing details.}}"
+			if executor_replan_with_feedback "${state_name}" "${feedback_text}"; then
+				return 0
+			fi
+			log "WARN" "Continuing without replanning after evaluator request" || true
+			;;
+		*)
+			log "WARN" "Evaluator returned unexpected schema; outputting answer as-is" || true
+			;;
+		esac
 	fi
 
 	# Emit final answer regardless.
@@ -458,4 +456,4 @@ validate_and_optionally_replan() {
 		"${final_answer}"
 }
 
-export -f validate_and_optionally_replan
+export -f evaluate_and_optionally_replan
