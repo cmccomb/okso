@@ -223,9 +223,14 @@ web_fetch_snippet_for_url() {
 		return 1
 	fi
 
-	# If WEB_FETCH_SEARCH_SNIPPETS ends in double closing curly brackets, remove one of them
-	if [[ "${WEB_FETCH_SEARCH_SNIPPETS}" == *"}}" ]]; then
-		WEB_FETCH_SEARCH_SNIPPETS="${WEB_FETCH_SEARCH_SNIPPETS%?}"
+	# Validate JSON; if it's invalid AND looks like it has one extra trailing '}', trim and retry.
+	if ! jq -e . >/dev/null 2>&1 <<<"${WEB_FETCH_SEARCH_SNIPPETS}"; then
+		if [[ "${WEB_FETCH_SEARCH_SNIPPETS}" == *"}" ]]; then
+			local repaired="${WEB_FETCH_SEARCH_SNIPPETS%?}"
+			if jq -e . >/dev/null 2>&1 <<<"${repaired}"; then
+				WEB_FETCH_SEARCH_SNIPPETS="${repaired}"
+			fi
+		fi
 	fi
 
 	# Find the snippet for the exact URL
@@ -404,8 +409,9 @@ tool_web_fetch() {
 	local parsed_args url max_bytes response payload body_path content_type status_code
 	local bytes
 	local body_snippet preview_limit
-	local anchor_query anchor_match snippet
+	local anchor_query anchor_match snippet anchor_result anchored_snippet
 	local converter_output body_markdown
+	local final_url headers truncated body_encoding error
 
 	# Parse and validate arguments
 	if ! parsed_args=$(web_fetch_parse_args); then
@@ -418,7 +424,7 @@ tool_web_fetch() {
 	anchor_query=""
 
 	# Seed an anchor query from web_search snippet
-	snippet="$(web_fetch_snippet_for_url "${url}")"
+	snippet="$(web_fetch_snippet_for_url "${url}" 2>/dev/null || true)"
 	anchor_query="$(web_fetch_normalize_snippet "${snippet}" 2>/dev/null || true)"
 
 	# Fetch the URL with HTTP helper
@@ -481,19 +487,17 @@ tool_web_fetch() {
 		fi
 	fi
 
-	# Anchor the preview around the query (assumes anchor helper returns preview/markdown + matched)
-	local anchor_result anchored_preview anchored_markdown
+	# Anchor the preview around the query
+	local anchor_result anchored_snippet
 	anchor_result="$(web_fetch_anchor_preview "${body_markdown}" "${body_snippet}" "${anchor_query}" "${preview_limit}")"
 	anchor_match="$(jq -r '.matched // false' <<<"${anchor_result}" 2>/dev/null || echo false)"
-	anchored_preview="$(jq -r '.preview // empty' <<<"${anchor_result}" 2>/dev/null || true)"
-	anchored_markdown="$(jq -r '.markdown // empty' <<<"${anchor_result}" 2>/dev/null || true)"
+	anchored_snippet="$(jq -r '.snippet // empty' <<<"${anchor_result}" 2>/dev/null || true)"
 
-	# Prefer anchored outputs if present
-	if [[ -n "${anchored_preview}" ]]; then
-		body_snippet="${anchored_preview}"
-	fi
-	if [[ -n "${anchored_markdown}" ]]; then
-		body_markdown="${anchored_markdown}"
+	# Prefer anchored output if present
+	if [[ -n "${anchored_snippet}" ]]; then
+		body_snippet="${anchored_snippet}"
+		# Optional: keep these aligned so downstream consumers don't see contradictory fields
+		body_markdown="${anchored_snippet}"
 	fi
 
 	# Clean up body file now that we have preview
