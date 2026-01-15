@@ -19,6 +19,7 @@
 #   VALIDATOR_MODEL_REPO (string): Hugging Face repo for 8B validator model
 #   VALIDATOR_MODEL_FILE (string): Model file for validator
 #   VALIDATOR_CACHE_FILE (string): Cache file for validator inference
+#   VALIDATION_MAX_TOKENS (int): Max tokens for evaluator response (default: 2048)
 #
 # Dependencies:
 #   - bash 3.2+
@@ -112,7 +113,9 @@ evaluate_final_answer_against_query() {
 	validator_cache_file="${VALIDATOR_CACHE_FILE:-${EXECUTOR_CACHE_FILE:-}}"
 
 	# Invoke the evaluator model
-	response="$(llama_infer "${evaluation_prompt}" "" 640 "${schema_text}" "${validator_model_repo}" "${validator_model_file}" "${validator_cache_file}")"
+	local validation_max_tokens
+	validation_max_tokens="${VALIDATION_MAX_TOKENS:-2048}"
+	response="$(llama_infer "${evaluation_prompt}" "" "${validation_max_tokens}" "${schema_text}" "${validator_model_repo}" "${validator_model_file}" "${validator_cache_file}")"
 
 	# Log the evaluation result
 	local evaluation_type reasoning

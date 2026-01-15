@@ -409,12 +409,15 @@ evaluate_and_optionally_replan() {
 		log_pretty "INFO" "evaluation_result" "${evaluation_json}" || true
 
 		case "${evaluation_type}" in
-		PASS | REPHRASE)
+		PASS)
+			log "INFO" "Final answer accepted by evaluator" || true
+			;;
+		REPHRASE)
 			if [[ -n "${output}" ]]; then
 				final_answer="${output}"
 				json_state_set_key "${state_name}" "final_answer" "${final_answer}"
 			fi
-			log "INFO" "Final answer accepted by evaluator" || true
+			log "INFO" "Final answer rephrased by evaluator" || true
 			;;
 		REPLAN)
 			log "WARN" "Evaluator requested replanning" || true

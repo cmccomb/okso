@@ -15,6 +15,7 @@ The executor can run a lightweight evaluation pass before emitting the final res
 3. The helper logs the structured result and updates executor state flags:
    - `answer_validation_failed=true` when the evaluator returns `REPLAN`
    - `validation_failure_reason` populated with the model-provided reasoning, when available
+   - `final_answer` replaced only when the evaluator returns `REPHRASE`
 4. When the evaluator returns `REPLAN`, the executor logs the reasoning, stores it on state, and
    forwards the feedback into a fresh planner+executor cycle so the user receives a revised answer.
    Replanning only runs once per executor invocation and resets the plan outline, history, and
@@ -28,6 +29,7 @@ Because the evaluator output already conforms to the JSON schema, no additional 
 
 - `ENABLE_ANSWER_VALIDATION` (default: `true`): disable to skip the validation call entirely.
 - `VALIDATOR_MODEL_REPO` / `VALIDATOR_MODEL_FILE` / `VALIDATOR_CACHE_FILE`: optional overrides for the model and cache used during validation. When unset, the executor model configuration is reused.
+- `VALIDATION_MAX_TOKENS` (default: `2048`): max tokens for the evaluator response.
 
 Example:
 
