@@ -17,7 +17,7 @@
     },
     "output": {
       "type": "string",
-      "description": "Answer text when PASS/REPHRASE, or replanning context when REPLAN.",
+      "description": "Answer text when PASS/REPHRASE, or replanning guidance when REPLAN.",
       "minLength": 1,
       "maxLength": 12000
     }
