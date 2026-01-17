@@ -10,7 +10,7 @@ The executor can run a lightweight evaluation pass before emitting the final res
 
 ## Flow
 
-1. The `final_answer` plan step captures the draft output and immediately invokes `evaluate_final_answer_against_query()` when validation is enabled.
+1. The `final_answer` plan step has no arguments and immediately invokes `evaluate_final_answer_against_query()` to generate the response when evaluation is enabled.
 2. The evaluator uses `src/prompts/final_answer_evaluation.md` and the schema in `src/schemas/final_answer_evaluation.schema.json` to return `FINAL` with the best possible response text or `REPLAN` when the trace is insufficient.
 3. The helper logs the structured result and updates executor state flags:
    - `answer_validation_failed=true` when the evaluator returns `REPLAN`

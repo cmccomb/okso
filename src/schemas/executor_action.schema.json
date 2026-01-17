@@ -15,11 +15,8 @@
             "tool": { "const": "final_answer" },
             "args": {
               "type": "object",
-              "required": ["input"],
               "additionalProperties": false,
-              "properties": {
-                "input": { "type": "string", "minLength": 1 }
-              }
+              "properties": {}
             }
           }
         }
