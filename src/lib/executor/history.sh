@@ -134,12 +134,16 @@ initialize_executor_state() {
                         plan_entries: $plan_entries,
                         plan_outline: $plan_outline,
                         execution_started_at: $execution_started_at,
+                        step_started_at: "",
                         history: [],
                         step: 0,
                         plan_index: 0,
                         final_answer: "",
                         final_answer_action: "",
                         final_answer_evaluated: "false",
+                        final_answer_emitted: "false",
+                        validation_status: "",
+                        validation_reason: "",
                         last_action: null
                 }')"
 }
@@ -230,6 +234,16 @@ record_tool_execution() {
 	# Append entry to history and log
 	record_history "${state_name}" "${entry}"
 	log "INFO" "Recorded tool execution" "$(printf 'step=%s tool=%s' "${step_index}" "${tool}")"
+
+	local step_started_at step_duration execution_body
+	step_started_at="$(json_state_get_key "${state_name}" "step_started_at" 2>/dev/null || echo "")"
+	if [[ -n "${step_started_at}" ]]; then
+		step_duration="$(format_duration_from "${step_started_at}")"
+	else
+		step_duration="$(format_duration_seconds 0)"
+	fi
+	execution_body="$(format_execution_step_summary "${entry}")"
+	render_step_box "Execution Step ${step_index}" "${step_duration}" "${execution_body}"
 }
 
 finalize_executor_result() {
@@ -289,17 +303,24 @@ finalize_executor_result() {
 		log_pretty "INFO" "Execution summary" "$(format_tool_history "$(state_get_history_lines "${state_name}")")"
 	fi
 
-	local history_text execution_duration execution_body final_body validation_body
-	history_text="$(state_get_history_lines "${state_name}")"
-	execution_duration="$(format_duration_from "$(json_state_get_key "${state_name}" "execution_started_at")")"
-	execution_body="$(format_execution_steps_summary "${history_text}")"
-	render_step_box "Execution Steps" "${execution_duration}" "${execution_body}"
+	if [[ "$(json_state_get_key "${state_name}" "final_answer_emitted")" != "true" ]]; then
+		local final_body validation_body validation_status validation_reason
+		validation_status="$(json_state_get_key "${state_name}" "validation_status")"
+		validation_reason="$(json_state_get_key "${state_name}" "validation_reason")"
 
-	final_body="$(format_final_answer_summary "${final_answer}")"
-	render_step_box "Final Answer" "$(format_duration_seconds 0)" "${final_body}"
+		if [[ -z "${validation_status}" ]]; then
+			validation_status="Skipped"
+			validation_reason="Answer validation disabled"
+		fi
 
-	validation_body="$(format_validation_summary "Skipped" "Answer validation disabled")"
-	render_step_box "Validation" "$(format_duration_seconds 0)" "${validation_body}"
+		final_body="$(format_final_answer_summary "${final_answer}")"
+		render_step_box "Final Answer" "$(format_duration_seconds 0)" "${final_body}"
+
+		validation_body="$(format_validation_summary "${validation_status}" "${validation_reason}")"
+		render_step_box "Validation" "$(format_duration_seconds 0)" "${validation_body}"
+
+		json_state_set_key "${state_name}" "final_answer_emitted" "true"
+	fi
 }
 
 executor_replan_with_feedback() {
@@ -394,14 +415,15 @@ evaluate_and_optionally_replan() {
 	local validation_start_time validation_duration validation_status validation_reason
 
 	# UI render helpers
-	local history_pretty execution_duration execution_body final_body validation_body
+	local history_pretty final_body validation_body
 
 	local evaluation_json evaluation_type reasoning output feedback_text errexit_was_set
-	local history_pretty
+	local history_pretty replan_requested
 	local emit_output
 	state_name="$1"
 	final_answer="$2"
 	emit_output="${3:-true}"
+	replan_requested=false
 
 	# Fetch user query and history
 	user_query="$(json_state_get_key "${state_name}" "user_query")"
@@ -418,8 +440,8 @@ evaluate_and_optionally_replan() {
 	fi
 
 	validation_start_time="$(date +%s)"
-	validation_duration="$(format_duration_from "${validation_start_time}")"
 	evaluation_json="$(evaluate_final_answer_against_query "${user_query}" "${history_text}")"
+	validation_duration="$(format_duration_from "${validation_start_time}")"
 
 	json_state_set_key "${state_name}" "final_answer_evaluated" "true"
 
@@ -429,6 +451,8 @@ evaluate_and_optionally_replan() {
 
 	if [[ -z "${evaluation_json}" ]]; then
 		log "WARN" "Evaluator returned empty response; outputting answer as-is" || true
+		validation_status="Unavailable"
+		validation_reason="Evaluator returned empty response"
 	else
 		evaluation_type="$(jq -r '.evaluation_type // empty' <<<"${evaluation_json}" 2>/dev/null)"
 		reasoning="$(jq -r '.reasoning // empty' <<<"${evaluation_json}" 2>/dev/null)"
@@ -441,6 +465,7 @@ evaluate_and_optionally_replan() {
 			final_answer="${output}"
 			json_state_set_key "${state_name}" "final_answer" "${final_answer}"
 			log "INFO" "Final answer generated by evaluator" || true
+			validation_status="Accepted"
 			;;
 		REPLAN)
 			log "WARN" "Evaluator requested replanning" || true
@@ -448,6 +473,9 @@ evaluate_and_optionally_replan() {
 			json_state_set_key "${state_name}" "answer_validation_failed" "true" || true
 			json_state_set_key "${state_name}" "validation_failure_reason" "${reasoning}" || true
 			log_pretty "WARN" "validation_failure_reason" "${reasoning}" || true
+			validation_status="Replan requested"
+			validation_reason="${reasoning}"
+			replan_requested=true
 
 			feedback_text="${output:-${reasoning:-Evaluator requested replanning without providing details.}}"
 			if [[ "${emit_output}" == "true" ]]; then
@@ -458,14 +486,18 @@ evaluate_and_optionally_replan() {
 			else
 				json_state_set_key "${state_name}" "needs_replanning" "true" || true
 				json_state_set_key "${state_name}" "user_feedback" "${feedback_text}" || true
-				return 0
 			fi
 			;;
 		*)
 			log "WARN" "Evaluator returned unexpected schema; outputting answer as-is" || true
+			validation_status="Unknown"
+			validation_reason="Evaluator returned unexpected schema"
 			;;
 		esac
 	fi
+
+	json_state_set_key "${state_name}" "validation_status" "${validation_status}" || true
+	json_state_set_key "${state_name}" "validation_reason" "${validation_reason}" || true
 
 	if [[ "${emit_output}" == "true" ]]; then
 		# Emit final answer regardless.
@@ -478,20 +510,23 @@ evaluate_and_optionally_replan() {
 			log_pretty "INFO" "Execution summary" "${history_pretty}"
 		fi
 
-		execution_duration="$(format_duration_from "$(json_state_get_key "${state_name}" "execution_started_at")")"
-		execution_body="$(format_execution_steps_summary "${history_text}")"
-		render_step_box "Execution Steps" "${execution_duration}" "${execution_body}"
-
 		final_body="$(format_final_answer_summary "${final_answer}")"
 		render_step_box "Final Answer" "$(format_duration_seconds 0)" "${final_body}"
 
 		validation_body="$(format_validation_summary "${validation_status}" "${validation_reason}")"
 		render_step_box "Validation" "${validation_duration:-$(format_duration_seconds 0)}" "${validation_body}"
-		emit_boxed_summary \
-			"${user_query}" \
-			"$(json_state_get_key "${state_name}" "plan_outline")" \
-			"${history_text}" \
-			"${final_answer}"
+		json_state_set_key "${state_name}" "final_answer_emitted" "true"
+	elif [[ "${replan_requested}" == "true" ]]; then
+		validation_body="$(format_validation_summary "${validation_status}" "${validation_reason}")"
+		render_step_box "Validation" "${validation_duration:-$(format_duration_seconds 0)}" "${validation_body}"
+		return 0
+	else
+		final_body="$(format_final_answer_summary "${final_answer}")"
+		render_step_box "Final Answer" "$(format_duration_seconds 0)" "${final_body}"
+
+		validation_body="$(format_validation_summary "${validation_status}" "${validation_reason}")"
+		render_step_box "Validation" "${validation_duration:-$(format_duration_seconds 0)}" "${validation_body}"
+		json_state_set_key "${state_name}" "final_answer_emitted" "true"
 	fi
 }
 

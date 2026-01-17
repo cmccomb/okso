@@ -415,6 +415,32 @@ format_execution_steps_summary() {
 	format_box_section "Steps" "${formatted_history}"
 }
 
+format_execution_step_summary() {
+	# Formats a single execution step summary body.
+	# Arguments:
+	#   $1 - tool history JSON line (string)
+	# Returns:
+	#   Formatted summary body string
+	local line step tool args thought observation action_line
+	line="$1"
+
+	step="$(jq -r '.step' <<<"${line}")"
+	tool="$(jq -r '.action.tool' <<<"${line}")"
+	args="$(jq -c '.action.args' <<<"${line}")"
+	thought="$(jq -r '.thought' <<<"${line}")"
+	observation="$(format_tool_observation_pretty "${line}" "${tool}")"
+
+	if [[ -n "${thought}" ]]; then
+		action_line="${thought} (tool: ${tool}, args: ${args})"
+	else
+		action_line="tool: ${tool}, args: ${args}"
+	fi
+
+	printf '%s\n\n%s' \
+		"$(format_box_section "Step ${step} action" "${action_line}")" \
+		"$(format_box_section "Observation" "${observation}")"
+}
+
 format_final_answer_summary() {
 	# Formats the final answer summary body.
 	# Arguments:
