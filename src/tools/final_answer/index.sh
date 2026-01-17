@@ -7,7 +7,7 @@
 #   source "${BASH_SOURCE[0]%/tools/final_answer/index.sh}/tools/final_answer/index.sh"
 #
 # Environment variables:
-#   TOOL_ARGS (JSON object): structured args including `input`.
+#   TOOL_ARGS (JSON object): structured args (unused; must be empty object when present).
 #
 # Dependencies:
 #   - bash 3.2+
@@ -15,7 +15,7 @@
 #   - register_tool from tools/registry.sh
 #
 # Exit codes:
-#   Returns 0 after echoing the supplied TOOL_ARGS.input.
+#   Returns 0 after emitting the final answer text.
 
 # shellcheck source=src/lib/core/logging.sh
 source "${BASH_SOURCE[0]%/tools/final_answer/index.sh}/lib/core/logging.sh"
@@ -26,25 +26,16 @@ source "${BASH_SOURCE[0]%/final_answer/index.sh}/registry.sh"
 
 tool_final_answer() {
 	# Emits the provided final answer text without modification.
-	# Arguments: none. Reads TOOL_ARGS.input.
-	local args_json message text_key
+	# Arguments: none. Reads TOOL_ARGS when present.
+	local args_json message
 	args_json="${TOOL_ARGS:-}" || true
-	text_key="$(canonical_text_arg_key)"
+	message=""
 
 	if [[ -n "${args_json}" ]]; then
-		message=$(jq -er --arg key "${text_key}" '
- if type != "object" then error("args must be object") end
-| if .[$key]? == null then error("missing ${key}") end
-| if (.[$key] | type) != "string" then error("${key} must be string") end
-| if (.[$key] | length) == 0 then error("${key} cannot be empty") end
-| if ((del(.[$key]) | length) != 0) then error("unexpected properties") end
-| .[$key]
-' <<<"${args_json}" 2>/dev/null || true)
-	fi
-
-	if [[ -z "${message:-}" ]]; then
-		log "ERROR" "Missing TOOL_ARGS.${text_key}" "${args_json}" >&2
-		return 1
+		if ! jq -e 'type == "object" and length == 0' <<<"${args_json}" >/dev/null 2>&1; then
+			log "ERROR" "Invalid TOOL_ARGS for final_answer" "${args_json}" >&2
+			return 1
+		fi
 	fi
 
 	log "INFO" "final_answer tool invoked" "$(printf 'length=%s' "${#message}")" >&2
@@ -54,7 +45,7 @@ tool_final_answer() {
 register_final_answer() {
 	local args_schema
 
-	args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}}}')
+	args_schema='{"type":"object","additionalProperties":false,"properties":{}}'
 	register_tool \
 		"final_answer" \
 		"Emit the final user-facing answer without performing additional actions. When using final_answer, respond as a calm, courteous 'polite haunting' guide: gently uncanny, never intrusive. Keep the tone soft but decisive, prefer evidence over explanation, and anchor statements to concrete artifacts (filenames/paths/log lines) instead of pronouns. Output should be small, clean, and paste-ready." \

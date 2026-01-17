@@ -626,8 +626,18 @@ execute_planned_action() {
 
 	# Handle final answer
 	if [[ "${tool}" == "final_answer" ]]; then
+		local final_answer_text
 		json_state_set_key "${state_prefix}" "final_answer_action" "${observation}"
-		json_state_set_key "${state_prefix}" "final_answer" "${observation}"
+		if jq -e '.output != null and .exit_code != null' <<<"${observation}" >/dev/null 2>&1; then
+			final_answer_text="$(jq -r '.output' <<<"${observation}")"
+		else
+			final_answer_text="${observation}"
+		fi
+		json_state_set_key "${state_prefix}" "final_answer" "${final_answer_text}"
+
+		if [[ "${ENABLE_ANSWER_VALIDATION:-true}" == "true" ]]; then
+			evaluate_and_optionally_replan "${state_prefix}" "${final_answer_text}" "false"
+		fi
 	fi
 }
 
