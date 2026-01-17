@@ -13,7 +13,7 @@ use the canonical `input` property so prompts and schemas can reference `args.in
 - `reminders_*`: create, list, or complete Apple Reminders.
 - `calendar_*`: create, list, or search Apple Calendar events.
 - `mail_*`: draft, send, search, or list Apple Mail messages.
-- `final_answer`: emit the assistant's final reply with an `input` string.
+- `final_answer`: emit the assistant's final reply; the evaluator produces the response from the execution trace (no arguments required).
 
 `web_fetch` responses include the final URL, HTTP status, content type, headers, byte length, a truncation flag, a preview snippet, anchor metadata (`anchor_query`, `anchor_match`), and a `body_markdown` field when text-like payloads can be converted. Text responses (HTML, JSON, XML, or plain text) are transformed into Markdown with previews truncated to 1024 characters. Non-text payloads are base64-encoded with `body_encoding` set to `base64` to avoid unsafe binary output. Conversion failures fall back to raw snippets with `body_markdown` set to `null`. When a fetch target is discovered via `web_search`, the preview centers on a normalized snippet (ellipses removed, whitespace collapsed, and shortened to a brief phrase).
 

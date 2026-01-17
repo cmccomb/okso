@@ -1,0 +1,25 @@
+{
+  "title": "FinalAnswerEvaluation",
+  "type": "object",
+  "required": ["evaluation_type", "reasoning", "output"],
+  "additionalProperties": false,
+  "properties": {
+    "evaluation_type": {
+      "type": "string",
+      "enum": ["FINAL", "REPLAN"],
+      "description": "FINAL to return the evaluator-produced answer, REPLAN to request a new plan."
+    },
+    "reasoning": {
+      "type": "string",
+      "description": "Brief justification of the choice.",
+      "minLength": 5,
+      "maxLength": 500
+    },
+    "output": {
+      "type": "string",
+      "description": "Answer text when FINAL, or replanning guidance when REPLAN.",
+      "minLength": 5,
+      "maxLength": 1000
+    }
+  }
+}
