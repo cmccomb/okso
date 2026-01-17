@@ -23,7 +23,7 @@ The executor can run a lightweight evaluation pass before emitting the final res
 5. The executor prints the final answer and execution summary regardless of evaluation outcome,
    keeping the user-facing flow predictable when validation is unavailable or passes.
 
-Because the evaluator output already conforms to the JSON schema, no additional Bash-side validation is performed beyond type-friendly parsing.
+If the evaluator returns malformed JSON, the helper logs a warning, marks the evaluation as `PASS`, and preserves the original answer. This avoids jq parse errors while keeping user output predictable.
 
 ## Configuration
 

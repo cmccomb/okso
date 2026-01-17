@@ -117,17 +117,28 @@ evaluate_final_answer_against_query() {
 	validation_max_tokens="${VALIDATION_MAX_TOKENS:-2048}"
 	response="$(llama_infer "${evaluation_prompt}" "" "${validation_max_tokens}" "${schema_text}" "${validator_model_repo}" "${validator_model_file}" "${validator_cache_file}")"
 
+	# Parse and validate evaluation output
+	local evaluation_json evaluation_type reasoning response_preview
+	if ! evaluation_json="$(printf '%s' "${response}" | jq -c 'if type == "object" then . else empty end' 2>/dev/null)"; then
+		response_preview="${response//$'\n'/ }"
+		response_preview="${response_preview:0:200}"
+		log "WARN" "Evaluator returned invalid JSON; skipping validation" "preview=${response_preview}" || true
+		evaluation_json="$(jq -nc \
+			--arg reason "Evaluator returned invalid JSON; skipping validation." \
+			--arg output "${final_answer}" \
+			'{evaluation_type:"PASS",reasoning:$reason,output:$output}')"
+	fi
+
 	# Log the evaluation result
-	local evaluation_type reasoning
-	evaluation_type="$(jq -r '.evaluation_type' <<<"${response}")"
-	reasoning="$(jq -r '.reasoning' <<<"${response}")"
+	evaluation_type="$(jq -r '.evaluation_type' <<<"${evaluation_json}" 2>/dev/null || printf 'PASS')"
+	reasoning="$(jq -r '.reasoning' <<<"${evaluation_json}" 2>/dev/null || printf 'Evaluator returned invalid JSON; skipping validation.')"
 	log "INFO" "Evaluation result" "$(printf 'type=%s, %s' "${evaluation_type}" "${reasoning}")" || true
 
 	# Output result
 	if [[ -n "${output_var}" ]]; then
-		printf -v "${output_var}" '%s' "${response}"
+		printf -v "${output_var}" '%s' "${evaluation_json}"
 	else
-		printf '%s' "${response}"
+		printf '%s' "${evaluation_json}"
 	fi
 }
 
