@@ -526,10 +526,7 @@ evaluate_and_optionally_replan() {
 		return 0
 	else
 		final_body="$(format_final_answer_summary "${final_answer}")"
-		render_step_box "Final Answer" "$(format_duration_seconds 0)" "${final_body}"
-
-		validation_body="$(format_validation_summary "${validation_status}" "${validation_reason}")"
-		render_step_box "Evaluation" "${validation_duration:-$(format_duration_seconds 0)}" "${validation_body}"
+		render_step_box "Final Answer" "${validation_duration}" "${final_body}"
 		json_state_set_key "${state_name}" "final_answer_emitted" "true"
 	fi
 }
