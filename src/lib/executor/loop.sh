@@ -640,9 +640,9 @@ execute_planned_action() {
 			evaluate_and_optionally_replan "${state_prefix}" "${final_answer_text}" "false"
 		else
 			json_state_set_key "${state_prefix}" "validation_status" "Skipped" || true
-			json_state_set_key "${state_prefix}" "validation_reason" "Answer validation disabled" || true
+			json_state_set_key "${state_prefix}" "validation_reason" "Answer evaluation disabled" || true
 			render_step_box "Final Answer" "$(format_duration_seconds 0)" "$(format_final_answer_summary "${final_answer_text}")"
-			render_step_box "Validation" "$(format_duration_seconds 0)" "$(format_validation_summary "Skipped" "Answer validation disabled")"
+			render_step_box "Evaluation" "$(format_duration_seconds 0)" "$(format_validation_summary "Skipped" "Answer evaluation disabled")"
 			json_state_set_key "${state_prefix}" "final_answer_emitted" "true"
 		fi
 	fi

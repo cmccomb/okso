@@ -451,10 +451,10 @@ format_final_answer_summary() {
 }
 
 format_validation_summary() {
-	# Formats the validation summary body.
+	# Formats the evaluation summary body.
 	# Arguments:
-	#   $1 - validation status (string)
-	#   $2 - validation reasoning (string, optional)
+	#   $1 - evaluation status (string)
+	#   $2 - evaluation reasoning (string, optional)
 	# Returns:
 	#   Formatted summary body string
 	local status reasoning

@@ -310,14 +310,14 @@ finalize_executor_result() {
 
 		if [[ -z "${validation_status}" ]]; then
 			validation_status="Skipped"
-			validation_reason="Answer validation disabled"
+			validation_reason="Answer evaluation disabled"
 		fi
 
 		final_body="$(format_final_answer_summary "${final_answer}")"
 		render_step_box "Final Answer" "$(format_duration_seconds 0)" "${final_body}"
 
 		validation_body="$(format_validation_summary "${validation_status}" "${validation_reason}")"
-		render_step_box "Validation" "$(format_duration_seconds 0)" "${validation_body}"
+		render_step_box "Evaluation" "$(format_duration_seconds 0)" "${validation_body}"
 
 		json_state_set_key "${state_name}" "final_answer_emitted" "true"
 	fi
@@ -410,7 +410,7 @@ evaluate_and_optionally_replan() {
 	#   $3 - emit output (true/false, optional; default true)
 	local state_name final_answer user_query history_text
 
-	# Validation outputs / control
+	# Evaluation outputs / control
 	local reasoning feedback_text errexit_was_set
 	local validation_start_time validation_duration validation_status validation_reason
 
@@ -514,18 +514,18 @@ evaluate_and_optionally_replan() {
 		render_step_box "Final Answer" "$(format_duration_seconds 0)" "${final_body}"
 
 		validation_body="$(format_validation_summary "${validation_status}" "${validation_reason}")"
-		render_step_box "Validation" "${validation_duration:-$(format_duration_seconds 0)}" "${validation_body}"
+		render_step_box "Evaluation" "${validation_duration:-$(format_duration_seconds 0)}" "${validation_body}"
 		json_state_set_key "${state_name}" "final_answer_emitted" "true"
 	elif [[ "${replan_requested}" == "true" ]]; then
 		validation_body="$(format_validation_summary "${validation_status}" "${validation_reason}")"
-		render_step_box "Validation" "${validation_duration:-$(format_duration_seconds 0)}" "${validation_body}"
+		render_step_box "Evaluation" "${validation_duration:-$(format_duration_seconds 0)}" "${validation_body}"
 		return 0
 	else
 		final_body="$(format_final_answer_summary "${final_answer}")"
 		render_step_box "Final Answer" "$(format_duration_seconds 0)" "${final_body}"
 
 		validation_body="$(format_validation_summary "${validation_status}" "${validation_reason}")"
-		render_step_box "Validation" "${validation_duration:-$(format_duration_seconds 0)}" "${validation_body}"
+		render_step_box "Evaluation" "${validation_duration:-$(format_duration_seconds 0)}" "${validation_body}"
 		json_state_set_key "${state_name}" "final_answer_emitted" "true"
 	fi
 }
