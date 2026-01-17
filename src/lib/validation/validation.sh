@@ -43,19 +43,16 @@ build_evaluation_prompt() {
 	# Builds a prompt for evaluating a final answer against the original query.
 	# Arguments:
 	#   $1 - user query (string)
-	#   $2 - final answer text (string)
-	#   $3 - execution trace/history (string, optional)
+	#   $2 - execution trace/history (string, optional)
 	# Returns:
 	#   The validation prompt text
-	local user_query final_answer trace
+	local user_query trace
 	user_query="$1"
-	final_answer="$2"
-	trace="${3:-}"
+	trace="${2:-}"
 
 	# Load prompt template from prompts/final_answer_evaluation.md and render substitutions
 	render_prompt_template "final_answer_evaluation" \
 		user_query "${user_query}" \
-		final_answer "${final_answer}" \
 		trace "${trace}" \
 		evaluation_schema "$(load_schema_text "final_answer_evaluation")"
 }
@@ -66,9 +63,8 @@ evaluate_final_answer_against_query() {
 	#
 	# Arguments:
 	#   $1 - user query (string)
-	#   $2 - final answer text (string)
-	#   $3 - execution trace/history (string, optional)
-	#   $4 - output variable name for validation result (optional)
+	#   $2 - execution trace/history (string, optional)
+	#   $3 - output variable name for validation result (optional)
 	#
 	# Returns:
 	#   0 if evaluation succeeded, 2 if evaluation failed
@@ -82,11 +78,10 @@ evaluate_final_answer_against_query() {
 	#     "output": string
 	#   }
 
-	local user_query final_answer trace output_var
+	local user_query trace output_var
 	user_query="$1"
-	final_answer="$2"
-	trace="${3:-}"
-	output_var="${4:-}"
+	trace="${2:-}"
+	output_var="${3:-}"
 
 	# Check llama availability
 	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
@@ -96,7 +91,7 @@ evaluate_final_answer_against_query() {
 
 	# Build the evaluation prompt
 	local evaluation_prompt response
-	evaluation_prompt="$(build_evaluation_prompt "${user_query}" "${final_answer}" "${trace}")"
+	evaluation_prompt="$(build_evaluation_prompt "${user_query}" "${trace}")"
 
 	# Load the evaluation schema
 	local schema_text

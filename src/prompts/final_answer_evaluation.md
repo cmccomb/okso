@@ -7,13 +7,9 @@ You are responsible for producing the system’s final answer based on the execu
 ${user_query}
 
 ### Execution History
-(Provided for context on how the answer was produced)
 ${trace}
 
-### Final Answer
-${final_answer}
-
-Note: The final_answer tool may be invoked with empty args or an empty string. This is expected when the evaluator is responsible for producing the final response. Do not treat the absence of a drafted final answer as an error; rely on the execution trace to produce the best possible answer.
+The final_answer tool is invoked with empty args because you are responsible for returning the final answer.
 
 ## Evaluation Criteria
 - The answer directly addresses the user’s request.
@@ -23,7 +19,7 @@ Note: The final_answer tool may be invoked with empty args or an empty string. T
 
 ## Output Decision
 Choose exactly one:
-- FINAL: Provide the best possible final answer based on the trace (use the draft answer as a starting point if helpful).
+- FINAL: Provide the best possible final answer based on the trace.
 - REPLAN: The trace is missing critical information, contains errors, or cannot support a correct answer.
 
 ## Output Contract
