@@ -390,7 +390,7 @@ evaluate_and_optionally_replan() {
 	local state_name final_answer user_query history_text
 
 	# Validation outputs / control
-	local validation_json validator_rc satisfied reasoning feedback_text errexit_was_set
+	local reasoning feedback_text errexit_was_set
 	local validation_start_time validation_duration validation_status validation_reason
 
 	# UI render helpers
@@ -418,8 +418,6 @@ evaluate_and_optionally_replan() {
 	fi
 
 	validation_start_time="$(date +%s)"
-	validation_json="$(validate_final_answer_against_query "${user_query}" "${final_answer}" "${history_text}")"
-	validator_rc=$?
 	validation_duration="$(format_duration_from "${validation_start_time}")"
 	evaluation_json="$(evaluate_final_answer_against_query "${user_query}" "${history_text}")"
 
@@ -480,15 +478,15 @@ evaluate_and_optionally_replan() {
 			log_pretty "INFO" "Execution summary" "${history_pretty}"
 		fi
 
-	execution_duration="$(format_duration_from "$(json_state_get_key "${state_name}" "execution_started_at")")"
-	execution_body="$(format_execution_steps_summary "${history_text}")"
-	render_step_box "Execution Steps" "${execution_duration}" "${execution_body}"
+		execution_duration="$(format_duration_from "$(json_state_get_key "${state_name}" "execution_started_at")")"
+		execution_body="$(format_execution_steps_summary "${history_text}")"
+		render_step_box "Execution Steps" "${execution_duration}" "${execution_body}"
 
-	final_body="$(format_final_answer_summary "${final_answer}")"
-	render_step_box "Final Answer" "$(format_duration_seconds 0)" "${final_body}"
+		final_body="$(format_final_answer_summary "${final_answer}")"
+		render_step_box "Final Answer" "$(format_duration_seconds 0)" "${final_body}"
 
-	validation_body="$(format_validation_summary "${validation_status}" "${validation_reason}")"
-	render_step_box "Validation" "${validation_duration:-$(format_duration_seconds 0)}" "${validation_body}"
+		validation_body="$(format_validation_summary "${validation_status}" "${validation_reason}")"
+		render_step_box "Validation" "${validation_duration:-$(format_duration_seconds 0)}" "${validation_body}"
 		emit_boxed_summary \
 			"${user_query}" \
 			"$(json_state_get_key "${state_name}" "plan_outline")" \
