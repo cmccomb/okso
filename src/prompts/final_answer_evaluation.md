@@ -1,4 +1,4 @@
-You are responsible for evaluating the system’s final answer and deciding whether it can be passed through, needs to be rephrased, or requires replanning.
+You are responsible for producing the system’s final answer based on the execution trace or requesting replanning when the trace is insufficient.
 ===
 
 ## Inputs
@@ -21,8 +21,7 @@ ${final_answer}
 
 ## Output Decision
 Choose exactly one:
-- PASS: The final answer is already correct and ready to ship.
-- REPHRASE: The final answer is usable but needs a clearer or better structured response.
+- FINAL: Provide the best possible final answer based on the trace (use the draft answer as a starting point if helpful).
 - REPLAN: The trace is missing critical information, contains errors, or cannot support a correct answer.
 
 ## Output Contract

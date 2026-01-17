@@ -4,8 +4,8 @@
 # Final answer evaluation module for iterative replanning.
 #
 # This module evaluates whether a final answer satisfies the original user query
-# and either passes it through, rephrases it, or requests replanning based on
-# the execution trace.
+# and either returns an evaluator-produced final answer or requests replanning
+# based on the execution trace.
 #
 # Usage:
 #   source "${BASH_SOURCE[0]%/validation.sh}/validation.sh"
@@ -77,7 +77,7 @@ evaluate_final_answer_against_query() {
 	#
 	# Output JSON structure:
 	#   {
-	#     "evaluation_type": "PASS | REPHRASE | REPLAN",
+	#     "evaluation_type": "FINAL | REPLAN",
 	#     "reasoning": string,
 	#     "output": string
 	#   }

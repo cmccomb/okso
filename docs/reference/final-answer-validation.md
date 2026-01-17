@@ -1,6 +1,6 @@
 # Final answer evaluation
 
-The executor can run a lightweight evaluation pass before emitting the final response. When enabled, the helper sends a structured prompt to `llama.cpp` and expects a schema-constrained JSON object that selects whether the answer should pass through, be rephrased, or trigger replanning. Evaluation never blocks output: the executor always prints the answer and summary while optionally annotating state for consumers.
+The executor can run a lightweight evaluation pass before emitting the final response. When enabled, the helper sends a structured prompt to `llama.cpp` and expects a schema-constrained JSON object that either returns the final answer (`FINAL`) or requests replanning (`REPLAN`). The evaluator is used to produce the final answer whenever it is available, while replanning continues to be optional and bounded to a single retry.
 
 ## Components
 
@@ -10,18 +10,14 @@ The executor can run a lightweight evaluation pass before emitting the final res
 
 ## Flow
 
-1. `finalize_executor_result()` builds the final answer from tool output or the `final_answer` action.
-2. When `ENABLE_ANSWER_VALIDATION=true` and `LLAMA_AVAILABLE=true`, `evaluate_final_answer_against_query()` renders the prompt from `src/prompts/final_answer_evaluation.md` and calls `llama_infer` with the evaluation schema.
+1. The `final_answer` plan step captures the draft output and immediately invokes `evaluate_final_answer_against_query()` when validation is enabled.
+2. The evaluator uses `src/prompts/final_answer_evaluation.md` and the schema in `src/schemas/final_answer_evaluation.schema.json` to return `FINAL` with the best possible response text or `REPLAN` when the trace is insufficient.
 3. The helper logs the structured result and updates executor state flags:
    - `answer_validation_failed=true` when the evaluator returns `REPLAN`
    - `validation_failure_reason` populated with the model-provided reasoning, when available
-   - `final_answer` replaced only when the evaluator returns `REPHRASE`
-4. When the evaluator returns `REPLAN`, the executor logs the reasoning, stores it on state, and
-   forwards the feedback into a fresh planner+executor cycle so the user receives a revised answer.
-   Replanning only runs once per executor invocation and resets the plan outline, history, and
-   allowed tools before executing the replacement plan.
-5. The executor prints the final answer and execution summary regardless of evaluation outcome,
-   keeping the user-facing flow predictable when validation is unavailable or passes.
+   - `final_answer` replaced with the evaluator `output` when the evaluator returns `FINAL`
+4. When the evaluator returns `REPLAN`, the executor logs the reasoning, stores it on state, and forwards the feedback into a fresh planner+executor cycle so the user receives a revised answer. Replanning only runs once per executor invocation and resets the plan outline, history, and allowed tools before executing the replacement plan.
+5. The executor prints the final answer and execution summary regardless of evaluation outcome, keeping the user-facing flow predictable when validation is unavailable.
 
 Because the evaluator output already conforms to the JSON schema, no additional Bash-side validation is performed beyond type-friendly parsing.
 

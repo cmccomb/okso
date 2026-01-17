@@ -6,8 +6,8 @@
   "properties": {
     "evaluation_type": {
       "type": "string",
-      "enum": ["PASS", "REPHRASE", "REPLAN"],
-      "description": "PASS to use the provided answer, REPHRASE to return a refined answer, REPLAN to request a new plan."
+      "enum": ["FINAL", "REPLAN"],
+      "description": "FINAL to return the evaluator-produced answer, REPLAN to request a new plan."
     },
     "reasoning": {
       "type": "string",
@@ -17,7 +17,7 @@
     },
     "output": {
       "type": "string",
-      "description": "Answer text when PASS/REPHRASE, or replanning guidance when REPLAN.",
+      "description": "Answer text when FINAL, or replanning guidance when REPLAN.",
       "minLength": 1,
       "maxLength": 12000
     }
