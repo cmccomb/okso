@@ -289,7 +289,7 @@ register_python_repl() {
 	args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}}}')
 	register_tool \
 		"python_repl" \
-		"Execute Python statements in a temporary sandbox. Use print statements to view values." \
+		"Execute Python statements in a temporary sandbox. However, you MUST use print statements to view outputs." \
 		"Writes are confined to an ephemeral sandbox directory." \
 		tool_python_repl \
 		"${args_schema}"
