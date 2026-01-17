@@ -242,8 +242,10 @@ record_tool_execution() {
 	else
 		step_duration="$(format_duration_seconds 0)"
 	fi
-	execution_body="$(format_execution_step_summary "${entry}")"
-	render_step_box "Execution Step ${step_index}" "${step_duration}" "${execution_body}"
+	if [[ "${tool}" != "final_answer" ]]; then
+		execution_body="$(format_execution_step_summary "${entry}")"
+		render_step_box "Execution Step ${step_index}" "${step_duration}" "${execution_body}"
+	fi
 }
 
 finalize_executor_result() {
