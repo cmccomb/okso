@@ -13,13 +13,13 @@
       "type": "string",
       "description": "Brief justification of the choice.",
       "minLength": 5,
-      "maxLength": 1000
+      "maxLength": 500
     },
     "output": {
       "type": "string",
       "description": "Answer text when FINAL, or replanning guidance when REPLAN.",
-      "minLength": 1,
-      "maxLength": 12000
+      "minLength": 5,
+      "maxLength": 1000
     }
   }
 }
