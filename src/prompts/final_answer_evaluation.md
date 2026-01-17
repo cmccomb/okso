@@ -13,6 +13,8 @@ ${trace}
 ### Final Answer
 ${final_answer}
 
+Note: The final_answer tool may be invoked with empty args or an empty string. This is expected when the evaluator is responsible for producing the final response. Do not treat the absence of a drafted final answer as an error; rely on the execution trace to produce the best possible answer.
+
 ## Evaluation Criteria
 - The answer directly addresses the user’s request.
 - All key information or actions requested are present.
