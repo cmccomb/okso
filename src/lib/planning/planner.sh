@@ -351,7 +351,7 @@ generate_planner_response() {
 
 	# Configure sampling parameters
 	local sample_count temperature debug_log_dir debug_log_file max_generation_tokens
-	sample_count="$(validate_positive_int "${PLANNER_SAMPLE_COUNT:-3}" 3 "PLANNER_SAMPLE_COUNT")"
+	sample_count=1 #"$(validate_positive_int "${PLANNER_SAMPLE_COUNT:-3}" 3 "PLANNER_SAMPLE_COUNT")"
 	temperature="$(validate_temperature "${PLANNER_TEMPERATURE:-0.7}" 0.7)"
 	max_generation_tokens="$(validate_positive_int "${PLANNER_MAX_OUTPUT_TOKENS:-1024}" 1024 "PLANNER_MAX_OUTPUT_TOKENS")"
 
