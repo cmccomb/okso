@@ -608,6 +608,7 @@ execute_planned_action() {
 	fi
 
 	# Execute the tool with context
+	json_state_set_key "${state_prefix}" "step_started_at" "$(date +%s)" || true
 	context="$(format_action_context "${thought}" "${tool}" "${args_after_controls}")"
 	if [[ "${tool}" == "web_fetch" ]]; then
 		observation="$(WEB_FETCH_SEARCH_SNIPPETS="${web_fetch_snippets}" execute_tool_with_query "${tool}" "$(extract_tool_query "${tool}" "${args_after_controls}")" "${context}" "${args_after_controls}")"
@@ -637,6 +638,12 @@ execute_planned_action() {
 
 		if [[ "${ENABLE_ANSWER_VALIDATION:-true}" == "true" ]]; then
 			evaluate_and_optionally_replan "${state_prefix}" "${final_answer_text}" "false"
+		else
+			json_state_set_key "${state_prefix}" "validation_status" "Skipped" || true
+			json_state_set_key "${state_prefix}" "validation_reason" "Answer evaluation disabled" || true
+			render_step_box "Final Answer" "$(format_duration_seconds 0)" "$(format_final_answer_summary "${final_answer_text}")"
+			render_step_box "Evaluation" "$(format_duration_seconds 0)" "$(format_validation_summary "Skipped" "Answer evaluation disabled")"
+			json_state_set_key "${state_prefix}" "final_answer_emitted" "true"
 		fi
 	fi
 }

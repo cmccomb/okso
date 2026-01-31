@@ -37,7 +37,8 @@ Options:
   -V, --version         Show version information.
   -y, --yes, --no-confirm
                         Approve all tool runs without prompting.
-  -v, --verbose LEVEL   Set log verbosity level (integer, e.g., -v 1, -v 2).
+  -v, --verbose [LEVEL] Enable verbose logs (optionally set integer level).
+  -vv, -vvv             Increase verbosity (INFO/DEBUG).
   -q, --quiet           Silence informational logs.
 
 The script orchestrates a llama.cpp-backed planner with a registry of
@@ -79,11 +80,21 @@ parse_args() {
 			shift
 			;;
 		-v | --verbose)
-			if [[ $# -lt 2 ]]; then
-				die "cli" "usage" "-v/--verbose requires a verbosity level (integer)"
+			if [[ $# -ge 2 && "$2" =~ ^[0-9]+$ ]]; then
+				VERBOSITY="$2"
+				shift 2
+			else
+				VERBOSITY=1
+				shift
 			fi
-			VERBOSITY="$2"
-			shift 2
+			;;
+		-vv)
+			VERBOSITY=2
+			shift
+			;;
+		-vvv)
+			VERBOSITY=3
+			shift
 			;;
 		-q | --quiet)
 			VERBOSITY=0

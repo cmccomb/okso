@@ -127,17 +127,23 @@ initialize_executor_state() {
 		--arg allowed_tools "$3" \
 		--arg plan_entries "$4" \
 		--arg plan_outline "$5" \
+		--arg execution_started_at "$(date +%s)" \
 		'{
                         user_query: $user_query,
                         allowed_tools: $allowed_tools,
                         plan_entries: $plan_entries,
                         plan_outline: $plan_outline,
+                        execution_started_at: $execution_started_at,
+                        step_started_at: "",
                         history: [],
                         step: 0,
                         plan_index: 0,
                         final_answer: "",
                         final_answer_action: "",
                         final_answer_evaluated: "false",
+                        final_answer_emitted: "false",
+                        validation_status: "",
+                        validation_reason: "",
                         last_action: null
                 }')"
 }
@@ -228,12 +234,33 @@ record_tool_execution() {
 	# Append entry to history and log
 	record_history "${state_name}" "${entry}"
 	log "INFO" "Recorded tool execution" "$(printf 'step=%s tool=%s' "${step_index}" "${tool}")"
+
+	local step_started_at step_duration execution_body
+	step_started_at="$(json_state_get_key "${state_name}" "step_started_at" 2>/dev/null || echo "")"
+	if [[ -n "${step_started_at}" ]]; then
+		step_duration="$(format_duration_from "${step_started_at}")"
+	else
+		step_duration="$(format_duration_seconds 0)"
+	fi
+	if [[ "${tool}" != "final_answer" ]]; then
+		execution_body="$(format_execution_step_summary "${entry}")"
+		render_step_box "Execution Step ${step_index}" "${step_duration}" "${execution_body}"
+	fi
 }
 
 finalize_executor_result() {
 	# Finalizes and emits the executor run result.
 	# Arguments:
 	#   $1 - state prefix
+	# Returns:
+	#   0 when final answer is successfully emitted or feedback is received for replanning;
+	#   non-zero when answer evaluation fails or replanning is triggered.
+	# Notes:
+	#   If replanning is needed and user feedback is available, emits a JSON status
+	#   with {status: "feedback_received", feedback: "<text>"} and returns 0.
+	#   If answer validation is enabled and not yet performed, triggers evaluation
+	#   which may initiate replanning.
+
 	local state_name observation final_answer_action needs_replanning user_feedback
 	local final_answer
 	state_name="$1"
@@ -287,12 +314,24 @@ finalize_executor_result() {
 		log_pretty "INFO" "Execution summary" "$(format_tool_history "$(state_get_history_lines "${state_name}")")"
 	fi
 
-	# Emit boxed summary
-	emit_boxed_summary \
-		"$(json_state_get_key "${state_name}" "user_query")" \
-		"$(json_state_get_key "${state_name}" "plan_outline")" \
-		"$(state_get_history_lines "${state_name}")" \
-		"${final_answer}"
+	if [[ "$(json_state_get_key "${state_name}" "final_answer_emitted")" != "true" ]]; then
+		local final_body validation_body validation_status validation_reason
+		validation_status="$(json_state_get_key "${state_name}" "validation_status")"
+		validation_reason="$(json_state_get_key "${state_name}" "validation_reason")"
+
+		if [[ -z "${validation_status}" ]]; then
+			validation_status="Skipped"
+			validation_reason="Answer evaluation disabled"
+		fi
+
+		final_body="$(format_final_answer_summary "${final_answer}")"
+		render_step_box "Final Answer" "$(format_duration_seconds 0)" "${final_body}"
+
+		validation_body="$(format_validation_summary "${validation_status}" "${validation_reason}")"
+		render_step_box "Evaluation" "$(format_duration_seconds 0)" "${validation_body}"
+
+		json_state_set_key "${state_name}" "final_answer_emitted" "true"
+	fi
 }
 
 executor_replan_with_feedback() {
@@ -381,12 +420,21 @@ evaluate_and_optionally_replan() {
 	#   $2 - final answer text
 	#   $3 - emit output (true/false, optional; default true)
 	local state_name final_answer user_query history_text
+
+	# Evaluation outputs / control
+	local reasoning feedback_text errexit_was_set
+	local validation_start_time validation_duration validation_status validation_reason
+
+	# UI render helpers
+	local history_pretty final_body validation_body
+
 	local evaluation_json evaluation_type reasoning output feedback_text errexit_was_set
-	local history_pretty
+	local history_pretty replan_requested
 	local emit_output
 	state_name="$1"
 	final_answer="$2"
 	emit_output="${3:-true}"
+	replan_requested=false
 
 	# Fetch user query and history
 	user_query="$(json_state_get_key "${state_name}" "user_query")"
@@ -402,7 +450,9 @@ evaluate_and_optionally_replan() {
 		set +e
 	fi
 
+	validation_start_time="$(date +%s)"
 	evaluation_json="$(evaluate_final_answer_against_query "${user_query}" "${history_text}")"
+	validation_duration="$(format_duration_from "${validation_start_time}")"
 
 	json_state_set_key "${state_name}" "final_answer_evaluated" "true"
 
@@ -410,45 +460,50 @@ evaluate_and_optionally_replan() {
 		set -e
 	fi
 
-	if [[ -z "${evaluation_json}" ]]; then
-		log "WARN" "Evaluator returned empty response; outputting answer as-is" || true
-	else
-		evaluation_type="$(jq -r '.evaluation_type // empty' <<<"${evaluation_json}" 2>/dev/null)"
-		reasoning="$(jq -r '.reasoning // empty' <<<"${evaluation_json}" 2>/dev/null)"
-		output="$(jq -r '.output // empty' <<<"${evaluation_json}" 2>/dev/null)"
+	local validation_status validation_reason
+	validation_status=""
+	validation_reason=""
 
-		log_pretty "INFO" "evaluation_result" "${evaluation_json}" || true
+	evaluation_type="$(jq -r '.evaluation_type // empty' <<<"${evaluation_json}" 2>/dev/null)"
+	reasoning="$(jq -r '.reasoning // empty' <<<"${evaluation_json}" 2>/dev/null)"
+	output="$(jq -r '.output // empty' <<<"${evaluation_json}" 2>/dev/null)"
 
-		case "${evaluation_type}" in
-		FINAL)
-			final_answer="${output}"
-			json_state_set_key "${state_name}" "final_answer" "${final_answer}"
-			log "INFO" "Final answer generated by evaluator" || true
-			;;
-		REPLAN)
-			log "WARN" "Evaluator requested replanning" || true
+	log_pretty "INFO" "evaluation_result" "${evaluation_json}" || true
 
-			json_state_set_key "${state_name}" "answer_validation_failed" "true" || true
-			json_state_set_key "${state_name}" "validation_failure_reason" "${reasoning}" || true
-			log_pretty "WARN" "validation_failure_reason" "${reasoning}" || true
+	case "${evaluation_type}" in
+	FINAL)
+		final_answer="${output}"
+		json_state_set_key "${state_name}" "final_answer" "${final_answer}"
+		log "INFO" "Final answer generated by evaluator" || true
+		validation_status="Accepted"
+		;;
+	REPLAN)
+		log "WARN" "Evaluator requested replanning" || true
+		json_state_set_key "${state_name}" "answer_validation_failed" "true" || true
+		json_state_set_key "${state_name}" "validation_failure_reason" "${reasoning}" || true
+		log_pretty "WARN" "validation_failure_reason" "${reasoning}" || true
+		validation_status="Replan requested"
+		validation_reason="${reasoning}"
+		replan_requested=true
 
-			feedback_text="${output:-${reasoning:-Evaluator requested replanning without providing details.}}"
-			if [[ "${emit_output}" == "true" ]]; then
-				if executor_replan_with_feedback "${state_name}" "${feedback_text}"; then
-					return 0
-				fi
-				log "WARN" "Continuing without replanning after evaluator request" || true
-			else
-				json_state_set_key "${state_name}" "needs_replanning" "true" || true
-				json_state_set_key "${state_name}" "user_feedback" "${feedback_text}" || true
+		feedback_text="${output:-${reasoning:-Evaluator requested replanning without providing details.}}"
+		if [[ "${emit_output}" == "true" ]]; then
+			if executor_replan_with_feedback "${state_name}" "${feedback_text}"; then
 				return 0
 			fi
-			;;
-		*)
-			log "WARN" "Evaluator returned unexpected schema; outputting answer as-is" || true
-			;;
-		esac
-	fi
+			log "WARN" "Continuing without replanning after evaluator request" || true
+		else
+			json_state_set_key "${state_name}" "needs_replanning" "true" || true
+			json_state_set_key "${state_name}" "user_feedback" "${feedback_text}" || true
+		fi
+		;;
+	*)
+		log "ERROR" "Evaluator returned unexpected schema" || exit
+		;;
+	esac
+
+	json_state_set_key "${state_name}" "validation_status" "${validation_status}" || true
+	json_state_set_key "${state_name}" "validation_reason" "${validation_reason}" || true
 
 	if [[ "${emit_output}" == "true" ]]; then
 		# Emit final answer regardless.
@@ -461,11 +516,20 @@ evaluate_and_optionally_replan() {
 			log_pretty "INFO" "Execution summary" "${history_pretty}"
 		fi
 
-		emit_boxed_summary \
-			"${user_query}" \
-			"$(json_state_get_key "${state_name}" "plan_outline")" \
-			"${history_text}" \
-			"${final_answer}"
+		final_body="$(format_final_answer_summary "${final_answer}")"
+		render_step_box "Final Answer" "$(format_duration_seconds 0)" "${final_body}"
+
+		validation_body="$(format_validation_summary "${validation_status}" "${validation_reason}")"
+		render_step_box "Evaluation" "${validation_duration:-$(format_duration_seconds 0)}" "${validation_body}"
+		json_state_set_key "${state_name}" "final_answer_emitted" "true"
+	elif [[ "${replan_requested}" == "true" ]]; then
+		validation_body="$(format_validation_summary "${validation_status}" "${validation_reason}")"
+		render_step_box "Evaluation" "${validation_duration:-$(format_duration_seconds 0)}" "${validation_body}"
+		return 0
+	else
+		final_body="$(format_final_answer_summary "${final_answer}")"
+		render_step_box "Final Answer" "${validation_duration}" "${final_body}"
+		json_state_set_key "${state_name}" "final_answer_emitted" "true"
 	fi
 }
 

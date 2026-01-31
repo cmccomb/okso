@@ -179,6 +179,126 @@ render_box() {
 	printf '%s\n' "${bottom_border}"
 }
 
+format_duration_seconds() {
+	# Formats a duration in seconds into H:MM:SS or MM:SS.
+	# Arguments:
+	#   $1 - duration in seconds (int)
+	# Returns:
+	#   Formatted duration string
+	local total_seconds hours minutes seconds
+	total_seconds="$1"
+	if ! [[ "${total_seconds}" =~ ^[0-9]+$ ]]; then
+		total_seconds=0
+	fi
+	hours=$((total_seconds / 3600))
+	minutes=$(((total_seconds % 3600) / 60))
+	seconds=$((total_seconds % 60))
+
+	if ((hours > 0)); then
+		printf '%d:%02d:%02d' "${hours}" "${minutes}" "${seconds}"
+	else
+		printf '%02d:%02d' "${minutes}" "${seconds}"
+	fi
+}
+
+format_duration_from() {
+	# Formats the elapsed duration from a start timestamp.
+	# Arguments:
+	#   $1 - start timestamp in seconds (int)
+	# Returns:
+	#   Formatted duration string
+	local start_time now elapsed
+	start_time="$1"
+	now="$(date +%s)"
+	if ! [[ "${start_time}" =~ ^[0-9]+$ ]]; then
+		start_time="${now}"
+	fi
+	elapsed=$((now - start_time))
+	if ((elapsed < 0)); then
+		elapsed=0
+	fi
+	format_duration_seconds "${elapsed}"
+}
+
+format_header_line() {
+	# Formats a header line with left/right aligned segments.
+	# Arguments:
+	#   $1 - left text (string)
+	#   $2 - right text (string)
+	#   $3 - width limit (int)
+	# Returns:
+	#   Header line string
+	local left right width padding
+	left="$1"
+	right="$2"
+	width="$3"
+
+	if ((width < 0)); then
+		width=0
+	fi
+
+	if ((${#left} + ${#right} + 1 > width)); then
+		printf '%s | %s' "${left}" "${right}"
+		return 0
+	fi
+
+	padding=$((width - ${#left} - ${#right}))
+	printf '%s%*s%s' "${left}" "${padding}" "" "${right}"
+}
+
+render_step_box() {
+	# Renders a lifecycle step box with a header showing duration and step name.
+	# Arguments:
+	#   $1 - step name (string)
+	#   $2 - duration string (string)
+	#   $3 - body content (string)
+	# Returns:
+	#   Boxed content rendered to stdout
+	local step_name duration body terminal_width width_limit header_line line max_line_length padding
+	local -a lines=()
+	step_name="$1"
+	duration="$2"
+	body="$3"
+	terminal_width="${COLUMNS:-"$(tput cols 2>/dev/null || printf '80')"}"
+	if ! [[ "${terminal_width}" =~ ^[0-9]+$ ]]; then
+		terminal_width=80
+	fi
+
+	width_limit=$((terminal_width - 4))
+	if ((width_limit < 20)); then
+		width_limit=20
+	fi
+
+	header_line="$(format_header_line "${step_name}" "${duration}" "${width_limit}")"
+	lines+=("${header_line}")
+
+	if [[ -z "${body}" ]]; then
+		body="(none)"
+	fi
+
+	while IFS= read -r line || [[ -n "${line}" ]]; do
+		lines+=("${line}")
+	done < <(printf '%s\n' "${body}" | fold -s -w "${width_limit}")
+
+	max_line_length=0
+	for line in "${lines[@]}"; do
+		if ((${#line} > max_line_length)); then
+			max_line_length=${#line}
+		fi
+	done
+
+	local top_border bottom_border
+	top_border="┌$(printf '─%.0s' $(seq 1 $((max_line_length + 2))))┐"
+	bottom_border="└$(printf '─%.0s' $(seq 1 $((max_line_length + 2))))┘"
+
+	printf '%s\n' "${top_border}"
+	for line in "${lines[@]}"; do
+		padding=$((max_line_length - ${#line}))
+		printf '│ %s%*s │\n' "${line}" "${padding}" ""
+	done
+	printf '%s\n' "${bottom_border}"
+}
+
 indent_block() {
 	# Indents each line of the given content with the specified prefix.
 	# Arguments:
@@ -245,6 +365,109 @@ render_boxed_summary() {
 		"$(format_box_section "Final answer" "${final_answer}")")
 
 	render_box "${formatted_content}"
+}
+
+format_plan_summary() {
+	# Formats a plan identification summary body.
+	# Arguments:
+	#   $1 - plan outline (string)
+	#   $2 - required tools (newline-delimited string)
+	#   $3 - plan entries JSON array (string)
+	# Returns:
+	#   Formatted summary body string
+	local plan_outline required_tools plan_entries tool_lines step_count
+	plan_outline="$1"
+	required_tools="$2"
+	plan_entries="$3"
+
+	step_count="0"
+	if [[ -n "${plan_entries}" ]]; then
+		step_count="$(jq -r 'if type=="array" then length else 0 end' <<<"${plan_entries}" 2>/dev/null || printf '0')"
+	fi
+
+	if [[ -n "${required_tools}" ]]; then
+		tool_lines="$(format_tool_descriptions "${required_tools}" "format_tool_example_line")"
+	else
+		tool_lines="(none)"
+	fi
+
+	printf '%s\n\n%s\n\n%s' \
+		"$(format_box_section "Outline" "${plan_outline}")" \
+		"$(format_box_section "Tools" "${tool_lines}")" \
+		"$(format_box_section "Steps" "${step_count}")"
+}
+
+format_execution_steps_summary() {
+	# Formats the execution steps summary body.
+	# Arguments:
+	#   $1 - tool history text (string)
+	# Returns:
+	#   Formatted summary body string
+	local history_text formatted_history
+	history_text="$1"
+
+	if [[ -z "${history_text}" ]]; then
+		formatted_history="(no tool runs)"
+	else
+		formatted_history="$(format_tool_history "${history_text}")"
+	fi
+
+	format_box_section "Steps" "${formatted_history}"
+}
+
+format_execution_step_summary() {
+	# Formats a single execution step summary body.
+	# Arguments:
+	#   $1 - tool history JSON line (string)
+	# Returns:
+	#   Formatted summary body string
+	local line step tool args thought observation action_line
+	line="$1"
+
+	step="$(jq -r '.step' <<<"${line}")"
+	tool="$(jq -r '.action.tool' <<<"${line}")"
+	args="$(jq -c '.action.args' <<<"${line}")"
+	thought="$(jq -r '.thought' <<<"${line}")"
+	observation="$(format_tool_observation_pretty "${line}" "${tool}")"
+
+	if [[ -n "${thought}" ]]; then
+		action_line="${thought} (tool: ${tool}, args: ${args})"
+	else
+		action_line="tool: ${tool}, args: ${args}"
+	fi
+
+	printf '%s\n\n%s' \
+		"$(format_box_section "Step ${step} action" "${action_line}")" \
+		"$(format_box_section "Observation" "${observation}")"
+}
+
+format_final_answer_summary() {
+	# Formats the final answer summary body.
+	# Arguments:
+	#   $1 - final answer text (string)
+	# Returns:
+	#   Formatted summary body string
+	format_box_section "Answer" "$1"
+}
+
+format_validation_summary() {
+	# Formats the evaluation summary body.
+	# Arguments:
+	#   $1 - evaluation status (string)
+	#   $2 - evaluation reasoning (string, optional)
+	# Returns:
+	#   Formatted summary body string
+	local status reasoning
+	status="$1"
+	reasoning="${2:-}"
+
+	if [[ -n "${reasoning}" ]]; then
+		printf '%s\n\n%s' \
+			"$(format_box_section "Status" "${status}")" \
+			"$(format_box_section "Reason" "${reasoning}")"
+	else
+		format_box_section "Status" "${status}"
+	fi
 }
 
 format_tool_line() {
