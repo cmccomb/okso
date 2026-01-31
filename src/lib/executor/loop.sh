@@ -799,7 +799,7 @@ execute_planned_action() {
 	#   $2 - step index
 	#   $3 - validated action JSON
 	local state_prefix step_index action_json tool args_json thought args_after_controls
-	local observation context history_text web_fetch_snippets
+	local observation history_text web_fetch_snippets
 	state_prefix="$1"
 	step_index="$2"
 	action_json="$3"
@@ -840,11 +840,10 @@ execute_planned_action() {
 
 	# Execute the tool with context
 	json_state_set_key "${state_prefix}" "step_started_at" "$(date +%s)" || true
-	context="$(format_action_context "${thought}" "${tool}" "${args_after_controls}")"
 	if [[ "${tool}" == "web_fetch" ]]; then
-		observation="$(WEB_FETCH_SEARCH_SNIPPETS="${web_fetch_snippets}" execute_tool_with_query "${tool}" "$(extract_tool_query "${tool}" "${args_after_controls}")" "${context}" "${args_after_controls}")"
+		observation="$(WEB_FETCH_SEARCH_SNIPPETS="${web_fetch_snippets}" execute_tool_with_query "${tool}" "$(extract_tool_query "${tool}" "${args_after_controls}")" "${args_after_controls}")"
 	else
-		observation="$(execute_tool_with_query "${tool}" "$(extract_tool_query "${tool}" "${args_after_controls}")" "${context}" "${args_after_controls}")"
+		observation="$(execute_tool_with_query "${tool}" "$(extract_tool_query "${tool}" "${args_after_controls}")" "${args_after_controls}")"
 	fi
 	execution_status=$?
 
