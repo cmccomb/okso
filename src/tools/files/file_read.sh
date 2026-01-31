@@ -1,0 +1,374 @@
+#!/usr/bin/env bash
+# shellcheck shell=bash
+#
+# File read tool that paginates and normalizes content to Markdown.
+#
+# Usage:
+#   source "${BASH_SOURCE[0]%/tools/files/file_read.sh}/tools/files/file_read.sh"
+#
+# Environment variables:
+#   TOOL_ARGS (JSON object): structured args with required `path`.
+#
+# Dependencies:
+#   - bash 3.2+
+#   - jq
+#   - mktemp
+#   - file
+#   - optional converters: pandoc, pdftotext, docx2txt, xlsx2csv
+#   - logging helpers from logging.sh
+#   - register_tool from tools/registry.sh
+#
+# Exit codes:
+#   Non-zero on validation errors, missing dependencies, or unsupported types.
+
+FILES_TOOLS_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+SRC_ROOT=$(cd -- "${FILES_TOOLS_DIR}/../.." && pwd)
+
+# shellcheck source=src/lib/core/logging.sh
+source "${SRC_ROOT}/lib/core/logging.sh"
+# shellcheck source=src/tools/registry.sh
+source "${SRC_ROOT}/tools/registry.sh"
+
+file_read_parse_args() {
+	# Parses TOOL_ARGS JSON for file_read.
+	# Returns a normalized JSON object.
+	local args_json err
+	args_json="${TOOL_ARGS:-}" || true
+
+	if ! err=$(jq -cer '
+                if (type != "object") then error("args must be object") end
+                | .path = (.path // .input)
+                | if (.path? == null) then error("missing path") end
+                | if (.path | type) != "string" or (.path | length) == 0 then error("path must be non-empty string") end
+                | if (.page? != null) then
+                        if (.page | type) != "number" or (.page | floor) != .page then error("page must be integer") end
+                        | if (.page < 1) then error("page must be >= 1") end
+                else
+                        .page = 1
+                end
+                | if (.page_size? != null) then
+                        if (.page_size | type) != "number" or (.page_size | floor) != .page_size then error("page_size must be integer") end
+                        | if (.page_size < 1 or .page_size > 2000) then error("page_size must be between 1 and 2000") end
+                else
+                        .page_size = 200
+                end
+                | if (.render? != null) then
+                        if (.render | type) != "string" then error("render must be string") end
+                        | if (.render | IN("auto", "markdown", "text") | not) then error("render must be auto|markdown|text") end
+                else
+                        .render = "auto"
+                end
+                | if ((del(.path, .input, .page, .page_size, .render) | length) != 0) then error("unexpected properties") end
+                | {path: .path, page: .page, page_size: .page_size, render: .render}
+        ' <<<"${args_json}" 2>&1); then
+		log "ERROR" "Invalid file_read arguments" "${err}" >&2
+		return 1
+	fi
+	printf '%s' "${err}"
+}
+
+file_read_detect_mime() {
+	# Arguments:
+	#   $1 - path
+	# Returns:
+	#   mime type (string or empty)
+	local path
+	path="$1"
+	if command -v file >/dev/null 2>&1; then
+		file -b --mime-type "${path}" 2>/dev/null || true
+	else
+		printf '%s' ""
+	fi
+}
+
+file_read_wrap_markdown() {
+	# Arguments:
+	#   $1 - input path
+	#   $2 - output path
+	#   $3 - fence language
+	local input_path output_path fence
+	input_path="$1"
+	output_path="$2"
+	fence="$3"
+
+	printf '```%s\n' "${fence}" >"${output_path}"
+	cat "${input_path}" >>"${output_path}"
+	printf '\n```\n' >>"${output_path}"
+}
+
+file_read_render_text_file() {
+	# Arguments:
+	#   $1 - input path
+	#   $2 - output path
+	#   $3 - render mode (markdown|text)
+	local input_path output_path render_mode
+	input_path="$1"
+	output_path="$2"
+	render_mode="$3"
+
+	if [[ "${render_mode}" == "markdown" ]]; then
+		file_read_wrap_markdown "${input_path}" "${output_path}" "text"
+	else
+		cat "${input_path}" >"${output_path}"
+	fi
+}
+
+file_read_pandoc_render() {
+	# Arguments:
+	#   $1 - input path
+	#   $2 - output path
+	#   $3 - render mode (markdown|text)
+	local input_path output_path render_mode target
+	input_path="$1"
+	output_path="$2"
+	render_mode="$3"
+	target="markdown"
+	if [[ "${render_mode}" == "text" ]]; then
+		target="plain"
+	fi
+
+	pandoc "${input_path}" -t "${target}" -o "${output_path}"
+}
+
+file_read_paginate() {
+	# Arguments:
+	#   $1 - rendered path
+	#   $2 - page
+	#   $3 - page_size
+	# Returns:
+	#   Outputs: total_pages (int) and page_content (string) via stdout with delimiter.
+	local rendered_path page page_size total_lines total_pages start_line end_line page_content
+	rendered_path="$1"
+	page="$2"
+	page_size="$3"
+
+	total_lines=$(awk 'END {print NR}' "${rendered_path}")
+	if [[ -z "${total_lines}" ]]; then
+		total_lines=0
+	fi
+
+	if ((total_lines == 0)); then
+		total_pages=1
+	else
+		total_pages=$(((total_lines + page_size - 1) / page_size))
+	fi
+
+	if ((page < 1 || page > total_pages)); then
+		printf '%s\n' "ERROR:page out of range (${page}/${total_pages})"
+		return 1
+	fi
+
+	start_line=$(((page - 1) * page_size + 1))
+	end_line=$((page * page_size))
+	page_content=$(sed -n "${start_line},${end_line}p" "${rendered_path}")
+
+	printf '%s\n' "${total_pages}"
+	printf '%s' "${page_content}"
+}
+
+tool_file_read() {
+	local parsed_args path page page_size render_mode tmp_dir extracted_path rendered_path
+	local ext_lower mime type_hint content_format payload_header page_result total_pages page_content
+	local convert_status
+
+	if ! parsed_args=$(file_read_parse_args); then
+		return 1
+	fi
+
+	path=$(jq -r '.path' <<<"${parsed_args}")
+	page=$(jq -r '.page' <<<"${parsed_args}")
+	page_size=$(jq -r '.page_size' <<<"${parsed_args}")
+	render_mode=$(jq -r '.render' <<<"${parsed_args}")
+
+	if [[ ! -f "${path}" ]]; then
+		log "ERROR" "file_read path not found" "${path}" >&2
+		return 1
+	fi
+
+	if [[ "${render_mode}" == "auto" ]]; then
+		render_mode="markdown"
+	fi
+
+	mime=$(file_read_detect_mime "${path}")
+	ext_lower=$(printf '%s' "${path##*.}" | tr '[:upper:]' '[:lower:]')
+	content_format="text"
+	type_hint=""
+
+	case "${ext_lower}" in
+	md)
+		type_hint="markdown"
+		content_format="markdown"
+		;;
+	html | htm | xml)
+		type_hint="markup"
+		;;
+	pdf)
+		type_hint="pdf"
+		;;
+	docx)
+		type_hint="docx"
+		;;
+	pptx)
+		type_hint="pptx"
+		;;
+	xlsx)
+		type_hint="xlsx"
+		;;
+	txt | log | csv | tsv | json | yml | yaml)
+		type_hint="text"
+		;;
+	esac
+
+	if [[ -z "${type_hint}" && "${mime}" == text/* ]]; then
+		type_hint="text"
+	fi
+
+	tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/file_read.XXXXXX") || return 1
+	extracted_path=""
+	rendered_path="${tmp_dir}/rendered"
+
+	case "${type_hint}" in
+	markdown)
+		if [[ "${render_mode}" == "text" ]] && command -v pandoc >/dev/null 2>&1; then
+			file_read_pandoc_render "${path}" "${rendered_path}" "text"
+			content_format="text"
+		else
+			cat "${path}" >"${rendered_path}"
+			content_format="markdown"
+		fi
+		;;
+	markup)
+		if ! command -v pandoc >/dev/null 2>&1; then
+			log "ERROR" "Missing dependency for markup conversion" "pandoc" >&2
+			return 1
+		fi
+		file_read_pandoc_render "${path}" "${rendered_path}" "${render_mode}"
+		content_format="${render_mode}"
+		;;
+	pdf)
+		if ! command -v pdftotext >/dev/null 2>&1; then
+			log "ERROR" "Missing dependency for PDF extraction" "pdftotext" >&2
+			return 1
+		fi
+		extracted_path="${tmp_dir}/extracted.txt"
+		pdftotext -layout "${path}" "${extracted_path}"
+		file_read_render_text_file "${extracted_path}" "${rendered_path}" "${render_mode}"
+		content_format="${render_mode}"
+		;;
+	docx)
+		if command -v pandoc >/dev/null 2>&1; then
+			file_read_pandoc_render "${path}" "${rendered_path}" "${render_mode}"
+		else
+			if ! command -v docx2txt >/dev/null 2>&1; then
+				log "ERROR" "Missing dependency for DOCX extraction" "pandoc or docx2txt" >&2
+				return 1
+			fi
+			extracted_path="${tmp_dir}/extracted.txt"
+			docx2txt "${path}" "${extracted_path}" >/dev/null 2>&1
+			file_read_render_text_file "${extracted_path}" "${rendered_path}" "${render_mode}"
+		fi
+		content_format="${render_mode}"
+		;;
+	pptx)
+		if ! command -v pandoc >/dev/null 2>&1; then
+			log "ERROR" "Missing dependency for PPTX extraction" "pandoc" >&2
+			return 1
+		fi
+		file_read_pandoc_render "${path}" "${rendered_path}" "${render_mode}"
+		content_format="${render_mode}"
+		;;
+	xlsx)
+		if ! command -v xlsx2csv >/dev/null 2>&1; then
+			log "ERROR" "Missing dependency for XLSX extraction" "xlsx2csv" >&2
+			return 1
+		fi
+		extracted_path="${tmp_dir}/extracted.csv"
+		xlsx2csv -a "${path}" >"${extracted_path}"
+		file_read_render_text_file "${extracted_path}" "${rendered_path}" "${render_mode}"
+		content_format="${render_mode}"
+		;;
+	text)
+		file_read_render_text_file "${path}" "${rendered_path}" "${render_mode}"
+		content_format="${render_mode}"
+		;;
+	*)
+		log "ERROR" "Unsupported file type" "${path}" >&2
+		return 1
+		;;
+	esac
+
+	page_result=$(file_read_paginate "${rendered_path}" "${page}" "${page_size}")
+	convert_status=$?
+	if [[ ${convert_status} -ne 0 ]]; then
+		log "ERROR" "file_read pagination error" "${page_result}" >&2
+		return 1
+	fi
+
+	total_pages=$(printf '%s\n' "${page_result}" | head -n1)
+	page_content=$(printf '%s\n' "${page_result}" | tail -n +2)
+
+	if [[ "${content_format}" == "markdown" ]]; then
+		payload_header="# $(basename "${path}")\n\n_Page ${page} of ${total_pages}_\n\n"
+	else
+		payload_header="FILE: $(basename "${path}") (page ${page} of ${total_pages})\n\n"
+	fi
+
+	jq -nc \
+		--arg path "${path}" \
+		--argjson page "${page}" \
+		--argjson total_pages "${total_pages}" \
+		--arg content "${payload_header}${page_content}" \
+		--arg mime "${mime}" \
+		--arg extracted "${extracted_path}" \
+		--arg rendered "${rendered_path}" \
+		'{
+                path: $path,
+                page: $page,
+                total_pages: $total_pages,
+                content_markdown: $content,
+                mime: ($mime | select(length > 0)),
+                artifact_paths: {
+                        extracted_text: ($extracted | select(length > 0)),
+                        rendered_markdown: ($rendered | select(length > 0))
+                } | with_entries(select(.value != null))
+        }'
+}
+
+register_file_read() {
+	local args_schema
+
+	args_schema=$(
+		jq -c . <<'JSON'
+{
+  "type": "object",
+  "required": ["path"],
+  "properties": {
+    "path": {
+      "type": "string",
+      "minLength": 1
+    },
+    "page": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "page_size": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2000
+    },
+    "render": {
+      "type": "string",
+      "enum": ["auto", "markdown", "text"]
+    }
+  }
+}
+JSON
+	)
+
+	register_tool \
+		"file_read" \
+		"Read local files with pagination and Markdown normalization. Supports text, PDFs, and common Office document formats when dependencies are installed." \
+		"Reads local files; no external access. Use pagination to bound output." \
+		tool_file_read \
+		"${args_schema}"
+}

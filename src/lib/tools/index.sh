@@ -51,6 +51,8 @@ source "${TOOLS_DIR}/final_answer/index.sh"
 source "${TOOLS_DIR}/feedback/index.sh"
 # shellcheck source=src/tools/web/index.sh
 source "${TOOLS_DIR}/web/index.sh"
+# shellcheck source=src/tools/files/index.sh
+source "${TOOLS_DIR}/files/index.sh"
 
 tools_normalize_path() {
 	# Returns a normalized absolute path for allowlist checks.
@@ -159,4 +161,5 @@ initialize_tools() {
 	register_final_answer
 	register_feedback
 	register_web_suite
+	register_file_suite
 }
