@@ -204,3 +204,57 @@ SCRIPT
 	[ "$status" -eq 0 ]
 	[[ "${output}" == *"Planner scoring summary"* ]]
 }
+
+@test "score_planner_candidate penalizes invalid python_repl snippets" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+export VERBOSITY=0
+source ./src/lib/planning/scoring.sh
+tool_names() { printf "%s\n" python_repl final_answer; }
+tool_args_schema() {
+        if [[ "$1" == "python_repl" ]]; then
+                jq -nc '{"type":"object","required":["code"],"properties":{"code":{"type":"string","minLength":1}},"additionalProperties":false}'
+        else
+                jq -nc '{"type":"object","required":["input"],"properties":{"input":{"type":"string","minLength":1}},"additionalProperties":false}'
+        fi
+}
+valid='[{"tool":"python_repl","args":{"code":"x = 1\nprint(x)"},"thought":"compute"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]'
+invalid='[{"tool":"python_repl","args":{"code":"def bad(:\n  pass"},"thought":"broken"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]'
+valid_score=$(score_planner_candidate "${valid}" | tail -n 1 | jq -r '.score')
+invalid_score=$(score_planner_candidate "${invalid}" | tail -n 1 | jq -r '.score')
+invalid_rationale=$(score_planner_candidate "${invalid}" | tail -n 1 | jq -r '.rationale | join(" ")')
+printf "valid=%s\n" "${valid_score}"
+printf "invalid=%s\n" "${invalid_score}"
+printf "rationale=%s\n" "${invalid_rationale}"
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	valid=$(printf '%s\n' "${output}" | grep '^valid=' | tail -n 1 | cut -d= -f2)
+	invalid=$(printf '%s\n' "${output}" | grep '^invalid=' | tail -n 1 | cut -d= -f2)
+	rationale=$(printf '%s\n' "${output}" | grep '^rationale=' | tail -n 1 | cut -d= -f2-)
+	[[ "${valid}" -gt "${invalid}" ]]
+	[[ "${rationale}" == *"Python REPL pre-validation failed"* ]]
+}
+
+@test "score_planner_candidate flags missing python_repl imports" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+export VERBOSITY=0
+source ./src/lib/planning/scoring.sh
+tool_names() { printf "%s\n" python_repl final_answer; }
+tool_args_schema() {
+        if [[ "$1" == "python_repl" ]]; then
+                jq -nc '{"type":"object","required":["code"],"properties":{"code":{"type":"string","minLength":1}},"additionalProperties":false}'
+        else
+                jq -nc '{"type":"object","required":["input"],"properties":{"input":{"type":"string","minLength":1}},"additionalProperties":false}'
+        fi
+}
+plan='[{"tool":"python_repl","args":{"code":"import totally_fake_lib\nprint(1)"},"thought":"check"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]'
+scorecard=$(score_planner_candidate "${plan}" | tail -n 1)
+printf '%s\n' "${scorecard}"
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	rationale=$(printf '%s\n' "${output}" | tail -n 1 | jq -r '.rationale | join(" ")')
+	[[ "${rationale}" == *"missing_imports:totally_fake_lib"* ]]
+}
