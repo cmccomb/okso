@@ -330,13 +330,13 @@ score_planner_candidate() {
 			else
 				local validation_status=$?
 				case "${validation_status}" in
-					1)
-						invalid_python_snippets=$((invalid_python_snippets + 1))
-						rationale+=("Python REPL snippet failed validation at step $((idx + 1)): ${python_repl_validation_output}")
-						;;
-					2)
-						rationale+=("Python REPL validation skipped at step $((idx + 1)): ${python_repl_validation_output}")
-						;;
+				1)
+					invalid_python_snippets=$((invalid_python_snippets + 1))
+					rationale+=("Python REPL snippet failed validation at step $((idx + 1)): ${python_repl_validation_output}")
+					;;
+				2)
+					rationale+=("Python REPL validation skipped at step $((idx + 1)): ${python_repl_validation_output}")
+					;;
 				esac
 			fi
 		fi
