@@ -189,8 +189,9 @@ intent_requires_search() {
 	#   $1 - intent JSON payload (string)
 	# Returns:
 	#   0 if search should run; 1 if search should be skipped.
-	local intent_json intent_label
+	local intent_json intent_label confidence confidence_min
 	intent_json="$1"
+	confidence_min="${INTENT_CONFIDENCE_MIN:-0.45}"
 
 	if [[ "${INTENT_DISABLE_SEARCH:-false}" == true ]]; then
 		return 1
@@ -201,7 +202,12 @@ intent_requires_search() {
 	fi
 
 	intent_label="$(jq -r '.intent // ""' <<<"${intent_json}" 2>/dev/null)"
+	confidence="$(jq -r '.confidence // "0"' <<<"${intent_json}" 2>/dev/null)"
 	if [[ -z "${intent_label}" ]]; then
+		return 0
+	fi
+
+	if ! awk -v score="${confidence}" -v min="${confidence_min}" 'BEGIN { exit !(score >= min) }'; then
 		return 0
 	fi
 
