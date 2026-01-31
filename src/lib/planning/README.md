@@ -26,11 +26,12 @@ execute tool calls and emit final answers.
 3. **Context collection:** `planner_fetch_search_context` executes a web search for each
    rephrased query and aggregates the results into a prompt-ready summary that the
    planner can cite when drafting an outline.
-4. **Prompt assembly:**  renders a prompt containing tools, 
+4. **Prompt assembly:** renders a prompt containing tools,
    schemas, examples, and timestamps. The combined prompt is fed to `llama_client.sh`.
 5. **Normalization + scoring:** Raw model output is cleaned by
    `normalization.sh#normalize_plan`, then ranked via
-   `scoring.sh#score_planner_candidate`. The best candidate's plan array and allowed tools
-  are forwarded to the executor loop.
+   `scoring.sh#score_planner_candidate`. Scoring pre-validates python_repl snippets for
+   syntax and missing imports, applying heavy penalties when validation fails. The best
+   candidate's plan array and allowed tools are forwarded to the executor loop.
 6. **Execution:** `react/react.sh` executes the plan with approvals and emits the final
    user-visible answer.

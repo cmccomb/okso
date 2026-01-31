@@ -11,9 +11,12 @@ class Okso < Formula
   depends_on "libxml2"
   depends_on "llama.cpp"
   depends_on "pandoc"
+  depends_on "docx2txt"
   depends_on "poppler"
   depends_on "ripgrep"
+  depends_on "ripgrep-all"
   depends_on "tesseract"
+  depends_on "xlsx2csv"
   depends_on "python@3.12"
   depends_on "yq"
 
