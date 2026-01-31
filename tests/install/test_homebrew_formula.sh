@@ -15,8 +15,10 @@ setup() {
 }
 
 @test "formula declares Homebrew dependencies" {
-	run grep -E 'depends_on "(llama.cpp|tesseract|pandoc|ripgrep)"' "${FORMULA_PATH}"
-	[ "$status" -eq 0 ]
+	for dep in docx2txt jq libxml2 llama.cpp pandoc poppler ripgrep ripgrep-all tesseract xlsx2csv; do
+		run grep -E "depends_on \"${dep}\"" "${FORMULA_PATH}"
+		[ "$status" -eq 0 ]
+	done
 }
 
 @test "formula test block exercises okso version" {

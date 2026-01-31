@@ -52,14 +52,8 @@ file_read_parse_args() {
                 else
                         .page_size = 200
                 end
-                | if (.render? != null) then
-                        if (.render | type) != "string" then error("render must be string") end
-                        | if (.render | IN("auto", "markdown", "text") | not) then error("render must be auto|markdown|text") end
-                else
-                        .render = "auto"
-                end
-                | if ((del(.path, .input, .page, .page_size, .render) | length) != 0) then error("unexpected properties") end
-                | {path: .path, page: .page, page_size: .page_size, render: .render}
+                | if ((del(.path, .input, .page, .page_size) | length) != 0) then error("unexpected properties") end
+                | {path: .path, page: .page, page_size: .page_size}
         ' <<<"${args_json}" 2>&1); then
 		log "ERROR" "Invalid file_read arguments" "${err}" >&2
 		return 1
@@ -100,34 +94,22 @@ file_read_render_text_file() {
 	# Arguments:
 	#   $1 - input path
 	#   $2 - output path
-	#   $3 - render mode (markdown|text)
-	local input_path output_path render_mode
+	local input_path output_path
 	input_path="$1"
 	output_path="$2"
-	render_mode="$3"
 
-	if [[ "${render_mode}" == "markdown" ]]; then
-		file_read_wrap_markdown "${input_path}" "${output_path}" "text"
-	else
-		cat "${input_path}" >"${output_path}"
-	fi
+	file_read_wrap_markdown "${input_path}" "${output_path}" "text"
 }
 
 file_read_pandoc_render() {
 	# Arguments:
 	#   $1 - input path
 	#   $2 - output path
-	#   $3 - render mode (markdown|text)
-	local input_path output_path render_mode target
+	local input_path output_path
 	input_path="$1"
 	output_path="$2"
-	render_mode="$3"
-	target="markdown"
-	if [[ "${render_mode}" == "text" ]]; then
-		target="plain"
-	fi
 
-	pandoc "${input_path}" -t "${target}" -o "${output_path}"
+	pandoc "${input_path}" -t "markdown" -o "${output_path}"
 }
 
 file_read_paginate() {
@@ -167,8 +149,8 @@ file_read_paginate() {
 }
 
 tool_file_read() {
-	local parsed_args path page page_size render_mode tmp_dir extracted_path rendered_path
-	local ext_lower mime type_hint content_format payload_header page_result total_pages page_content
+	local parsed_args path page page_size tmp_dir extracted_path rendered_path
+	local ext_lower mime type_hint payload_header page_result total_pages page_content
 	local convert_status
 
 	if ! parsed_args=$(file_read_parse_args); then
@@ -178,27 +160,20 @@ tool_file_read() {
 	path=$(jq -r '.path' <<<"${parsed_args}")
 	page=$(jq -r '.page' <<<"${parsed_args}")
 	page_size=$(jq -r '.page_size' <<<"${parsed_args}")
-	render_mode=$(jq -r '.render' <<<"${parsed_args}")
 
 	if [[ ! -f "${path}" ]]; then
 		log "ERROR" "file_read path not found" "${path}" >&2
 		return 1
 	fi
 
-	if [[ "${render_mode}" == "auto" ]]; then
-		render_mode="markdown"
-	fi
-
 	mime=$(file_read_detect_mime "${path}")
 	ext_lower=$(printf '%s' "${path##*.}" | tr '[:upper:]' '[:lower:]')
-	content_format="text"
 	type_hint=""
 
 	case "${ext_lower}" in
-	md)
-		type_hint="markdown"
-		content_format="markdown"
-		;;
+		md)
+			type_hint="markdown"
+			;;
 	html | htm | xml)
 		type_hint="markup"
 		;;
@@ -229,21 +204,14 @@ tool_file_read() {
 
 	case "${type_hint}" in
 	markdown)
-		if [[ "${render_mode}" == "text" ]] && command -v pandoc >/dev/null 2>&1; then
-			file_read_pandoc_render "${path}" "${rendered_path}" "text"
-			content_format="text"
-		else
-			cat "${path}" >"${rendered_path}"
-			content_format="markdown"
-		fi
+		cat "${path}" >"${rendered_path}"
 		;;
 	markup)
 		if ! command -v pandoc >/dev/null 2>&1; then
 			log "ERROR" "Missing dependency for markup conversion" "pandoc" >&2
 			return 1
 		fi
-		file_read_pandoc_render "${path}" "${rendered_path}" "${render_mode}"
-		content_format="${render_mode}"
+		file_read_pandoc_render "${path}" "${rendered_path}"
 		;;
 	pdf)
 		if ! command -v pdftotext >/dev/null 2>&1; then
@@ -252,12 +220,11 @@ tool_file_read() {
 		fi
 		extracted_path="${tmp_dir}/extracted.txt"
 		pdftotext -layout "${path}" "${extracted_path}"
-		file_read_render_text_file "${extracted_path}" "${rendered_path}" "${render_mode}"
-		content_format="${render_mode}"
+		file_read_render_text_file "${extracted_path}" "${rendered_path}"
 		;;
 	docx)
 		if command -v pandoc >/dev/null 2>&1; then
-			file_read_pandoc_render "${path}" "${rendered_path}" "${render_mode}"
+			file_read_pandoc_render "${path}" "${rendered_path}"
 		else
 			if ! command -v docx2txt >/dev/null 2>&1; then
 				log "ERROR" "Missing dependency for DOCX extraction" "pandoc or docx2txt" >&2
@@ -265,17 +232,15 @@ tool_file_read() {
 			fi
 			extracted_path="${tmp_dir}/extracted.txt"
 			docx2txt "${path}" "${extracted_path}" >/dev/null 2>&1
-			file_read_render_text_file "${extracted_path}" "${rendered_path}" "${render_mode}"
+			file_read_render_text_file "${extracted_path}" "${rendered_path}"
 		fi
-		content_format="${render_mode}"
 		;;
 	pptx)
 		if ! command -v pandoc >/dev/null 2>&1; then
 			log "ERROR" "Missing dependency for PPTX extraction" "pandoc" >&2
 			return 1
 		fi
-		file_read_pandoc_render "${path}" "${rendered_path}" "${render_mode}"
-		content_format="${render_mode}"
+		file_read_pandoc_render "${path}" "${rendered_path}"
 		;;
 	xlsx)
 		if ! command -v xlsx2csv >/dev/null 2>&1; then
@@ -284,12 +249,10 @@ tool_file_read() {
 		fi
 		extracted_path="${tmp_dir}/extracted.csv"
 		xlsx2csv -a "${path}" >"${extracted_path}"
-		file_read_render_text_file "${extracted_path}" "${rendered_path}" "${render_mode}"
-		content_format="${render_mode}"
+		file_read_render_text_file "${extracted_path}" "${rendered_path}"
 		;;
 	text)
-		file_read_render_text_file "${path}" "${rendered_path}" "${render_mode}"
-		content_format="${render_mode}"
+		file_read_render_text_file "${path}" "${rendered_path}"
 		;;
 	*)
 		log "ERROR" "Unsupported file type" "${path}" >&2
@@ -307,11 +270,7 @@ tool_file_read() {
 	total_pages=$(printf '%s\n' "${page_result}" | head -n1)
 	page_content=$(printf '%s\n' "${page_result}" | tail -n +2)
 
-	if [[ "${content_format}" == "markdown" ]]; then
-		payload_header="# $(basename "${path}")\n\n_Page ${page} of ${total_pages}_\n\n"
-	else
-		payload_header="FILE: $(basename "${path}") (page ${page} of ${total_pages})\n\n"
-	fi
+	payload_header="# $(basename "${path}")\n\n_Page ${page} of ${total_pages}_\n\n"
 
 	jq -nc \
 		--arg path "${path}" \
@@ -326,12 +285,12 @@ tool_file_read() {
                 page: $page,
                 total_pages: $total_pages,
                 content_markdown: $content,
-                mime: ($mime | select(length > 0)),
+                mime: (if ($mime | length) > 0 then $mime else null end),
                 artifact_paths: {
-                        extracted_text: ($extracted | select(length > 0)),
-                        rendered_markdown: ($rendered | select(length > 0))
+                        extracted_text: (if ($extracted | length) > 0 then $extracted else null end),
+                        rendered_markdown: (if ($rendered | length) > 0 then $rendered else null end)
                 } | with_entries(select(.value != null))
-        }'
+        } | with_entries(select(.value != null))'
 }
 
 register_file_read() {
@@ -355,10 +314,6 @@ register_file_read() {
       "type": "integer",
       "minimum": 1,
       "maximum": 2000
-    },
-    "render": {
-      "type": "string",
-      "enum": ["auto", "markdown", "text"]
     }
   }
 }

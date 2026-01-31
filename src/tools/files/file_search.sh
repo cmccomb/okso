@@ -42,7 +42,6 @@ file_search_parse_args() {
                 | if (.paths? == null) then error("missing paths") end
                 | if (.paths | type) != "array" or (.paths | length) == 0 then error("paths must be array") end
                 | if ([.paths[] | select(type != "string" or length == 0)] | length) > 0 then error("paths must be non-empty strings") end
-                | if (.glob? != null and (.glob | type) != "string") then error("glob must be string") end
                 | if (.case_sensitive? != null and (.case_sensitive | type) != "boolean") then error("case_sensitive must be boolean") end
                 | if (.max_results? != null) then
                         if (.max_results | type) != "number" or (.max_results | floor) != .max_results then error("max_results must be integer") end
@@ -56,8 +55,8 @@ file_search_parse_args() {
                 else
                         .context_lines = 2
                 end
-                | if ((del(.query, .input, .paths, .glob, .case_sensitive, .max_results, .context_lines) | length) != 0) then error("unexpected properties") end
-                | {query: .query, paths: .paths, glob: .glob, case_sensitive: (.case_sensitive // false), max_results: .max_results, context_lines: .context_lines}
+                | if ((del(.query, .input, .paths, .case_sensitive, .max_results, .context_lines) | length) != 0) then error("unexpected properties") end
+                | {query: .query, paths: .paths, case_sensitive: (.case_sensitive // false), max_results: .max_results, context_lines: .context_lines}
         ' <<<"${args_json}" 2>&1); then
 		log "ERROR" "Invalid file_search arguments" "${err}" >&2
 		return 1
@@ -69,26 +68,21 @@ file_search_build_command() {
 	# Builds the rga command array.
 	# Arguments:
 	#   $1 - query
-	#   $2 - glob
-	#   $3 - case_sensitive (true/false)
-	#   $4 - max_results
-	#   $5 - context_lines
+	#   $2 - case_sensitive (true/false)
+	#   $3 - max_results
+	#   $4 - context_lines
 	#   $@ - paths
-	local query glob case_sensitive max_results context_lines
+	local query case_sensitive max_results context_lines
 	query="$1"
-	glob="$2"
-	case_sensitive="$3"
-	max_results="$4"
-	context_lines="$5"
-	shift 5
+	case_sensitive="$2"
+	max_results="$3"
+	context_lines="$4"
+	shift 4
 
 	local -a cmd
 	cmd=("rga" "--json" "--line-number" "--max-count" "${max_results}")
 	if [[ "${case_sensitive}" != "true" ]]; then
 		cmd+=("--ignore-case")
-	fi
-	if [[ -n "${glob}" && "${glob}" != "null" ]]; then
-		cmd+=("--glob" "${glob}")
 	fi
 	if [[ "${context_lines}" -gt 0 ]]; then
 		cmd+=("--context" "${context_lines}")
@@ -102,7 +96,7 @@ file_search_build_command() {
 }
 
 tool_file_search() {
-	local parsed_args query glob case_sensitive max_results context_lines
+	local parsed_args query case_sensitive max_results context_lines
 	local -a search_paths
 	local -a cmd
 	local tmp_dir raw_path status match_payload result_json
@@ -112,7 +106,6 @@ tool_file_search() {
 	fi
 
 	query=$(jq -r '.query' <<<"${parsed_args}")
-	glob=$(jq -r '.glob // empty' <<<"${parsed_args}")
 	case_sensitive=$(jq -r '.case_sensitive' <<<"${parsed_args}")
 	max_results=$(jq -r '.max_results' <<<"${parsed_args}")
 	context_lines=$(jq -r '.context_lines' <<<"${parsed_args}")
@@ -133,7 +126,7 @@ tool_file_search() {
 	cmd=()
 	while IFS= read -r cmd_part; do
 		cmd+=("${cmd_part}")
-	done < <(file_search_build_command "${query}" "${glob}" "${case_sensitive}" "${max_results}" "${context_lines}" "${search_paths[@]}")
+	done < <(file_search_build_command "${query}" "${case_sensitive}" "${max_results}" "${context_lines}" "${search_paths[@]}")
 
 	"${cmd[@]}" >"${raw_path}"
 	status=$?
@@ -177,9 +170,6 @@ register_file_search() {
         "type": "string",
         "minLength": 1
       }
-    },
-    "glob": {
-      "type": "string"
     },
     "case_sensitive": {
       "type": "boolean"
