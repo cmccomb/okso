@@ -147,7 +147,7 @@ planner_build_plan_schema() {
           | if has("oneOf")      then .oneOf      |= map(allow_fill_placeholder)                   else . end
           | if has("allOf")      then .allOf      |= map(allow_fill_placeholder)                   else . end
         )
-        | {anyOf: [., {const: "<<FILL_DURING_EXECUTION>>"}]}
+        | {anyOf: [., {const: "$Q"}]}
       end;
 
     map_values(allow_fill_placeholder)

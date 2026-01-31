@@ -10,6 +10,6 @@ init_tool_registry
 register_tool "numeric" "demo" "" "handler" '{"type":"object","properties":{"count":{"type":"number","minimum":1}},"required":["count"]}'
 schema_json="$(planner_build_plan_schema numeric)"
 printenv schema_json
-jq -e '.items.anyOf[0].properties.args.anyOf[0].properties.count.anyOf[] | select(.const=="<<FILL_DURING_EXECUTION>>")' <<<"${schema_json}" >/dev/null
+jq -e '.items.anyOf[0].properties.args.anyOf[0].properties.count.anyOf[] | select(.const=="$Q")' <<<"${schema_json}" >/dev/null
 SCRIPT
 }

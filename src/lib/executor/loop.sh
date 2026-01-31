@@ -353,7 +353,7 @@ apply_plan_arg_controls() {
 	plan_entry_json="$3"
 	user_query="$4"
 	history_text="$5"
-	fill_marker="<<FILL_DURING_EXECUTION>>"
+	fill_marker='$Q'
 
 	# Parse args and plan args as objects, defaulting to empty objects
 	args_obj="$(jq -ce 'if type=="object" then . else {} end' <<<"${args_json}" 2>/dev/null || printf '{}')"
