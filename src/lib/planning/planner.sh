@@ -137,6 +137,13 @@ planner_build_plan_schema() {
 
 	tool_schema_json="$(
 		tool_schema_map | jq -c '
+    def fill_placeholder:
+      {
+        type: "object",
+        additionalProperties: false,
+        required: ["__fill__"],
+        properties: {"__fill__": {const: true}}
+      };
     def allow_fill_placeholder:
       if type != "object" then .
       else
@@ -147,7 +154,7 @@ planner_build_plan_schema() {
           | if has("oneOf")      then .oneOf      |= map(allow_fill_placeholder)                   else . end
           | if has("allOf")      then .allOf      |= map(allow_fill_placeholder)                   else . end
         )
-        | {anyOf: [., {const: "$Q"}]}
+        | {anyOf: [., fill_placeholder]}
       end;
 
     map_values(allow_fill_placeholder)

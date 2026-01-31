@@ -23,7 +23,7 @@ SCRIPT
 set -euo pipefail
 source ./src/lib/executor/loop.sh
 tool_args_schema() { echo '{"type":"object","properties":{"count":{"type":"number","minimum":1}},"required":["count"]}'; }
-plan_entry='{"tool":"demo","args":{"count":"$Q","note":"keep"}}'
+plan_entry='{"tool":"demo","args":{"count":{"__fill__":true},"note":"keep"}}'
 output="$(apply_plan_arg_controls "demo" '{}' "${plan_entry}" "" "")"
 echo "${output}"
 SCRIPT
@@ -32,7 +32,7 @@ SCRIPT
 	json_output="$(printf '%s\n' "$output" | tail -n 1)"
 	echo "$json_output" | jq -e 'has("__context_controlled")' >/dev/null
 	echo "$json_output" | jq -e '."__context_controlled"==["count"]' >/dev/null
-	echo "$json_output" | jq -e '.count == "$Q"' >/dev/null
+	echo "$json_output" | jq -e '.count == {"__fill__":true}' >/dev/null
 	echo "$json_output" | jq -e '.note == "keep"' >/dev/null
 }
 
@@ -54,6 +54,7 @@ render_prompt_template() {
 	done
 	printf 'History:\n%s' "${history_text}"
 }
+
 llama_infer() {
 	printf '%s' "$1" >"${TMPDIR}/executor_prompt.txt"
 	printf '{}'
@@ -84,4 +85,21 @@ SCRIPT
 	[[ "$output" != *"X-Test"* ]]
 	[[ "$output" != *"LONG_BODY_TOKEN"* ]]
 	[[ "$output" == *"short snippet"* ]]
+}
+
+@test "apply_plan_arg_controls preserves literal $Q values" {
+	run env -i PATH="$PATH" HOME="$HOME" VERBOSITY=0 bash --noprofile --norc <<'SCRIPT'
+set -euo pipefail
+source ./src/lib/executor/loop.sh
+tool_args_schema() { echo '{"type":"object","properties":{"count":{"type":"string"},"note":{"type":"string"}},"required":["count","note"]}'; }
+plan_entry='{"tool":"demo","args":{"count":"$Q","note":"keep"}}'
+output="$(apply_plan_arg_controls "demo" '{}' "${plan_entry}" "" "")"
+echo "${output}"
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	json_output="$(printf '%s\n' "$output" | tail -n 1)"
+	! echo "$json_output" | jq -e 'has("__context_controlled")' >/dev/null
+	echo "$json_output" | jq -e '.count == "$Q"' >/dev/null
+	echo "$json_output" | jq -e '.note == "keep"' >/dev/null
 }

@@ -347,13 +347,14 @@ apply_plan_arg_controls() {
 	#   $3 - planner plan entry JSON (optional)
 	#   $4 - user query text (unused; kept for API stability)
 	#   $5 - serialized history text (unused; kept for API stability)
-	local tool args_json plan_entry_json user_query history_text args_obj plan_args jq_filter fill_marker
+	local tool args_json plan_entry_json user_query history_text args_obj plan_args jq_filter fill_marker_json
 	tool="$1"
 	args_json="$2"
 	plan_entry_json="$3"
 	user_query="$4"
 	history_text="$5"
-	fill_marker='$Q'
+	# JSON object used by the planner to mark executor-filled arguments.
+	fill_marker_json='{"__fill__":true}'
 
 	# Parse args and plan args as objects, defaulting to empty objects
 	args_obj="$(jq -ce 'if type=="object" then . else {} end' <<<"${args_json}" 2>/dev/null || printf '{}')"
@@ -384,7 +385,7 @@ JQ
 	)
 
 	# Apply the jq filter to merge args and mark context-controlled fields
-	jq -c -n --argjson args "${args_obj}" --argjson planned "${plan_args}" --arg fill_marker "${fill_marker}" "${jq_filter}" 2>/dev/null
+	jq -c -n --argjson args "${args_obj}" --argjson planned "${plan_args}" --argjson fill_marker "${fill_marker_json}" "${jq_filter}" 2>/dev/null
 }
 
 fill_missing_args_with_llm() {

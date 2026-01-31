@@ -20,7 +20,7 @@
                 log_pretty() { :; }
 
                 prompt="$(build_planner_prompt "Summarize" "tool: demo" "none")"
-                grep -q "\\$Q" <<<"${prompt}"
+                grep -q "\"__fill__\"" <<<"${prompt}"
         '
 	[ "$status" -eq 0 ]
 }
