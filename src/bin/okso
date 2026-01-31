@@ -70,6 +70,7 @@ main() {
 	local feedback_context_in_env previous_feedback_context
 	local plan_start_time plan_duration plan_summary_body plan_iteration
 	local search_context search_start_time search_duration
+	local intent_json planner_tools
 
 	settings_prefix="settings"
 
@@ -86,8 +87,13 @@ main() {
 
 	initialize_planner_models
 
+	intent_json="$(recognize_intent "$(json_state_get_key "${settings_prefix}" "user_query")")"
+	log "INFO" "Recognized intent" "${intent_json}"
+	planner_tools="$(intent_to_tools "${intent_json}")"
+	log "INFO" "Intent tool filter" "$(printf '%s\n' "${planner_tools}" | paste -sd ',' -)"
+
 	search_start_time="$(date +%s)"
-	search_context="$(planner_fetch_search_context "$(json_state_get_key "${settings_prefix}" "user_query")")"
+	search_context="$(planner_fetch_search_context "$(json_state_get_key "${settings_prefix}" "user_query")" "${intent_json}")"
 	search_duration="$(format_duration_from "${search_start_time}")"
 	render_step_box "Search Context" "${search_duration}" "${search_context}"
 	# Planner flow:
@@ -104,7 +110,7 @@ main() {
 		plan_iteration=$((plan_iteration + 1))
 		plan_start_time="$(date +%s)"
 		log "INFO" "Starting plan generation" "$(json_state_get_key "${settings_prefix}" "user_query")"
-		plan_response="$(generate_planner_response_with_context "$(json_state_get_key "${settings_prefix}" "user_query")" "${search_context}")"
+		plan_response="$(generate_planner_response_with_context "$(json_state_get_key "${settings_prefix}" "user_query")" "${search_context}" "${planner_tools}" "${intent_json}")"
 		plan_outline="$(plan_json_to_outline "${plan_response}")"
 		required_tools="$(derive_allowed_tools_from_plan "${plan_response}")"
 		log "INFO" "Planner identified tools" "${required_tools}"

@@ -86,6 +86,8 @@ source "${PLANNING_LIB_DIR}/scoring.sh"
 source "${PLANNING_LIB_DIR}/prompting.sh"
 # shellcheck source=src/lib/planning/rephrasing.sh
 source "${PLANNING_LIB_DIR}/rephrasing.sh"
+# shellcheck source=src/lib/planning/intent.sh
+source "${PLANNING_LIB_DIR}/intent.sh"
 if [[ "${PLANNER_SKIP_TOOL_LOAD:-false}" != true ]]; then
 	# shellcheck source=src/lib/executor/dispatch.sh
 	source "${PLANNING_LIB_DIR}/../executor/dispatch.sh"
@@ -105,10 +107,21 @@ export -f initialize_planner_models
 planner_collect_tools() {
 	# Builds the planner tool catalog from caller-provided overrides or the
 	# registered tool registry.
+	# Arguments:
+	#   $1 - optional newline-delimited tool list override (string)
 	# Returns:
 	#   newline-delimited list of tool names on stdout.
 
 	local -a catalog=()
+	local tool_override
+	tool_override="${1:-}"
+
+	if [[ -n "${tool_override}" ]]; then
+		while IFS= read -r tool_name; do
+			[[ -z "${tool_name}" ]] && continue
+			catalog+=("${tool_name}")
+		done <<<"${tool_override}"
+	fi
 
 	# Fall back to the registry if no explicit TOOLS were supplied.
 	if [[ ${#catalog[@]} -eq 0 ]]; then
@@ -219,11 +232,19 @@ planner_fetch_search_context() {
 	# Executes deterministic web searches for rephrased queries before planning.
 	# Arguments:
 	#   $1 - user query (string)
+	#   $2 - intent JSON payload (string, optional)
 	# Returns:
 	#   Formatted search context (string). Fallbacks are empty but non-fatal.
-	local user_query tool_args raw_context queries_json formatted_context
+	local user_query intent_json tool_args raw_context queries_json formatted_context
 	local -a formatted_sections=()
 	user_query="$1"
+	intent_json="${2:-}"
+
+	if ! intent_requires_search "${intent_json}"; then
+		log "INFO" "Pre-planner search skipped for intent" "${intent_json}" >&2
+		printf '%s' ""
+		return 0
+	fi
 
 	# Derive search queries
 	if ! queries_json="$(planner_generate_search_queries "${user_query}")"; then
@@ -317,16 +338,53 @@ validate_temperature() {
 	printf '%s' "${sanitized}"
 }
 
+planner_format_intent_context() {
+	# Formats intent data for the planner prompt.
+	# Arguments:
+	#   $1 - intent JSON payload (string)
+	#   $2... - allowed tool names (strings)
+	# Returns:
+	#   intent context string on stdout.
+	local intent_json intent_label confidence rationale tool_catalog
+	intent_json="$1"
+	shift
+
+	if [[ -z "${intent_json}" ]]; then
+		printf '%s' "None provided."
+		return 0
+	fi
+
+	intent_label="$(jq -r '.intent // ""' <<<"${intent_json}" 2>/dev/null)"
+	confidence="$(jq -r '.confidence // ""' <<<"${intent_json}" 2>/dev/null)"
+	rationale="$(jq -r '.rationale // ""' <<<"${intent_json}" 2>/dev/null)"
+
+	if [[ -z "${intent_label}" ]]; then
+		printf '%s' "None provided."
+		return 0
+	fi
+
+	tool_catalog="$(printf '%s\n' "$@" | paste -sd ',' -)"
+	if [[ -z "${tool_catalog}" ]]; then
+		tool_catalog="none"
+	fi
+
+	printf '%s' "intent=${intent_label} confidence=${confidence} rationale=${rationale} allowed_tools=${tool_catalog}"
+}
+
 generate_planner_response_with_context() {
 	# Arguments:
 	#   $1 - user query (string)
 	#   $2 - preformatted search context (string)
+	#   $3 - allowed tool list override (string, optional)
+	#   $4 - intent JSON payload (string, optional)
 	# Returns:
 	#   planner response JSON (string)
-	local user_query search_context
+	local user_query search_context tool_override intent_json
 	local -a planner_tools=()
 	user_query="$1"
 	search_context="$2"
+	tool_override="${3:-}"
+	intent_json="${4:-}"
 
 	# Initialize settings for planner and executor models
 	initialize_planner_models
@@ -336,7 +394,7 @@ generate_planner_response_with_context() {
 	while IFS= read -r tool_name; do
 		[[ -z "${tool_name}" ]] && continue
 		planner_tools+=("${tool_name}")
-	done < <(planner_collect_tools)
+	done < <(planner_collect_tools "${tool_override}")
 
 	# Log the tool catalog for operator visibility
 	local planner_tool_catalog
@@ -344,10 +402,11 @@ generate_planner_response_with_context() {
 	log "DEBUG" "Planner tool catalog" "${planner_tool_catalog}" >&2
 
 	# Build the planner prompt
-	local planner_schema_text tool_lines prompt
+	local planner_schema_text tool_lines prompt intent_context
 	planner_schema_text="$(planner_build_plan_schema "${planner_tools[@]}")"
 	tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_line)"
-	prompt="$(build_planner_prompt "${user_query}" "${tool_lines}" "${search_context}" "${PLANNER_FEEDBACK_CONTEXT:-}" "${planner_schema_text}")"
+	intent_context="$(planner_format_intent_context "${intent_json}" "${planner_tools[@]}")"
+	prompt="$(build_planner_prompt "${user_query}" "${tool_lines}" "${search_context}" "${PLANNER_FEEDBACK_CONTEXT:-}" "${planner_schema_text}" "${intent_context}")"
 	log "DEBUG" "Generated planner prompt" "${prompt}" >&2
 
 	# Configure sampling parameters
@@ -460,8 +519,8 @@ generate_planner_response() {
 	#   planner response JSON (string)
 	local user_query search_context
 	user_query="$1"
-	search_context="$(planner_fetch_search_context "${user_query}")"
-	generate_planner_response_with_context "${user_query}" "${search_context}"
+	search_context="$(planner_fetch_search_context "${user_query}" "")"
+	generate_planner_response_with_context "${user_query}" "${search_context}" "" ""
 }
 
 generate_plan_outline() {

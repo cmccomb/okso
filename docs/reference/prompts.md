@@ -4,8 +4,8 @@ Prompt templates live alongside schema definitions so the assistant behaviour st
 
 ## Layout
 
-- `src/prompts/`: text templates used by the planner, executor, and response helpers (for example, `planner.txt`, and `executor.txt`).
-- `src/lib/prompts.sh`: helper functions that load prompt files, substitute runtime variables, and pass the final strings to llama.cpp.
+- `src/prompts/`: text templates used by the planner, executor, intent classifier, and response helpers (for example, `planner.md` and `executor.md`).
+- `src/lib/llm/templates.sh`: helper functions that load prompt files, substitute runtime variables, and pass the final strings to llama.cpp.
 - `src/schemas/`: JSON schemas that constrain planner output and tool arguments.
 
 ## Working with prompts
@@ -14,7 +14,7 @@ Prompt templates live alongside schema definitions so the assistant behaviour st
 - Store reusable snippets (such as safety disclaimers) in dedicated files and compose them within the main prompt templates.
 - Keep prompts minimal and version-controlled; avoid inlining large instructions in code so they remain discoverable for audits.
 - Oversized context (for example, verbose `web_fetch` results) is summarized automatically before llama.cpp is invoked so prompts stay within the configured token budget.
-- The planner prompt now includes a `search_context` block derived from a deterministic pre-plan web search using the user query; planners consume this grounding directly instead of scheduling `web_search` steps.
+- The planner prompt includes an intent context block plus a `search_context` block derived from a deterministic pre-plan web search using the user query; planners consume this grounding directly instead of scheduling `web_search` steps.
 - Planner instructions require tool arguments to stay concise (single-line string fields, no code fences, and short summaries) to prevent oversized or unsafe payloads from reaching tool handlers.
 
 ## Related resources
