@@ -28,7 +28,7 @@ file_read_page_size() {
 }
 
 file_read_extract_path() {
-	jq -r '.path // empty' <<<"${TOOL_ARGS:-}"
+	jq -r '.input // .path // empty' <<<"${TOOL_ARGS:-}"
 }
 
 file_read_split_pages() {
@@ -91,7 +91,7 @@ register_file_read() {
 
 	args_schema=$(
 		cat <<'JSON'
-{"type":"object","properties":{"path":{"type":"string"}},"required":["path"],"additionalProperties":false}
+{"type":"object","properties":{"input":{"type":"string"}},"required":["input"],"additionalProperties":false}
 JSON
 	)
 
