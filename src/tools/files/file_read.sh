@@ -90,6 +90,17 @@ file_read_wrap_markdown() {
 	printf '\n```\n' >>"${output_path}"
 }
 
+file_read_wrap_markdown_content() {
+	# Arguments:
+	#   $1 - content
+	#   $2 - fence language
+	local content fence
+	content="$1"
+	fence="$2"
+
+	printf '```%s\n%s\n```\n' "${fence}" "${content}"
+}
+
 file_read_render_text_file() {
 	# Arguments:
 	#   $1 - input path
@@ -98,7 +109,7 @@ file_read_render_text_file() {
 	input_path="$1"
 	output_path="$2"
 
-	file_read_wrap_markdown "${input_path}" "${output_path}" "text"
+	cat "${input_path}" >"${output_path}"
 }
 
 file_read_pandoc_render() {
@@ -109,7 +120,10 @@ file_read_pandoc_render() {
 	input_path="$1"
 	output_path="$2"
 
-	pandoc "${input_path}" -t "markdown" -o "${output_path}"
+	if ! pandoc "${input_path}" -t "markdown" -o "${output_path}"; then
+		log "ERROR" "pandoc failed to convert file" "${input_path}" >&2
+		return 1
+	fi
 }
 
 file_read_paginate() {
@@ -149,7 +163,7 @@ file_read_paginate() {
 }
 
 tool_file_read() {
-	local parsed_args path page page_size tmp_dir extracted_path rendered_path
+	local parsed_args path page page_size tmp_dir extracted_path rendered_path wrap_page
 	local ext_lower mime type_hint payload_header page_result total_pages page_content
 	local convert_status
 
@@ -201,6 +215,7 @@ tool_file_read() {
 	tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/file_read.XXXXXX") || return 1
 	extracted_path=""
 	rendered_path="${tmp_dir}/rendered"
+	wrap_page=false
 
 	case "${type_hint}" in
 	markdown)
@@ -211,7 +226,9 @@ tool_file_read() {
 			log "ERROR" "Missing dependency for markup conversion" "pandoc" >&2
 			return 1
 		fi
-		file_read_pandoc_render "${path}" "${rendered_path}"
+		if ! file_read_pandoc_render "${path}" "${rendered_path}"; then
+			return 1
+		fi
 		;;
 	pdf)
 		if ! command -v pdftotext >/dev/null 2>&1; then
@@ -221,10 +238,13 @@ tool_file_read() {
 		extracted_path="${tmp_dir}/extracted.txt"
 		pdftotext -layout "${path}" "${extracted_path}"
 		file_read_render_text_file "${extracted_path}" "${rendered_path}"
+		wrap_page=true
 		;;
 	docx)
 		if command -v pandoc >/dev/null 2>&1; then
-			file_read_pandoc_render "${path}" "${rendered_path}"
+			if ! file_read_pandoc_render "${path}" "${rendered_path}"; then
+				return 1
+			fi
 		else
 			if ! command -v docx2txt >/dev/null 2>&1; then
 				log "ERROR" "Missing dependency for DOCX extraction" "pandoc or docx2txt" >&2
@@ -233,6 +253,7 @@ tool_file_read() {
 			extracted_path="${tmp_dir}/extracted.txt"
 			docx2txt "${path}" "${extracted_path}" >/dev/null 2>&1
 			file_read_render_text_file "${extracted_path}" "${rendered_path}"
+			wrap_page=true
 		fi
 		;;
 	pptx)
@@ -240,7 +261,9 @@ tool_file_read() {
 			log "ERROR" "Missing dependency for PPTX extraction" "pandoc" >&2
 			return 1
 		fi
-		file_read_pandoc_render "${path}" "${rendered_path}"
+		if ! file_read_pandoc_render "${path}" "${rendered_path}"; then
+			return 1
+		fi
 		;;
 	xlsx)
 		if ! command -v xlsx2csv >/dev/null 2>&1; then
@@ -250,9 +273,11 @@ tool_file_read() {
 		extracted_path="${tmp_dir}/extracted.csv"
 		xlsx2csv -a "${path}" >"${extracted_path}"
 		file_read_render_text_file "${extracted_path}" "${rendered_path}"
+		wrap_page=true
 		;;
 	text)
 		file_read_render_text_file "${path}" "${rendered_path}"
+		wrap_page=true
 		;;
 	*)
 		log "ERROR" "Unsupported file type" "${path}" >&2
@@ -269,6 +294,10 @@ tool_file_read() {
 
 	total_pages=$(printf '%s\n' "${page_result}" | head -n1)
 	page_content=$(printf '%s\n' "${page_result}" | tail -n +2)
+
+	if [[ "${wrap_page}" == "true" ]]; then
+		page_content=$(file_read_wrap_markdown_content "${page_content}" "text")
+	fi
 
 	payload_header="# $(basename "${path}")\n\n_Page ${page} of ${total_pages}_\n\n"
 
