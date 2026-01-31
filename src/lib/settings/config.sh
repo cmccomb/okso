@@ -33,8 +33,8 @@
 CONFIG_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck source=src/lib/core/logging.sh
-source "${CONFIG_LIB_DIR}/core/logging.sh"
-# shellcheck source=src/lib/system_profile.sh
+source "${CONFIG_LIB_DIR}/../core/logging.sh"
+# shellcheck source=src/lib/settings/system_profile.sh
 source "${CONFIG_LIB_DIR}/system_profile.sh"
 
 # Model defaults (populated via autotune to ensure deterministic sizing)
@@ -149,7 +149,7 @@ log_model_autotune_summary() {
 		IFS=','
 		printf '%s' "${fragments[*]}"
 	)
-	log "INFO" "model autotune: base=${base} eff=${effective}" "${summary_detail}"
+	log "DEBUG" "model autotune: base=${base} eff=${effective}" "${summary_detail}"
 }
 
 default_run_id() {
@@ -215,7 +215,6 @@ load_config() {
 	# Core settings
 	VERBOSITY=${VERBOSITY:-1}
 	APPROVE_ALL=${APPROVE_ALL:-false}
-	FORCE_CONFIRM=${FORCE_CONFIRM:-false}
 	OKSO_RUN_ID=${OKSO_RUN_ID:-$(default_run_id)}
 
 	# Cache configuration

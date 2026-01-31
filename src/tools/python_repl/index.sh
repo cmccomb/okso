@@ -26,16 +26,64 @@ source "${BASH_SOURCE[0]%/python_repl/index.sh}/registry.sh"
 
 python_repl_create_sandbox() {
 	# Outputs the sandbox path.
-	local sandbox_dir # string temporary directory path
+	# Returns:
+	#   Outputs the sandbox directory path (string).
+
+	local sandbox_dir
 	sandbox_dir=$(mktemp -d "${TMPDIR:-/tmp}/python_repl.XXXXXX") || return 1
 	printf '%s\n' "${sandbox_dir}"
 }
 
+python_repl_sandbox_path_file() {
+	# Outputs the sandbox path tracking file.
+	# Returns:
+	#   Outputs the sandbox path file (string).
+	printf '%s\n' "${TMPDIR:-/tmp}/python_repl_sandbox_path"
+}
+
+python_repl_get_sandbox() {
+	# Outputs the sandbox path, reusing an existing one if present.
+	# Returns:
+	#   Outputs the sandbox directory path (string).
+	#   Exit code 0 on success, non-zero on failure.
+	local sandbox_file existing_sandbox sandbox_dir
+
+	# Check for existing sandbox
+	sandbox_file="$(python_repl_sandbox_path_file)"
+
+	# Reuse existing sandbox if valid
+	if [[ -s "${sandbox_file}" ]]; then
+		existing_sandbox="$(<"${sandbox_file}")"
+		if [[ -d "${existing_sandbox}" ]]; then
+			printf '%s\n' "${existing_sandbox}"
+			return 0
+		fi
+
+		rm -f "${sandbox_file}"
+	fi
+
+	# Create new sandbox
+	sandbox_dir=$(python_repl_create_sandbox)
+	if [[ -z "${sandbox_dir}" ]]; then
+		return 1
+	fi
+
+	# Track the new sandbox path
+	if ! printf '%s' "${sandbox_dir}" >"${sandbox_file}"; then
+		rm -rf "${sandbox_dir}"
+		return 1
+	fi
+
+	printf '%s\n' "${sandbox_dir}"
+}
+
 python_repl_write_startup() {
+	# Writes the Python REPL startup script enforcing sandboxed file access.
 	# Arguments:
 	#   $1 - sandbox directory (string)
-	# Outputs the startup file path.
-	local sandbox_dir startup_path # string
+	# Returns:
+	#   Outputs the startup script path.
+	local sandbox_dir startup_path
 	sandbox_dir="$1"
 	startup_path="${sandbox_dir}/startup.py"
 	cat <<'PY' >"${startup_path}" || return 1
@@ -72,28 +120,80 @@ PY
 
 python_repl_wrap_query() {
 	# Arguments:
-	#   $1 - user-supplied Python statements (string)
-	# Outputs a wrapped script that captures exceptions with exit codes.
-	local raw_query wrapped # strings
-	raw_query="$1"
-	wrapped=$'import sys\nimport traceback\ntry:\n'
+	#   $1 - user-supplied Python statements (string) (unused; kept for compatibility)
+	# Outputs a wrapped script that captures exceptions with exit codes and persists state.
+	cat <<'PY'
+import builtins
+import os
+import pathlib
+import pickle
+import sys
+import traceback
 
-	if [[ -z "${raw_query//[[:space:]]/}" ]]; then
-		wrapped+=$'    pass\n'
-	else
-		while IFS= read -r line; do
-			wrapped+="    ${line}"$'\n'
-		done <<<"${raw_query}"
-	fi
+STARTUP_PATH = os.environ.get("PYTHON_REPL_STARTUP")
+if STARTUP_PATH:
+    with open(STARTUP_PATH, "r", encoding="utf-8") as startup_handle:
+        startup_code = startup_handle.read()
+    exec(compile(startup_code, STARTUP_PATH, "exec"), globals())
 
-	wrapped+=$'except SystemExit as exc:\n    code = exc.code if isinstance(exc.code, int) else 1\n    sys.exit(code)\n'
-	wrapped+=$'except BaseException:\n    traceback.print_exc()\n    sys.exit(1)\n'
+_SANDBOX = pathlib.Path(os.environ["PYTHON_REPL_SANDBOX"]).resolve()
+_STATE_FILE = pathlib.Path(os.environ.get("PYTHON_REPL_STATE_FILE", _SANDBOX / ".python_state.pkl"))
+IGNORED_STATE_KEYS = {"__builtins__", "__name__", "__package__", "__loader__", "__spec__", "__annotations__", "__cached__"}
 
-	printf '%s' "${wrapped}"
+
+def _load_state():
+    state = {"__builtins__": builtins.__dict__}
+    if _STATE_FILE.exists():
+        try:
+            with _STATE_FILE.open("rb") as handle:
+                loaded = pickle.load(handle)
+            if isinstance(loaded, dict):
+                state.update(loaded)
+        except Exception as exc:  # noqa: BLE001
+            print(f"Failed to load previous Python REPL state: {exc}", file=sys.stderr)
+    return state
+
+
+def _save_state(state):
+    persisted = {}
+    for key, value in state.items():
+        if key in IGNORED_STATE_KEYS:
+            continue
+        try:
+            pickle.dumps(value)
+        except Exception:  # noqa: BLE001
+            continue
+        persisted[key] = value
+
+    try:
+        with _STATE_FILE.open("wb") as handle:
+            pickle.dump(persisted, handle)
+    except Exception as exc:  # noqa: BLE001
+        print(f"Failed to persist Python REPL state: {exc}", file=sys.stderr)
+
+
+STATE = _load_state()
+USER_CODE = os.environ.get("PYTHON_REPL_INPUT", "")
+if not USER_CODE.strip():
+    USER_CODE = "pass"
+
+try:
+    exec(compile(USER_CODE, "<input>", "exec"), STATE, STATE)
+except SystemExit as exc:
+    code = exc.code if isinstance(exc.code, int) else 1
+    sys.exit(code)
+except BaseException:  # noqa: BLE001
+    traceback.print_exc()
+    sys.exit(1)
+else:
+    _save_state(STATE)
+PY
 }
 
 python_repl_resolve_query() {
 	# Resolves the Python input text from TOOL_ARGS.
+	# Returns:
+	#   Outputs the Python statements (string).
 	local args_json text_key jq_error_file jq_error query
 	text_key="$(canonical_text_arg_key)"
 	args_json="${TOOL_ARGS:-}"
@@ -128,25 +228,35 @@ python_repl_resolve_query() {
 }
 
 tool_python_repl() {
+	# Executes Python statements in an isolated REPL sandbox.
+	# Returns:
+	#   Exit code 0 on success, non-zero on failure.
+
 	local query sandbox_dir startup_file repl_input status text_key create_status startup_status # strings and status code
+
+	# Resolve input query
 	text_key="$(canonical_text_arg_key)"
 
+	# Get the Python statements to execute
 	if ! query=$(python_repl_resolve_query); then
 		return 1
 	fi
 
+	# Validate query presence
 	if [[ -z "${query}" ]]; then
 		log "ERROR" "Missing TOOL_ARGS.${text_key}" "${TOOL_ARGS}"
 		return 1
 	fi
 
-	sandbox_dir=$(python_repl_create_sandbox)
+	# Create or reuse sandbox
+	sandbox_dir=$(python_repl_get_sandbox)
 	create_status=$?
 	if [[ ${create_status} -ne 0 ]]; then
 		log "ERROR" "Failed to create sandbox" "${query}"
 		return "${create_status}"
 	fi
 
+	# Write startup script
 	startup_file=$(python_repl_write_startup "${sandbox_dir}")
 	startup_status=$?
 	if [[ ${startup_status} -ne 0 ]]; then
@@ -155,26 +265,31 @@ tool_python_repl() {
 		return "${startup_status}"
 	fi
 
+	# Prepare REPL input
 	repl_input=$(python_repl_wrap_query "${query}")
 	repl_input+=$'\n\nexit()\n'
 
-	PYTHONSTARTUP="${startup_file}" \
+	PYTHON_REPL_STARTUP="${startup_file}" \
 		PYTHON_REPL_SANDBOX="${sandbox_dir}" \
+		PYTHON_REPL_STATE_FILE="${sandbox_dir}/.python_state.pkl" \
+		PYTHON_REPL_INPUT="${query}" \
 		PYTHONNOUSERSITE=1 \
-		python3.12 -iq <<<"${repl_input}"
+		python3.12 -I <<<"${repl_input}"
 	status=$?
-	rm -rf "${sandbox_dir}"
 	return "${status}"
 }
 
 register_python_repl() {
+	# Registers the python_repl tool.
+	# Returns:
+	#   Exit code 0 on success, non-zero on failure.
 	local args_schema
 
-	args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}},"additionalProperties":false}')
+	# Define the arguments schema
+	args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}}}')
 	register_tool \
 		"python_repl" \
-		"Execute Python statements in a temporary sandbox via python -i." \
-		"python_repl 'python code to evaluate'" \
+		"Execute Python statements in a temporary sandbox. However, you MUST use print statements to view outputs." \
 		"Writes are confined to an ephemeral sandbox directory." \
 		tool_python_repl \
 		"${args_schema}"

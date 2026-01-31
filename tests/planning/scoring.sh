@@ -16,7 +16,7 @@ tool_args_schema() {
         if [[ "$1" == "terminal" ]]; then
                 jq -nc '{"type":"object","required":["command"],"properties":{"command":{"type":"string"}},"additionalProperties":false}'
         else
-                printf '{}'
+                jq -nc '{"type":"object","required":["input"],"properties":{"input":{"type":"string","minLength":1}},"additionalProperties":false}'
         fi
 }
 plan='[{"tool":"terminal","args":{"command":"ls"},"thought":"list"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"reply"}]'
@@ -85,21 +85,25 @@ tool_args_schema() {
         if [[ "$1" == "terminal" ]]; then
                 jq -nc '{"type":"object","required":["command"],"properties":{"command":{"type":"string"}},"additionalProperties":false}'
         else
-                printf '{}'
+                jq -nc '{"type":"object","required":["input"],"properties":{"input":{"type":"string","minLength":1}},"additionalProperties":false}'
         fi
 }
 valid='[{"tool":"terminal","args":{"command":"ls"},"thought":"list"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]'
 invalid='[{"tool":"missing_tool","args":{"command":5},"thought":"broken"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]'
 good=$(score_planner_candidate "${valid}" | tail -n 1 | jq -r '.score')
-bad=$(score_planner_candidate "${invalid}" | tail -n 1 | jq -r '.score')
+set +e
+score_planner_candidate "${invalid}" >/dev/null
+bad_status=$?
+set -e
 printf "good=%s\n" "${good}"
-printf "bad=%s\n" "${bad}"
+printf "bad_status=%s\n" "${bad_status}"
 SCRIPT
 
 	[ "$status" -eq 0 ]
 	good=$(printf '%s\n' "${output}" | grep '^good=' | tail -n 1 | cut -d= -f2)
-	bad=$(printf '%s\n' "${output}" | grep '^bad=' | tail -n 1 | cut -d= -f2)
-	[[ "${good}" -gt "${bad}" ]]
+	bad_status=$(printf '%s\n' "${output}" | grep '^bad_status=' | tail -n 1 | cut -d= -f2)
+	[[ "${good}" -gt 0 ]]
+	[ "${bad_status}" -ne 0 ]
 }
 
 @test "score_planner_candidate prefers plans that defer side effects" {
@@ -109,7 +113,15 @@ export PLANNER_MAX_PLAN_STEPS=4
 export VERBOSITY=0
 source ./src/lib/planning/scoring.sh
 tool_names() { printf "%s\n" web_search notes_create final_answer; }
-tool_args_schema() { printf '{}'; }
+tool_args_schema() {
+        if [[ "$1" == "web_search" ]]; then
+                jq -nc '{"type":"object","required":["query"],"properties":{"query":{"type":"string","minLength":1}},"additionalProperties":false}'
+        elif [[ "$1" == "notes_create" ]]; then
+                jq -nc '{"type":"object","required":["title"],"properties":{"title":{"type":"string","minLength":1}},"additionalProperties":false}'
+        else
+                jq -nc '{"type":"object","required":["input"],"properties":{"input":{"type":"string","minLength":1}},"additionalProperties":false}'
+        fi
+}
 unsafe_first='[{"tool":"notes_create","args":{"title":"t"},"thought":"start"},{"tool":"web_search","args":{"query":"topic"},"thought":"research"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"summarize"}]'
 safer_first='[{"tool":"web_search","args":{"query":"topic"},"thought":"research"},{"tool":"notes_create","args":{"title":"t"},"thought":"capture"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"summarize"}]'
 unsafe_score=$(score_planner_candidate "${unsafe_first}" | tail -n 1 | jq -r '.score')
@@ -133,8 +145,10 @@ tool_names() { printf "%s\n" terminal notes_create final_answer; }
 tool_args_schema() {
         if [[ "$1" == "terminal" ]]; then
                 jq -nc '{"type":"object","required":["command"],"properties":{"command":{"type":"string"}},"additionalProperties":false}'
+        elif [[ "$1" == "notes_create" ]]; then
+                jq -nc '{"type":"object","required":["title"],"properties":{"title":{"type":"string","minLength":1}},"additionalProperties":false}'
         else
-                printf '{}'
+                jq -nc '{"type":"object","required":["input"],"properties":{"input":{"type":"string","minLength":1}},"additionalProperties":false}'
         fi
 }
 plan='[{"tool":"terminal","args":{"command":"ls"},"thought":"list"},{"tool":"notes_create","args":{"title":"t"},"thought":"note"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]'
@@ -157,7 +171,7 @@ tool_args_schema() {
         if [[ "$1" == "terminal" ]]; then
                 jq -nc '{"type":"object","required":["command"],"properties":{"command":{"type":"string"}},"additionalProperties":false}'
         else
-                printf '{}'
+                jq -nc '{"type":"object","required":["input"],"properties":{"input":{"type":"string","minLength":1}},"additionalProperties":false}'
         fi
 }
 plan='[{"tool":"terminal","args":{"command":"rm -rf /tmp/demo"},"thought":"cleanup"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]'
@@ -176,11 +190,71 @@ set -euo pipefail
 export VERBOSITY=1
 source ./src/lib/planning/scoring.sh
 tool_names() { printf "%s\n" terminal final_answer; }
-tool_args_schema() { printf '{}'; }
+tool_args_schema() {
+        if [[ "$1" == "terminal" ]]; then
+                jq -nc '{"type":"object","required":["command"],"properties":{"command":{"type":"string"}},"additionalProperties":false}'
+        else
+                jq -nc '{"type":"object","required":["input"],"properties":{"input":{"type":"string","minLength":1}},"additionalProperties":false}'
+        fi
+}
 plan='[{"tool":"terminal","args":{"command":"ls"},"thought":"list"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]'
 score_planner_candidate "${plan}" >/dev/null
 SCRIPT
 
 	[ "$status" -eq 0 ]
 	[[ "${output}" == *"Planner scoring summary"* ]]
+}
+
+@test "score_planner_candidate penalizes invalid python_repl snippets" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+export VERBOSITY=0
+source ./src/lib/planning/scoring.sh
+tool_names() { printf "%s\n" python_repl final_answer; }
+tool_args_schema() {
+        if [[ "$1" == "python_repl" ]]; then
+                jq -nc '{"type":"object","required":["code"],"properties":{"code":{"type":"string","minLength":1}},"additionalProperties":false}'
+        else
+                jq -nc '{"type":"object","required":["input"],"properties":{"input":{"type":"string","minLength":1}},"additionalProperties":false}'
+        fi
+}
+valid='[{"tool":"python_repl","args":{"code":"x = 1\nprint(x)"},"thought":"compute"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]'
+invalid='[{"tool":"python_repl","args":{"code":"def bad(:\n  pass"},"thought":"broken"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]'
+valid_score=$(score_planner_candidate "${valid}" | tail -n 1 | jq -r '.score')
+invalid_score=$(score_planner_candidate "${invalid}" | tail -n 1 | jq -r '.score')
+invalid_rationale=$(score_planner_candidate "${invalid}" | tail -n 1 | jq -r '.rationale | join(" ")')
+printf "valid=%s\n" "${valid_score}"
+printf "invalid=%s\n" "${invalid_score}"
+printf "rationale=%s\n" "${invalid_rationale}"
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	valid=$(printf '%s\n' "${output}" | grep '^valid=' | tail -n 1 | cut -d= -f2)
+	invalid=$(printf '%s\n' "${output}" | grep '^invalid=' | tail -n 1 | cut -d= -f2)
+	rationale=$(printf '%s\n' "${output}" | grep '^rationale=' | tail -n 1 | cut -d= -f2-)
+	[[ "${valid}" -gt "${invalid}" ]]
+	[[ "${rationale}" == *"Python REPL pre-validation failed"* ]]
+}
+
+@test "score_planner_candidate flags missing python_repl imports" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+export VERBOSITY=0
+source ./src/lib/planning/scoring.sh
+tool_names() { printf "%s\n" python_repl final_answer; }
+tool_args_schema() {
+        if [[ "$1" == "python_repl" ]]; then
+                jq -nc '{"type":"object","required":["code"],"properties":{"code":{"type":"string","minLength":1}},"additionalProperties":false}'
+        else
+                jq -nc '{"type":"object","required":["input"],"properties":{"input":{"type":"string","minLength":1}},"additionalProperties":false}'
+        fi
+}
+plan='[{"tool":"python_repl","args":{"code":"import totally_fake_lib\nprint(1)"},"thought":"check"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]'
+scorecard=$(score_planner_candidate "${plan}" | tail -n 1)
+printf '%s\n' "${scorecard}"
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	rationale=$(printf '%s\n' "${output}" | tail -n 1 | jq -r '.rationale | join(" ")')
+	[[ "${rationale}" == *"missing_imports:totally_fake_lib"* ]]
 }

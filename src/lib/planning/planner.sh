@@ -18,7 +18,7 @@
 #   EXECUTOR_ENTRYPOINT (string): optional path override for the executor entrypoint script.
 #   TOOLS (array): optional array of tool names available to the planner.
 #   PLAN_ONLY, DRY_RUN (bool): control execution and preview behaviour.
-#   APPROVE_ALL, FORCE_CONFIRM (bool): confirmation toggles.
+#   APPROVE_ALL (bool): confirmation toggles.
 #   VERBOSITY (int): log level.
 #   PLANNER_SKIP_TOOL_LOAD (bool): skip sourcing the tool suite; useful for tests.
 #   PLANNER_SAMPLE_COUNT (int >=1): number of planner generations to sample; values below 1 are coerced to 1.
@@ -64,22 +64,20 @@ PLANNING_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${PLANNING_LIB_DIR}/../core/errors.sh"
 # shellcheck source=src/lib/core/logging.sh
 source "${PLANNING_LIB_DIR}/../core/logging.sh"
-# shellcheck source=src/lib/tools.sh
+# shellcheck source=src/lib/tools/index.sh
 if [[ "${PLANNER_SKIP_TOOL_LOAD:-false}" != true ]]; then
-	source "${PLANNING_LIB_DIR}/../tools.sh"
+	source "${PLANNING_LIB_DIR}/../tools/index.sh"
 else
 	log "DEBUG" "Skipping tool suite load" "planner_skip_tool_load=true" >&2
 fi
-# shellcheck source=src/lib/prompt/build_planner.sh
-source "${PLANNING_LIB_DIR}/../prompt/build_planner.sh"
-# shellcheck source=src/lib/schema/schema.sh
-source "${PLANNING_LIB_DIR}/../schema/schema.sh"
+# shellcheck source=src/lib/llm/schema.sh
+source "${PLANNING_LIB_DIR}/../llm/schema.sh"
 # shellcheck source=src/lib/core/json_state.sh
 source "${PLANNING_LIB_DIR}/../core/json_state.sh"
 # shellcheck source=src/lib/llm/llama_client.sh
 source "${PLANNING_LIB_DIR}/../llm/llama_client.sh"
-# shellcheck source=src/lib/config.sh
-source "${PLANNING_LIB_DIR}/../config.sh"
+# shellcheck source=src/lib/settings/config.sh
+source "${PLANNING_LIB_DIR}/../settings/config.sh"
 # shellcheck source=src/lib/planning/normalization.sh
 source "${PLANNING_LIB_DIR}/normalization.sh"
 # shellcheck source=src/lib/planning/scoring.sh
@@ -103,6 +101,87 @@ initialize_planner_models() {
 	fi
 }
 export -f initialize_planner_models
+
+planner_collect_tools() {
+	# Builds the planner tool catalog from caller-provided overrides or the
+	# registered tool registry.
+	# Returns:
+	#   newline-delimited list of tool names on stdout.
+
+	local -a catalog=()
+
+	# Fall back to the registry if no explicit TOOLS were supplied.
+	if [[ ${#catalog[@]} -eq 0 ]]; then
+		if command -v tool_names >/dev/null 2>&1; then
+			while IFS= read -r tool_name; do
+				[[ -z "${tool_name}" ]] && continue
+				catalog+=("${tool_name}")
+			done < <(tool_names)
+		else
+			log "WARN" "Tool catalog unavailable; no tools registered" "planner_tools=0" >&2
+		fi
+	fi
+
+	printf '%s\n' "${catalog[@]}"
+}
+
+planner_build_plan_schema() {
+	# Compiles the planner schema using registered tool argument schemas.
+	# Arguments:
+	#   $@ - tool names available to the planner (strings)
+	# Returns:
+	#   Planner plan schema JSON on stdout; non-zero on failure.
+	local base_schema tool_schema_json tools_json branches
+
+	base_schema="$(load_schema_text planner_plan | jq -c '.')" || return 1
+
+	tool_schema_json="$(
+		tool_schema_map | jq -c '
+    def allow_fill_placeholder:
+      if type != "object" then .
+      else
+        ( .
+          | if has("properties") then .properties |= with_entries(.value |= allow_fill_placeholder) else . end
+          | if has("items")      then .items      |= allow_fill_placeholder                         else . end
+          | if has("anyOf")      then .anyOf      |= map(allow_fill_placeholder)                   else . end
+          | if has("oneOf")      then .oneOf      |= map(allow_fill_placeholder)                   else . end
+          | if has("allOf")      then .allOf      |= map(allow_fill_placeholder)                   else . end
+        )
+        | {anyOf: [., {const: "<<FILL_DURING_EXECUTION>>"}]}
+      end;
+
+    map_values(allow_fill_placeholder)
+  '
+	)" || return 1
+	tools_json="$(printf '%s\n' "$@" | jq -Rsc 'split("\n") | map(select(length > 0))')"
+
+	if [[ "${tools_json}" == "[]" ]]; then
+		printf '%s' "${base_schema}"
+		return 0
+	fi
+
+	branches=$(jq -nc \
+		--argjson toolSchemas "${tool_schema_json}" \
+		--argjson tools "${tools_json}" \
+		'[
+                        $tools[] |
+                        {
+                                type: "object",
+                                additionalProperties: false,
+                                required: ["thought", "tool", "args"],
+                                properties: {
+                                        thought: {type: "string", minLength: 5},
+                                        tool: {type: "string", enum: [.]},
+                                        args: ($toolSchemas[.] // {type: "object"})
+                                }
+                        }
+                ]') || return 1
+
+	jq -n -c --argjson base "${base_schema}" --argjson anyOf "${branches}" '
+                $base | .items = {anyOf: $anyOf}
+        '
+}
+export -f planner_build_plan_schema
 
 planner_format_search_context() {
 	# Formats web search JSON into readable prompt text.
@@ -238,14 +317,16 @@ validate_temperature() {
 	printf '%s' "${sanitized}"
 }
 
-generate_planner_response() {
+generate_planner_response_with_context() {
 	# Arguments:
 	#   $1 - user query (string)
+	#   $2 - preformatted search context (string)
 	# Returns:
 	#   planner response JSON (string)
-	local user_query
+	local user_query search_context
 	local -a planner_tools=()
 	user_query="$1"
+	search_context="$2"
 
 	# Initialize settings for planner and executor models
 	initialize_planner_models
@@ -263,16 +344,15 @@ generate_planner_response() {
 	log "DEBUG" "Planner tool catalog" "${planner_tool_catalog}" >&2
 
 	# Build the planner prompt
-	local planner_schema_text tool_lines prompt search_context
-	planner_schema_text="$(load_schema_text planner_plan)"
+	local planner_schema_text tool_lines prompt
+	planner_schema_text="$(planner_build_plan_schema "${planner_tools[@]}")"
 	tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_line)"
-	search_context="$(planner_fetch_search_context "${user_query}")"
-	prompt="$(build_planner_prompt "${user_query}" "${tool_lines}" "${search_context}")"
+	prompt="$(build_planner_prompt "${user_query}" "${tool_lines}" "${search_context}" "${PLANNER_FEEDBACK_CONTEXT:-}" "${planner_schema_text}")"
 	log "DEBUG" "Generated planner prompt" "${prompt}" >&2
 
 	# Configure sampling parameters
 	local sample_count temperature debug_log_dir debug_log_file max_generation_tokens
-	sample_count="$(validate_positive_int "${PLANNER_SAMPLE_COUNT:-3}" 3 "PLANNER_SAMPLE_COUNT")"
+	sample_count=1 #"$(validate_positive_int "${PLANNER_SAMPLE_COUNT:-3}" 3 "PLANNER_SAMPLE_COUNT")"
 	temperature="$(validate_temperature "${PLANNER_TEMPERATURE:-0.7}" 0.7)"
 	max_generation_tokens="$(validate_positive_int "${PLANNER_MAX_OUTPUT_TOKENS:-1024}" 1024 "PLANNER_MAX_OUTPUT_TOKENS")"
 
@@ -371,6 +451,17 @@ generate_planner_response() {
 	fi
 
 	printf '%s' "${best_plan}"
+}
+
+generate_planner_response() {
+	# Arguments:
+	#   $1 - user query (string)
+	# Returns:
+	#   planner response JSON (string)
+	local user_query search_context
+	user_query="$1"
+	search_context="$(planner_fetch_search_context "${user_query}")"
+	generate_planner_response_with_context "${user_query}" "${search_context}"
 }
 
 generate_plan_outline() {

@@ -16,6 +16,7 @@
 #   EXECUTOR_MODEL_REPO (string): Hugging Face repository name for the executor.
 #   EXECUTOR_MODEL_FILE (string): model file within the repository for the executor.
 #   EXECUTOR_CACHE_FILE (string): prompt cache path for executor llama.cpp calls.
+#   LLAMA_EXTRA_ARGS (string): optional additional llama.cpp arguments appended before the prompt.
 #   VERBOSITY (int): log verbosity.
 #
 # Dependencies:
@@ -191,6 +192,14 @@ llama_infer() {
 		llama_args+=(--grammar "${LLAMA_GRAMMAR}")
 	fi
 
+	# Append additional llama.cpp arguments when provided
+	if [[ -n "${LLAMA_EXTRA_ARGS:-}" ]]; then
+		local extra_args
+		# shellcheck disable=SC2206 # intended splitting into an array
+		extra_args=(${LLAMA_EXTRA_ARGS})
+		llama_args+=("${extra_args[@]}")
+	fi
+
 	# Prepare prompt context details for logging
 	prompt_context_detail=$(jq -nc \
 		--arg stop_string "${stop_string}" \
@@ -213,11 +222,6 @@ llama_infer() {
 	# Measure start time
 	start_time_ns=$(date +%s)
 	start_time_ns=$((start_time_ns * 1000000000))
-
-	# Log debug info
-	if [[ "${VERBOSITY:-0}" -ge 2 ]]; then
-		log "DEBUG" "llama args" "${llama_arg_string}"
-	fi
 
 	# Run llama.cpp with timeout
 	llama_output=$(llama_with_timeout "${llama_args[@]}" 2>"${stderr_file}")

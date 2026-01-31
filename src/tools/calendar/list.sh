@@ -73,13 +73,12 @@ register_calendar_list() {
 
 	args_schema=$(
 		cat <<'JSON'
-{"type":"object","properties":{},"additionalProperties":false}
+{"type":"object","properties":{}}
 JSON
 	)
 	register_tool \
 		"calendar_list" \
 		"List upcoming Apple Calendar events from the configured calendar." \
-		"calendar_list" \
 		"Requires macOS Calendar access; read-only." \
 		tool_calendar_list \
 		"${args_schema}"

@@ -141,6 +141,73 @@ EOF
 	return 1
 }
 
+python_repl_validate_snippet() {
+	# Validates python_repl snippets for syntax and import availability.
+	# Arguments:
+	#   $1 - python_repl args JSON (string)
+	# Outputs:
+	#   Validation error message (string) when invalid.
+	# Returns:
+	#   0 when valid; 1 when invalid; 2 when validation is unavailable.
+	local args_json snippet python_output
+	args_json=${1:-"{}"}
+	snippet=$(jq -r '.code // .snippet // .text // ""' <<<"${args_json}" 2>/dev/null)
+
+	if [[ -z "${snippet}" ]]; then
+		printf '%s\n' "python_repl snippet is empty"
+		return 1
+	fi
+
+	if ! command -v python3 >/dev/null 2>&1; then
+		printf '%s\n' "python3 unavailable for python_repl validation"
+		return 2
+	fi
+
+	if ! python_output=$(
+		PYTHON_REPL_SNIPPET="${snippet}" PYTHONNOUSERSITE=1 python3.12 -I - <<'PY'
+import ast
+import importlib.util
+import os
+import sys
+
+code = os.environ.get("PYTHON_REPL_SNIPPET", "")
+try:
+    tree = ast.parse(code)
+except SyntaxError as exc:
+    line = exc.lineno or 0
+    msg = exc.msg or "invalid syntax"
+    print(f"syntax_error:{msg} (line {line})")
+    sys.exit(1)
+
+missing = set()
+for node in ast.walk(tree):
+    if isinstance(node, ast.Import):
+        for alias in node.names:
+            name = alias.name.split(".")[0]
+            if name and importlib.util.find_spec(name) is None:
+                missing.add(name)
+    elif isinstance(node, ast.ImportFrom):
+        if node.level and node.level > 0:
+            continue
+        if node.module:
+            name = node.module.split(".")[0]
+            if name and importlib.util.find_spec(name) is None:
+                missing.add(name)
+
+if missing:
+    missing_list = ", ".join(sorted(missing))
+    print(f"missing_imports:{missing_list}")
+    sys.exit(1)
+sys.exit(0)
+PY
+	); then
+		printf '%s\n' "${python_output}"
+		return 1
+	fi
+
+	return 0
+}
+
 planner_step_has_side_effects() {
 	# Heuristic to detect steps that can mutate user data or environment.
 	# Arguments:
@@ -238,8 +305,9 @@ score_planner_candidate() {
 
 	# Evaluate each step
 	local idx=0 valid_tools=0 missing_tools=0 invalid_args=0 side_effect_index=-1
+	local invalid_python_snippets=0
 	while IFS= read -r step; do
-		local tool args
+		local tool args python_repl_validation_output
 		tool=$(jq -r '.tool // ""' <<<"${step}")
 		args=$(jq -c '.args // {}' <<<"${step}")
 
@@ -255,6 +323,23 @@ score_planner_candidate() {
 			side_effect_index=${idx}
 		fi
 
+		if [[ "${tool}" == "python_repl" ]]; then
+			if python_repl_validation_output="$(python_repl_validate_snippet "${args}")"; then
+				:
+			else
+				local validation_status=$?
+				case "${validation_status}" in
+				1)
+					invalid_python_snippets=$((invalid_python_snippets + 1))
+					rationale+=("Python REPL snippet failed validation at step $((idx + 1)): ${python_repl_validation_output}")
+					;;
+				2)
+					rationale+=("Python REPL validation skipped at step $((idx + 1)): ${python_repl_validation_output}")
+					;;
+				esac
+			fi
+		fi
+
 		idx=$((idx + 1))
 	done < <(jq -cr '.[]' <<<"${plan_json}")
 
@@ -264,6 +349,7 @@ score_planner_candidate() {
 		score=$((score - (missing_tools * 25)))
 		rationale+=("Plan references ${missing_tools} unavailable tool(s).")
 		log "INFO" "Planner scoring: unavailable tools detected" "$(jq -nc --argjson missing "${missing_tools}" --argjson valid "${valid_tools}" '{missing:$missing,valid:$valid}')" >&2
+		return 1
 	elif [[ "${availability_known}" == true ]]; then
 		rationale+=("All tools are registered in the planner catalog.")
 	fi
@@ -275,6 +361,11 @@ score_planner_candidate() {
 		log "INFO" "Planner scoring: argument validation failed" "$(jq -nc --argjson invalid "${invalid_args}" --argjson checked "${idx}" '{invalid:$invalid,checked:$checked}')" >&2
 	else
 		rationale+=("Planner args satisfy registered tool schemas.")
+	fi
+
+	if ((invalid_python_snippets > 0)); then
+		score=$((score - (invalid_python_snippets * 50)))
+		rationale+=("Python REPL pre-validation failed for ${invalid_python_snippets} step(s).")
 	fi
 
 	# Side-effecting action timing

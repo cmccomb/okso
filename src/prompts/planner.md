@@ -12,7 +12,7 @@ You are responsible for drafting an execution plan that satisfies a user request
 - Use ONLY argument names defined by each tool’s schema.
 - For each argument:
   - Provide a concrete value to use OR
-  - Use an empty string "" to defer filling to the executor.
+  - Use the literal placeholder `<<FILL_DURING_EXECUTION>>` to defer filling to the executor. Include these placeholder values whenever the executor is expected to infill a field, even for non-string arguments.
 - Keep all argument strings single-line and under 200 characters.
 - Do NOT include markdown, code blocks, logs, or stack traces in arguments.
 
@@ -27,45 +27,41 @@ User Query:
 "Turn my note titled 'LC-Guard action items' into reminders, and leave the note intact."
 
 Plan:
-{
-  "plan": [
-    {
-      "thought": "Read the source note to extract tasks.",
-      "tool": "notes_read",
-      "args": {"title": "LC-Guard action items"}
-    },
-    {
-      "thought": "Create one reminder per task without editing the note.",
-      "tool": "reminders_create",
-      "args": {"title": "", "time": "", "notes": "Source: LC-Guard action items"}
-    },
-    {
-      "thought": "Confirm reminders and note status to the user.",
-      "tool": "final_answer",
-      "args": {"input": ""}
-    }
-  ]
-}
+[
+  {
+    "thought": "Read the source note to extract tasks.",
+    "tool": "notes_read",
+    "args": {"title": "LC-Guard action items"}
+  },
+  {
+    "thought": "Create one reminder per task without editing the note.",
+    "tool": "reminders_create",
+    "args": {"title": "<<FILL_DURING_EXECUTION>>", "time": "<<FILL_DURING_EXECUTION>>", "notes": "<<FILL_DURING_EXECUTION>>"}
+  },
+  {
+    "thought": "Confirm reminders and note status to the user.",
+    "tool": "final_answer",
+    "args": {}
+  }
+]
 
 ### Example: Scoped calendar query
 User Query:  
 "List my upcoming calendar events that mention 'proposal' in the title."
 
 Plan:
-{
-  "plan": [
-    {
-      "thought": "Search events matching the keyword.",
-      "tool": "calendar_search",
-      "args": {"input": "proposal"}
-    },
-    {
-      "thought": "Return a concise list of matches.",
-      "tool": "final_answer",
-      "args": {"input": ""}
-    }
-  ]
-}
+[
+  {
+    "thought": "Search events matching the keyword.",
+    "tool": "calendar_search",
+    "args": {"input": "proposal"}
+  },
+  {
+    "thought": "Return a concise list of matches.",
+    "tool": "final_answer",
+    "args": {}
+  }
+]
 
 ## Output Contract
 Respond using the following JSON schema:
@@ -75,6 +71,9 @@ Return ONLY valid JSON matching the schema.
 
 ## Context
 Current time: ${current_time} (${current_weekday}, ${current_date})
+
+## Feedback or Constraints
+${planner_feedback}
 
 Search context (if any):
 ${search_context}

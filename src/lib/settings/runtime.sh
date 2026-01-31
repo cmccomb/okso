@@ -54,15 +54,15 @@
 RUNTIME_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck source=src/lib/core/errors.sh
-source "${RUNTIME_LIB_DIR}/core/errors.sh"
-# shellcheck source=src/lib/formatting.sh
-source "${RUNTIME_LIB_DIR}/formatting.sh"
+source "${RUNTIME_LIB_DIR}/../core/errors.sh"
+# shellcheck source=src/lib/cli/output.sh
+source "${RUNTIME_LIB_DIR}/../cli/output.sh"
 # shellcheck source=src/lib/tools/query.sh
-source "${RUNTIME_LIB_DIR}/tools/query.sh"
+source "${RUNTIME_LIB_DIR}/../tools/query.sh"
 # shellcheck source=src/lib/core/json_state.sh
-source "${RUNTIME_LIB_DIR}/core/json_state.sh"
-# shellcheck source=src/lib/core/settings.sh
-source "${RUNTIME_LIB_DIR}/core/settings.sh"
+source "${RUNTIME_LIB_DIR}/../core/json_state.sh"
+# shellcheck source=src/lib/settings/settings.sh
+source "${RUNTIME_LIB_DIR}/settings.sh"
 
 set_by_name() {
 	# Sets a variable by name using printf for safety.
@@ -234,6 +234,40 @@ render_plan_outputs() {
 	if [[ -n "${plan_outline}" ]]; then
 		log_pretty "INFO" "Plan outline" "${plan_outline}"
 	fi
+
+	# Surface the exact tool calls that will be executed for approval
+	if [[ -n "${plan_entries}" ]]; then
+		if planned_calls="$(printf '%s' "${plan_entries}" | jq -c 'to_entries | map({step:(.key+1), tool:(.value.tool // "unknown"), description:(.value.query // (.value.args // {} | tostring)), thought:(.value.thought // "")})' 2>/dev/null)"; then
+			log_pretty "INFO" "Planned tool calls" "${planned_calls}"
+		else
+			log "WARN" "Unable to format planned tool calls for approval" "$(printf 'plan_entries=%s' "${plan_entries}")"
+		fi
+	fi
+}
+
+request_plan_approval() {
+	# Prompts the user to approve the generated plan before execution.
+	# Arguments:
+	#   $1 - plan outline (string; unused today but reserved for context)
+	#   $2 - required tools (newline delimited)
+	#   $3 - plan entries (string)
+	# Returns:
+	#   0 when approved; non-zero otherwise with feedback on stdout.
+
+	# If auto-approval is enabled, skip the prompt.
+	if [[ "${APPROVE_ALL}" == true ]]; then
+		return 0
+	fi
+
+	local reply
+	printf 'Approve this plan and its tool calls? [y/N/feedback]: ' >&2
+	read -r reply
+
+	case "${reply}" in
+	y | Y | yes | Yes | YES)
+		return 0
+		;;
+	esac
 }
 
 select_response_strategy() {

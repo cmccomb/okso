@@ -64,6 +64,35 @@ SCRIPT
 	[ "$status" -eq 0 ]
 }
 
+@test "llama_infer forwards optional extra arguments" {
+	run env BASH_ENV= ENV= bash --noprofile --norc -c '
+                cd "$(git rev-parse --show-toplevel)" || exit 1
+                args_dir="$(mktemp -d)"
+                args_file="${args_dir}/args.txt"
+                mock_binary="${args_dir}/mock_llama.sh"
+                cat >"${mock_binary}" <<SCRIPT
+#!/usr/bin/env bash
+printf "%s\n" "\$@" >"${args_file}"
+SCRIPT
+                chmod +x "${mock_binary}"
+                export LLAMA_AVAILABLE=true
+                export LLAMA_BIN="${mock_binary}"
+                export EXECUTOR_MODEL_REPO=demo/repo
+                export EXECUTOR_MODEL_FILE=model.gguf
+                export LLAMA_EXTRA_ARGS="--dry-multiplier 0.35 --dry-base 1.75 --dry-allowed-length 2"
+                source ./src/lib/llm/llama_client.sh
+                llama_infer "example prompt" "" 12
+                args=()
+                while IFS= read -r line; do
+                        args+=("$line")
+                done <"${args_file}"
+                [[ " ${args[*]} " == *" --dry-multiplier 0.35 "* ]]
+                [[ " ${args[*]} " == *" --dry-base 1.75 "* ]]
+                [[ " ${args[*]} " == *" --dry-allowed-length 2 "* ]]
+        '
+	[ "$status" -eq 0 ]
+}
+
 @test "llama_infer accepts multiline schema strings" {
 	run env BASH_ENV= ENV= bash --noprofile --norc -c '
                 set -uo pipefail

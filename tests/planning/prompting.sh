@@ -2,6 +2,14 @@
 
 setup() {
 	unset -f chpwd _mise_hook 2>/dev/null || true
+	# shellcheck disable=SC2155
+	export TOOL_REGISTRY_JSON=$(prompting_registry_payload)
+}
+
+prompting_registry_payload() {
+	cat <<'JSON'
+{"names":["terminal","final_answer"],"registry":{"terminal":{"args_schema":{"type":"object","required":["command"],"properties":{"command":{"type":"string","minLength":1}}}},"final_answer":{"args_schema":{"type":"object","required":["input"],"properties":{"input":{"type":"string","minLength":1}}}}}}
+JSON
 }
 
 @test "plan_json_to_outline numbers steps from raw planner text" {
@@ -35,7 +43,6 @@ SCRIPT
 set -euo pipefail
 source ./src/lib/planning/prompting.sh
 tool_description() { printf "desc-%s" "$1"; }
-tool_command() { printf "cmd-%s" "$1"; }
 tool_safety() { printf "safe-%s" "$1"; }
 tool_args_schema() { printf '{"type":"object","properties":{"input":{"type":"string"}}}'; }
 prompt=$(build_planner_prompt_with_tools "find files" terminal notes_create)
@@ -52,7 +59,6 @@ SCRIPT
 set -euo pipefail
 source ./src/lib/planning/prompting.sh
 tool_description() { printf "desc-%s" "$1"; }
-tool_command() { printf "cmd-%s" "$1"; }
 tool_safety() { printf "safe-%s" "$1"; }
 tool_args_schema() { printf '{"type":"object","properties":{"input":{"type":"string"}}}'; }
 prompt=$(build_planner_prompt_with_tools "collect data" terminal)
@@ -66,7 +72,7 @@ SCRIPT
 @test "executor prompt template exposes infill placeholders" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-source ./src/lib/prompt/templates.sh
+source ./src/lib/llm/templates.sh
 template="$(load_prompt_template executor)"
 grep -F '${tool}' <<<"${template}"
 grep -F '${args_json}' <<<"${template}"

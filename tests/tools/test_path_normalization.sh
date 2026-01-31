@@ -26,7 +26,7 @@ chmod +x "${tmpdir}/realpath"
 expected="$(cd "${repo_root}" && printf "%s\n" "$(pwd -P)/README.md")"
 
 PATH="${tmpdir}:${base_path}" bash --noprofile --norc -c "
-        source \"${repo_root}/src/lib/tools.sh\"
+        source \"${repo_root}/src/lib/tools/index.sh\"
         cd \"${repo_root}\"
         tools_normalize_path \"README.md\"
 " >"${tmpdir}/actual"
@@ -62,7 +62,7 @@ MOCK
 chmod +x "${tmpdir}/python3"
 
 PATH="${tmpdir}:${base_path}" bash --noprofile --norc -c "
-        source \"${repo_root}/src/lib/tools.sh\"
+        source \"${repo_root}/src/lib/tools/index.sh\"
         cd \"${repo_root}\"
         tools_normalize_path \"README.md\"
 "

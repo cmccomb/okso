@@ -53,24 +53,24 @@ Model selection always runs through a deterministic autotune pipeline on macOS:
 
 Baseline tier mapping:
 
-| Resources (macOS) | Baseline tier |
-| --- | --- |
-| `GITHUB_ACTIONS=true` | `ci` |
-| `< 8 GB` | `tiny` |
-| `8–16 GB` | `small` |
-| `16–24 GB` | `default` |
-| `24–48 GB` | `large` |
-| `>= 48 GB` | `xlarge` |
+| Resources (macOS)     | Baseline tier |
+|-----------------------|---------------|
+| `GITHUB_ACTIONS=true` | `ci`          |
+| `< 8 GB`              | `tiny`        |
+| `8–16 GB`             | `small`       |
+| `16–24 GB`            | `default`     |
+| `24–48 GB`            | `large`       |
+| `>= 48 GB`            | `xlarge`      |
 
 Tier → model (Qwen3 GGUF Q4_K_M):
 
-| Tier | task | default    | heavy      |
-| --- | --- |------------|------------|
+| Tier          | task       | default    | heavy      |
+|---------------|------------|------------|------------|
 | `ci` / `tiny` | Qwen3-0.6B | Qwen3-0.6B | Qwen3-0.6B |
-| `small` | Qwen3-0.6B | Qwen3-1.7B | Qwen3-4B   |
-| `default` | Qwen3-1.7B | Qwen3-4B   | Qwen3-8B   |
-| `large` | Qwen3-1.7B | Qwen3-8B   | Qwen3-14B  |
-| `xlarge` | Qwen3-4B | Qwen3-14B  | Qwen3-32B  |
+| `small`       | Qwen3-0.6B | Qwen3-1.7B | Qwen3-4B   |
+| `default`     | Qwen3-1.7B | Qwen3-4B   | Qwen3-8B   |
+| `large`       | Qwen3-1.7B | Qwen3-8B   | Qwen3-14B  |
+| `xlarge`      | Qwen3-4B   | Qwen3-14B  | Qwen3-32B  |
 
 Runtime pressure caps ambition instead of shifting one tier at a time:
 

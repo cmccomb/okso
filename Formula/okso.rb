@@ -7,16 +7,16 @@ class Okso < Formula
 
   head "https://github.com/cmccomb/okso.git", branch: "main"
 
-  depends_on "bash"
-  depends_on "coreutils"
-  depends_on "fd"
   depends_on "jq"
   depends_on "libxml2"
   depends_on "llama.cpp"
   depends_on "pandoc"
+  depends_on "docx2txt"
   depends_on "poppler"
   depends_on "ripgrep"
+  depends_on "ripgrep-all"
   depends_on "tesseract"
+  depends_on "xlsx2csv"
   depends_on "python@3.12"
   depends_on "yq"
 

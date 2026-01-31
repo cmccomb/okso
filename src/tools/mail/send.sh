@@ -83,11 +83,10 @@ APPLESCRIPT
 register_mail_send() {
 	local args_schema
 
-	args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}},"additionalProperties":false}')
+	args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}}}')
 	register_tool \
 		"mail_send" \
 		"Send an email via Apple Mail; recipients on line one, subject on line two." \
-		"mail_send 'to@example.com\\nSubject\\nBody'" \
 		"Requires macOS Apple Mail access; sends immediately to listed recipients." \
 		tool_mail_send \
 		"${args_schema}"

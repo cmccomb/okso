@@ -91,13 +91,12 @@ register_reminders_create() {
 
 	args_schema=$(
 		cat <<'JSON'
-{"type":"object","required":["title"],"properties":{"title":{"type":"string","minLength":1},"time":{"type":"string"},"notes":{"type":"string"}},"additionalProperties":false}
+{"type":"object","required":["title"],"properties":{"title":{"type":"string","minLength":1},"time":{"type":"string"},"notes":{"type":"string"}}}
 JSON
 	)
 	register_tool \
 		"reminders_create" \
 		"Create a new Apple Reminder using structured details." \
-		"reminders_create {\"title\":\"Take out trash\",\"time\":\"tonight\",\"notes\":\"before 9pm\"}" \
 		"Requires macOS Apple Reminders access; content is sent to Reminders." \
 		tool_reminders_create \
 		"${args_schema}"
