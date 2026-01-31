@@ -185,7 +185,11 @@ collect_reminders_allowlist() {
                           if ($obs | type) == "array" then
                             ($obs | map(tostring | trim) | map(select(length > 0)))
                           elif ($obs | type) == "string" then
-                            ($obs | split("\n") | map(split(", ")) | add | map(trim) | map(select(length > 0)))
+                            (if ($obs | contains("\n")) then
+                              ($obs | split("\n") | map(trim) | map(select(length > 0)))
+                            else
+                              ([($obs | trim)] | map(select(length > 0)))
+                            end)
                           else
                             []
                           end;
