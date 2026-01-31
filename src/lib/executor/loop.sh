@@ -91,6 +91,226 @@ extract_urls_from_text() {
 	printf '%s' "${text}" | grep -Eo 'https?://[^[:space:]\")\]<>]+' 2>/dev/null || true
 }
 
+collect_notes_allowlist() {
+	# Builds a JSON array of allowed note titles for notes_read/notes_append.
+	# Arguments:
+	#   $1 - history text (newline-delimited JSON entries)
+	local history_text titles_json
+	history_text="$1"
+
+	if [[ -z "${history_text}" ]]; then
+		printf '[]'
+		return 0
+	fi
+
+	titles_json=$(
+		jq -n -r '
+                        def parse_entry:
+                          if type == "string" then
+                            try (fromjson) catch empty
+                          elif type == "object" then
+                            .
+                          else
+                            empty
+                          end;
+
+                        def unwrap_observation:
+                          if (.observation | type) == "object" and (.observation | has("output")) and (.observation | has("exit_code")) then
+                            .observation.output
+                          else
+                            .observation
+                          end;
+
+                        def trim: gsub("^\\s+|\\s+$"; "");
+
+                        def note_items($obs):
+                          if ($obs | type) == "string" then
+                            ($obs | split("\n") | map(trim) | map(select(length > 0)))
+                          elif ($obs | type) == "array" then
+                            ($obs | map(tostring | trim) | map(select(length > 0)))
+                          else
+                            []
+                          end;
+
+                        [inputs | select(length > 0) | parse_entry]
+                        | map(select(type == "object"))
+                        | map(select(.action.tool == "notes_list" or .action.tool == "notes_search" or .action.tool == "notes_create"))
+                        | map((unwrap_observation) as $obs | note_items($obs))
+                        | (if length == 0 then [] else (reduce .[] as $entry ([]; . + $entry)) end)
+                        | unique
+                ' <<<"${history_text}" 2>/dev/null || true
+	)
+
+	if [[ -z "${titles_json}" ]]; then
+		printf '[]'
+		return 0
+	fi
+
+	printf '%s' "${titles_json}"
+}
+
+collect_reminders_allowlist() {
+	# Builds a JSON array of allowed reminder titles for reminders_complete.
+	# Arguments:
+	#   $1 - history text (newline-delimited JSON entries)
+	local history_text titles_json
+	history_text="$1"
+
+	if [[ -z "${history_text}" ]]; then
+		printf '[]'
+		return 0
+	fi
+
+	titles_json=$(
+		jq -n -r '
+                        def parse_entry:
+                          if type == "string" then
+                            try (fromjson) catch empty
+                          elif type == "object" then
+                            .
+                          else
+                            empty
+                          end;
+
+                        def unwrap_observation:
+                          if (.observation | type) == "object" and (.observation | has("output")) and (.observation | has("exit_code")) then
+                            .observation.output
+                          else
+                            .observation
+                          end;
+
+                        def trim: gsub("^\\s+|\\s+$"; "");
+
+                        def reminder_items($obs):
+                          if ($obs | type) == "array" then
+                            ($obs | map(tostring | trim) | map(select(length > 0)))
+                          elif ($obs | type) == "string" then
+                            ($obs | split("\n") | map(split(", ")) | add | map(trim) | map(select(length > 0)))
+                          else
+                            []
+                          end;
+
+                        [inputs | select(length > 0) | parse_entry]
+                        | map(select(type == "object"))
+                        | map(select(.action.tool == "reminders_list" or .action.tool == "reminders_create"))
+                        | map((unwrap_observation) as $obs | reminder_items($obs))
+                        | (if length == 0 then [] else (reduce .[] as $entry ([]; . + $entry)) end)
+                        | unique
+                ' <<<"${history_text}" 2>/dev/null || true
+	)
+
+	if [[ -z "${titles_json}" ]]; then
+		printf '[]'
+		return 0
+	fi
+
+	printf '%s' "${titles_json}"
+}
+
+patch_notes_schema() {
+	# Applies a title allowlist to notes_read and notes_append schemas.
+	# Arguments:
+	#   $1 - JSON array of allowed note titles
+	local titles_json base_schema patched_schema text_key
+	titles_json="$1"
+	text_key="${CANONICAL_TEXT_ARG_KEY:-input}"
+
+	base_schema="$(tool_args_schema "notes_read")"
+	if [[ -z "${base_schema}" ]]; then
+		base_schema='{}'
+	fi
+
+	patched_schema="$(jq -c \
+		--arg key "${text_key}" \
+		--argjson titles "${titles_json}" \
+		'
+                .type = "object"
+                | .properties = (.properties // {})
+                | .properties[$key] = ((.properties[$key] // {type:"string"}) + {type:"string", enum:$titles})
+                | .required = ((.required // []) + [$key] | unique)
+        ' <<<"${base_schema}")"
+
+	if [[ -n "${patched_schema}" ]]; then
+		update_tool_args_schema "notes_read" "${patched_schema}" || true
+	fi
+
+	base_schema="$(tool_args_schema "notes_append")"
+	if [[ -z "${base_schema}" ]]; then
+		base_schema='{}'
+	fi
+
+	patched_schema="$(jq -c \
+		--argjson titles "${titles_json}" \
+		'
+                .type = "object"
+                | .properties = (.properties // {})
+                | .properties.title = ((.properties.title // {type:"string"}) + {type:"string", enum:$titles})
+                | .required = ((.required // []) + ["title"] | unique)
+        ' <<<"${base_schema}")"
+
+	if [[ -n "${patched_schema}" ]]; then
+		update_tool_args_schema "notes_append" "${patched_schema}" || true
+	fi
+
+	if [[ "${titles_json}" == "[]" ]]; then
+		log "WARN" "No allowlisted note titles; notes_read/notes_append will reject all titles" "" || true
+	fi
+}
+
+patch_reminders_schema() {
+	# Applies a title allowlist to reminders_complete schema.
+	# Arguments:
+	#   $1 - JSON array of allowed reminder titles
+	local titles_json base_schema patched_schema text_key
+	titles_json="$1"
+	text_key="${CANONICAL_TEXT_ARG_KEY:-input}"
+
+	base_schema="$(tool_args_schema "reminders_complete")"
+	if [[ -z "${base_schema}" ]]; then
+		base_schema='{}'
+	fi
+
+	patched_schema="$(jq -c \
+		--arg key "${text_key}" \
+		--argjson titles "${titles_json}" \
+		'
+                .type = "object"
+                | .properties = (.properties // {})
+                | .properties[$key] = ((.properties[$key] // {type:"string"}) + {type:"string", enum:$titles})
+                | .required = ((.required // []) + [$key] | unique)
+        ' <<<"${base_schema}")"
+
+	if [[ -n "${patched_schema}" ]]; then
+		update_tool_args_schema "reminders_complete" "${patched_schema}" || true
+	fi
+
+	if [[ "${titles_json}" == "[]" ]]; then
+		log "WARN" "No allowlisted reminder titles; reminders_complete will reject all titles" "" || true
+	fi
+}
+
+prepare_notes_context() {
+	# Prepares allowlist schema for notes_read and notes_append.
+	# Arguments:
+	#   $1 - history text (newline-delimited JSON entries)
+	local history_text titles_json
+	history_text="$1"
+
+	titles_json="$(collect_notes_allowlist "${history_text}")"
+	patch_notes_schema "${titles_json}"
+}
+
+prepare_reminders_context() {
+	# Prepares allowlist schema for reminders_complete.
+	# Arguments:
+	#   $1 - history text (newline-delimited JSON entries)
+	local history_text titles_json
+	history_text="$1"
+
+	titles_json="$(collect_reminders_allowlist "${history_text}")"
+	patch_reminders_schema "${titles_json}"
+}
+
 normalize_web_fetch_url() {
 	# Normalizes URLs by stripping trailing punctuation to align with web_fetch allowlists.
 	# Arguments:
@@ -597,6 +817,13 @@ execute_planned_action() {
 			"${thought}" \
 			web_fetch_snippets
 		web_fetch_snippets="${web_fetch_snippets:-{}}"
+	fi
+
+	# Prepare allowlists for macOS Notes/Reminders tools
+	if [[ "${tool}" == "notes_read" || "${tool}" == "notes_append" ]]; then
+		prepare_notes_context "${history_text}"
+	elif [[ "${tool}" == "reminders_complete" ]]; then
+		prepare_reminders_context "${history_text}"
 	fi
 
 	# Resolve args with planner controls and context infill
