@@ -185,9 +185,9 @@ tool_file_read() {
 	type_hint=""
 
 	case "${ext_lower}" in
-		md)
-			type_hint="markdown"
-			;;
+	md)
+		type_hint="markdown"
+		;;
 	html | htm | xml)
 		type_hint="markup"
 		;;
