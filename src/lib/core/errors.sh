@@ -25,6 +25,8 @@ emit_error_envelope() {
 	#   $1 - context (string; optional; defaults to ERROR_CONTEXT/TOOL_NAME/runtime)
 	#   $2 - category (string; required)
 	#   $3 - message (string; required)
+	# Returns:
+	#   Prints the error envelope to stdout.
 	local context category message
 	context=${1:-${ERROR_CONTEXT:-${TOOL_NAME:-runtime}}}
 	category="$2"
@@ -45,6 +47,8 @@ die() {
 	#   $2 - category (string; required)
 	#   $3 - message (string; required)
 	#   $4 - exit code (int; optional; default: 1)
+	# Returns:
+	#   Exits with the provided status.
 	local context category message status
 	context=${1:-${ERROR_CONTEXT:-${TOOL_NAME:-runtime}}}
 	category="$2"
@@ -63,6 +67,8 @@ warn() {
 	#   $2 - category (string; required)
 	#   $3 - message (string; required)
 	#   $4 - exit code (int; optional; default: 1)
+	# Returns:
+	#   Returns the provided status.
 	local context category message status
 	context=${1:-${ERROR_CONTEXT:-${TOOL_NAME:-runtime}}}
 	category="$2"
@@ -79,6 +85,8 @@ log_debug() {
 	# Arguments:
 	#   $1 - context (string; optional)
 	#   $2 - message (string; required)
+	# Returns:
+	#   Returns 0.
 	local context message
 	context=${1:-${ERROR_CONTEXT:-${TOOL_NAME:-runtime}}}
 	message="$2"

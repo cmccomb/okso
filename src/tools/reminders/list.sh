@@ -3,6 +3,8 @@
 #
 # List open reminders within the configured Apple Reminders list.
 #
+# Returns newline-delimited reminder titles to preserve commas in titles.
+#
 # Usage:
 #   source "${BASH_SOURCE[0]%/reminders/list.sh}/reminders/list.sh"
 #
@@ -43,7 +45,9 @@ tool_reminders_list() {
 on run argv
         tell application "Reminders"
 ${list_script}
-                return name of (reminders of targetList whose completed is false)
+                set reminderNames to name of (reminders of targetList whose completed is false)
+                set AppleScript's text item delimiters to "\n"
+                return reminderNames as string
         end tell
 end run
 APPLESCRIPT

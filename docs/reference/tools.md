@@ -50,7 +50,7 @@ The `terminal` tool keeps a per-query working directory so subsequent calls shar
 
 ## macOS helpers
 
-Notes, Reminders, Calendar, and Mail helpers rely on `osascript` and run only on macOS. They log a warning and exit without changes when the host is unsupported or when the required binaries are missing. Notes and Mail tools use line-based inputs (first line = title/recipients; later lines = body or options). Calendar tools expect title, start time, and optional location on separate lines.
+Notes, Reminders, Calendar, and Mail helpers rely on `osascript` and run only on macOS. They log a warning and exit without changes when the host is unsupported or when the required binaries are missing. Notes and Mail tools use line-based inputs (first line = title/recipients; later lines = body or options). Reminders lists return newline-delimited titles to preserve commas inside reminder names. Calendar tools expect title, start time, and optional location on separate lines.
 
 ## Ranking
 

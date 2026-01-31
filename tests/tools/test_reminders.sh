@@ -43,6 +43,21 @@
 	[[ "$output" == *"set completed of r to true"* ]]
 }
 
+@test "reminders_list emits newline-delimited titles" {
+	run bash -lc '
+                export REMINDERS_OSASCRIPT_BIN="$(pwd)/tests/fixtures/osascript_stub.sh"
+                export REMINDERS_STUB_LOG="$(mktemp)"
+                export IS_MACOS=true
+                export VERBOSITY=0
+                source ./src/tools/reminders/index.sh
+                tool_reminders_list
+                cat "${REMINDERS_STUB_LOG}"
+        '
+	[ "$status" -eq 0 ]
+	[[ "$output" == *"set AppleScript's text item delimiters to \"\\n\""* ]]
+	[[ "$output" == *"return reminderNames as string"* ]]
+}
+
 @test "reminders tools validate missing title" {
 	run bash -lc '
                 export REMINDERS_OSASCRIPT_BIN="/bin/echo"

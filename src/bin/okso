@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2034
 #
-# Entrypoint for the local assistant harness.
+# Entrypoint script for the Okso AI assistant.
 #
 # Usage:
 #   ./src/bin/okso [OPTIONS] -- "user query"
@@ -28,6 +27,11 @@
 set -euo pipefail
 
 resolve_script_dir() {
+	# Resolve the directory of the current script, handling symlinks.
+	# Arguments:
+	#  None.
+	# Returns:
+	#  The absolute path to the directory containing the script.
 	local source_path source_dir
 	source_path="${BASH_SOURCE[0]}"
 
@@ -65,6 +69,12 @@ source "${LIB_DIR}/cli/cli.sh"
 source "${LIB_DIR}/settings/runtime.sh"
 
 main() {
+	# Main entrypoint for the okso assistant.
+	# Arguments:
+	#   Command-line arguments passed to the script.
+	# Returns:
+	#   Exit code 0 on success, non-zero on failure.
+
 	local settings_prefix
 	local plan_outline required_tools plan_entries plan_action plan_response plan_feedback
 	local feedback_context_in_env previous_feedback_context

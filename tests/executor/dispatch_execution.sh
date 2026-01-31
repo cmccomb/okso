@@ -14,7 +14,7 @@ source ./src/lib/executor/dispatch.sh
 demo_handler() { echo "ok"; }
 tool_handler() { printf 'demo_handler'; }
 export -f demo_handler tool_handler
-execute_tool_with_query "demo" "ignored" "context line" "{}"
+execute_tool_with_query "demo" "ignored" "{}"
 SCRIPT
 
 	[ "$status" -eq 0 ]
