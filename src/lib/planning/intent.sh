@@ -306,7 +306,7 @@ intent_to_tools() {
 	#   $1 - intent JSON payload (string)
 	# Returns:
 	#   tool names on stdout.
-	local intent_json intent_label confidence tool_groups confidence_min
+	local intent_json intent_label confidence confidence_min
 	local -a available_tools selected_groups selected_tools
 	intent_json="$1"
 
