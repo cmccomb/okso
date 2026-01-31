@@ -98,6 +98,7 @@ file_read_wrap_markdown_content() {
 	content="$1"
 	fence="$2"
 
+	# shellcheck disable=SC2016
 	printf '```%s\n%s\n```\n' "${fence}" "${content}"
 }
 
