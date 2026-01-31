@@ -163,7 +163,7 @@ python_repl_validate_snippet() {
 		return 2
 	fi
 
-	python_output=$(
+	if ! python_output=$(
 		PYTHON_REPL_SNIPPET="${snippet}" PYTHONNOUSERSITE=1 python3.12 -I - <<'PY'
 import ast
 import importlib.util
@@ -200,8 +200,7 @@ if missing:
     sys.exit(1)
 sys.exit(0)
 PY
-	)
-	if [[ $? -ne 0 ]]; then
+	); then
 		printf '%s\n' "${python_output}"
 		return 1
 	fi
