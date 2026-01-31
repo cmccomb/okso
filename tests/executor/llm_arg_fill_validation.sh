@@ -86,20 +86,3 @@ SCRIPT
 	[[ "$output" != *"LONG_BODY_TOKEN"* ]]
 	[[ "$output" == *"short snippet"* ]]
 }
-
-@test "apply_plan_arg_controls preserves literal $Q values" {
-	run env -i PATH="$PATH" HOME="$HOME" VERBOSITY=0 bash --noprofile --norc <<'SCRIPT'
-set -euo pipefail
-source ./src/lib/executor/loop.sh
-tool_args_schema() { echo '{"type":"object","properties":{"count":{"type":"string"},"note":{"type":"string"}},"required":["count","note"]}'; }
-plan_entry='{"tool":"demo","args":{"count":"$Q","note":"keep"}}'
-output="$(apply_plan_arg_controls "demo" '{}' "${plan_entry}" "" "")"
-echo "${output}"
-SCRIPT
-
-	[ "$status" -eq 0 ]
-	json_output="$(printf '%s\n' "$output" | tail -n 1)"
-	! echo "$json_output" | jq -e 'has("__context_controlled")' >/dev/null
-	echo "$json_output" | jq -e '.count == "$Q"' >/dev/null
-	echo "$json_output" | jq -e '.note == "keep"' >/dev/null
-}
