@@ -164,7 +164,7 @@ python_repl_validate_snippet() {
 	fi
 
 	python_output=$(
-		PYTHON_REPL_SNIPPET="${snippet}" python3 - <<'PY'
+		PYTHON_REPL_SNIPPET="${snippet}" PYTHONNOUSERSITE=1 python3.12 -I - <<'PY'
 import ast
 import importlib.util
 import os
