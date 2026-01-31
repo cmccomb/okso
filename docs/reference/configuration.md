@@ -33,7 +33,6 @@ PLANNER_DEBUG_LOG=${TMPDIR:-/tmp}/okso_planner_candidates.log
 INTENT_MODEL_REPO=bartowski/Qwen_Qwen3-1.7B-GGUF
 INTENT_MODEL_FILE=Qwen_Qwen3-1.7B-Q4_K_M.gguf
 INTENT_CACHE_FILE=${XDG_CACHE_HOME:-${HOME}/.cache}/okso/intent.prompt-cache
-INTENT_CONFIDENCE_MIN=0.45
 INTENT_MAX_OUTPUT_TOKENS=256
 INTENT_DISABLE_SEARCH=false
 ```
@@ -57,7 +56,6 @@ INTENT_DISABLE_SEARCH=false
 - `INTENT_MODEL_REPO`: Hugging Face repository for intent recognition; requires `INTENT_MODEL_FILE` when set (default: unset).
 - `INTENT_MODEL_FILE`: GGUF filename for intent recognition (default: unset).
 - `INTENT_CACHE_FILE`: Prompt cache file for intent recognition (default: `${XDG_CACHE_HOME:-${HOME}/.cache}/okso/intent.prompt-cache`).
-- `INTENT_CONFIDENCE_MIN`: Minimum intent confidence before tool filtering is enforced (default: `0.45`).
 - `INTENT_MAX_OUTPUT_TOKENS`: Maximum tokens requested from llama.cpp for intent recognition (default: `256`).
 - `INTENT_DISABLE_SEARCH`: When `true`, skip the pre-planner search stage regardless of intent (default: `false`).
 - `LLAMA_TEMPERATURE`: Temperature forwarded to llama.cpp inference; overrides tool-specific defaults when set.

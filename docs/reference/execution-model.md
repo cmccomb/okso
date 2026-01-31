@@ -5,7 +5,7 @@ okso separates high-level planning from step-by-step execution so that tool call
 ## Planner pass
 
 1. The planner drafts a numbered outline that mentions the tools to use for each step.
-2. An intent classification step determines if the request needs web context and filters the tool catalog for the planner when confidence is high.
+2. An intent classification step determines if the request needs web context and filters the tool catalog for the planner.
 3. A dedicated rephrasing step asks a Qwen3 1.7B model for 1–3 focused web search strings (constrained by a JSON schema) and runs
    a search for each, folding the aggregated snippets into the planner prompt.
 4. The outline is emitted as structured JSON for logging and optional downstream automation.

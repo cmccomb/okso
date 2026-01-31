@@ -11,7 +11,6 @@
 #   INTENT_MODEL_FILE (string): model file within the repository for intent inference.
 #   INTENT_CACHE_FILE (string): prompt cache file for intent llama.cpp calls.
 #   INTENT_MAX_OUTPUT_TOKENS (int >=1): llama.cpp generation budget for intent inference.
-#   INTENT_CONFIDENCE_MIN (float 0-1): minimum confidence required to enforce tool filtering.
 #   INTENT_DISABLE_SEARCH (bool): when true, skip pre-planner search regardless of intent.
 #   LLAMA_AVAILABLE (bool): whether llama.cpp can run locally.
 #
@@ -58,20 +57,17 @@ intent_fallback_json() {
 	# Returns a deterministic fallback intent payload.
 	# Arguments:
 	#   $1 - intent label (string)
-	#   $2 - confidence (string/float)
 	#   $3 - rationale (string)
 	# Returns:
 	#   JSON object on stdout.
-	local intent_label confidence rationale
+	local intent_label  rationale
 	intent_label="$1"
-	confidence="$2"
-	rationale="$3"
+	rationale="$2"
 
 	jq -nc \
 		--arg intent "${intent_label}" \
 		--arg rationale "${rationale}" \
-		--argjson confidence "${confidence}" \
-		'{intent:$intent, confidence:$confidence, rationale:$rationale}'
+		'{intent:$intent, rationale:$rationale}'
 }
 
 lowercase_intent() {
@@ -174,7 +170,7 @@ recognize_intent() {
 		return 0
 	fi
 
-	if ! jq -e '.intent and .confidence and .rationale' <<<"${raw}" >/dev/null 2>&1; then
+	if ! jq -e '.intent and .rationale' <<<"${raw}" >/dev/null 2>&1; then
 		log "WARN" "Intent output invalid; falling back" "intent_parse_failed" >&2
 		intent_keyword_match "${user_query}"
 		return 0
@@ -189,9 +185,8 @@ intent_requires_search() {
 	#   $1 - intent JSON payload (string)
 	# Returns:
 	#   0 if search should run; 1 if search should be skipped.
-	local intent_json intent_label confidence confidence_min
+	local intent_json intent_label
 	intent_json="$1"
-	confidence_min="${INTENT_CONFIDENCE_MIN:-0.45}"
 
 	if [[ "${INTENT_DISABLE_SEARCH:-false}" == true ]]; then
 		return 1
@@ -202,12 +197,7 @@ intent_requires_search() {
 	fi
 
 	intent_label="$(jq -r '.intent // ""' <<<"${intent_json}" 2>/dev/null)"
-	confidence="$(jq -r '.confidence // "0"' <<<"${intent_json}" 2>/dev/null)"
 	if [[ -z "${intent_label}" ]]; then
-		return 0
-	fi
-
-	if ! awk -v score="${confidence}" -v min="${confidence_min}" 'BEGIN { exit !(score >= min) }'; then
 		return 0
 	fi
 
@@ -312,11 +302,9 @@ intent_to_tools() {
 	#   $1 - intent JSON payload (string)
 	# Returns:
 	#   tool names on stdout.
-	local intent_json intent_label confidence confidence_min
+	local intent_json intent_label
 	local -a available_tools selected_groups selected_tools
 	intent_json="$1"
-
-	confidence_min="${INTENT_CONFIDENCE_MIN:-0.45}"
 
 	while IFS= read -r tool_name; do
 		[[ -z "${tool_name}" ]] && continue
@@ -329,15 +317,8 @@ intent_to_tools() {
 	fi
 
 	intent_label="$(jq -r '.intent // ""' <<<"${intent_json}" 2>/dev/null)"
-	confidence="$(jq -r '.confidence // "0"' <<<"${intent_json}" 2>/dev/null)"
 
 	if [[ -z "${intent_label}" ]]; then
-		printf '%s\n' "${available_tools[@]}"
-		return 0
-	fi
-
-	if ! awk -v score="${confidence}" -v min="${confidence_min}" 'BEGIN { exit !(score >= min) }'; then
-		log "INFO" "Intent confidence below threshold; using full tool list" "intent=${intent_label},confidence=${confidence},min=${confidence_min}" >&2
 		printf '%s\n' "${available_tools[@]}"
 		return 0
 	fi
