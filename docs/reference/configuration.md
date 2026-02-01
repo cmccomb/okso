@@ -50,10 +50,17 @@ Environment variables with the same names as the config keys take precedence ove
 - `CONFIG_FILE`: Override the config path used by `okso init` and runtime loads.
 - `OKSO_CACHE_DIR`: Override the prompt cache directory.
 - `OKSO_RUN_ID`: Run identifier used to scope executor caches (default: UTC timestamp).
+- `OKSO_NOTES_DIR`: Override the local notes storage directory (default: `${HOME}/.okso`).
 - `LLAMA_BIN`: Path to the llama.cpp binary used for inference (default: `llama-completion`).
 - `LLAMA_DEFAULT_CONTEXT_SIZE`: Assumed default llama.cpp context window used when no override is requested (default: `4096`).
 - `LLAMA_CONTEXT_CAP`: Maximum context window okso will request for llama.cpp invocations (default: `8192`).
 - `LLAMA_CONTEXT_MARGIN_PERCENT`: Safety margin percentage applied to prompt + generation estimates when sizing context (default: `15`).
+- `LLAMA_TIMEOUT_SECONDS`: Hard timeout for llama.cpp invocations; `0` disables the timeout (default: `0`).
+- `LLAMA_TEMPLATE`: Optional llama.cpp prompt template name.
+- `LLAMA_GRAMMAR`: Optional llama.cpp grammar file path.
+- `LLAMA_ROPE_FREQ_BASE`: Optional RoPE base override for llama.cpp.
+- `LLAMA_ROPE_FREQ_SCALE`: Optional RoPE scale override for llama.cpp.
+- `LLAMA_EXTRA_ARGS`: Extra llama.cpp CLI args appended to each invocation.
 - `PLANNER_SAMPLE_COUNT`: Number of planner generations to sample before selecting a plan (currently pinned to `1` in `planner.sh`).
 - `PLANNER_TEMPERATURE`: Temperature passed to planner llama.cpp generations (default: `0.7`).
 - `PLANNER_MAX_OUTPUT_TOKENS`: Maximum tokens the planner requests from llama.cpp when drafting a plan (default: `1024`).
@@ -61,13 +68,19 @@ Environment variables with the same names as the config keys take precedence ove
 - `PLANNER_DEBUG_LOG`: Path to a JSONL file containing planner candidate plans and scores for troubleshooting (default: `${TMPDIR:-/tmp}/okso_planner_candidates.log`).
 - `INTENT_MODEL_REPO`: Hugging Face repository for intent recognition; defaults to the planner model when unset (requires `INTENT_MODEL_FILE` when set explicitly).
 - `INTENT_MODEL_FILE`: GGUF filename for intent recognition; defaults to the planner model file when unset.
-- `INTENT_CACHE_FILE`: Prompt cache file for intent recognition (default: `${XDG_CACHE_HOME:-${HOME}/.cache}/okso/intent.prompt-cache`).
+- `INTENT_CACHE_FILE`: Prompt cache file for intent recognition (default: `${XDG_CACHE_HOME:-${HOME}/.cache}/okso/intent.prompt-cache`; `OKSO_INTENT_CACHE_FILE` is also accepted).
 - `INTENT_MAX_OUTPUT_TOKENS`: Maximum tokens requested from llama.cpp for intent recognition (default: `256`).
 - `INTENT_DISABLE_SEARCH`: When `true`, skip the pre-planner search stage regardless of intent (default: `false`).
 - `LLAMA_TEMPERATURE`: Temperature forwarded to llama.cpp inference; overrides tool-specific defaults when set.
-- `TESTING_PASSTHROUGH`: `true` to bypass llama.cpp for offline or deterministic runs.
-- `OKSO_GOOGLE_CSE_API_KEY`: Google Custom Search API key used by the `web_search` tool.
-- `OKSO_GOOGLE_CSE_ID`: Google Custom Search Engine ID used by the `web_search` tool.
+- `TESTING_PASSTHROUGH`: `true` to bypass llama.cpp for offline runs; note that planner generation still requires llama.cpp unless you stub planner output in tests.
+- `REPHRASER_MAX_OUTPUT_TOKENS`: Maximum tokens for search rephrasing (default: `256`).
+- `SEARCH_REPHRASER_DRY_ARGS`: Extra dry-run sampling args for search rephrasing (default: `--dry-multiplier 0.35 --dry-base 1.75 --dry-allowed-length 2 --dry-penalty-last-n 1024 --dry-sequence-breaker none`).
+- `SEARCH_REPHRASER_CACHE_FILE`: Prompt cache file for the search rephraser (no default unless set explicitly).
+- `PLANNER_CACHE_FILE`: Prompt cache file for planner llama.cpp calls (no default unless set explicitly).
+- `EXECUTOR_CACHE_FILE`: Prompt cache file for executor llama.cpp calls (no default unless set explicitly).
+- `VALIDATOR_CACHE_FILE`: Prompt cache file for final-answer validation (defaults to `EXECUTOR_CACHE_FILE` when set).
+- `GOOGLE_SEARCH_API_KEY`: Google Custom Search API key used by the `web_search` tool (optional; falls back to the bundled key when unset).
+- `GOOGLE_SEARCH_CX`: Google Custom Search Engine ID used by the `web_search` tool (optional; falls back to the bundled CX when unset).
 
 Planner sampling currently generates a single candidate per run (with `PLANNER_SAMPLE_COUNT` pinned to `1`), logs the normalized candidate to `PLANNER_DEBUG_LOG`, and records its score, tie-breaker, and rationale. Lowering the temperature generally produces narrower plans, while increasing it explores more tool combinations. Candidates outside the `PLANNER_MAX_PLAN_STEPS` budget, that omit the final `final_answer` step, or that reference unknown tools drop in score and are unlikely to win when the best plan is selected.
 
