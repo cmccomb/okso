@@ -10,13 +10,13 @@ cd "${ROOT_DIR}"
 errors=0
 
 echo "Checking for unresolved workflow placeholders ({{...}}) in workflows/"
-if rg -n "\{\{[^}]+\}\}" workflows || true; then
+if rg -n "\{\{[^}]+\}\}" workflows; then
   echo "Found unresolved placeholders in workflows/ (see above)."
   errors=$((errors+1))
 fi
 
 echo "Checking for TODO/TBD/__MISSING__ tokens in src/ and docs/"
-if rg -n "\b(TODO|TBD|__MISSING__)\b" src docs workflows || true; then
+if rg -n "\b(TODO|TBD|__MISSING__)\b" src docs workflows; then
   echo "Found TODO/TBD markers (see above)."
   errors=$((errors+1))
 fi
