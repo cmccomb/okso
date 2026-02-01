@@ -9,7 +9,6 @@
 # Responsibilities:
 #   - Detect stable hardware characteristics (physical RAM, CI environment).
 #   - Map resources to baseline model tiers.
-#   - Apply pressure-aware caps to derive an effective tier per run.
 #   - Map tiers to model roles (task/default/heavy) using Qwen3 GGUF sizes.
 #   - Persist stable detections to a cache file for reuse across invocations.
 #
@@ -22,7 +21,7 @@
 # Dependencies:
 #   - bash 3.2+
 #   - sysctl (macOS)
-#   - Optional: memory_pressure, vm_stat for headroom/pressure signals.
+#   - Optional: none
 #
 # Exit codes:
 #   Functions emit non-zero status on argument errors; detection helpers are best-effort.
@@ -66,22 +65,6 @@ normalize_bool_flag() {
 		;;
 	*)
 		printf '0'
-		;;
-	esac
-}
-
-normalize_headroom_class() {
-	# Normalizes various headroom class inputs to known labels.
-	# Arguments:
-	#   $1 - raw headroom class
-	# Returns:
-	#   'comfortable', 'tight', 'starved', or 'unknown'
-	case "$1" in
-	comfortable | tight | starved)
-		printf '%s' "$1"
-		;;
-	*)
-		printf 'unknown'
 		;;
 	esac
 }
@@ -150,224 +133,6 @@ map_resources_to_base_tier() {
 		printf 'xlarge'
 		;;
 	esac
-}
-
-normalize_pressure_level() {
-	# Normalizes various pressure level inputs to known labels.
-	# Arguments:
-	#   $1 - raw pressure level
-	# Returns:
-	#   'normal', 'warning', 'critical', or 'unknown'
-
-	local raw
-	raw="$(printf '%s' "${1:-}" |
-		tr '[:upper:]' '[:lower:]' |
-		sed -E 's/^[[:space:]]+|[[:space:]]+$//g')"
-
-	case "${raw}" in
-	normal | warning | critical)
-		printf '%s' "${raw}"
-		;;
-
-	# common synonyms / variants you might see
-	low | moderate | medium | ok | okay | healthy | green)
-		printf 'normal'
-		;;
-	elevated | high | pressure | yellow | amber)
-		printf 'warning'
-		;;
-	severe | very\ high | red | urgent)
-		printf 'critical'
-		;;
-
-	*)
-		printf 'unknown'
-		;;
-	esac
-}
-
-pressure_level_from_output() {
-	# Extract and normalize memory pressure level from memory_pressure output.
-	# Arguments:
-	#   $1 - memory_pressure command output
-	# Returns:
-	#   normalized pressure level (string): normal|warning|critical|unknown
-
-	local output level free_pct
-
-	output="${1:-}"
-
-	free_pct="$(printf '%s' "${output}" |
-		awk -F': ' '/System-wide memory free percentage:/ {
-        v=$2
-        gsub(/%/,"",v)
-        gsub(/[^0-9]/,"",v)
-        print v
-        exit
-      }')"
-
-	if [[ -z "${free_pct}" ]]; then
-		normalize_pressure_level ""
-		return 0
-	fi
-
-	# Map free% -> pressure label
-	if ((free_pct >= 50)); then
-		level="normal"
-	elif ((free_pct >= 25)); then
-		level="warning"
-	else
-		level="critical"
-	fi
-
-	normalize_pressure_level "${level}"
-}
-
-headroom_ratio_from_vm_stat() {
-	# Calculate free+speculative memory bytes from vm_stat output.
-	# Arguments:
-	#   $1 - vm_stat output text
-	# Returns:
-	#   Free + speculative memory in bytes (string int); empty on failure.
-	local output page_size free_pages speculative_pages page_size_bytes free_bytes
-	output="$1"
-
-	# Extract page size
-	page_size_bytes=$(printf '%s' "${output}" | awk '/page size of/ { if (match($0, /[0-9]+/)) { print substr($0, RSTART, RLENGTH); exit } }')
-	if [[ -z "${page_size_bytes}" || ! "${page_size_bytes}" =~ ^[0-9]+$ ]]; then
-		printf ''
-		return
-	fi
-
-	# Extract free and speculative pages
-	free_pages=$(
-		printf '%s' "$output" |
-			awk '/Pages free/ {
-      if (match($0, /[0-9]+/)) { print substr($0, RSTART, RLENGTH); exit }
-    }'
-	)
-
-	# Extract speculative pages
-	speculative_pages=$(
-		printf '%s' "$output" |
-			awk '/Pages speculative/ {
-      if (match($0, /[0-9]+/)) { print substr($0, RSTART, RLENGTH); exit }
-    }'
-	)
-	free_pages=${free_pages:-0}
-	speculative_pages=${speculative_pages:-0}
-
-	# Calculate total free bytes
-	if [[ ! "${free_pages}" =~ ^[0-9]+$ || ! "${speculative_pages}" =~ ^[0-9]+$ ]]; then
-		printf ''
-		return
-	fi
-
-	# Compute free + speculative bytes
-	free_bytes=$(((free_pages + speculative_pages) * page_size_bytes))
-	printf '%s' "${free_bytes}"
-}
-
-detect_pressure_level() {
-	# Detect system memory pressure level using memory_pressure command.
-	# Returns:
-	#   Normalized pressure level (string)
-
-	# Run memory_pressure and capture output
-	local output
-	if ! output=$(memory_pressure 2>/dev/null); then
-		printf 'unknown'
-		return 0
-	fi
-
-	# Extract pressure level
-	pressure_level_from_output "${output}"
-}
-
-estimate_headroom_class() {
-	# Estimate memory headroom class using vm_stat output.
-	# Returns:
-	#  Normalized headroom class (string)
-
-	local phys_bytes output free_bytes ratio
-	phys_bytes="${DETECTED_PHYS_MEM_BYTES:-}"
-
-	# Fallback detection if not cached
-	if [[ -z "${phys_bytes}" ]]; then
-		phys_bytes=$(detect_physical_memory_bytes 2>/dev/null || printf '')
-	fi
-
-	# Validate physical bytes
-	if [[ -z "${phys_bytes}" ]]; then
-		printf 'unknown'
-		return 0
-	fi
-
-	# Run vm_stat and capture output
-	if ! output=$(vm_stat 2>/dev/null); then
-		printf 'unknown'
-		return 0
-	fi
-
-	# Calculate free + speculative bytes
-	free_bytes=$(headroom_ratio_from_vm_stat "${output}")
-	if [[ -z "${free_bytes}" ]]; then
-		printf 'unknown'
-		return 0
-	fi
-
-	# Calculate free/total ratio
-	ratio=$(awk -v free="${free_bytes}" -v total="${phys_bytes}" 'BEGIN { if (total == 0) { print ""; exit } printf "%.4f", free/total }')
-	if [[ -z "${ratio}" ]]; then
-		printf 'unknown'
-		return 0
-	fi
-
-	# Classify headroom based on ratio
-	awk -v r="${ratio}" 'BEGIN { if (r >= 0.30) { print "comfortable" } else if (r >= 0.10) { print "tight" } else { print "starved" } }'
-}
-
-cap_tier_for_pressure() {
-	# Apply pressure and headroom-based caps to a base tier.
-	# Arguments:
-	#   $1 - base tier
-	#   $2 - pressure level
-	#   $3 - headroom class
-	# Returns:
-	#   Capped tier label (string)
-	local base pressure headroom
-	base="$1"
-	pressure="$(normalize_pressure_level "$2")"
-	headroom="$(normalize_headroom_class "$3")"
-
-	# Apply caps based on pressure and headroom
-	if [[ "${pressure}" == "critical" || "${headroom}" == "starved" ]]; then
-		if [[ "${base}" == "ci" ]]; then
-			printf 'ci'
-			return 0
-		fi
-		printf 'tiny'
-		return 0
-	fi
-
-	# Apply moderate cap
-	if [[ "${pressure}" == "warning" || "${headroom}" == "tight" ]]; then
-		case "${base}" in
-		ci)
-			printf 'ci'
-			;;
-		tiny)
-			printf 'tiny'
-			;;
-		*)
-			printf 'small'
-			;;
-		esac
-		return 0
-	fi
-
-	# No cap applied
-	printf '%s' "${base}"
 }
 
 map_tier_to_models() {
@@ -505,9 +270,6 @@ export -f model_file_for_size
 export -f detect_physical_memory_bytes
 export -f detect_is_github_actions
 export -f map_resources_to_base_tier
-export -f detect_pressure_level
-export -f estimate_headroom_class
-export -f cap_tier_for_pressure
 export -f map_tier_to_models
 export -f load_or_detect_system_profile
 export -f resolve_autotune_model_sizes
