@@ -1,43 +1,47 @@
-[![CI - Unit](https://github.com/cmccomb/okso/actions/workflows/ci-unit.yml/badge.svg)](https://github.com/cmccomb/okso/actions/workflows/ci-unit.yml)
-[![CI - Install](https://github.com/cmccomb/okso/actions/workflows/ci-install.yml/badge.svg)](https://github.com/cmccomb/okso/actions/workflows/ci-install.yml)
+[![Unit Tests](https://github.com/cmccomb/okso/actions/workflows/ci-unit.yml/badge.svg)](https://github.com/cmccomb/okso/actions/workflows/ci-unit.yml)
+[![Installation Test](https://github.com/cmccomb/okso/actions/workflows/ci-install.yml/badge.svg)](https://github.com/cmccomb/okso/actions/workflows/ci-install.yml)
 
-# `okso`, let's go to work
+# `okso`: a local-first agent for macOS
 
-**A local-first, agentic CLI tool for macOS; a polite ghost in your machine.**  
-okso helps small language models *operate* inside a desktop environment by routing intent → plans → tool calls, with an emphasis on repeatability, tight I/O, and “no surprises.”
+`okso` is a command-line agent native to the a modern macOS environment.
+It is designed to run all LLMs strictly locally via `llama.cpp`. 
+When a user sends a new query `okso` first identifies the general intent of the query, which is used to filter the available toolset.
+Next, a dedicated planner generates a structure dplan of action before passing it to an executor that runs each step in sequence.
+A final validation step ensures that the output is safe and useful before returning it to the user. If not, the agent can re-plan and try again.
 
-## What it does
-
-okso is a command-line interface that:
-- turns a user request into a **structured plan**
-- selects from a **tool registry** (terminal, files, notes, etc.)
-- executes tool calls with **bounded side effects**
-- emits a **final answer** (and can record it as an artifact)
-
+Ultimately, this system is designed to be a robust, useful, local daily driver.
 
 ## Installation
 
-Install the Homebrew tap and formula to pull in dependencies and place the `okso` CLI on your `PATH`:
+The tool is distributed via Homebrew. This manages dependencies and adds the CLI to your path.
 
-```bash
+```sh
 brew tap cmccomb/okso https://github.com/cmccomb/okso
 brew install --HEAD cmccomb/okso/okso
 ```
 
-Upgrade or remove the CLI with:
+To update or remove:
 
-```bash
+```sh
 brew upgrade okso
 brew uninstall okso
 ```
 
-See [docs/user-guides/installation.md](docs/user-guides/installation.md) for additional options and manual setup notes.
 
 ## Basic usage
 
-See [docs/user-guides/usage.md](docs/user-guides/usage.md) for task-based walkthroughs (approvals, offline and configuration setup). Reference material lives in the [docs/](docs/index.md), including:
+Run `okso` followed by your request.
+The agent will propose a sequence of steps using its [tool registry](http://cmccomb.com/okso/reference/tools.html), 
+including a persistent terminal, sandboxed Python REPL, and macOS-native applications (Notes, Reminders, Calendar)
 
-- [Execution model](docs/reference/execution-model.md): how planning and executor loops interact with tool calls.
-- [Prompt assets](docs/reference/prompts.md): where prompts live and how they load.
-- [Architecture overview](docs/reference/architecture.md): deeper look at the planner pass, executor loop, llama.cpp fallbacks, and tool ranking.
+If you don't need any special characters, you can skip the quotes:
+```sh
+okso what time is my next meeting at -y -vvv
+```
 
+But if you need special characters, use quotes:
+```sh
+okso "can you rephrase this question more accurately? 'What is the capital of that place in europe?'"
+```
+
+For more detailed usage guidance, read the [documentation](http://cmccomb.com/okso).
