@@ -59,7 +59,10 @@ register_mail_list_unread() {
 
 	args_schema=$(
 		cat <<'JSON'
-{"type":"object","properties":{}}
+{
+  "type": "object",
+  "properties": {}
+}
 JSON
 	)
 	register_tool \

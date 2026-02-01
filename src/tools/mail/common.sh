@@ -51,7 +51,7 @@ mail_trim_whitespace() {
 
 mail_resolve_query() {
 	local text_key query
-	text_key="$(canonical_text_arg_key)"
+	text_key="input"
 	query=$(jq -er --arg key "${text_key}" 'if type == "object" then .[$key] // empty else empty end' <<<"${TOOL_ARGS:-{}}" 2>/dev/null || true)
 
 	if [[ -z "${query}" ]]; then

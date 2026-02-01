@@ -91,7 +91,16 @@ register_file_read() {
 
 	args_schema=$(
 		cat <<'JSON'
-{"type":"object","properties":{"input":{"type":"string"}},"required":["input"],"additionalProperties":false}
+{
+  "type": "object",
+  "properties": {
+    "input": {
+      "type": "string"
+    }
+  },
+  "required": ["input"],
+  "additionalProperties": false
+}
 JSON
 	)
 

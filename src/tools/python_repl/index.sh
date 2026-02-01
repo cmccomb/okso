@@ -195,7 +195,7 @@ python_repl_resolve_query() {
 	# Returns:
 	#   Outputs the Python statements (string).
 	local args_json text_key jq_error_file jq_error query
-	text_key="$(canonical_text_arg_key)"
+	text_key="input"
 	args_json="${TOOL_ARGS:-}"
 
 	if [[ -z "${args_json}" ]]; then
@@ -235,7 +235,7 @@ tool_python_repl() {
 	local query sandbox_dir startup_file repl_input status text_key create_status startup_status # strings and status code
 
 	# Resolve input query
-	text_key="$(canonical_text_arg_key)"
+	text_key="input"
 
 	# Get the Python statements to execute
 	if ! query=$(python_repl_resolve_query); then
@@ -286,7 +286,20 @@ register_python_repl() {
 	local args_schema
 
 	# Define the arguments schema
-	args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}}}')
+	args_schema=$(
+		cat <<'JSON'
+{
+  "type": "object",
+  "required": ["input"],
+  "properties": {
+    "input": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
+JSON
+	)
 	register_tool \
 		"python_repl" \
 		"Execute Python statements in a temporary sandbox. However, you MUST use print statements to view outputs." \

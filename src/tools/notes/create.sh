@@ -83,7 +83,19 @@ register_notes_create() {
 
 	args_schema=$(
 		cat <<'JSON'
-{"type":"object","required":["title"],"properties":{"title":{"type":"string","minLength":1},"body":{"type":"string"}}}
+{
+  "type": "object",
+  "required": ["title"],
+  "properties": {
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "body": {
+      "type": "string"
+    }
+  }
+}
 JSON
 	)
 	register_tool \

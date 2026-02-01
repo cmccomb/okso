@@ -20,12 +20,6 @@
 # shellcheck source=src/lib/core/logging.sh
 source "${BASH_SOURCE[0]%/tools/registry.sh}/lib/core/logging.sh"
 
-: "${CANONICAL_TEXT_ARG_KEY:=input}"
-
-canonical_text_arg_key() {
-	printf '%s' "${CANONICAL_TEXT_ARG_KEY}"
-}
-
 if [[ -z "${TOOL_REGISTRY_JSON:-}" ]]; then
 	TOOL_REGISTRY_JSON='{"names":[],"registry":{}}'
 fi
@@ -114,8 +108,22 @@ register_tool() {
 
 	local name args_schema default_args_schema text_key
 	name="$1"
-	text_key="$(canonical_text_arg_key)"
-	default_args_schema=$(jq -nc --arg key "${text_key}" '{"type":"object","properties":{($key):{"type":"string"}},"additionalProperties":{"type":"string"}}')
+	text_key="input"
+	default_args_schema=$(
+		cat <<'JSON'
+{
+  "type": "object",
+  "properties": {
+    "input": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": {
+    "type": "string"
+  }
+}
+JSON
+	)
 	args_schema="${4:-${default_args_schema}}"
 
 	if ! jq -e --arg key "${text_key}" --arg name "${name}" '

@@ -445,7 +445,22 @@ register_terminal() {
 
 	args_schema=$(
 		cat <<JSON
-{"type":"object","required":["command"],"properties":{"command":{"type":"string","enum":$(terminal_command_enum_json)},"args":{"type":"array","items":{"type":"string"}}}}
+{
+  "type": "object",
+  "required": ["command"],
+  "properties": {
+    "command": {
+      "type": "string",
+      "enum": $(terminal_command_enum_json)
+    },
+    "args": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}
 JSON
 	)
 

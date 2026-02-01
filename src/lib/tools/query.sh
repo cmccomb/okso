@@ -6,9 +6,6 @@
 # Usage:
 #   source "${BASH_SOURCE[0]%/query.sh}/query.sh"
 #
-# Environment variables:
-#   CANONICAL_TEXT_ARG_KEY (string): preferred key for single-string args; default: "input".
-#
 # Dependencies:
 #   - bash 3.2+
 #   - jq
@@ -34,8 +31,8 @@ extract_tool_query() {
 	local args_json text_key query
 	args_json="${2:-"{}"}"
 
-	# Determine the canonical text argument key for the tool
-	text_key="$(canonical_text_arg_key)"
+	# Use the standard text argument key for the tool.
+	text_key="input"
 
 	# Validate tool name
 	if [[ -z "${args_json}" ]]; then

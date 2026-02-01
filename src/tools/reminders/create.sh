@@ -91,7 +91,22 @@ register_reminders_create() {
 
 	args_schema=$(
 		cat <<'JSON'
-{"type":"object","required":["title"],"properties":{"title":{"type":"string","minLength":1},"time":{"type":"string"},"notes":{"type":"string"}}}
+{
+  "type": "object",
+  "required": ["title"],
+  "properties": {
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "time": {
+      "type": "string"
+    },
+    "notes": {
+      "type": "string"
+    }
+  }
+}
 JSON
 	)
 	register_tool \

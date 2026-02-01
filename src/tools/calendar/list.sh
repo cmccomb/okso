@@ -73,7 +73,10 @@ register_calendar_list() {
 
 	args_schema=$(
 		cat <<'JSON'
-{"type":"object","properties":{}}
+{
+  "type": "object",
+  "properties": {}
+}
 JSON
 	)
 	register_tool \

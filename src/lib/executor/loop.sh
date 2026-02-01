@@ -6,9 +6,6 @@
 # Usage:
 #   source "${BASH_SOURCE[0]%/loop.sh}/loop.sh"
 #
-# Environment variables:
-#   CANONICAL_TEXT_ARG_KEY (string): key for single-string tool arguments; default: "input".
-#
 # Dependencies:
 #   - bash 3.2+
 #   - jq
@@ -217,7 +214,7 @@ patch_notes_schema() {
 	#   $1 - JSON array of allowed note titles
 	local titles_json base_schema patched_schema text_key
 	titles_json="$1"
-	text_key="${CANONICAL_TEXT_ARG_KEY:-input}"
+	text_key="input"
 
 	base_schema="$(tool_args_schema "notes_read")"
 	if [[ -z "${base_schema}" ]]; then
@@ -267,7 +264,7 @@ patch_reminders_schema() {
 	#   $1 - JSON array of allowed reminder titles
 	local titles_json base_schema patched_schema text_key
 	titles_json="$1"
-	text_key="${CANONICAL_TEXT_ARG_KEY:-input}"
+	text_key="input"
 
 	base_schema="$(tool_args_schema "reminders_complete")"
 	if [[ -z "${base_schema}" ]]; then

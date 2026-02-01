@@ -204,7 +204,18 @@ tool_feedback() {
 register_feedback() {
 	local args_schema
 
-	args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","properties":{($key):{"type":"string"}}}')
+	args_schema=$(
+		cat <<'JSON'
+{
+  "type": "object",
+  "properties": {
+    "input": {
+      "type": "string"
+    }
+  }
+}
+JSON
+	)
 	register_tool \
 		"feedback" \
 		"WHEN ABSOLUTELY NECESSARY use this tool to ask the user a question to receive more information to complete your task." \
