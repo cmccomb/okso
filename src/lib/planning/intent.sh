@@ -69,7 +69,7 @@ intent_fallback_json() {
 	jq -nc \
 		--arg intent "${intent_label}" \
 		--arg rationale "${rationale}" \
-		'{intent:$intent, rationale:$rationale}'
+		'{intents:[$intent], rationale:$rationale}'
 }
 
 lowercase_intent() {
@@ -110,7 +110,7 @@ recognize_intent() {
 		return 0
 	fi
 
-	if ! jq -e '.intent and .rationale' <<<"${raw}" >/dev/null 2>&1; then
+	if ! jq -e '.intents and (.intents | length > 0) and .rationale' <<<"${raw}" >/dev/null 2>&1; then
 		log "WARN" "Intent output invalid; falling back" "intent_parse_failed" >&2
 		intent_keyword_match "${user_query}"
 		return 0
@@ -125,7 +125,7 @@ intent_requires_search() {
 	#   $1 - intent JSON payload (string)
 	# Returns:
 	#   0 if search should run; 1 if search should be skipped.
-	local intent_json intent_label
+	local intent_json
 	intent_json="$1"
 
 	if [[ "${INTENT_DISABLE_SEARCH:-false}" == true ]]; then
@@ -136,6 +136,15 @@ intent_requires_search() {
 		return 0
 	fi
 
+	if jq -e '.intents and (.intents | length > 0)' <<<"${intent_json}" >/dev/null 2>&1; then
+		if jq -e '.intents[] | select(. == "web" or . == "general")' <<<"${intent_json}" >/dev/null 2>&1; then
+			return 0
+		fi
+		if jq -e '.intents[] | select(. != "notes" and . != "reminders" and . != "calendar" and . != "mail" and . != "filesystem" and . != "coding" and . != "math")' <<<"${intent_json}" >/dev/null 2>&1; then
+			return 0
+		fi
+		return 1
+	fi
 	intent_label="$(jq -r '.intent // ""' <<<"${intent_json}" 2>/dev/null)"
 	if [[ -z "${intent_label}" ]]; then
 		return 0
@@ -266,19 +275,20 @@ intent_to_tools() {
 		return 0
 	fi
 
-	intent_label="$(jq -r '.intent // ""' <<<"${intent_json}" 2>/dev/null)"
-
-	if [[ -z "${intent_label}" ]]; then
-		printf '%s\n' "${available_tools[@]}"
-		return 0
-	fi
-
-	if jq -e '.tool_groups and (.tool_groups | length > 0)' <<<"${intent_json}" >/dev/null 2>&1; then
-		while IFS= read -r group; do
-			[[ -z "${group}" ]] && continue
-			selected_groups+=("${group}")
-		done < <(jq -r '.tool_groups[]' <<<"${intent_json}" 2>/dev/null)
+	if jq -e '.intents and (.intents | length > 0)' <<<"${intent_json}" >/dev/null 2>&1; then
+		while IFS= read -r intent_label; do
+			[[ -z "${intent_label}" ]] && continue
+			while IFS= read -r group; do
+				[[ -z "${group}" ]] && continue
+				selected_groups+=("${group}")
+			done < <(intent_group_for_intent "${intent_label}")
+		done < <(jq -r '.intents[]' <<<"${intent_json}" 2>/dev/null)
 	else
+		intent_label="$(jq -r '.intent // ""' <<<"${intent_json}" 2>/dev/null)"
+		if [[ -z "${intent_label}" ]]; then
+			printf '%s\n' "${available_tools[@]}"
+			return 0
+		fi
 		while IFS= read -r group; do
 			[[ -z "${group}" ]] && continue
 			selected_groups+=("${group}")
