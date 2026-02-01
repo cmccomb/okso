@@ -45,3 +45,4 @@ okso "can you rephrase this question more accurately? 'What is the capital of th
 ```
 
 For more detailed usage guidance, read the [documentation](http://cmccomb.com/okso).
+For maintainer, support, and roadmap details, see [Project](docs/project.md).
