@@ -53,6 +53,87 @@ json_state_write_cache() {
 	printf '%s' "$2" >"${cache_path}" 2>/dev/null || true
 }
 
+json_state_read_cache() {
+	# Loads the cached JSON document for a namespace.
+	# Arguments:
+	#   $1 - namespace prefix (string)
+	# Returns:
+	#   Cached JSON (string) or empty string.
+	local prefix cache_path cached_document
+	prefix="$1"
+	cache_path=$(json_state_cache_path "${prefix}")
+	cached_document=""
+	if [[ -f "${cache_path}" ]]; then
+		cached_document=$(jq -c '.' <"${cache_path}" 2>/dev/null || printf '')
+	fi
+	printf '%s' "${cached_document}"
+}
+
+json_state_sanitize_json() {
+	# Validates and normalizes JSON, returning a default when invalid.
+	# Arguments:
+	#   $1 - JSON document (string)
+	#   $2 - default JSON document (string, optional)
+	# Returns:
+	#   Normalized JSON (string). Returns empty string when invalid and no default.
+	local document fallback sanitized
+	document="$1"
+	fallback="${2:-}"
+
+	if sanitized=$(printf '%s' "${document}" | jq -c '.' 2>/dev/null); then
+		printf '%s' "${sanitized}"
+		return 0
+	fi
+
+	if [[ -z "${fallback}" ]]; then
+		return 1
+	fi
+
+	if sanitized=$(printf '%s' "${fallback}" | jq -c '.' 2>/dev/null); then
+		printf '%s' "${sanitized}"
+	else
+		printf '{}'
+	fi
+}
+
+json_state_resolve_document() {
+	# Resolves the JSON document for a namespace without side effects.
+	# Arguments:
+	#   $1 - namespace prefix (string)
+	#   $2 - fallback JSON document (string, optional)
+	# Returns:
+	#   Resolved JSON document (string).
+	local prefix fallback fallback_provided sanitized_fallback cache_document json_var document_value sanitized_document
+	prefix="$1"
+	fallback="${2:-}"
+	fallback_provided=false
+	if [[ -n "${fallback}" ]]; then
+		fallback_provided=true
+	fi
+
+	sanitized_fallback=$(json_state_sanitize_json "${fallback}" '{}')
+	cache_document=$(json_state_read_cache "${prefix}")
+	if [[ "${fallback_provided}" != true && -n "${cache_document}" ]]; then
+		sanitized_fallback="${cache_document}"
+	fi
+
+	json_var=$(json_state_namespace_var "${prefix}")
+	if [[ -z "${!json_var+x}" ]]; then
+		printf '%s' "${sanitized_fallback}"
+		return 0
+	fi
+
+	document_value="${!json_var}"
+	if sanitized_document=$(json_state_sanitize_json "${document_value}" ""); then
+		if [[ -n "${sanitized_document}" ]]; then
+			printf '%s' "${sanitized_document}"
+			return 0
+		fi
+	fi
+
+	printf '%s' "${sanitized_fallback}"
+}
+
 json_state_get_document() {
 	# Retrieves the JSON document for a namespace with optional fallback.
 	# Arguments:
@@ -61,7 +142,7 @@ json_state_get_document() {
 	# Behavior:
 	#   Returns the fallback when the namespaced variable is unset or contains
 	#   invalid JSON, preventing downstream jq errors.
-	local prefix fallback json_var document_value sanitized_fallback cache_path cache_document fallback_provided sanitized_document resolved_document output_var
+	local prefix fallback json_var fallback_provided resolved_document output_var
 	prefix="$1"
 	if [[ $# -ge 3 && -n "${3}" ]]; then
 		output_var="$3"
@@ -76,32 +157,13 @@ json_state_get_document() {
 		fallback="{}"
 	fi
 
-	sanitized_fallback=$(printf '%s' "${fallback}" | jq -c '.' 2>/dev/null || printf '{}')
-	cache_path=$(json_state_cache_path "${prefix}")
-	cache_document=""
-	if [[ -f "${cache_path}" ]]; then
-		cache_document=$(jq -c '.' <"${cache_path}" 2>/dev/null || printf '')
+	if [[ "${fallback_provided}" != true ]]; then
+		fallback=""
 	fi
-	if [[ "${fallback_provided}" != true && -n "${cache_document}" ]]; then
-		sanitized_fallback="${cache_document}"
-	fi
+	resolved_document=$(json_state_resolve_document "${prefix}" "${fallback}")
 	json_var=$(json_state_namespace_var "${prefix}")
-	if [[ -z "${!json_var+x}" ]]; then
-		resolved_document="${sanitized_fallback}"
-		printf -v "${json_var}" '%s' "${resolved_document}"
-		json_state_write_cache "${prefix}" "${resolved_document}"
-	else
-		document_value="${!json_var}"
-		if sanitized_document=$(printf '%s' "${document_value}" | jq -c '.' 2>/dev/null); then
-			resolved_document="${sanitized_document}"
-			printf -v "${json_var}" '%s' "${resolved_document}"
-			json_state_write_cache "${prefix}" "${resolved_document}"
-		else
-			resolved_document="${sanitized_fallback}"
-			printf -v "${json_var}" '%s' "${resolved_document}"
-			json_state_write_cache "${prefix}" "${resolved_document}"
-		fi
-	fi
+	printf -v "${json_var}" '%s' "${resolved_document}"
+	json_state_write_cache "${prefix}" "${resolved_document}"
 
 	if [[ -n "${output_var}" ]]; then
 		printf -v "${output_var}" '%s' "${resolved_document}"
