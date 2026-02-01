@@ -1,5 +1,7 @@
 name: example_yaml
 description: Example YAML workflow
+intents:
+  - notes
 parameters:
   type: object
   properties:

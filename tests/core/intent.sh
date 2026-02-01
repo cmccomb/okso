@@ -36,3 +36,21 @@ SCRIPT
 	[ "$status" -eq 0 ]
 	[ "${output}" = "" ]
 }
+
+@test "intent_to_tools includes workflows tagged to intent groups" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+export WORKFLOWS_DIR=./tests/fixtures/workflows/valid
+source ./src/lib/workflows/loader.sh
+source ./src/tools/registry.sh
+source ./src/lib/planning/intent.sh
+init_tool_registry
+register_workflow_tools
+intent_json='{"intent":"notes","rationale":"capture note"}'
+intent_to_tools "${intent_json}" | sort
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	[[ "${output}" == *"workflow_example_yaml"* ]]
+	[[ "${output}" != *"workflow_example_json"* ]]
+}

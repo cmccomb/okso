@@ -30,6 +30,7 @@ Workflows are reusable tool sequences defined as JSON or YAML files under `workf
 {
   "name": "weekly_status",
   "description": "Draft a weekly update.",
+  "intents": ["notes"],
   "parameters": {
     "type": "object",
     "properties": {
@@ -51,6 +52,10 @@ Workflows are reusable tool sequences defined as JSON or YAML files under `workf
 ### Interpolation
 
 Workflow step `args` and `thought` values support `{{parameter}}` interpolation. Values are taken from the workflow tool arguments at invocation time.
+
+### Intent tagging
+
+Add an `intents` array to scope workflows to specific intent tool groups (for example, `["notes"]` or `["web","notes"]`). Supported values: `general`, `web`, `notes`, `reminders`, `calendar`, `mail`, `filesystem`, `coding`, `math`. When omitted, workflows default to `["general"]`, which only matches the general tool group.
 
 ### Invocation
 

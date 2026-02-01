@@ -1,6 +1,7 @@
 {
   "name": "example_json",
   "description": "Example JSON workflow",
+  "intents": ["filesystem"],
   "parameters": {
     "type": "object",
     "properties": {

@@ -1,6 +1,7 @@
 {
   "name": "inbox_to_reminders",
   "description": "Review unread mail and create a follow-up reminder.",
+  "intents": ["mail", "reminders"],
   "parameters": {
     "type": "object",
     "properties": {

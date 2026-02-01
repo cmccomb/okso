@@ -1,6 +1,7 @@
 {
   "name": "research_and_summarize",
   "description": "Search for a topic, fetch a key source, and store summary notes.",
+  "intents": ["web", "notes"],
   "parameters": {
     "type": "object",
     "properties": {
