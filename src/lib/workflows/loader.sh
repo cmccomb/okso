@@ -154,7 +154,7 @@ workflow_validate_spec() {
 		and (all(.steps[]; (type == "object")
 			and (.tool | type == "string" and length > 0)
 			and ((.args | type == "object") or (.args == null))
-			and (.thought | type == "string")))
+			and ((.thought == null) or (.thought | type == "string"))))
 		and ((.parameters | type == "object") or (.parameters == null))
 		and ((.parameters | has("type") | not) or (.parameters.type == "object"))
 	' <<<"${spec}" >/dev/null 2>&1; then
