@@ -63,3 +63,21 @@ steps:
       title: "Onboarding: {{teammate}}"
     thought: "Create the note."
 ```
+
+## Example workflows
+
+The following examples live in this directory and can be invoked via the `workflow_<name>` pseudo-tool:
+
+- `daily-briefing.json` (`workflow_daily_briefing`): Search a topic, fetch a primary source, and save a daily briefing note.
+- `research-and-summarize.json` (`workflow_research_and_summarize`): Research a query, fetch a source URL, and capture summary notes.
+- `inbox-to-reminders.json` (`workflow_inbox_to_reminders`): List unread mail and create a follow-up reminder.
+
+### Run via CLI
+
+Use `--plan-only` to see the expanded steps without executing tools, or omit it to run the workflow.
+
+```bash
+./src/bin/okso --plan-only -- "Use workflow_daily_briefing with topic \"AI policy\" and source_url \"https://example.com\" and note_title \"Daily Briefing: AI policy\"."
+./src/bin/okso --plan-only -- "Use workflow_research_and_summarize with query \"battery recycling\" and source_url \"https://example.com\" and note_title \"Research: Battery recycling\"."
+./src/bin/okso --plan-only -- "Use workflow_inbox_to_reminders with reminder_title \"Reply to vendor\" and reminder_notes \"Follow up on pricing request\"."
+```
