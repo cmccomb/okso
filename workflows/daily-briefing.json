@@ -4,42 +4,45 @@
   "intents": ["web"],
   "parameters": {
     "type": "object",
-    "properties": {},
+    "properties": {
+      "current_date": {"type": "string", "minLength": 1, "description": "The current date in YYYY-MM-DD format."}
+      },
+    "required": ["current_date"],
     "additionalProperties": false
   },
   "steps": [
     {
       "tool": "web_search",
       "args": {
-        "query": "past 24 hours top headlines"
+        "query": "top headlines after:{{current_date}}"
       },
       "thought": "Get a broad baseline set of stories from the last 24 hours."
     },
     {
       "tool": "web_search",
       "args": {
-        "query": "past 24 hours site:reuters.com OR site:apnews.com OR site:bloomberg.com OR site:wsj.com OR site:ft.com"
+        "query": "news site:reuters.com OR site:apnews.com OR site:bloomberg.com OR site:wsj.com OR site:ft.com after:{{current_date}}"
       },
       "thought": "Pull high-signal wire/business reporting from the last 24 hours."
     },
     {
       "tool": "web_search",
       "args": {
-        "query": "past 24 hours site:bbc.co.uk OR site:theguardian.com OR site:aljazeera.com OR site:dw.com"
+        "query": "news site:bbc.co.uk OR site:theguardian.com OR site:aljazeera.com OR site:dw.com after:{{current_date}}"
       },
       "thought": "Add international coverage from the last 24 hours."
     },
     {
       "tool": "web_search",
       "args": {
-        "query": "past 24 hours site:nytimes.com OR site:washingtonpost.com OR site:latimes.com OR site:usatoday.com"
+        "query": "news site:nytimes.com OR site:washingtonpost.com OR site:latimes.com OR site:usatoday.com after:{{current_date}}"
       },
       "thought": "Add major US paper coverage from the last 24 hours."
     },
     {
       "tool": "web_search",
       "args": {
-        "query": "past 24 hours site:economist.com OR site:newyorker.com OR site:theatlantic.com"
+        "query": "news 24 hours site:economist.com OR site:newyorker.com OR site:theatlantic.com after:{{current_date}}"
       },
       "thought": "Add some analysis/weekly outlets if anything was posted in the last 24 hours."
     },

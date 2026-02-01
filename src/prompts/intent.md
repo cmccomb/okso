@@ -38,7 +38,7 @@ general, web, notes, reminders, calendar, mail, filesystem, coding, math
 8) If the user asks for calculations, statistics, data analysis, optimization, or numeric simulation
    OR provides data and wants computed results/plots → include "math"
 
-9) Otherwise → include "general"
+9) Otherwise → return only "general"
 
 ## Output contract
 Return ONLY JSON matching this schema:
