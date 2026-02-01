@@ -17,3 +17,5 @@ Use this map to find the right guide:
   - [Development](contributor/development.md): formatting, linting, and workflow notes.
   - [Testing](contributor/testing.md): Bats entry points and coverage reporting.
   - [Platform quirks](contributor/platform-quirks.md): macOS Bash compatibility tips.
+- **Project**
+  - [Project overview](project.md): maintainers, support paths, contribution expectations, and roadmap.
