@@ -259,6 +259,7 @@ workflow_render_steps() {
 				if type == "string" then
 					reduce ($vars | keys[]) as $key (.;
 						gsub("\\{\\{" + $key + "\\}\\}"; ($vars[$key] | tostring)))
+					| gsub("\\{\\{[^}]+\\}\\}"; "")
 				else
 					.
 				end
@@ -267,7 +268,7 @@ workflow_render_steps() {
 		.steps
 		| map({
 			tool: .tool,
-			args: ((.args // {}) | render($args)),
+			args: ((.args // {}) | render($args) | to_entries | map(select(.value != "" and .value != null)) | from_entries),
 			thought: ((.thought // "") | render($args))
 		})
 	' <<<"${spec}"
