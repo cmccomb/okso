@@ -59,8 +59,8 @@ Environment variables with the same names as the config keys take precedence ove
 - `PLANNER_MAX_OUTPUT_TOKENS`: Maximum tokens the planner requests from llama.cpp when drafting a plan (default: `1024`).
 - `PLANNER_MAX_PLAN_STEPS`: Maximum allowed planner steps (including `final_answer`) before scoring penalties apply (default: `6`).
 - `PLANNER_DEBUG_LOG`: Path to a JSONL file containing planner candidate plans and scores for troubleshooting (default: `${TMPDIR:-/tmp}/okso_planner_candidates.log`).
-- `INTENT_MODEL_REPO`: Hugging Face repository for intent recognition; requires `INTENT_MODEL_FILE` when set.
-- `INTENT_MODEL_FILE`: GGUF filename for intent recognition.
+- `INTENT_MODEL_REPO`: Hugging Face repository for intent recognition; defaults to the planner model when unset (requires `INTENT_MODEL_FILE` when set explicitly).
+- `INTENT_MODEL_FILE`: GGUF filename for intent recognition; defaults to the planner model file when unset.
 - `INTENT_CACHE_FILE`: Prompt cache file for intent recognition (default: `${XDG_CACHE_HOME:-${HOME}/.cache}/okso/intent.prompt-cache`).
 - `INTENT_MAX_OUTPUT_TOKENS`: Maximum tokens requested from llama.cpp for intent recognition (default: `256`).
 - `INTENT_DISABLE_SEARCH`: When `true`, skip the pre-planner search stage regardless of intent (default: `false`).
