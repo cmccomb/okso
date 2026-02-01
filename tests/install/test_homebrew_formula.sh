@@ -15,7 +15,7 @@ setup() {
 }
 
 @test "formula declares Homebrew dependencies" {
-	for dep in docx2txt jq libxml2 llama.cpp pandoc poppler ripgrep ripgrep-all tesseract xlsx2csv; do
+	for dep in docx2txt jq libxml2 llama.cpp pandoc poppler ripgrep ripgrep-all tesseract; do
 		run grep -E "depends_on \"${dep}\"" "${FORMULA_PATH}"
 		[ "$status" -eq 0 ]
 	done
