@@ -238,10 +238,10 @@ intent_tool_matches_group() {
 		[[ "${tool}" == mail_* ]]
 		;;
 	filesystem)
-		[[ "${tool}" == "terminal" || "${tool}" == files_* ]]
+		[[ "${tool}" == "terminal" || "${tool}" == file_* ]]
 		;;
 	coding)
-		[[ "${tool}" == "terminal" || "${tool}" == files_* || "${tool}" == "python_repl" ]]
+		[[ "${tool}" == "terminal" || "${tool}" == file_* || "${tool}" == "python_repl" ]]
 		;;
 	math)
 		[[ "${tool}" == "python_repl" ]]
