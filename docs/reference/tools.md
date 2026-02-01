@@ -17,7 +17,7 @@ use the canonical `input` property so prompts and schemas can reference `args.in
 
 `web_fetch` responses include the final URL, HTTP status, content type, headers, byte length, a truncation flag, a preview snippet, anchor metadata (`anchor_query`, `anchor_match`), and a `body_markdown` field when text-like payloads can be converted. Text responses (HTML, JSON, XML, or plain text) are transformed into Markdown with previews truncated to 1024 characters. Non-text payloads are base64-encoded with `body_encoding` set to `base64` to avoid unsafe binary output. Conversion failures fall back to raw snippets with `body_markdown` set to `null`. When a fetch target is discovered via `web_search`, the preview centers on a normalized snippet (ellipses removed, whitespace collapsed, and shortened to a brief phrase).
 
-For end-to-end scenarios that show how tools fit into approvals and offline runs, see the [Run with approvals](../user-guides/usage.md#run-with-approvals) and [Offline or noninteractive feedback collection](../user-guides/usage.md#offline-or-noninteractive-feedback-collection) walkthroughs.
+For end-to-end scenarios that show how tools fit into approvals, see the [Run with approvals](../user-guides/usage.md#run-with-approvals) walkthrough.
 
 ## Web search configuration
 
@@ -33,9 +33,7 @@ source ./.env
 set +a
 
 # Run okso with web_search enabled; variables from .env override config values.
-./src/bin/okso plan --config "${XDG_CONFIG_HOME:-$HOME/.config}/okso/config.env" \
-  --planner-model bartowski/Qwen_Qwen3-8B-GGUF:Qwen_Qwen3-8B-Q4_K_M.gguf \
-  --react-model bartowski/Qwen_Qwen3-4B-GGUF:Qwen_Qwen3-4B-Q4_K_M.gguf
+./src/bin/okso -- "collect recent release notes"
 ```
 
 The exported variables are preferred over values in `config.env`, letting you keep API keys local while still allowing `okso init` to write non-secret defaults.

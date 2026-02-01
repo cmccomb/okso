@@ -7,11 +7,9 @@ prompt rendering, schema lookup, and execution dispatchers live in sibling modul
 interactions and planning responses while relying on `../core` for logging/state and
 `../cli` for user-facing output.
 
-The executor loop now lives in `../react`. Existing callers that previously sourced
-`planning/react.sh` still work through the compatibility shim in this directory, but new
-entry points should source `../react/react.sh` directly. The planner populates plan
-entries, schema constraints, and llama.cpp client wiring that the executor loop consumes to
-execute tool calls and emit final answers.
+The executor loop now lives in `../executor`. The planner populates plan entries, schema
+constraints, and llama.cpp client wiring that the executor loop consumes to execute tool
+calls and emit final answers.
 
 ### How the planner is wired
 
@@ -33,5 +31,5 @@ execute tool calls and emit final answers.
    `scoring.sh#score_planner_candidate`. Scoring pre-validates python_repl snippets for
    syntax and missing imports, applying heavy penalties when validation fails. The best
    candidate's plan array and allowed tools are forwarded to the executor loop.
-6. **Execution:** `react/react.sh` executes the plan with approvals and emits the final
+6. **Execution:** `executor/loop.sh` executes the plan with approvals and emits the final
    user-visible answer.
