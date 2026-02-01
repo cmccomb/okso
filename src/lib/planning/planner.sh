@@ -84,8 +84,6 @@ source "${PLANNING_LIB_DIR}/normalization.sh"
 source "${PLANNING_LIB_DIR}/scoring.sh"
 # shellcheck source=src/lib/planning/prompting.sh
 source "${PLANNING_LIB_DIR}/prompting.sh"
-# shellcheck source=src/lib/planning/rephrasing.sh
-source "${PLANNING_LIB_DIR}/rephrasing.sh"
 # shellcheck source=src/lib/planning/intent.sh
 source "${PLANNING_LIB_DIR}/intent.sh"
 # shellcheck source=src/lib/planning/search.sh

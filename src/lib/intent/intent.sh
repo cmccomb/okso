@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 #
-# Intent recognition helpers for the okso planner.
+# Intent recognition helpers for the okso planner. (moved to src/lib/intent)
 #
 # Usage:
 #   source "${BASH_SOURCE[0]%/intent.sh}/intent.sh"
@@ -307,7 +307,7 @@ intent_to_tools() {
 		return 0
 	fi
 
-	if [[ " ${selected_tools[*]} " != *" final_answer "* ]]; then
+	if [[ " ${selected_tools[*]} " != *" final_answer " ]]; then
 		selected_tools+=("final_answer")
 	fi
 
