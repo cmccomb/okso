@@ -87,7 +87,7 @@ recognize_intent() {
 	#   $1 - user query (string)
 	# Returns:
 	#   intent JSON payload on stdout.
-	local user_query prompt raw schema_json max_generation_tokens cache_file
+	local user_query prompt raw schema_json max_generation_tokens cache_file model_repo model_file
 	user_query="$1"
 
 	max_generation_tokens=${INTENT_MAX_OUTPUT_TOKENS:-256}
@@ -102,8 +102,10 @@ recognize_intent() {
 
 	schema_json="$(intent_schema_text)"
 	cache_file="${INTENT_CACHE_FILE:-${OKSO_INTENT_CACHE_FILE:-${OKSO_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/okso}}/intent.prompt-cache}"
+	model_repo="${INTENT_MODEL_REPO:-${PLANNER_MODEL_REPO:-}}"
+	model_file="${INTENT_MODEL_FILE:-${PLANNER_MODEL_FILE:-}}"
 
-	if ! raw="$(LLAMA_TEMPERATURE=0.0 llama_infer "${prompt}" '' "${max_generation_tokens}" "${schema_json}" "${INTENT_MODEL_REPO:-}" "${INTENT_MODEL_FILE:-}" "${cache_file}" "${prompt}")"; then
+	if ! raw="$(LLAMA_TEMPERATURE=0.0 llama_infer "${prompt}" '' "${max_generation_tokens}" "${schema_json}" "${model_repo}" "${model_file}" "${cache_file}" "${prompt}")"; then
 		log "WARN" "Intent model invocation failed; falling back" "intent_infer_failed" >&2
 		return 0
 	fi
