@@ -4,15 +4,17 @@ The planner registers these tools (implemented under `src/tools/`, with suites s
 Handlers expect structured arguments in `TOOL_ARGS` that follow the registered JSON schema. Free-form, single-string payloads always
 use the canonical `input` property so prompts and schemas can reference `args.input` consistently across tools:
 
-- `terminal`: persistent working directory with `pwd`, `ls`, `cd`, `find`, `grep`, `stat`, `wc`, `du`, `date`, `base64 encode|decode`, and guarded mutations (`rm -i`, `mkdir`, `mv`, `cp`, `touch`). Uses `open` on macOS.
-- `python_repl`: run Python snippets in an ephemeral sandbox using quiet `python -i` startup guards that confine writes.
+- `terminal`: persistent working directory with `status`, `pwd`, `ls`, `cd`, `cat`, `head`, `tail`, `find`, `grep`, `stat`, `wc`, `du`, `date`, `base64` encode/decode, and guarded mutations (`rm -i`, `mkdir`, `rmdir`, `mv`, `cp`, `touch`). Uses `open` on macOS.
+- `python_repl`: run Python snippets in an ephemeral sandbox using quiet `python -i` startup guards that confine writes. The tool reads structured `TOOL_ARGS.input` (and falls back to `TOOL_QUERY` if `TOOL_ARGS` is empty).
 - `web_search`: query the Google Custom Search API with a structured payload (`query` and optional `num`, default `5`, maximum `10`) and return JSON results.
 - `web_fetch`: retrieve HTTP response bodies with a configurable size cap, returning JSON metadata (final URL, HTTP status, content type, headers, byte length, truncation flag, body encoding, body snippet, optional `body_markdown`, and anchor metadata). It only accepts a `url` argument and prefers normalized snippets from prior `web_search` results when available.
+- `file_read`: read a local file and return a JSON array of Markdown-wrapped pages (one page per entry), using `TOOL_ARGS.input` or `TOOL_ARGS.path`.
 - `*_search`: Notes, Calendar, and Mail searches reuse the same `input` field for the search term.
 - `notes_*`: create, append, list, read, or search Apple Notes entries.
 - `reminders_*`: create, list, or complete Apple Reminders.
 - `calendar_*`: create, list, or search Apple Calendar events.
 - `mail_*`: draft, send, search, or list Apple Mail messages.
+- `feedback`: capture per-step ratings and optional notes for plan quality audits.
 - `final_answer`: emit the assistant's final reply; the evaluator produces the response from the execution trace (no arguments required).
 - `workflow_*`: pseudo-tools backed by `workflows/` specs. Each workflow expands into concrete tool steps during plan normalization; see [Workflows](#workflows) for schema and examples.
 
@@ -63,12 +65,12 @@ When a plan contains a tool call such as `workflow_weekly_status`, the workflow 
 
 ## Web search configuration
 
-Configure the Google Custom Search-backed `web_search` tool with a local `.env` file so secrets stay out of source control:
+Configure the Google Custom Search-backed `web_search` tool with a local `.env` file so secrets stay out of source control. The tool reads `GOOGLE_SEARCH_API_KEY` and `GOOGLE_SEARCH_CX` (and falls back to bundled defaults when they are unset):
 
 ```bash
 # .env (keep this file in .gitignore)
-OKSO_GOOGLE_CSE_API_KEY="your-google-api-key"
-OKSO_GOOGLE_CSE_ID="your-cse-id"
+GOOGLE_SEARCH_API_KEY="your-google-api-key"
+GOOGLE_SEARCH_CX="your-cse-id"
 
 set -a
 source ./.env
@@ -86,7 +88,11 @@ The `terminal` tool keeps a per-query working directory so subsequent calls shar
 
 ## Python REPL tool
 
-`python_repl` feeds `TOOL_QUERY` to quiet `python -i` after installing a startup hook that changes into a temporary sandbox directory and wraps `open` so write modes only succeed inside that sandbox. On success it returns the interpreter output; uncaught exceptions exit non-zero and surface the traceback. Prefer short, single-purpose statements; long-running interpreters will be torn down once the session exits.
+`python_repl` feeds `TOOL_ARGS.input` (falling back to `TOOL_QUERY`) to quiet `python -i` after installing a startup hook that changes into a temporary sandbox directory and wraps `open` so write modes only succeed inside that sandbox. On success it returns the interpreter output; uncaught exceptions exit non-zero and surface the traceback. Prefer short, single-purpose statements; long-running interpreters will be torn down once the session exits.
+
+## File read tool
+
+`file_read` reads a local file and emits a JSON payload containing Markdown-wrapped pages. Use `TOOL_ARGS.input` (or `TOOL_ARGS.path`) to set the target file, and control chunking with `FILE_READ_PAGE_SIZE` (character count per page; default `4000`).
 
 ## macOS helpers
 
@@ -94,4 +100,4 @@ Notes, Reminders, Calendar, and Mail helpers rely on `osascript` and run only on
 
 ## Ranking
 
-When `LLAMA_BIN` is available, the planner asks `llama.cpp` to score tools with names, descriptions, commands, and key safety notes in a single prompt. Without `LLAMA_BIN`, a deterministic keyword heuristic ranks the tools. The resulting ordering drives suggestions and execution.
+Tool descriptions, commands, and safety notes are embedded in the planner prompt so llama.cpp can select and order tools when building the plan. There is no deterministic tool-ranking fallback if llama.cpp is unavailable; planning stops before execution in that case.
