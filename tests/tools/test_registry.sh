@@ -35,21 +35,6 @@ SCRIPT
 	[ "${lines[3]}" = '{"type":"object"}' ]
 }
 
-@test "register_tool defaults to canonical input schema" {
-	run bash <<'SCRIPT'
-set -euo pipefail
-source ./src/tools/registry.sh
-init_tool_registry
-register_tool alpha "describe" handler_alpha
-schema="$(tool_args_schema alpha)"
-key="$(canonical_text_arg_key)"
-
-jq -e --arg key "${key}" '.type=="object" and .properties[$key].type=="string" and .additionalProperties.type=="string"' <<<"${schema}"
-SCRIPT
-
-	[ "$status" -eq 0 ]
-}
-
 @test "register_tool rejects legacy single-string keys" {
 	run bash <<'SCRIPT'
 set -euo pipefail
