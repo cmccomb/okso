@@ -1,6 +1,7 @@
 {
   "name": "daily_briefing",
   "description": "Collect a daily briefing topic, fetch a source URL, and capture the summary in notes.",
+  "intents": ["web", "notes"],
   "parameters": {
     "type": "object",
     "properties": {

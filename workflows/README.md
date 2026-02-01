@@ -8,6 +8,7 @@ Workflows define reusable sequences of tools. Each workflow is stored as a JSON 
 {
   "name": "string (lowercase letters, numbers, underscores)",
   "description": "string",
+  "intents": ["notes", "web"],
   "parameters": {
     "type": "object",
     "properties": {
@@ -30,6 +31,7 @@ Workflows define reusable sequences of tools. Each workflow is stored as a JSON 
 
 - `name` (string, required): Unique identifier used to register the pseudo-tool `workflow_<name>`.
 - `description` (string, required): Human-readable summary surfaced in tool listings.
+- `intents` (array, optional): Intent groups that should surface this workflow (defaults to `["general"]`). Valid values: `general`, `web`, `notes`, `reminders`, `calendar`, `mail`, `filesystem`, `coding`, `math`.
 - `parameters` (object, optional): JSON Schema describing the arguments accepted by the workflow tool. Defaults to an empty object schema with `additionalProperties: false`.
 - `steps` (array, required): List of tool steps. Each step requires:
   - `tool` (string): Tool name to execute.
@@ -58,6 +60,8 @@ Example (safe vs unsafe):
 ```yaml
 name: onboarding_brief
 description: Summarize new hire details and open a draft note.
+intents:
+  - notes
 parameters:
   type: object
   properties:

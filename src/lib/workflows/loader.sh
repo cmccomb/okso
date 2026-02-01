@@ -150,6 +150,11 @@ workflow_validate_spec() {
 		and (.name | type == "string" and length > 0)
 		and (.name | test("^[a-z0-9_]+$"))
 		and (.description | type == "string")
+		and ((.intents | type == "array" and length > 0
+			and all(.[];
+				(type == "string")
+				and test("^(general|web|notes|reminders|calendar|mail|filesystem|coding|math)$")))
+			or (.intents == null))
 		and (.steps | type == "array" and length > 0)
 		and (all(.steps[]; (type == "object")
 			and (.tool | type == "string" and length > 0)
@@ -171,10 +176,34 @@ workflow_normalize_spec() {
 	spec="$1"
 
 	jq -c '
-		.parameters = (.parameters // {"type":"object","properties":{},"additionalProperties":false})
+		.intents = (.intents // ["general"])
+		| .parameters = (.parameters // {"type":"object","properties":{},"additionalProperties":false})
 		| .steps = (.steps
 			| map(.args = (.args // {}) | .thought = (.thought // "")))
 	' <<<"${spec}"
+}
+
+workflow_intents_for_name() {
+	# Arguments:
+	#   $1 - workflow name (string)
+	# Returns:
+	#   JSON array of intent names on stdout.
+	local name spec
+	name="$1"
+
+	if ! workflows_load_specs; then
+		printf '%s' '[]'
+		return 0
+	fi
+
+	spec="$(workflow_spec_json "${name}")"
+
+	if [[ -z "${spec}" ]]; then
+		printf '%s' '[]'
+		return 0
+	fi
+
+	jq -c '.intents // []' <<<"${spec}"
 }
 
 workflows_list_files() {
@@ -335,4 +364,5 @@ register_workflow_tools() {
 }
 
 export -f workflows_registry_json workflow_names workflow_spec_json workflows_load_specs
+export -f workflow_intents_for_name
 export -f expand_workflow_plan register_workflow_tools

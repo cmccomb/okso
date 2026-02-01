@@ -32,6 +32,8 @@ source "${PLANNING_INTENT_DIR}/../llm/templates.sh"
 source "${PLANNING_INTENT_DIR}/../llm/schema.sh"
 # shellcheck source=src/lib/llm/llama_client.sh
 source "${PLANNING_INTENT_DIR}/../llm/llama_client.sh"
+# shellcheck source=src/lib/workflows/loader.sh
+source "${PLANNING_INTENT_DIR}/../workflows/loader.sh"
 
 intent_schema_text() {
 	# Loads the intent JSON schema as a single line.
@@ -261,6 +263,16 @@ intent_tool_matches_group() {
 	local group tool
 	group="$1"
 	tool="$2"
+
+	if [[ "${tool}" == workflow_* ]]; then
+		local workflow_name workflow_intents
+		workflow_name="${tool#workflow_}"
+		workflow_intents="$(workflow_intents_for_name "${workflow_name}")"
+		if jq -e --arg group "${group}" '.[]? == $group' <<<"${workflow_intents}" >/dev/null 2>&1; then
+			return 0
+		fi
+		return 1
+	fi
 
 	case "${group}" in
 	general)
