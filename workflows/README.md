@@ -40,6 +40,19 @@ Workflows define reusable sequences of tools. Each workflow is stored as a JSON 
 
 Step `args` and `thought` support simple string interpolation. Any `{{parameter_name}}` tokens are replaced with values from the workflow invocation arguments before execution.
 
+### Unresolved placeholders and safe interpolation
+
+When workflow step `args` or `thought` contain `{{parameter}}` tokens, care must be taken so unresolved tokens do not reach runtime tools. Recommended patterns:
+
+- Prefer providing a `default` for optional parameters in the workflow `parameters` schema (for example, `"default": ""`).
+- The workflow loader strips unresolved `{{...}}` tokens and removes any `args` keys whose rendered value is empty or null; however, authors should still prefer explicit defaults or omit optional args in example invocations.
+- If you intentionally leave a token for later substitution by an external runner, document that behavior clearly in an adjacent example under `workflows/examples/`.
+
+Example (safe vs unsafe):
+
+- Unsafe: `"notes": "{{reminder_notes}}"` with no default and caller omits `reminder_notes` &rarr; tool may receive notes literally equal to `{{reminder_notes}}`.
+- Safe: Add `"default": ""` to the `reminder_notes` parameter, or omit the `notes` key when `reminder_notes` is empty. The loader will strip placeholders and omit empty keys.
+
 ## Example (YAML)
 
 ```yaml

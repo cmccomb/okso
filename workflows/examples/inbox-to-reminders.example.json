@@ -1,0 +1,15 @@
+{
+  "description": "Example invocations for workflow 'inbox_to_reminders'",
+  "examples": [
+    {
+      "name": "minimal",
+      "args": { "reminder_title": "Reply to vendor" },
+      "note": "When reminder_notes is omitted, the renderer will omit the notes arg entirely (preferred)."
+    },
+    {
+      "name": "with_notes",
+      "args": { "reminder_title": "Reply to vendor", "reminder_notes": "Follow up on pricing request" },
+      "note": "Optional notes present; will be used as the reminder body."
+    }
+  ]
+}
