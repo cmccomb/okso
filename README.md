@@ -44,12 +44,11 @@ See [docs/user-guides/usage.md](docs/user-guides/usage.md) for task-based walkth
 
 ## Model autotuning
 
-Model selection always runs through a deterministic autotune pipeline on macOS:
+Model selection runs through a deterministic autotune pipeline on macOS:
 
 1. Detect stable resources (physical RAM via `sysctl -n hw.memsize`, GitHub Actions via `GITHUB_ACTIONS=true`).
 2. Map resources → baseline tier (CI always maps to `ci`).
-3. Sample runtime pressure signals (`memory_pressure`, `vm_stat`) to compute headroom.
-4. Cap the baseline tier based on pressure/headroom and resolve models for each role.
+3. Resolve models for each role using the baseline tier.
 
 Baseline tier mapping:
 
@@ -72,11 +71,4 @@ Tier → model (Qwen3 GGUF Q4_K_M):
 | `large`       | Qwen3-1.7B | Qwen3-8B   | Qwen3-14B  |
 | `xlarge`      | Qwen3-4B   | Qwen3-14B  | Qwen3-32B  |
 
-Runtime pressure caps ambition instead of shifting one tier at a time:
-
-- `critical` pressure or `starved` headroom → cap at `tiny` (or `ci`).
-- `warning` pressure or `tight` headroom → cap at `small` (or the smallest available tier).
-- `normal` pressure and `comfortable` headroom → keep the baseline tier.
-- Unknown signals fall back to the baseline tier.
-
-Each run logs a concise summary, e.g. `model autotune: base=default eff=small (physmem=16GB, pressure=warning, headroom=tight)`.
+Each run logs a concise summary, e.g. `model autotune: base=default eff=default (physmem=16GB)`.
