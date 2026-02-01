@@ -315,25 +315,25 @@ intent_to_tools() {
 }
 
 format_intent_context() {
-  # Formats intent JSON for logging.
-  # Arguments:
-  #   $1 - intent JSON payload (string)
-  #   $2 - planner tool list (newline-delimited string)
-  # Returns:
-  #   formatted string on stdout.
+	# Formats intent JSON for logging.
+	# Arguments:
+	#   $1 - intent JSON payload (string)
+	#   $2 - planner tool list (newline-delimited string)
+	# Returns:
+	#   formatted string on stdout.
 
-  local intent_json planner_tools
-  intent_json="$1"
-  planner_tools="$2"
+	local intent_json planner_tools
+	intent_json="$1"
+	planner_tools="$2"
 
-  # Extract fields
-  local rationale intents tools
-  rationale="$(jq -r '.rationale // "No rationale provided"' <<<"${intent_json}" 2>/dev/null)"
-  intents="$(jq -r '.intents // [] | join(", ")' <<<"${intent_json}" 2>/dev/null)"
-  tools="$(printf '%s' "${planner_tools}" | paste -sd ', ' -)"
+	# Extract fields
+	local rationale intents tools
+	rationale="$(jq -r '.rationale // "No rationale provided"' <<<"${intent_json}" 2>/dev/null)"
+	intents="$(jq -r '.intents // [] | join(", ")' <<<"${intent_json}" 2>/dev/null)"
+	tools="$(printf '%s' "${planner_tools}" | paste -sd ', ' -)"
 
-  # Format output
-  printf 'Rationale: %s\nIntents: %s\nEnabled Tools: %s' "${rationale}" "${intents}" "${tools}"
+	# Format output
+	printf 'Rationale: %s\nIntents: %s\nEnabled Tools: %s' "${rationale}" "${intents}" "${tools}"
 }
 
 export -f recognize_intent

@@ -82,7 +82,7 @@ main() {
 	local search_context search_start_time search_duration
 	local intent_json planner_tools
 
-  # Initialize runtime settings and environment.
+	# Initialize runtime settings and environment.
 	settings_prefix="settings"
 	load_runtime_settings "${settings_prefix}" "$@"
 	if [[ "$(json_state_get_key "${settings_prefix}" "command")" == "init" ]]; then
@@ -94,7 +94,7 @@ main() {
 	prepare_environment_with_settings "${settings_prefix}"
 	initialize_planner_models
 
-  # Recognize user intent.
+	# Recognize user intent.
 	intent_start_time="$(date +%s)"
 	intent_json="$(recognize_intent "$(json_state_get_key "${settings_prefix}" "user_query")")"
 	log "INFO" "Recognized intent" "${intent_json}"
@@ -104,7 +104,7 @@ main() {
 	intent_duration="$(format_duration_from "${intent_start_time}")"
 	render_step_box "Intent" "${intent_duration}" "${intent_context}"
 
-  # Fetch search context.
+	# Fetch search context.
 	search_start_time="$(date +%s)"
 	search_context="$(planner_fetch_search_context "$(json_state_get_key "${settings_prefix}" "user_query")" "${intent_json}")"
 	search_duration="$(format_duration_from "${search_start_time}")"
