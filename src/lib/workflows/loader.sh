@@ -127,15 +127,15 @@ workflow_parse_file() {
 	file="$1"
 
 	case "${file}" in
-		*.json)
-			workflow_parse_json_file "${file}"
-			;;
-		*.yaml | *.yml)
-			workflow_parse_yaml_file "${file}"
-			;;
-		*)
-			return 1
-			;;
+	*.json)
+		workflow_parse_json_file "${file}"
+		;;
+	*.yaml | *.yml)
+		workflow_parse_yaml_file "${file}"
+		;;
+	*)
+		return 1
+		;;
 	esac
 }
 
