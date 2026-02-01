@@ -46,11 +46,7 @@ tool_description() {
 	jq -r --arg name "${name}" '.registry[$name].description // ""' <<<"$(tool_registry_json)"
 }
 
-tool_safety() {
-	local name
-	name="$1"
-	jq -r --arg name "${name}" '.registry[$name].safety // ""' <<<"$(tool_registry_json)"
-}
+
 
 tool_handler() {
 	local name
@@ -111,11 +107,10 @@ register_tool() {
 	# Arguments:
 	#   $1 - name
 	#   $2 - description
-	#   $3 - safety notes
-	#   $4 - handler function name
-	#   $5 - optional JSON schema describing args
-	if [[ $# -lt 4 ]]; then
-		log "ERROR" "register_tool requires four arguments" "$*"
+	#   $3 - handler function name
+	#   $4 - optional JSON schema describing args
+	if [[ $# -lt 3 ]]; then
+		log "ERROR" "register_tool requires three arguments" "$*"
 		return 1
 	fi
 
@@ -123,7 +118,7 @@ register_tool() {
 	name="$1"
 	text_key="$(canonical_text_arg_key)"
 	default_args_schema=$(jq -nc --arg key "${text_key}" '{"type":"object","properties":{($key):{"type":"string"}},"additionalProperties":{"type":"string"}}')
-	args_schema="${5:-${default_args_schema}}"
+	args_schema="${4:-${default_args_schema}}"
 
 	if ! jq -e --arg key "${text_key}" '
                 def is_single_string_schema:
@@ -157,11 +152,10 @@ register_tool() {
 	TOOL_REGISTRY_JSON=$(jq -c \
 		--arg name "${name}" \
 		--arg description "$2" \
-		--arg safety "$3" \
-		--arg handler "$4" \
+		--arg handler "$3" \
 		--argjson args_schema "${args_schema}" \
 		'(.names //= [])
                 | (.registry //= {})
                 | (if (.names | index($name)) == null then .names += [$name] else . end)
-                | .registry[$name] = {description:$description, safety:$safety, handler:$handler, args_schema:$args_schema}' <<<"$(tool_registry_json)")
+                | .registry[$name] = {description:$description, handler:$handler, args_schema:$args_schema}' <<<"$(tool_registry_json)")
 }

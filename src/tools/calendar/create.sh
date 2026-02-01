@@ -94,7 +94,6 @@ register_calendar_create() {
 	register_tool \
 		"calendar_create" \
 		"Create a new Apple Calendar event (line 1: title; line 2: start time)." \
-		"Requires macOS Calendar access; event details are sent to Calendar." \
 		tool_calendar_create \
 		"${args_schema}"
 }

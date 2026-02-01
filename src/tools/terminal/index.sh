@@ -453,7 +453,6 @@ JSON
 	register_tool \
 		"terminal" \
 		"${description}" \
-		"Restricted command set with a per-query working directory; destructive operations default to interactive rm." \
 		tool_terminal \
 		"${args_schema}"
 }

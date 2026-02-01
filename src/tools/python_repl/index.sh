@@ -290,7 +290,6 @@ register_python_repl() {
 	register_tool \
 		"python_repl" \
 		"Execute Python statements in a temporary sandbox. However, you MUST use print statements to view outputs." \
-		"Writes are confined to an ephemeral sandbox directory." \
 		tool_python_repl \
 		"${args_schema}"
 }

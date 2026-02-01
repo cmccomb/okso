@@ -192,7 +192,6 @@ JSON
 	register_tool \
 		"file_search" \
 		"Search files and documents with ripgrep-all (rga), returning structured match snippets and an artifact path for raw results." \
-		"Reads local files; no external access. Ensure queries and paths are scoped to the intended workspace." \
 		tool_file_search \
 		"${args_schema}"
 }
