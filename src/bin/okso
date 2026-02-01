@@ -82,26 +82,29 @@ main() {
 	local search_context search_start_time search_duration
 	local intent_json planner_tools
 
+  # Initialize runtime settings and environment.
 	settings_prefix="settings"
-
 	load_runtime_settings "${settings_prefix}" "$@"
-
 	if [[ "$(json_state_get_key "${settings_prefix}" "command")" == "init" ]]; then
 		# Init mode writes a config file and exits without running the planner.
 		apply_settings_to_globals "${settings_prefix}"
 		write_config_file
 		return 0
 	fi
-
 	prepare_environment_with_settings "${settings_prefix}"
-
 	initialize_planner_models
 
+  # Recognize user intent.
+	intent_start_time="$(date +%s)"
 	intent_json="$(recognize_intent "$(json_state_get_key "${settings_prefix}" "user_query")")"
 	log "INFO" "Recognized intent" "${intent_json}"
 	planner_tools="$(intent_to_tools "${intent_json}")"
 	log "INFO" "Intent tool filter" "$(printf '%s\n' "${planner_tools}" | paste -sd ',' -)"
+	intent_context="$(format_intent_context "${intent_json}" "${planner_tools}")"
+	intent_duration="$(format_duration_from "${intent_start_time}")"
+	render_step_box "Intent" "${intent_duration}" "${intent_context}"
 
+  # Fetch search context.
 	search_start_time="$(date +%s)"
 	search_context="$(planner_fetch_search_context "$(json_state_get_key "${settings_prefix}" "user_query")" "${intent_json}")"
 	search_duration="$(format_duration_from "${search_start_time}")"
