@@ -1,0 +1,55 @@
+{
+  "name": "daily_briefing",
+  "description": "Search broadly across multiple news outlets for the last 24 hours and return a concise, source-diverse daily briefing.",
+  "intents": ["web"],
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "current_date": {"type": "string", "minLength": 1, "description": "The current date in YYYY-MM-DD format."}
+      },
+    "required": ["current_date"],
+    "additionalProperties": false
+  },
+  "steps": [
+    {
+      "tool": "web_search",
+      "args": {
+        "query": "top headlines after:{{current_date}}"
+      },
+      "thought": "Get a broad baseline set of stories from the last 24 hours."
+    },
+    {
+      "tool": "web_search",
+      "args": {
+        "query": "news site:reuters.com OR site:apnews.com OR site:bloomberg.com OR site:wsj.com OR site:ft.com after:{{current_date}}"
+      },
+      "thought": "Pull high-signal wire/business reporting from the last 24 hours."
+    },
+    {
+      "tool": "web_search",
+      "args": {
+        "query": "news site:bbc.co.uk OR site:theguardian.com OR site:aljazeera.com OR site:dw.com after:{{current_date}}"
+      },
+      "thought": "Add international coverage from the last 24 hours."
+    },
+    {
+      "tool": "web_search",
+      "args": {
+        "query": "news site:nytimes.com OR site:washingtonpost.com OR site:latimes.com OR site:usatoday.com after:{{current_date}}"
+      },
+      "thought": "Add major US paper coverage from the last 24 hours."
+    },
+    {
+      "tool": "web_search",
+      "args": {
+        "query": "news 24 hours site:economist.com OR site:newyorker.com OR site:theatlantic.com after:{{current_date}}"
+      },
+      "thought": "Add some analysis/weekly outlets if anything was posted in the last 24 hours."
+    },
+    {
+      "tool": "final_answer",
+      "args": {},
+      "thought": "Synthesize: 5–10 key stories, one-line why-it-matters, notable divergences across outlets, and a diverse source list; prioritize items clearly published within the last 24 hours."
+    }
+  ]
+}

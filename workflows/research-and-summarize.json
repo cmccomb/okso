@@ -1,0 +1,40 @@
+{
+  "name": "research_and_summarize",
+  "description": "Search for a topic, fetch a key source, and store summary notes.",
+  "intents": ["web", "notes"],
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "query": {"type": "string", "minLength": 1},
+      "source_url": {"type": "string", "format": "uri", "minLength": 1},
+      "note_title": {"type": "string", "minLength": 1}
+    },
+    "required": ["query", "source_url", "note_title"],
+    "additionalProperties": false
+  },
+  "steps": [
+    {
+      "tool": "web_search",
+      "args": {"query": "{{query}}"},
+      "thought": "Find sources for {{query}}."
+    },
+    {
+      "tool": "web_fetch",
+      "args": {"url": "{{source_url}}"},
+      "thought": "Pull the selected source content."
+    },
+    {
+      "tool": "notes_create",
+      "args": {
+        "title": "{{note_title}}",
+        "body": "Research summary for {{query}} based on {{source_url}}."
+      },
+      "thought": "Save research notes."
+    },
+    {
+      "tool": "final_answer",
+      "args": {},
+      "thought": "Share the research completion."
+    }
+  ]
+}

@@ -118,7 +118,7 @@ register_tool() {
 	default_args_schema=$(jq -nc --arg key "${text_key}" '{"type":"object","properties":{($key):{"type":"string"}},"additionalProperties":{"type":"string"}}')
 	args_schema="${4:-${default_args_schema}}"
 
-	if ! jq -e --arg key "${text_key}" '
+	if ! jq -e --arg key "${text_key}" --arg name "${name}" '
                 def is_single_string_schema:
                         (.type == "object")
                         and (.properties | type == "object")
@@ -130,6 +130,8 @@ register_tool() {
                         | if $prop == $key then
                                 true
                           elif $prop == "url" and (.properties.url.format? == "uri") then
+                                true
+                          elif ($name | startswith("workflow_")) then
                                 true
                           else
                                 false

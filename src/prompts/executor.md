@@ -25,6 +25,9 @@ ${planner_thought}
   `TODO`, `TBD`, `__MISSING__`, `[insert]`, `<todo>`, `lorem ipsum`.
 - If required information is missing, explain the limitation directly in the field value.
 
+## Note on placeholders
+All placeholder tokens must be resolved before returning JSON. The executor must not return any fields containing `{{...}}` or the disallowed tokens above; if a value cannot be derived, explain the limitation in that field rather than leaving a token.
+
 ## Output Contract
 Respond using the following JSON schema:
 ${args_schema}

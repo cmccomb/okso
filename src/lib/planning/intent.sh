@@ -32,6 +32,8 @@ source "${PLANNING_INTENT_DIR}/../llm/templates.sh"
 source "${PLANNING_INTENT_DIR}/../llm/schema.sh"
 # shellcheck source=src/lib/llm/llama_client.sh
 source "${PLANNING_INTENT_DIR}/../llm/llama_client.sh"
+# shellcheck source=src/lib/workflows/loader.sh
+source "${PLANNING_INTENT_DIR}/../workflows/loader.sh"
 
 intent_schema_text() {
 	# Loads the intent JSON schema as a single line.
@@ -67,7 +69,7 @@ intent_fallback_json() {
 	jq -nc \
 		--arg intent "${intent_label}" \
 		--arg rationale "${rationale}" \
-		'{intent:$intent, rationale:$rationale}'
+		'{intents:[$intent], rationale:$rationale}'
 }
 
 lowercase_intent() {
@@ -79,58 +81,6 @@ lowercase_intent() {
 	printf '%s' "$1" | tr '[:upper:]' '[:lower:]'
 }
 
-intent_keyword_match() {
-	# Heuristic intent matcher for deterministic fallback.
-	# Arguments:
-	#   $1 - user query (string)
-	# Returns:
-	#   JSON intent payload on stdout.
-	local query_lower
-	query_lower="$(lowercase_intent "$1")"
-
-	if [[ "${query_lower}" == *"reminder"* || "${query_lower}" == *"remind"* ]]; then
-		intent_fallback_json "reminders" 0.4 "Heuristic match: reminders keywords"
-		return 0
-	fi
-
-	if [[ "${query_lower}" == *"note"* || "${query_lower}" == *"notes"* ]]; then
-		intent_fallback_json "notes" 0.4 "Heuristic match: notes keywords"
-		return 0
-	fi
-
-	if [[ "${query_lower}" == *"calendar"* || "${query_lower}" == *"event"* ]]; then
-		intent_fallback_json "calendar" 0.4 "Heuristic match: calendar keywords"
-		return 0
-	fi
-
-	if [[ "${query_lower}" == *"email"* || "${query_lower}" == *"mail"* ]]; then
-		intent_fallback_json "mail" 0.4 "Heuristic match: mail keywords"
-		return 0
-	fi
-
-	if [[ "${query_lower}" == *"search"* || "${query_lower}" == *"web"* || "${query_lower}" == *"lookup"* ]]; then
-		intent_fallback_json "web_research" 0.4 "Heuristic match: web keywords"
-		return 0
-	fi
-
-	if [[ "${query_lower}" == *"calculate"* || "${query_lower}" == *"compute"* || "${query_lower}" == *"sum"* ]]; then
-		intent_fallback_json "math" 0.4 "Heuristic match: math keywords"
-		return 0
-	fi
-
-	if [[ "${query_lower}" == *"code"* || "${query_lower}" == *"refactor"* || "${query_lower}" == *"implement"* ]]; then
-		intent_fallback_json "coding" 0.4 "Heuristic match: coding keywords"
-		return 0
-	fi
-
-	if [[ "${query_lower}" == *"file"* || "${query_lower}" == *"directory"* || "${query_lower}" == *"folder"* ]]; then
-		intent_fallback_json "filesystem" 0.4 "Heuristic match: filesystem keywords"
-		return 0
-	fi
-
-	intent_fallback_json "general" 0.0 "No heuristic match"
-}
-
 recognize_intent() {
 	# Classifies the user query into a canonical intent.
 	# Arguments:
@@ -139,16 +89,6 @@ recognize_intent() {
 	#   intent JSON payload on stdout.
 	local user_query prompt raw schema_json max_generation_tokens cache_file
 	user_query="$1"
-
-	if [[ -z "${user_query}" ]]; then
-		intent_fallback_json "general" 0.0 "Empty user query"
-		return 0
-	fi
-
-	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
-		intent_keyword_match "${user_query}"
-		return 0
-	fi
 
 	max_generation_tokens=${INTENT_MAX_OUTPUT_TOKENS:-256}
 	if ! [[ "${max_generation_tokens}" =~ ^[0-9]+$ ]] || ((max_generation_tokens < 1)); then
@@ -170,7 +110,7 @@ recognize_intent() {
 		return 0
 	fi
 
-	if ! jq -e '.intent and .rationale' <<<"${raw}" >/dev/null 2>&1; then
+	if ! jq -e '.intents and (.intents | length > 0) and .rationale' <<<"${raw}" >/dev/null 2>&1; then
 		log "WARN" "Intent output invalid; falling back" "intent_parse_failed" >&2
 		intent_keyword_match "${user_query}"
 		return 0
@@ -185,7 +125,7 @@ intent_requires_search() {
 	#   $1 - intent JSON payload (string)
 	# Returns:
 	#   0 if search should run; 1 if search should be skipped.
-	local intent_json intent_label
+	local intent_json
 	intent_json="$1"
 
 	if [[ "${INTENT_DISABLE_SEARCH:-false}" == true ]]; then
@@ -196,13 +136,22 @@ intent_requires_search() {
 		return 0
 	fi
 
+	if jq -e '.intents and (.intents | length > 0)' <<<"${intent_json}" >/dev/null 2>&1; then
+		if jq -e '.intents[] | select(. == "web" or . == "general")' <<<"${intent_json}" >/dev/null 2>&1; then
+			return 0
+		fi
+		if jq -e '.intents[] | select(. != "notes" and . != "reminders" and . != "calendar" and . != "mail" and . != "filesystem" and . != "coding" and . != "math")' <<<"${intent_json}" >/dev/null 2>&1; then
+			return 0
+		fi
+		return 1
+	fi
 	intent_label="$(jq -r '.intent // ""' <<<"${intent_json}" 2>/dev/null)"
 	if [[ -z "${intent_label}" ]]; then
 		return 0
 	fi
 
 	case "${intent_label}" in
-	web_research | general)
+	web | general)
 		return 0
 		;;
 	notes | reminders | calendar | mail | filesystem | coding | math)
@@ -221,7 +170,7 @@ intent_group_for_intent() {
 	# Returns:
 	#   tool group names on stdout.
 	case "$1" in
-	web_research)
+	web)
 		printf '%s\n' "web"
 		;;
 	notes)
@@ -261,6 +210,16 @@ intent_tool_matches_group() {
 	local group tool
 	group="$1"
 	tool="$2"
+
+	if [[ "${tool}" == workflow_* ]]; then
+		local workflow_name workflow_intents
+		workflow_name="${tool#workflow_}"
+		workflow_intents="$(workflow_intents_for_name "${workflow_name}")"
+		if jq -e --arg group "${group}" '.[]? == $group' <<<"${workflow_intents}" >/dev/null 2>&1; then
+			return 0
+		fi
+		return 1
+	fi
 
 	case "${group}" in
 	general)
@@ -316,19 +275,20 @@ intent_to_tools() {
 		return 0
 	fi
 
-	intent_label="$(jq -r '.intent // ""' <<<"${intent_json}" 2>/dev/null)"
-
-	if [[ -z "${intent_label}" ]]; then
-		printf '%s\n' "${available_tools[@]}"
-		return 0
-	fi
-
-	if jq -e '.tool_groups and (.tool_groups | length > 0)' <<<"${intent_json}" >/dev/null 2>&1; then
-		while IFS= read -r group; do
-			[[ -z "${group}" ]] && continue
-			selected_groups+=("${group}")
-		done < <(jq -r '.tool_groups[]' <<<"${intent_json}" 2>/dev/null)
+	if jq -e '.intents and (.intents | length > 0)' <<<"${intent_json}" >/dev/null 2>&1; then
+		while IFS= read -r intent_label; do
+			[[ -z "${intent_label}" ]] && continue
+			while IFS= read -r group; do
+				[[ -z "${group}" ]] && continue
+				selected_groups+=("${group}")
+			done < <(intent_group_for_intent "${intent_label}")
+		done < <(jq -r '.intents[]' <<<"${intent_json}" 2>/dev/null)
 	else
+		intent_label="$(jq -r '.intent // ""' <<<"${intent_json}" 2>/dev/null)"
+		if [[ -z "${intent_label}" ]]; then
+			printf '%s\n' "${available_tools[@]}"
+			return 0
+		fi
 		while IFS= read -r group; do
 			[[ -z "${group}" ]] && continue
 			selected_groups+=("${group}")

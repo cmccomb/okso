@@ -3,32 +3,31 @@
   "title": "Intent classification",
   "type": "object",
   "additionalProperties": false,
-  "required": ["intent", "rationale"],
+  "required": ["intents", "rationale"],
   "properties": {
-    "intent": {
-      "type": "string",
-      "enum": [
-        "general",
-        "web_research",
-        "notes",
-        "reminders",
-        "calendar",
-        "mail",
-        "filesystem",
-        "coding",
-        "math"
-      ]
+    "intents": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "general",
+          "web",
+          "notes",
+          "reminders",
+          "calendar",
+          "mail",
+          "filesystem",
+          "coding",
+          "math"
+        ]
+      }
     },
     "rationale": {
       "type": "string",
       "minLength": 3,
       "maxLength": 280
-    },
-    "tool_groups": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
     }
   }
 }

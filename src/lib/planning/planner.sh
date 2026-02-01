@@ -352,7 +352,7 @@ planner_format_intent_context() {
 	#   $2... - allowed tool names (strings)
 	# Returns:
 	#   intent context string on stdout.
-	local intent_json intent_label rationale tool_catalog
+	local intent_json intent_labels rationale tool_catalog
 	intent_json="$1"
 	shift
 
@@ -361,10 +361,10 @@ planner_format_intent_context() {
 		return 0
 	fi
 
-	intent_label="$(jq -r '.intent // ""' <<<"${intent_json}" 2>/dev/null)"
+	intent_labels="$(jq -r 'if .intents and (.intents | length > 0) then (.intents | join(",")) else .intent // "" end' <<<"${intent_json}" 2>/dev/null)"
 	rationale="$(jq -r '.rationale // ""' <<<"${intent_json}" 2>/dev/null)"
 
-	if [[ -z "${intent_label}" ]]; then
+	if [[ -z "${intent_labels}" ]]; then
 		printf '%s' "None provided."
 		return 0
 	fi
@@ -374,7 +374,7 @@ planner_format_intent_context() {
 		tool_catalog="none"
 	fi
 
-	printf '%s' "intent=${intent_label} rationale=${rationale} allowed_tools=${tool_catalog}"
+	printf '%s' "intents=${intent_labels} rationale=${rationale} allowed_tools=${tool_catalog}"
 }
 
 generate_planner_response_with_context() {
