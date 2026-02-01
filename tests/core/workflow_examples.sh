@@ -9,7 +9,7 @@ setup() {
 	run bash <<'SCRIPT'
 set -euo pipefail
 export WORKFLOWS_DIR=./workflows
-source ./src/lib/workflows/loader.sh
+source ./src/lib/executor/workflow_loader.sh
 plan='[{"tool":"workflow_daily_briefing","args":{"topic":"ai policy","source_url":"https://example.com","note_title":"Daily Briefing"}}]'
 expanded=$(expand_workflow_plan "${plan}")
 printf '%s\n' "${expanded}" | jq -r '.[0].tool,.[1].tool,.[2].tool,.[3].tool,.[0].args.query,.[1].args.url,.[2].args.title'
@@ -29,7 +29,7 @@ SCRIPT
 	run bash <<'SCRIPT'
 set -euo pipefail
 export WORKFLOWS_DIR=./workflows
-source ./src/lib/workflows/loader.sh
+source ./src/lib/executor/workflow_loader.sh
 plan='[{"tool":"workflow_research_and_summarize","args":{"query":"battery recycling","source_url":"https://example.com","note_title":"Research notes"}}]'
 expanded=$(expand_workflow_plan "${plan}")
 printf '%s\n' "${expanded}" | jq -r '.[0].tool,.[1].tool,.[2].tool,.[3].tool,.[0].args.query,.[1].args.url,.[2].args.title'
@@ -49,7 +49,7 @@ SCRIPT
 	run bash <<'SCRIPT'
 set -euo pipefail
 export WORKFLOWS_DIR=./workflows
-source ./src/lib/workflows/loader.sh
+source ./src/lib/executor/workflow_loader.sh
 plan='[{"tool":"workflow_inbox_to_reminders","args":{"reminder_title":"Reply to vendor","reminder_notes":"Follow up"}}]'
 expanded=$(expand_workflow_plan "${plan}")
 printf '%s\n' "${expanded}" | jq -r '.[0].tool,.[1].tool,.[2].tool,.[0].args,.[1].args.title,.[1].args.notes,.[2].args'

@@ -32,8 +32,8 @@ source "${PLANNING_INTENT_DIR}/../llm/templates.sh"
 source "${PLANNING_INTENT_DIR}/../llm/schema.sh"
 # shellcheck source=src/lib/llm/llama_client.sh
 source "${PLANNING_INTENT_DIR}/../llm/llama_client.sh"
-# shellcheck source=src/lib/workflows/loader.sh
-source "${PLANNING_INTENT_DIR}/../workflows/loader.sh"
+# shellcheck source=src/lib/executor/workflow_loader.sh
+source "${PLANNING_INTENT_DIR}/../executor/workflow_loader.sh"
 
 intent_schema_text() {
 	# Loads the intent JSON schema as a single line.

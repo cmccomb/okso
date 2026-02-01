@@ -9,7 +9,7 @@ setup() {
 	run bash <<'SCRIPT'
 set -euo pipefail
 export WORKFLOWS_DIR=./tests/fixtures/workflows/valid
-source ./src/lib/workflows/loader.sh
+source ./src/lib/executor/workflow_loader.sh
 source ./src/tools/registry.sh
 init_tool_registry
 register_workflow_tools
@@ -24,7 +24,7 @@ SCRIPT
 	run bash <<'SCRIPT'
 set -euo pipefail
 export WORKFLOWS_DIR=./tests/fixtures/workflows/valid
-source ./src/lib/workflows/loader.sh
+source ./src/lib/executor/workflow_loader.sh
 source ./src/tools/registry.sh
 init_tool_registry
 register_workflow_tools
@@ -39,7 +39,7 @@ SCRIPT
 	run bash <<'SCRIPT'
 set -euo pipefail
 export WORKFLOWS_DIR=./tests/fixtures/workflows/valid
-source ./src/lib/workflows/loader.sh
+source ./src/lib/executor/workflow_loader.sh
 plan='[{"tool":"workflow_example_json","args":{"project":"okso"},"thought":"invoke"}]'
 expanded=$(expand_workflow_plan "${plan}")
 printf '%s\n' "${expanded}" | jq -r '.[0].tool,.[0].args.command,.[0].thought'
@@ -55,7 +55,7 @@ SCRIPT
 	run bash <<'SCRIPT'
 set -euo pipefail
 export WORKFLOWS_DIR=./tests/fixtures/workflows/valid
-source ./src/lib/workflows/loader.sh
+source ./src/lib/executor/workflow_loader.sh
 plan='[{"tool":"workflow_missing","args":{},"thought":"invoke"}]'
 expand_workflow_plan "${plan}"
 SCRIPT
@@ -67,7 +67,7 @@ SCRIPT
 	run bash <<'SCRIPT'
 set -euo pipefail
 export WORKFLOWS_DIR=./tests/fixtures/workflows/invalid
-source ./src/lib/workflows/loader.sh
+source ./src/lib/executor/workflow_loader.sh
 workflows_load_specs
 SCRIPT
 

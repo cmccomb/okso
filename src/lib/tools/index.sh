@@ -27,8 +27,8 @@ TOOLS_DIR="${TOOLS_SRC_ROOT}/tools"
 source "${TOOLS_LIB_DIR}/../core/errors.sh"
 # shellcheck source=src/lib/core/logging.sh
 source "${TOOLS_LIB_DIR}/../core/logging.sh"
-# shellcheck source=src/lib/workflows/loader.sh
-source "${TOOLS_LIB_DIR}/../workflows/loader.sh"
+# shellcheck source=src/lib/executor/workflow_loader.sh
+source "${TOOLS_LIB_DIR}/../executor/workflow_loader.sh"
 # shellcheck source=src/tools/registry.sh
 source "${TOOLS_DIR}/registry.sh"
 TOOL_WRITABLE_DIRECTORY_ALLOWLIST=(

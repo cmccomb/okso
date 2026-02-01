@@ -20,8 +20,8 @@ PLANNING_NORMALIZATION_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck source=src/lib/core/logging.sh
 source "${PLANNING_NORMALIZATION_DIR}/../core/logging.sh"
-# shellcheck source=src/lib/workflows/loader.sh
-source "${PLANNING_NORMALIZATION_DIR}/../workflows/loader.sh"
+# shellcheck source=src/lib/executor/workflow_loader.sh
+source "${PLANNING_NORMALIZATION_DIR}/../executor/workflow_loader.sh"
 
 normalize_plan() {
 	# Normalize planner output into a clean plan array of objects. Structured

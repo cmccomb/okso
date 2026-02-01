@@ -41,7 +41,7 @@ SCRIPT
 	run bash <<'SCRIPT'
 set -euo pipefail
 export WORKFLOWS_DIR=./tests/fixtures/workflows/valid
-source ./src/lib/workflows/loader.sh
+source ./src/lib/executor/workflow_loader.sh
 source ./src/tools/registry.sh
 source ./src/lib/planning/intent.sh
 init_tool_registry
@@ -51,5 +51,5 @@ intent_to_tools "${intent_json}" | sort
 SCRIPT
 
 	[ "$status" -eq 0 ]
-	[[ "${output}" != *"workflow_example_json"* ]]
+	[[ "${output}" != *"workflow_example_json" ]]
 }

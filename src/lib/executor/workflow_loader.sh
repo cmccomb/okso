@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 #
-# Workflow loader and expander for okso plans.
+# Workflow loader and expander for okso plans (moved under executor).
 #
 # Usage:
-#   source "${BASH_SOURCE[0]%/loader.sh}/loader.sh"
+#   source "${BASH_SOURCE[0]%/workflow_loader.sh}/workflow_loader.sh"
 #
 # Environment variables:
 #   WORKFLOWS_DIR (string): override workflows directory; defaults to repo_root/workflows.
