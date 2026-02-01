@@ -22,7 +22,7 @@ For end-to-end scenarios that show how tools fit into approvals, see the [Run wi
 
 ## Workflows
 
-Workflows are reusable tool sequences defined as JSON or YAML files under `workflows/`. Each workflow registers a pseudo-tool named `workflow_<name>` with an argument schema derived from the workflow's `parameters` field. During plan normalization, workflow steps are expanded so downstream systems see concrete tool steps.
+Workflows are reusable tool sequences defined as JSON files under `workflows/`. Each workflow registers a pseudo-tool named `workflow_<name>` with an argument schema derived from the workflow's `parameters` field. During plan normalization, workflow steps are expanded so downstream systems see concrete tool steps.
 
 ### Workflow schema
 

@@ -1,6 +1,6 @@
 # Workflows
 
-Workflows define reusable sequences of tools. Each workflow is stored as a JSON (`.json`) or YAML (`.yaml`/`.yml`) file in this directory. The loader parses every file and registers a pseudo-tool named `workflow_<name>` that expands into the workflow's step list during plan normalization.
+Workflows define reusable sequences of tools. Each workflow is stored as a JSON (`.json`) file in this directory. The loader parses every file and registers a pseudo-tool named `workflow_<name>` that expands into the workflow's step list during plan normalization.
 
 ## Schema
 
@@ -54,32 +54,6 @@ Example (safe vs unsafe):
 
 - Unsafe: `"notes": "{{reminder_notes}}"` with no default and caller omits `reminder_notes` &rarr; tool may receive notes literally equal to `{{reminder_notes}}`.
 - Safe: Add `"default": ""` to the `reminder_notes` parameter, or omit the `notes` key when `reminder_notes` is empty. The loader will strip placeholders and omit empty keys.
-
-## Example (YAML)
-
-```yaml
-name: onboarding_brief
-description: Summarize new hire details and open a draft note.
-intents:
-  - notes
-parameters:
-  type: object
-  properties:
-    teammate:
-      type: string
-  required:
-    - teammate
-  additionalProperties: false
-steps:
-  - tool: terminal
-    args:
-      command: "echo \"Welcome {{teammate}}\""
-    thought: "Draft onboarding note for {{teammate}}."
-  - tool: notes_create
-    args:
-      title: "Onboarding: {{teammate}}"
-    thought: "Create the note."
-```
 
 ## Example workflows
 

@@ -51,6 +51,5 @@ intent_to_tools "${intent_json}" | sort
 SCRIPT
 
 	[ "$status" -eq 0 ]
-	[[ "${output}" == *"workflow_example_yaml"* ]]
 	[[ "${output}" != *"workflow_example_json"* ]]
 }

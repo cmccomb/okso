@@ -12,7 +12,6 @@
 # Dependencies:
 #   - bash 3.2+
 #   - jq
-#   - ruby (for YAML parsing)
 #   - logging helpers from logging.sh
 #
 # Exit codes:
@@ -96,7 +95,7 @@ workflow_register_spec() {
 		'.[$name] = $spec' <<<"${WORKFLOW_SPECS_JSON}")
 }
 
-workflow_parse_json_file() {
+workflow_parse_file() {
 	# Arguments:
 	#   $1 - path to JSON spec (string)
 	# Returns:
@@ -105,38 +104,6 @@ workflow_parse_json_file() {
 	file="$1"
 
 	jq -c '.' "${file}"
-}
-
-workflow_parse_yaml_file() {
-	# Arguments:
-	#   $1 - path to YAML spec (string)
-	# Returns:
-	#   parsed JSON on stdout
-	local file
-	file="$1"
-
-	ruby -rjson -ryaml -e 'data = YAML.safe_load(File.read(ARGV[0]), permitted_classes: [], permitted_symbols: [], aliases: false); puts JSON.generate(data)' "${file}"
-}
-
-workflow_parse_file() {
-	# Arguments:
-	#   $1 - workflow file path (string)
-	# Returns:
-	#   parsed JSON on stdout
-	local file
-	file="$1"
-
-	case "${file}" in
-	*.json)
-		workflow_parse_json_file "${file}"
-		;;
-	*.yaml | *.yml)
-		workflow_parse_yaml_file "${file}"
-		;;
-	*)
-		return 1
-		;;
-	esac
 }
 
 workflow_validate_spec() {
@@ -213,7 +180,7 @@ workflows_list_files() {
 		return 0
 	fi
 
-	find "${WORKFLOWS_DIR}" -maxdepth 1 -type f \( -name '*.json' -o -name '*.yaml' -o -name '*.yml' \) -print0
+	find "${WORKFLOWS_DIR}" -maxdepth 1 -type f \( -name '*.json' \) -print0
 }
 
 workflows_load_specs() {

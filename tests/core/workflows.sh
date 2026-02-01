@@ -18,7 +18,6 @@ SCRIPT
 
 	[ "$status" -eq 0 ]
 	[ "${lines[0]}" = "workflow_example_json" ]
-	[ "${lines[1]}" = "workflow_example_yaml" ]
 }
 
 @test "register_workflow_tools preserves parameter schemas" {
