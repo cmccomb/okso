@@ -107,12 +107,20 @@ planner_format_search_context() {
 
 	# Format the search results
 	if ! formatted=$(jq -r '
-                def fmt(idx; item): "\(idx). \(item.title // \"Untitled\"): \(item.snippet // \"\") [\(item.url // \"\")]";
-                if (.items | length == 0) then
+                def fmt(idx; item):
+                        (idx | tostring)
+                        + ". "
+                        + (item.title // "Untitled")
+                        + ": "
+                        + (item.snippet // "")
+                        + " ["
+                        + (item.url // "")
+                        + "]";
+                if ((.items // []) | length == 0) then
                         "No search results were captured for this query."
                 else
-                        "Query: \(.query // \"\")\n" +
-                        ((.items // []) | to_entries | map(fmt(.key + 1; .value)) | join("\n"))
+                        "Query: " + (.query // "") + "\n"
+                        + ((.items // []) | to_entries | map(fmt(.key + 1; .value)) | join("\n"))
                 end
         ' <<<"${raw_context}" 2>/dev/null); then
 		log "ERROR" "Failed to format search context" "planner_search_context_parse_error" >&2
