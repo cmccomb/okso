@@ -330,7 +330,7 @@ format_intent_context() {
 	local rationale intents tools
 	rationale="$(jq -r '.rationale // "No rationale provided"' <<<"${intent_json}" 2>/dev/null)"
 	intents="$(jq -r '.intents // [] | join(", ")' <<<"${intent_json}" 2>/dev/null)"
-	tools="$(printf '%s' "${planner_tools}" | paste -sd ', ' -)"
+	tools="$(printf '%s\n' "${planner_tools}" | paste -sd ',' -)"
 
 	# Format output
 	printf 'Rationale: %s\nIntents: %s\nEnabled Tools: %s' "${rationale}" "${intents}" "${tools}"

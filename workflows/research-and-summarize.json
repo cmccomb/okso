@@ -1,40 +1,45 @@
 {
-  "name": "research_and_summarize",
-  "description": "Search for a topic, fetch a key source, and store summary notes.",
-  "intents": ["web", "notes"],
+  "name": "research",
+  "description": "Investigate a topic by finding and researching key sources, then summarize the findings.",
+  "intents": ["web"],
   "parameters": {
     "type": "object",
     "properties": {
-      "query": {"type": "string", "minLength": 1},
-      "source_url": {"type": "string", "format": "uri", "minLength": 1},
-      "note_title": {"type": "string", "minLength": 1}
+      "query": {"type": "string", "minLength": 1}
     },
-    "required": ["query", "source_url", "note_title"],
+    "required": ["query"],
     "additionalProperties": false
   },
   "steps": [
     {
+      "thought": "Find sources for \"{{query}}.\"",
       "tool": "web_search",
-      "args": {"query": "{{query}}"},
-      "thought": "Find sources for {{query}}."
+      "args": {"query": {"__fill__":  true}}
     },
     {
+      "thought": "Execute a more focused search based on the initial results.",
+      "tool": "web_search",
+      "args": {"query": {"__fill__":  true}}
+    },
+    {
+      "thought": "Follow up on the first of three most relevant sources from the earlier searches",
       "tool": "web_fetch",
-      "args": {"url": "{{source_url}}"},
-      "thought": "Pull the selected source content."
+      "args": {"query": {"__fill__":  true}}
     },
     {
-      "tool": "notes_create",
-      "args": {
-        "title": "{{note_title}}",
-        "body": "Research summary for {{query}} based on {{source_url}}."
-      },
-      "thought": "Save research notes."
+      "thought": "Follow up on the second of three most relevant sources from the earlier searches",
+      "tool": "web_fetch",
+      "args": {"query": {"__fill__":  true}}
     },
     {
+      "thought": "Follow up on the second of three most relevant sources from the earlier searches",
+      "tool": "web_fetch",
+      "args": {"query": {"__fill__":  true}}
+    },
+    {
+      "thought": "Answer with a response to the user's query based on the search and investigation steps.",
       "tool": "final_answer",
-      "args": {},
-      "thought": "Share the research completion."
+      "args": {}
     }
   ]
 }
