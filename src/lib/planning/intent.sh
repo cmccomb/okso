@@ -60,7 +60,7 @@ intent_fallback_json() {
 	#   $3 - rationale (string)
 	# Returns:
 	#   JSON object on stdout.
-	local intent_label  rationale
+	local intent_label rationale
 	intent_label="$1"
 	rationale="$2"
 

@@ -106,7 +106,6 @@ format_tool_details() {
 		fi
 	fi
 
-
 	# Combine details into a single string
 	if ((${#details[@]} == 0)); then
 		return 0

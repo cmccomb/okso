@@ -46,8 +46,6 @@ tool_description() {
 	jq -r --arg name "${name}" '.registry[$name].description // ""' <<<"$(tool_registry_json)"
 }
 
-
-
 tool_handler() {
 	local name
 	name="$1"
