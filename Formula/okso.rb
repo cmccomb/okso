@@ -16,7 +16,6 @@ class Okso < Formula
   depends_on "ripgrep"
   depends_on "ripgrep-all"
   depends_on "tesseract"
-  depends_on "xlsx2csv"
   depends_on "python@3.12"
   depends_on "yq"
 
