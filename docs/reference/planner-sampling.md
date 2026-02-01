@@ -1,13 +1,13 @@
 # Planner sampling, scoring, and debugging
 
-Planner runs sample multiple outline candidates before execution. Use these controls to guide the search, understand scoring, and inspect alternatives.
+Planner runs score and debug each outline candidate before execution. Use these controls to understand scoring and inspect alternatives.
 
 ## Sampling controls
 
-- `PLANNER_SAMPLE_COUNT` sets how many candidates to generate and score. Values below `1` are clamped to `1` so selection always has a plan to review.
+- `PLANNER_SAMPLE_COUNT` is defined but currently pinned to `1` in `planner.sh`, so only one candidate is generated and scored per run.
 - `PLANNER_TEMPERATURE` forwards directly to llama.cpp for planner generations. Lower values keep plans conservative; higher values explore more tool permutations. Values should stay between `0` and `1` for predictable entropy.
 
-All normalized candidates are scored before selection to ensure the highest-quality plan is chosen, even when early samples look promising.
+The normalized candidate is scored before selection to ensure the highest-quality plan is chosen, even when early samples look promising.
 
 ## Scoring rules
 

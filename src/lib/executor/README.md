@@ -1,6 +1,6 @@
 # Executor library
 
-This package hosts the executor that runs after planning. The planner populates allowed tools, plan entries, and llama.cpp wiring, then delegates tool validation and execution to `executor_loop`. The loop is deterministic: it iterates through planner actions, validates each tool against the allowlist, fills missing arguments in a single LLM round-trip when needed, retries safely, and records enriched error details rather than depending on multi-turn interactions. Callers that previously sourced `planning/react.sh` remain supported via the shim in that directory, but new entry points should source `executor/loop.sh` directly.
+This package hosts the executor that runs after planning. The planner populates allowed tools, plan entries, and llama.cpp wiring, then delegates tool validation and execution to `executor_loop`. The loop is deterministic: it iterates through planner actions, validates each tool against the allowlist, fills missing arguments in a single LLM round-trip when needed, retries safely, and records enriched error details rather than depending on multi-turn interactions. New entry points should source `executor/loop.sh` directly.
 
 ## Usage
 
@@ -48,7 +48,7 @@ stable even when upstream planners emit inconsistent metadata.
 
 ## Sourcing notes
 
-The library expects shared utilities to be co-located: prompt builders under `prompt/`,
-tool dispatchers in `exec/`, schemas in `schema/`, and llama helpers in `llm/`. When
-vendoring the module, ensure those dependencies are available and update the compatibility
-shim at `src/lib/planning/react.sh` if needed.
+The library expects shared utilities to be co-located under `src/lib/`, including prompts
+and schema helpers in `llm/`, tool dispatchers in `tools/`, and logging/state helpers in
+`core/`. When vendoring the module, ensure those dependencies are available and update
+paths in the `source` statements if needed.
