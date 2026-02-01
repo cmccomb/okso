@@ -4,7 +4,7 @@ This page follows a typical run from the first prompt through tool execution so 
 
 ## End-to-end flow
 
-```mermaid
+<pre class="mermaid">
 sequenceDiagram
     participant User
     participant CLI as okso CLI
@@ -27,7 +27,7 @@ sequenceDiagram
     Tool-->>Trace: Stream stdout/stderr and status
     Trace-->>Executor: Observations captured
     Executor-->>User: Final answer once all steps complete
-```
+</pre>
 
 Use `--dry-run` to stop after plan generation and approvals if you want to inspect the flow without executing tools.
 
@@ -67,3 +67,11 @@ Use `--dry-run` to stop after plan generation and approvals if you want to inspe
 - Each tool wrapper lives under `src/tools/` (with suites like `src/tools/web/` grouping related helpers) and enforces its own guards (sandboxed directories, platform checks, interactive deletes).
 - The `terminal` tool keeps a persistent working directory per request, while helpers such as `python_repl` and macOS-specific tools run in isolated contexts.
 - Traces and logs for each invocation help you audit decisions and replay failures.
+
+<script type="module">
+	import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+	mermaid.initialize({
+		startOnLoad: true,
+		theme: 'dark'
+	});
+</script>
