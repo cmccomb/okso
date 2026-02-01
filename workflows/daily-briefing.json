@@ -1,0 +1,39 @@
+{
+  "name": "daily_briefing",
+  "description": "Collect a daily briefing topic, fetch a source URL, and capture the summary in notes.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "topic": {"type": "string", "minLength": 1},
+      "source_url": {"type": "string", "format": "uri", "minLength": 1},
+      "note_title": {"type": "string", "minLength": 1}
+    },
+    "required": ["topic", "source_url", "note_title"],
+    "additionalProperties": false
+  },
+  "steps": [
+    {
+      "tool": "web_search",
+      "args": {"query": "daily briefing {{topic}}"},
+      "thought": "Gather recent coverage for {{topic}}."
+    },
+    {
+      "tool": "web_fetch",
+      "args": {"url": "{{source_url}}"},
+      "thought": "Fetch the primary source for the briefing."
+    },
+    {
+      "tool": "notes_create",
+      "args": {
+        "title": "{{note_title}}",
+        "body": "Daily briefing for {{topic}} based on {{source_url}}."
+      },
+      "thought": "Capture the briefing in Notes."
+    },
+    {
+      "tool": "final_answer",
+      "args": {},
+      "thought": "Share the briefing completion."
+    }
+  ]
+}

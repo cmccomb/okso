@@ -1,0 +1,33 @@
+{
+  "name": "inbox_to_reminders",
+  "description": "Review unread mail and create a follow-up reminder.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "reminder_title": {"type": "string", "minLength": 1},
+      "reminder_notes": {"type": "string"}
+    },
+    "required": ["reminder_title"],
+    "additionalProperties": false
+  },
+  "steps": [
+    {
+      "tool": "mail_list_unread",
+      "args": {},
+      "thought": "See what's waiting in the inbox."
+    },
+    {
+      "tool": "reminders_create",
+      "args": {
+        "title": "{{reminder_title}}",
+        "notes": "{{reminder_notes}}"
+      },
+      "thought": "Capture a follow-up reminder."
+    },
+    {
+      "tool": "final_answer",
+      "args": {},
+      "thought": "Confirm the reminder was captured."
+    }
+  ]
+}
