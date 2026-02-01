@@ -24,8 +24,8 @@ source "${PLANNING_SEARCH_DIR}/../llm/templates.sh"
 source "${PLANNING_SEARCH_DIR}/../llm/schema.sh"
 # shellcheck source=src/lib/llm/llama_client.sh
 source "${PLANNING_SEARCH_DIR}/../llm/llama_client.sh"
-# shellcheck source=src/lib/planning/intent.sh
-source "${PLANNING_SEARCH_DIR}/intent.sh"
+# shellcheck source=src/lib/intent/intent.sh
+source "${PLANNING_SEARCH_DIR}/../intent/intent.sh"
 
 # Inlined rephrasing helpers (merged from rephrasing.sh)
 render_rephrase_prompt() {
