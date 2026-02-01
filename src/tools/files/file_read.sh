@@ -14,7 +14,7 @@
 #   - jq
 #   - mktemp
 #   - file
-#   - optional converters: pandoc, pdftotext, docx2txt, xlsx2csv
+#   - optional converters: pandoc, pdftotext, docx2txt
 #   - logging helpers from logging.sh
 #   - register_tool from tools/registry.sh
 #
@@ -267,14 +267,8 @@ tool_file_read() {
 		fi
 		;;
 	xlsx)
-		if ! command -v xlsx2csv >/dev/null 2>&1; then
-			log "ERROR" "Missing dependency for XLSX extraction" "xlsx2csv" >&2
-			return 1
-		fi
-		extracted_path="${tmp_dir}/extracted.csv"
-		xlsx2csv -a "${path}" >"${extracted_path}"
-		file_read_render_text_file "${extracted_path}" "${rendered_path}"
-		wrap_page=true
+		log "ERROR" "XLSX files are not supported" "Export to CSV before running file_read." >&2
+		return 1
 		;;
 	text)
 		file_read_render_text_file "${path}" "${rendered_path}"
@@ -352,7 +346,7 @@ JSON
 
 	register_tool \
 		"file_read" \
-		"Read local files with pagination and Markdown normalization. Supports text, PDFs, and common Office document formats when dependencies are installed." \
+		"Read local files with pagination and Markdown normalization. Supports text, PDFs, and Office formats like DOCX/PPTX when dependencies are installed." \
 		"Reads local files; no external access. Use pagination to bound output." \
 		tool_file_read \
 		"${args_schema}"
