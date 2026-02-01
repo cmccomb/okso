@@ -59,13 +59,15 @@ register_notes_list() {
 
 	args_schema=$(
 		cat <<'JSON'
-{"type":"object","properties":{}}
+{
+  "type": "object",
+  "properties": {}
+}
 JSON
 	)
 	register_tool \
 		"notes_list" \
 		"List note titles from the configured Apple Notes folder." \
-		"Requires macOS Apple Notes access; read-only." \
 		tool_notes_list \
 		"${args_schema}"
 }

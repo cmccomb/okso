@@ -58,8 +58,6 @@ source "${CONFIG_LIB_DIR}/system_profile.sh"
 
 : "${MODEL_AUTOTUNE_BASE_TIER:=}"
 : "${MODEL_AUTOTUNE_EFFECTIVE_TIER:=}"
-: "${MODEL_AUTOTUNE_PRESSURE_LEVEL:=}"
-: "${MODEL_AUTOTUNE_HEADROOM_CLASS:=}"
 
 set_autotuned_model_defaults() {
 	# Sets default model specifications based on system profile autotuning.
@@ -68,16 +66,10 @@ set_autotuned_model_defaults() {
 	# Returns:
 	#   None
 
-	local pressure_level headroom_class effective_tier task_size default_size heavy_size
+	local effective_tier task_size default_size heavy_size
 
 	# Load or detect system profile
 	load_or_detect_system_profile
-
-	# Determine pressure level and headroom class
-	pressure_level="$(detect_pressure_level)"
-	headroom_class="$(estimate_headroom_class)"
-	MODEL_AUTOTUNE_PRESSURE_LEVEL="${pressure_level}"
-	MODEL_AUTOTUNE_HEADROOM_CLASS="${headroom_class}"
 
 	# Determine base tier if not already set
 	if [[ -z "${DETECTED_BASE_TIER:-}" ]]; then
@@ -85,7 +77,7 @@ set_autotuned_model_defaults() {
 	fi
 
 	# Determine effective tier based on pressure and headroom
-	effective_tier=$(cap_tier_for_pressure "${DETECTED_BASE_TIER}" "${pressure_level}" "${headroom_class}")
+	effective_tier="${DETECTED_BASE_TIER}"
 	MODEL_AUTOTUNE_BASE_TIER="${DETECTED_BASE_TIER}"
 	MODEL_AUTOTUNE_EFFECTIVE_TIER="${effective_tier}"
 
@@ -120,11 +112,9 @@ log_model_autotune_summary() {
 	# Returns:
 	#  None
 
-	local base effective pressure headroom mem_fragment gha_fragment fragments summary_detail
+	local base effective mem_fragment gha_fragment fragments summary_detail
 	base="${MODEL_AUTOTUNE_BASE_TIER:-${DETECTED_BASE_TIER:-unknown}}"
 	effective="${MODEL_AUTOTUNE_EFFECTIVE_TIER:-${base}}"
-	pressure="${MODEL_AUTOTUNE_PRESSURE_LEVEL:-unknown}"
-	headroom="${MODEL_AUTOTUNE_HEADROOM_CLASS:-unknown}"
 
 	# Build memory fragment
 	if [[ -n "${DETECTED_PHYS_MEM_GB:-}" ]]; then
@@ -142,7 +132,6 @@ log_model_autotune_summary() {
 	fragments=()
 	fragments+=("${mem_fragment}")
 	[[ -n "${gha_fragment}" ]] && fragments+=("${gha_fragment}")
-	fragments+=("pressure=${pressure}" "headroom=${headroom}")
 
 	# Combine fragments into summary detail
 	summary_detail=$(

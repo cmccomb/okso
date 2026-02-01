@@ -38,7 +38,7 @@ reminders_extract_title_and_body() {
 	# Emits two NUL-delimited fields: title then body.
 	local title notes text_key
 
-	text_key="$(canonical_text_arg_key)"
+	text_key="input"
 	title=$(jq -er --arg key "${text_key}" 'if type == "object" then .[$key] // .title // empty else empty end' <<<"${TOOL_ARGS:-{}}" 2>/dev/null || true)
 	notes=$(jq -er '.notes // ""' <<<"${TOOL_ARGS:-{}}" 2>/dev/null || true)
 

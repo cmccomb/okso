@@ -1,0 +1,45 @@
+{
+  "name": "research",
+  "description": "Investigate a topic by finding and researching key sources, then summarize the findings.",
+  "intents": ["web"],
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "query": {"type": "string", "minLength": 1}
+    },
+    "required": ["query"],
+    "additionalProperties": false
+  },
+  "steps": [
+    {
+      "thought": "Find sources for \"{{query}}.\"",
+      "tool": "web_search",
+      "args": {"query": {"__fill__":  true}}
+    },
+    {
+      "thought": "Execute a more focused search based on the initial results.",
+      "tool": "web_search",
+      "args": {"query": {"__fill__":  true}}
+    },
+    {
+      "thought": "Follow up on the first of three most relevant sources from the earlier searches",
+      "tool": "web_fetch",
+      "args": {"query": {"__fill__":  true}}
+    },
+    {
+      "thought": "Follow up on the second of three most relevant sources from the earlier searches",
+      "tool": "web_fetch",
+      "args": {"query": {"__fill__":  true}}
+    },
+    {
+      "thought": "Follow up on the second of three most relevant sources from the earlier searches",
+      "tool": "web_fetch",
+      "args": {"query": {"__fill__":  true}}
+    },
+    {
+      "thought": "Answer with a response to the user's query based on the search and investigation steps.",
+      "tool": "final_answer",
+      "args": {}
+    }
+  ]
+}

@@ -5,33 +5,34 @@ okso separates high-level planning from step-by-step execution so that tool call
 ## Planner pass
 
 1. The planner drafts a numbered outline that mentions the tools to use for each step.
-2. A dedicated rephrasing step asks a Qwen3 1.7B model for 1–3 focused web search strings (constrained by a JSON schema) and runs
+2. An intent classification step determines if the request needs web context and filters the tool catalog for the planner.
+3. A dedicated rephrasing step asks a Qwen3 1.7B model for 1–3 focused web search strings (constrained by a JSON schema) and runs
    a search for each, folding the aggregated snippets into the planner prompt.
-3. The outline is emitted as structured JSON for logging and optional downstream automation.
-4. Approval prompts give you a chance to refine or abort the plan before any commands run.
-5. A side-effect-free scorer evaluates each sampled outline before selection. Plans that stay within the `PLANNER_MAX_PLAN_STEPS`
+4. The outline is emitted as structured JSON for logging and optional downstream automation.
+5. Approval prompts give you a chance to refine or abort the plan before any commands run.
+6. A side-effect-free scorer evaluates each sampled outline before selection. Plans that stay within the `PLANNER_MAX_PLAN_STEPS`
    budget, end with `final_answer`, use registered tools with schema-compliant arguments, and delay side-effecting actions receive
    higher scores and win ties when multiple candidates share the same numeric total.
-6. Each planner invocation samples `PLANNER_SAMPLE_COUNT` candidates at `PLANNER_TEMPERATURE`; the scored JSONL history is written
-   to `PLANNER_DEBUG_LOG` so you can audit how the winner was chosen.
+7. Each planner invocation currently generates a single candidate (the `PLANNER_SAMPLE_COUNT` knob is pinned to `1` in the planner); the scored JSONL
+   history is written to `PLANNER_DEBUG_LOG` so you can audit how the winner was chosen.
 
 See [Planner sampling](./planner-sampling.md) for detailed scoring heuristics and debug log fields that help compare candidates.
 
 ## Executor
 
-After the plan is approved, the runtime requests a single structured tool call:
+After the plan is approved, the runtime executes the planner-selected tools in order:
 
-- **Default behaviour:** llama.cpp receives the executor prompt (no persona or transcript) and must emit one JSON action that matches the executor schema. Planner output provides seed values for all arguments; empty string seeds indicate fields the executor must fill from observations, while non-empty seeds are used as-is. Fill mode is inferred from seed presence; missing required values result in validation errors that stop execution. During arg-fill, the executor summarizes web fetch observations and applies prompt context budgets before calling the model.
-- **Fallback behaviour:** if llama.cpp is unavailable or `USE_REACT_LLAMA=false` is set, okso replays the planned tool calls deterministically using the planner-provided arguments.
+- **Default behaviour:** the executor loop runs each planned tool call deterministically. Planner output provides seed values for all arguments; empty string seeds indicate fields the executor must fill from observations, while non-empty seeds are used as-is. Fill mode is inferred from seed presence; missing required values result in validation errors that stop execution. During arg-fill, the executor summarizes web fetch observations and applies prompt context budgets before calling the model.
+- **Fallback behaviour:** if llama.cpp is unavailable, okso preserves planner-provided arguments and skips LLM-based arg enrichment.
 
-Each executor decision and observation is streamed to the terminal. Use `--dry-run` when you want to inspect the generated plan and tool calls without executing anything.
+Each executor decision and observation is streamed to the terminal.
 
 Execution summaries keep tool observations machine-readable by emitting compact JSON for tool outputs (for example, a web search observation remains `{"items":[...],"total_results":5}` instead of a bulleted list). Use the `format_tool_history_pretty()` helper in `src/lib/cli/output.sh` if you need a human-formatted view.
 
 ## Configuration hooks
 
-- `USE_REACT_LLAMA`: toggles the executor llama.cpp call (defaults to enabled).
-- `OKSO_PLAN_OUTPUT`: file path for writing the approved plan JSON.
-- `OKSO_TRACE_DIR`: directory for trace artifacts from each tool run.
+- `APPROVE_ALL`: toggles plan approval prompts.
+- `INTENT_DISABLE_SEARCH`: skips the pre-planner search stage regardless of intent.
+- `PLANNER_SAMPLE_COUNT`, `PLANNER_TEMPERATURE`, `PLANNER_MAX_OUTPUT_TOKENS`: control planner sampling settings.
 
-See [usage](../user-guides/usage.md) for CLI flags that control approvals and dry runs.
+See [usage](../user-guides/usage.md) for CLI flags that control approvals and logging.

@@ -1,0 +1,20 @@
+{
+  "name": "example_json",
+  "description": "Example JSON workflow",
+  "intents": ["filesystem"],
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "project": {"type": "string"}
+    },
+    "required": ["project"],
+    "additionalProperties": false
+  },
+  "steps": [
+    {
+      "tool": "terminal",
+      "args": {"command": "echo \"{{project}}\""},
+      "thought": "Ping {{project}}"
+    }
+  ]
+}

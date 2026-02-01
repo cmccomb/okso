@@ -47,6 +47,9 @@ schema_path() {
 	pre_planner_search_terms)
 		schema_file="pre_planner_search_terms.schema.json"
 		;;
+	intent)
+		schema_file="intent.schema.json"
+		;;
 	final_answer_evaluation)
 		schema_file="final_answer_evaluation.schema.json"
 		;;

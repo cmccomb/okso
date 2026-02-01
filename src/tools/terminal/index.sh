@@ -445,7 +445,22 @@ register_terminal() {
 
 	args_schema=$(
 		cat <<JSON
-{"type":"object","required":["command"],"properties":{"command":{"type":"string","enum":$(terminal_command_enum_json)},"args":{"type":"array","items":{"type":"string"}}}}
+{
+  "type": "object",
+  "required": ["command"],
+  "properties": {
+    "command": {
+      "type": "string",
+      "enum": $(terminal_command_enum_json)
+    },
+    "args": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}
 JSON
 	)
 
@@ -453,7 +468,6 @@ JSON
 	register_tool \
 		"terminal" \
 		"${description}" \
-		"Restricted command set with a per-query working directory; destructive operations default to interactive rm." \
 		tool_terminal \
 		"${args_schema}"
 }

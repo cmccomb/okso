@@ -346,8 +346,7 @@ JSON
 
 	register_tool \
 		"file_read" \
-		"Read local files with pagination and Markdown normalization. Supports text, PDFs, and Office formats like DOCX/PPTX when dependencies are installed." \
-		"Reads local files; no external access. Use pagination to bound output." \
+		"Read local files with pagination and Markdown normalization. Supports text, PDFs, and common Office document formats when dependencies are installed." \
 		tool_file_read \
 		"${args_schema}"
 }

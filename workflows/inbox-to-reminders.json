@@ -1,0 +1,35 @@
+{
+  "name": "inbox_to_reminders",
+  "description": "Review unread mail and create a follow-up reminder.",
+  "intents": ["mail", "reminders"],
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "reminder_title": {"type": "string", "minLength": 1},
+      "reminder_notes": {"type": "string", "default": ""}
+    },
+    "required": ["reminder_title"],
+    "additionalProperties": false
+  },
+  "steps": [
+    {
+      "tool": "mail_list_unread",
+      "args": {},
+      "thought": "See what's waiting in the inbox."
+    },
+    {
+      "tool": "reminders_create",
+      "args": {
+        "_comment": "Avoid leaving literal {{reminder_notes}} when reminder_notes is optional. If omitted, the renderer may only substitute provided keys and leave '{{reminder_notes}}' literally. Consider making reminder_notes required, providing a default empty string (added to schema), or omitting the notes arg when not provided.",
+        "title": "{{reminder_title}}",
+        "notes": "{{reminder_notes}}"
+      },
+      "thought": "Capture a follow-up reminder."
+    },
+    {
+      "tool": "final_answer",
+      "args": {},
+      "thought": "Confirm the reminder was captured."
+    }
+  ]
+}

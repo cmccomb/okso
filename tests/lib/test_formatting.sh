@@ -17,11 +17,10 @@
 cd "$(git rev-parse --show-toplevel)" || exit 1
 source ./src/lib/cli/output.sh
 tool_description() { printf "desc-%s" "$1"; }
-tool_safety() { printf "safe-%s" "$1"; }
 tool_args_schema() { printf '{"type":"object","properties":{"input":{"type":"string"}}}'; }
 input=$'alpha\n\nbeta'
 output="$(format_tool_descriptions "${input}" format_tool_line)"
-expected=$'- alpha: desc-alpha | Args Schema: {"type":"object","properties":{"input":{"type":"string"}}} | Safety: safe-alpha\n- beta: desc-beta | Args Schema: {"type":"object","properties":{"input":{"type":"string"}}} | Safety: safe-beta'
+expected=$'- alpha: desc-alpha | Args Schema: {"type":"object","properties":{"input":{"type":"string"}}}\n- beta: desc-beta | Args Schema: {"type":"object","properties":{"input":{"type":"string"}}}'
 [[ "${output}" == "${expected}" ]]
 EOF
 	[ "$status" -eq 0 ]
@@ -32,10 +31,9 @@ EOF
 cd "$(git rev-parse --show-toplevel)" || exit 1
 source ./src/lib/cli/output.sh
 tool_description() { printf "describe-%s" "$1"; }
-tool_safety() { printf "limit-%s" "$1"; }
 tool_args_schema() { printf '{"type":"object","properties":{"input":{"type":"string"}}}'; }
 line="$(format_tool_example_line "demo")"
-[[ "${line}" == "- demo: describe-demo | Args Schema: {\"type\":\"object\",\"properties\":{\"input\":{\"type\":\"string\"}}} | Safety: limit-demo" ]]
+[[ "${line}" == "- demo: describe-demo | Args Schema: {\"type\":\"object\",\"properties\":{\"input\":{\"type\":\"string\"}}}" ]]
 EOF
 	[ "$status" -eq 0 ]
 }

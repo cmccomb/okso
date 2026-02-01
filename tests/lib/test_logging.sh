@@ -53,6 +53,33 @@ setup() {
 	[[ -z "$output" ]]
 }
 
+@test "log_should_emit respects verbosity levels" {
+	run bash -lc '
+                source ./src/lib/core/logging.sh
+
+                printf "%s %s %s\n" \
+                        "$(log_should_emit DEBUG 1)" \
+                        "$(log_should_emit DEBUG 2)" \
+                        "$(log_should_emit INFO 1)"
+        '
+
+	[ "$status" -eq 0 ]
+	[[ "${output}" == "0 1 1" ]]
+}
+
+@test "log_truncate_detail shortens long details with token annotation" {
+	run bash -lc '
+                source ./src/lib/core/logging.sh
+
+                detail="$(printf "word %.0s" {1..200})"
+                truncated="$(log_truncate_detail "${detail}" 10)"
+                printf "%s\n" "${truncated}"
+        '
+
+	[ "$status" -eq 0 ]
+	[[ "${output}" == *"[first "* ]]
+}
+
 @test "user output stays on stdout while logs remain on stderr" {
 	run bash -lc '
                 source ./src/lib/cli/output.sh

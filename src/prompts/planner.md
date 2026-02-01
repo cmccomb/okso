@@ -75,6 +75,9 @@ Current time: ${current_time} (${current_weekday}, ${current_date})
 ## Feedback or Constraints
 ${planner_feedback}
 
+## Intent context
+${intent_context}
+
 Search context (if any):
 ${search_context}
 

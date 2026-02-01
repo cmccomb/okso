@@ -43,7 +43,7 @@ calendar_dry_run_guard() {
 tool_calendar_create() {
 	local title start_time location calendar_script args_json text_key details
 	args_json="${TOOL_ARGS:-}" || true
-	text_key="$(canonical_text_arg_key)"
+	text_key="input"
 	details=$(jq -er --arg key "${text_key}" '
  if type != "object" then error("args must be object") end
 | if .[$key]? == null then error("missing ${key}") end
@@ -90,11 +90,23 @@ APPLESCRIPT
 register_calendar_create() {
 	local args_schema
 
-	args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}}}')
+	args_schema=$(
+		cat <<'JSON'
+{
+  "type": "object",
+  "required": ["input"],
+  "properties": {
+    "input": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
+JSON
+	)
 	register_tool \
 		"calendar_create" \
 		"Create a new Apple Calendar event (line 1: title; line 2: start time)." \
-		"Requires macOS Calendar access; event details are sent to Calendar." \
 		tool_calendar_create \
 		"${args_schema}"
 }

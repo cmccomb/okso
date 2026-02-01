@@ -41,6 +41,38 @@ setup() {
 	[ "${output}" = '{"default":true}' ]
 }
 
+@test "json_state_sanitize_json normalizes or falls back" {
+	# shellcheck disable=SC1091
+	source ./src/lib/core/json_state.sh
+	output=$(json_state_sanitize_json '{"b":2,"a":1}' '{}')
+	jq -e '.a == 1 and .b == 2' <<<"${output}" >/dev/null
+	output=$(json_state_sanitize_json '{invalid' '{"ok":true}')
+	[ "${output}" = '{"ok":true}' ]
+	run json_state_sanitize_json '{invalid' ''
+	[ "${status}" -ne 0 ]
+	[ -z "${output}" ]
+}
+
+@test "json_state_resolve_document uses cache when fallback omitted" {
+	# shellcheck disable=SC1091
+	source ./src/lib/core/json_state.sh
+	prefix=resolve_cache_case
+	json_state_write_cache "${prefix}" '{"cached":true}'
+	unset "$(json_state_namespace_var "${prefix}")"
+	output=$(json_state_resolve_document "${prefix}" "")
+	[ "${output}" = '{"cached":true}' ]
+}
+
+@test "json_state_resolve_document prefers valid namespace data" {
+	# shellcheck disable=SC1091
+	source ./src/lib/core/json_state.sh
+	prefix=resolve_var_case
+	json_var=$(json_state_namespace_var "${prefix}")
+	printf -v "${json_var}" "%s" '{"b":2,"a":1}'
+	output=$(json_state_resolve_document "${prefix}" '{"fallback":true}')
+	jq -e '.a == 1 and .b == 2' <<<"${output}" >/dev/null
+}
+
 @test "invalid documents are cached as sanitized fallbacks" {
 	# shellcheck disable=SC1091
 	source ./src/lib/core/json_state.sh

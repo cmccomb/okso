@@ -91,14 +91,22 @@ register_file_read() {
 
 	args_schema=$(
 		cat <<'JSON'
-{"type":"object","properties":{"input":{"type":"string"}},"required":["input"],"additionalProperties":false}
+{
+  "type": "object",
+  "properties": {
+    "input": {
+      "type": "string"
+    }
+  },
+  "required": ["input"],
+  "additionalProperties": false
+}
 JSON
 	)
 
 	register_tool \
 		"file_read" \
 		"Read a local file and return paginated markdown text." \
-		"Only reads local files provided by the user." \
 		tool_file_read \
 		"${args_schema}"
 }

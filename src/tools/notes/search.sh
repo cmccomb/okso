@@ -37,7 +37,7 @@ derive_notes_search_query() {
 tool_notes_search() {
 	local query folder_script args_json text_key
 	args_json="${TOOL_ARGS:-}" || true
-	text_key="$(canonical_text_arg_key)"
+	text_key="input"
 	query=""
 
 	query=$(jq -er --arg key "${text_key}" '
@@ -78,11 +78,23 @@ APPLESCRIPT
 register_notes_search() {
 	local args_schema
 
-	args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}}}')
+	args_schema=$(
+		cat <<'JSON'
+{
+  "type": "object",
+  "required": ["input"],
+  "properties": {
+    "input": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
+JSON
+	)
 	register_tool \
 		"notes_search" \
 		"Search Apple Notes by title or body." \
-		"Requires macOS Notes access; read-only." \
 		tool_notes_search \
 		"${args_schema}"
 }

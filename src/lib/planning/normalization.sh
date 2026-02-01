@@ -20,6 +20,8 @@ PLANNING_NORMALIZATION_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck source=src/lib/core/logging.sh
 source "${PLANNING_NORMALIZATION_DIR}/../core/logging.sh"
+# shellcheck source=src/lib/executor/workflow_loader.sh
+source "${PLANNING_NORMALIZATION_DIR}/../executor/workflow_loader.sh"
 
 normalize_plan() {
 	# Normalize planner output into a clean plan array of objects. Structured
@@ -55,6 +57,11 @@ end
 	fi
 
 	# Return normalized plan
+	if ! normalized=$(expand_workflow_plan "${normalized}"); then
+		log "WARN" "normalize_plan: failed to expand workflows" "planner_workflow_expansion_failed" >&2
+		return 1
+	fi
+
 	printf '%s' "${normalized}"
 }
 

@@ -32,7 +32,7 @@ source "${BASH_SOURCE[0]%/search.sh}/common.sh"
 tool_mail_search() {
 	local term limit args_json text_key
 	args_json="${TOOL_ARGS:-}" || true
-	text_key="$(canonical_text_arg_key)"
+	text_key="input"
 	term=""
 	limit=$(mail_inbox_limit)
 
@@ -76,11 +76,23 @@ APPLESCRIPT
 register_mail_search() {
 	local args_schema
 
-	args_schema=$(jq -nc --arg key "$(canonical_text_arg_key)" '{"type":"object","required":[$key],"properties":{($key):{"type":"string","minLength":1}}}')
+	args_schema=$(
+		cat <<'JSON'
+{
+  "type": "object",
+  "required": ["input"],
+  "properties": {
+    "input": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
+}
+JSON
+	)
 	register_tool \
 		"mail_search" \
 		"Search Apple Mail inbox messages by subject, sender, or content." \
-		"Requires macOS Apple Mail access; returns metadata only." \
 		tool_mail_search \
 		"${args_schema}"
 }

@@ -67,13 +67,24 @@ register_notes_append() {
 
 	args_schema=$(
 		cat <<'JSON'
-{"type":"object","required":["title"],"properties":{"title":{"type":"string","minLength":1},"body":{"type":"string"}}}
+{
+  "type": "object",
+  "required": ["title"],
+  "properties": {
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "body": {
+      "type": "string"
+    }
+  }
+}
 JSON
 	)
 	register_tool \
 		"notes_append" \
 		"Append text to an existing Apple Note matched by title." \
-		"Requires macOS Apple Notes access; updates existing note content." \
 		tool_notes_append \
 		"${args_schema}"
 }
