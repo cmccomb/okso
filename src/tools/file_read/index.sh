@@ -98,7 +98,6 @@ JSON
 	register_tool \
 		"file_read" \
 		"Read a local file and return paginated markdown text." \
-		"Only reads local files provided by the user." \
 		tool_file_read \
 		"${args_schema}"
 }
