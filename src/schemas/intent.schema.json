@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Intent classification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["intent", "rationale"],
+  "properties": {
+    "intent": {
+      "type": "string",
+      "enum": [
+        "general",
+        "web_research",
+        "notes",
+        "reminders",
+        "calendar",
+        "mail",
+        "filesystem",
+        "coding",
+        "math"
+      ]
+    },
+    "rationale": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 280
+    },
+    "tool_groups": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

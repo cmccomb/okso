@@ -5,6 +5,7 @@ Structured outputs keep planner interactions predictable. Schema files live in `
 ## Available schemas
 
 - `planner_plan.schema.json`: JSON array of tool steps and rationales; each item requires `tool`, `args`, and `thought`. The executor consumes the serialized plan directly from the planner response.
+- `intent.schema.json`: intent classification payload (`intent`, `rationale`) used to filter tools and decide whether to run pre-planner web search.
 - `pre_planner_search_terms.schema.json`: array of one to three concise search terms (5–80 characters each) used for pre-planning web lookups.
 - `executor_action.schema.json`: template for dynamically generated per-tool schemas used during the executor loop. Tool names and argument shapes are injected at runtime before calls to `llama.cpp`.
 - `final_answer_evaluation.schema.json`: evaluator output with `evaluation_type` (`FINAL`/`REPLAN`), `reasoning`, and `output` fields emitted by the final-answer evaluation helper.

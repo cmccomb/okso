@@ -35,18 +35,23 @@ build_planner_prompt() {
 	#   $3 - pre-computed search context (string)
 	#   $4 - optional planner feedback or constraints (string)
 	#   $5 - optional planner schema override (string)
+	#   $6 - optional intent context (string)
 	# Returns:
 	#   The full prompt text (string).
 	local user_query tool_lines search_context planner_schema current_date current_time current_weekday rendered
-	local planner_feedback
+	local planner_feedback intent_context
 
 	user_query="$1"
 	tool_lines="$2"
 	search_context="$3"
 	planner_feedback="${4:-}"
+	intent_context="${6:-}"
 
 	if [[ -z "${planner_feedback}" ]]; then
 		planner_feedback="None provided."
+	fi
+	if [[ -z "${intent_context}" ]]; then
+		intent_context="None provided."
 	fi
 
 	# Get current date/time info
@@ -70,7 +75,8 @@ build_planner_prompt() {
 		current_date "${current_date}" \
 		current_time "${current_time}" \
 		current_weekday "${current_weekday}" \
-		planner_feedback "${planner_feedback}")" || return 1
+		planner_feedback "${planner_feedback}" \
+		intent_context "${intent_context}")" || return 1
 
 	# Return the rendered prompt
 	printf "%s" "${rendered}"
@@ -97,7 +103,7 @@ build_planner_prompt_with_tools() {
 	fi
 
 	# Build the prompt
-	build_planner_prompt "${user_query}" "${tool_lines}" ""
+	build_planner_prompt "${user_query}" "${tool_lines}" "" "" "" ""
 }
 
 plan_json_to_outline() {

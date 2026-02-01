@@ -64,7 +64,6 @@ JSON
 	register_tool \
 		"reminders_list" \
 		"List incomplete Apple Reminders in the configured list." \
-		"Requires macOS Apple Reminders access; reminder titles are read." \
 		tool_reminders_list \
 		"${args_schema}"
 }

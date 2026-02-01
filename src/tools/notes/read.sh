@@ -71,7 +71,6 @@ register_notes_read() {
 	register_tool \
 		"notes_read" \
 		"Read an Apple Note's content by title." \
-		"Requires macOS Apple Notes access; read-only." \
 		tool_notes_read \
 		"${args_schema}"
 }

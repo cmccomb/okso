@@ -9,7 +9,7 @@
 	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/tools/registry.sh
-register_tool alpha "describe" "safe"
+register_tool alpha "describe"
 SCRIPT
 
 	[ "$status" -eq 1 ]
@@ -20,20 +20,19 @@ SCRIPT
 set -euo pipefail
 source ./src/tools/registry.sh
 init_tool_registry
-register_tool alpha "describe" "safe" handler_alpha '{"type":"object"}'
+register_tool alpha "describe" handler_alpha '{"type":"object"}'
 names=()
 while IFS= read -r line; do
         names+=("$line")
 done < <(tool_names)
-printf "%s\n" "${names[0]}" "$(tool_description alpha)" "$(tool_safety alpha)" "$(tool_handler alpha)" "$(tool_args_schema alpha)"
+printf "%s\n" "${names[0]}" "$(tool_description alpha)" "$(tool_handler alpha)" "$(tool_args_schema alpha)"
 SCRIPT
 
 	[ "$status" -eq 0 ]
 	[ "${lines[0]}" = "alpha" ]
 	[ "${lines[1]}" = "describe" ]
-	[ "${lines[2]}" = "safe" ]
-	[ "${lines[3]}" = "handler_alpha" ]
-	[ "${lines[4]}" = '{"type":"object"}' ]
+	[ "${lines[2]}" = "handler_alpha" ]
+	[ "${lines[3]}" = '{"type":"object"}' ]
 }
 
 @test "register_tool defaults to canonical input schema" {
@@ -41,7 +40,7 @@ SCRIPT
 set -euo pipefail
 source ./src/tools/registry.sh
 init_tool_registry
-register_tool alpha "describe" "safe" handler_alpha
+register_tool alpha "describe" handler_alpha
 schema="$(tool_args_schema alpha)"
 key="$(canonical_text_arg_key)"
 
@@ -56,7 +55,7 @@ SCRIPT
 set -euo pipefail
 source ./src/tools/registry.sh
 init_tool_registry
-register_tool alpha "describe" "safe" handler_alpha '{"type":"object","required":["message"],"properties":{"message":{"type":"string"}},"additionalProperties":false}'
+register_tool alpha "describe" handler_alpha '{"type":"object","required":["message"],"properties":{"message":{"type":"string"}},"additionalProperties":false}'
 SCRIPT
 
 	[ "$status" -eq 1 ]

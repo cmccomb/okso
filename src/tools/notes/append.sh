@@ -73,7 +73,6 @@ JSON
 	register_tool \
 		"notes_append" \
 		"Append text to an existing Apple Note matched by title." \
-		"Requires macOS Apple Notes access; updates existing note content." \
 		tool_notes_append \
 		"${args_schema}"
 }

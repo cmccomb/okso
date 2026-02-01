@@ -30,6 +30,11 @@ PLANNER_SAMPLE_COUNT=3
 PLANNER_TEMPERATURE=0.2
 PLANNER_MAX_OUTPUT_TOKENS=1024
 PLANNER_DEBUG_LOG=${TMPDIR:-/tmp}/okso_planner_candidates.log
+INTENT_MODEL_REPO=bartowski/Qwen_Qwen3-1.7B-GGUF
+INTENT_MODEL_FILE=Qwen_Qwen3-1.7B-Q4_K_M.gguf
+INTENT_CACHE_FILE=${XDG_CACHE_HOME:-${HOME}/.cache}/okso/intent.prompt-cache
+INTENT_MAX_OUTPUT_TOKENS=256
+INTENT_DISABLE_SEARCH=false
 ```
 
 - `PLANNER_MODEL_SPEC`: Hugging Face `repo[:file]` identifier for the planning llama.cpp model (default: `bartowski/Qwen_Qwen3-8B-GGUF:Qwen_Qwen3-8B-Q4_K_M.gguf`).
@@ -48,6 +53,11 @@ PLANNER_DEBUG_LOG=${TMPDIR:-/tmp}/okso_planner_candidates.log
 - `PLANNER_MAX_OUTPUT_TOKENS`: Maximum tokens the planner requests from llama.cpp when drafting a plan (default: `1024`).
 - `PLANNER_MAX_PLAN_STEPS`: Maximum allowed planner steps (including `final_answer`) before scoring penalties apply (default: `6`).
 - `PLANNER_DEBUG_LOG`: Path to a JSONL file containing planner candidate plans and scores for troubleshooting (default: `${TMPDIR:-/tmp}/okso_planner_candidates.log`).
+- `INTENT_MODEL_REPO`: Hugging Face repository for intent recognition; requires `INTENT_MODEL_FILE` when set (default: unset).
+- `INTENT_MODEL_FILE`: GGUF filename for intent recognition (default: unset).
+- `INTENT_CACHE_FILE`: Prompt cache file for intent recognition (default: `${XDG_CACHE_HOME:-${HOME}/.cache}/okso/intent.prompt-cache`).
+- `INTENT_MAX_OUTPUT_TOKENS`: Maximum tokens requested from llama.cpp for intent recognition (default: `256`).
+- `INTENT_DISABLE_SEARCH`: When `true`, skip the pre-planner search stage regardless of intent (default: `false`).
 - `LLAMA_TEMPERATURE`: Temperature forwarded to llama.cpp inference; overrides tool-specific defaults when set.
 - `TESTING_PASSTHROUGH`: `true` to bypass llama.cpp for offline or deterministic runs.
 - `APPROVE_ALL`: `true` to skip prompts by default.

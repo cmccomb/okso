@@ -9,6 +9,7 @@ sequenceDiagram
     participant User
     participant CLI as okso CLI
     participant Planner
+    participant Intent as Intent filter
     participant Llama as llama.cpp
     participant Approver as Approval prompts
     participant Executor as Executor
@@ -16,6 +17,8 @@ sequenceDiagram
     participant Trace as Trace/logs
 
     User->>CLI: Provide request
+    CLI->>Intent: Classify intent + filter tool catalog
+    Intent-->>Planner: Filtered tools + intent context
     CLI->>Planner: Build planner prompt (tools, guardrails)
     Planner->>Llama: Score tools + emit JSON plan (schema)
     Llama-->>Planner: Ranked tools + plan outline
@@ -33,8 +36,9 @@ Use `--dry-run` to stop after plan generation and approvals if you want to inspe
 
 ## Planner pass
 
+- Classifies intent before planning to optionally restrict the tool catalog and skip web search when not needed.
 - Builds a structured prompt listing available tools, safety notes, and the user request.
-- Requests a numbered outline with tool selections and short rationales using the JSON schema in [`src/schemas/planner_plan.schema.json`](../reference/schemas.md).
+- Requests a numbered outline with tool selections and short rationales using the JSON schema in [`src/schemas/planner_plan.schema.json`](../reference/schemas.md), plus intent context for compliance.
 - Prefers llama.cpp scoring when `LLAMA_BIN` is available; otherwise falls back to deterministic keyword ranking so the plan still completes.
 - Streams the plan to the terminal and writes JSON when `OKSO_PLAN_OUTPUT` is set before moving to approvals.
 
