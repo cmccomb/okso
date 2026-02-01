@@ -97,7 +97,6 @@ recognize_intent() {
 
 	prompt="$(render_intent_prompt "${user_query}")" || {
 		log "ERROR" "Failed to render intent prompt" "intent_prompt_render_failed" >&2
-		intent_keyword_match "${user_query}"
 		return 0
 	}
 
@@ -106,13 +105,11 @@ recognize_intent() {
 
 	if ! raw="$(LLAMA_TEMPERATURE=0.0 llama_infer "${prompt}" '' "${max_generation_tokens}" "${schema_json}" "${INTENT_MODEL_REPO:-}" "${INTENT_MODEL_FILE:-}" "${cache_file}" "${prompt}")"; then
 		log "WARN" "Intent model invocation failed; falling back" "intent_infer_failed" >&2
-		intent_keyword_match "${user_query}"
 		return 0
 	fi
 
 	if ! jq -e '.intents and (.intents | length > 0) and .rationale' <<<"${raw}" >/dev/null 2>&1; then
 		log "WARN" "Intent output invalid; falling back" "intent_parse_failed" >&2
-		intent_keyword_match "${user_query}"
 		return 0
 	fi
 
