@@ -54,3 +54,41 @@ Use `./src/bin/okso --help` to see all flags. The CLI walks through planning and
 3. To keep the run noninteractive while still respecting a new model, pair the overrides with `--yes` or `--confirm` depending on whether you want automatic approvals.
 
 Refer to [configuration](../reference/configuration.md) for available settings and [tools](../reference/tools.md) for handler details.
+
+## Define and invoke workflows
+
+Workflows let you bundle a sequence of tool calls behind a pseudo-tool named `workflow_<name>`. Create a JSON or YAML file in `workflows/` and include the required metadata and steps.
+
+```yaml
+# workflows/triage_ticket.yaml
+name: triage_ticket
+description: Triage a support ticket and capture notes.
+parameters:
+  type: object
+  properties:
+    ticket_id:
+      type: string
+    summary:
+      type: string
+  required:
+    - ticket_id
+    - summary
+  additionalProperties: false
+steps:
+  - tool: terminal
+    args:
+      command: "echo \"Ticket {{ticket_id}}\""
+    thought: "Confirm ticket exists."
+  - tool: notes_create
+    args:
+      title: "Triage: {{ticket_id}}"
+    thought: "Start a triage note for {{ticket_id}}."
+```
+
+When planning, refer to the workflow pseudo-tool in your prompt:
+
+```text
+Use workflow_triage_ticket with ticket_id \"INC-123\" and summary \"Payment failures\".
+```
+
+The planner will emit a `workflow_triage_ticket` step, which is expanded into the concrete `terminal` and `notes_create` steps during normalization.

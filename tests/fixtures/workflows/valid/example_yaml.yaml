@@ -1,0 +1,15 @@
+name: example_yaml
+description: Example YAML workflow
+parameters:
+  type: object
+  properties:
+    task:
+      type: string
+  required:
+    - task
+  additionalProperties: false
+steps:
+  - tool: notes_create
+    args:
+      title: "Task: {{task}}"
+    thought: "Capture {{task}}."
