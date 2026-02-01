@@ -81,58 +81,6 @@ lowercase_intent() {
 	printf '%s' "$1" | tr '[:upper:]' '[:lower:]'
 }
 
-intent_keyword_match() {
-	# Heuristic intent matcher for deterministic fallback.
-	# Arguments:
-	#   $1 - user query (string)
-	# Returns:
-	#   JSON intent payload on stdout.
-	local query_lower
-	query_lower="$(lowercase_intent "$1")"
-
-	if [[ "${query_lower}" == *"reminder"* || "${query_lower}" == *"remind"* ]]; then
-		intent_fallback_json "reminders" 0.4 "Heuristic match: reminders keywords"
-		return 0
-	fi
-
-	if [[ "${query_lower}" == *"note"* || "${query_lower}" == *"notes"* ]]; then
-		intent_fallback_json "notes" 0.4 "Heuristic match: notes keywords"
-		return 0
-	fi
-
-	if [[ "${query_lower}" == *"calendar"* || "${query_lower}" == *"event"* ]]; then
-		intent_fallback_json "calendar" 0.4 "Heuristic match: calendar keywords"
-		return 0
-	fi
-
-	if [[ "${query_lower}" == *"email"* || "${query_lower}" == *"mail"* ]]; then
-		intent_fallback_json "mail" 0.4 "Heuristic match: mail keywords"
-		return 0
-	fi
-
-	if [[ "${query_lower}" == *"search"* || "${query_lower}" == *"web"* || "${query_lower}" == *"lookup"* ]]; then
-		intent_fallback_json "web_research" 0.4 "Heuristic match: web keywords"
-		return 0
-	fi
-
-	if [[ "${query_lower}" == *"calculate"* || "${query_lower}" == *"compute"* || "${query_lower}" == *"sum"* ]]; then
-		intent_fallback_json "math" 0.4 "Heuristic match: math keywords"
-		return 0
-	fi
-
-	if [[ "${query_lower}" == *"code"* || "${query_lower}" == *"refactor"* || "${query_lower}" == *"implement"* ]]; then
-		intent_fallback_json "coding" 0.4 "Heuristic match: coding keywords"
-		return 0
-	fi
-
-	if [[ "${query_lower}" == *"file"* || "${query_lower}" == *"directory"* || "${query_lower}" == *"folder"* ]]; then
-		intent_fallback_json "filesystem" 0.4 "Heuristic match: filesystem keywords"
-		return 0
-	fi
-
-	intent_fallback_json "general" 0.0 "No heuristic match"
-}
-
 recognize_intent() {
 	# Classifies the user query into a canonical intent.
 	# Arguments:
@@ -141,16 +89,6 @@ recognize_intent() {
 	#   intent JSON payload on stdout.
 	local user_query prompt raw schema_json max_generation_tokens cache_file
 	user_query="$1"
-
-	if [[ -z "${user_query}" ]]; then
-		intent_fallback_json "general" 0.0 "Empty user query"
-		return 0
-	fi
-
-	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
-		intent_keyword_match "${user_query}"
-		return 0
-	fi
 
 	max_generation_tokens=${INTENT_MAX_OUTPUT_TOKENS:-256}
 	if ! [[ "${max_generation_tokens}" =~ ^[0-9]+$ ]] || ((max_generation_tokens < 1)); then
@@ -204,7 +142,7 @@ intent_requires_search() {
 	fi
 
 	case "${intent_label}" in
-	web_research | general)
+	web | general)
 		return 0
 		;;
 	notes | reminders | calendar | mail | filesystem | coding | math)
@@ -223,7 +161,7 @@ intent_group_for_intent() {
 	# Returns:
 	#   tool group names on stdout.
 	case "$1" in
-	web_research)
+	web)
 		printf '%s\n' "web"
 		;;
 	notes)

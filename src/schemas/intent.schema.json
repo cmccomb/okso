@@ -9,7 +9,7 @@
       "type": "string",
       "enum": [
         "general",
-        "web_research",
+        "web",
         "notes",
         "reminders",
         "calendar",
