@@ -84,8 +84,8 @@ source "${PLANNING_LIB_DIR}/normalization.sh"
 source "${PLANNING_LIB_DIR}/scoring.sh"
 # shellcheck source=src/lib/planning/prompting.sh
 source "${PLANNING_LIB_DIR}/prompting.sh"
-# shellcheck source=src/lib/planning/intent.sh
-source "${PLANNING_LIB_DIR}/intent.sh"
+# shellcheck source=src/lib/intent/intent.sh
+source "${PLANNING_LIB_DIR}/../intent/intent.sh"
 # shellcheck source=src/lib/planning/search.sh
 source "${PLANNING_LIB_DIR}/search.sh"
 if [[ "${PLANNER_SKIP_TOOL_LOAD:-false}" != true ]]; then
