@@ -1,0 +1,287 @@
+#!/usr/bin/env bash
+# shellcheck shell=bash
+#
+# Planner argument-control and executor infill helpers.
+#
+# Usage:
+#   source "${BASH_SOURCE[0]%/arg_controls.sh}/arg_controls.sh"
+#
+# Dependencies:
+#   - bash 3.2+
+#   - jq
+#
+# Exit codes:
+#   Functions return non-zero on validation or execution failures.
+
+EXECUTOR_ARG_CONTROLS_DIR=${EXECUTOR_ARG_CONTROLS_DIR:-$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)}
+
+# shellcheck source=src/lib/core/logging.sh
+source "${EXECUTOR_ARG_CONTROLS_DIR}/../core/logging.sh"
+# shellcheck source=src/lib/llm/llama_client.sh
+source "${EXECUTOR_ARG_CONTROLS_DIR}/../llm/llama_client.sh"
+# shellcheck source=src/lib/llm/context_budget.sh
+source "${EXECUTOR_ARG_CONTROLS_DIR}/../llm/context_budget.sh"
+# shellcheck source=src/lib/llm/templates.sh
+source "${EXECUTOR_ARG_CONTROLS_DIR}/../llm/templates.sh"
+# shellcheck source=src/lib/executor/history.sh
+source "${EXECUTOR_ARG_CONTROLS_DIR}/history.sh"
+# shellcheck source=src/tools/registry.sh
+source "${EXECUTOR_ARG_CONTROLS_DIR}/../../tools/registry.sh"
+
+normalize_args_json() {
+	# Normalizes argument JSON into canonical form.
+	# Arguments:
+	#   $1 - args JSON string
+	# Returns:
+	#   Canonical JSON string with sorted keys.
+	local args_json normalized
+	args_json="$1"
+
+	if [[ -z "${args_json}" ]]; then
+		args_json="{}"
+	fi
+
+	normalized="$(jq -cS '.' <<<"${args_json}" 2>/dev/null || printf '{}')"
+	printf '%s' "${normalized}"
+}
+
+build_prompt_safe_history() {
+	# Builds a prompt-safe history string for LLM arg fill.
+	# Arguments:
+	#   $1 - history text (newline-delimited JSON entries)
+	# Returns:
+	#   Summarized history text (string)
+	local history_text summarized
+	history_text="$1"
+
+	if [[ -z "${history_text}" ]]; then
+		printf '%s' "${history_text}"
+		return 0
+	fi
+
+	summarized="$(summarize_executor_history "${history_text}")"
+	printf '%s' "${summarized}"
+}
+
+apply_plan_arg_controls() {
+	# Applies planner-provided arg values and infers context-controlled fields from empty seeds.
+	# Arguments:
+	#   $1 - tool name
+	#   $2 - executor args JSON
+	#   $3 - planner plan entry JSON (optional)
+	#   $4 - user query text (unused; kept for API stability)
+	#   $5 - serialized history text (unused; kept for API stability)
+	local tool args_json plan_entry_json user_query history_text args_obj plan_args jq_filter fill_marker_json
+	tool="$1"
+	args_json="$2"
+	plan_entry_json="$3"
+	user_query="$4"
+	history_text="$5"
+	fill_marker_json='{"__fill__":true}'
+
+	args_obj="$(jq -ce 'if type=="object" then . else {} end' <<<"${args_json}" 2>/dev/null || printf '{}')"
+	plan_args="$(jq -ce '.args // {} | if type=="object" then . else {} end' <<<"${plan_entry_json}" 2>/dev/null || printf '{}')"
+
+	jq_filter=$(
+		cat <<'JQ'
+$planned as $p
+| reduce ($p|to_entries[]) as $item (
+    {args:$args, context:[], seeds:{}};
+    .args[$item.key] = $item.value
+    | if ($item.value == $fill_marker or $item.value == null or $item.value == "") then
+        (.context += [$item.key])
+      else
+        (if ($item.value | type) == "string" then .seeds[$item.key] = $item.value else . end)
+      end
+  )
+| . as $state
+| $state.args
+| (if ($state.context|length>0) then .+{__context_controlled:$state.context} else . end)
+| (if ($state.seeds|length>0) then .+{__context_seeds:$state.seeds} else . end)
+JQ
+	)
+
+	jq -c -n --argjson args "${args_obj}" --argjson planned "${plan_args}" --argjson fill_marker "${fill_marker_json}" "${jq_filter}" 2>/dev/null
+}
+
+fill_missing_args_with_llm() {
+	# Fills planner-marked context arguments via a single LLM round-trip when possible.
+	# Arguments:
+	#   $1 - tool name
+	#   $2 - args JSON
+	#   $3 - user query
+	#   $4 - plan outline
+	#   $5 - planner thought
+	#   $6 - history text
+	#   $7 - JSON array of context-controlled fields
+	# Returns:
+	#   JSON string with filled args, or original args if LLM unavailable or fails.
+	local tool args_json user_query plan_outline planner_thought schema prompt response context_fields_json
+	local history_text prompt_raw prompt_safe_history max_completion_tokens
+	tool="$1"
+	args_json="$2"
+	user_query="$3"
+	plan_outline="$4"
+	planner_thought="$5"
+	history_text="$6"
+	context_fields_json="$7"
+	schema="$(jq -c '.' <<<"$(tool_args_schema "${tool}")" 2>/dev/null || printf '{}')"
+	max_completion_tokens=256
+
+	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
+		log "WARN" "LLM unavailable; context args remain unchanged" "${tool}" || true
+		printf '%s' "${args_json}"
+		return 0
+	fi
+
+	if ! prompt_raw="$(render_prompt_template "executor" \
+		tool "${tool}" \
+		user_query "${user_query}" \
+		plan_outline "${plan_outline}" \
+		planner_thought "${planner_thought}" \
+		args_json "${args_json}" \
+		args_schema "${schema}" \
+		context_fields "${context_fields_json}" \
+		history_text "${history_text}")"; then
+		log "WARN" "Failed to render executor prompt" "${tool}" || true
+		printf '%s' "${args_json}"
+		return 0
+	fi
+
+	prompt_safe_history="$(apply_prompt_context_budget "${prompt_raw}" "${history_text}" "${max_completion_tokens}" "executor_history")"
+
+	if ! prompt="$(render_prompt_template "executor" \
+		tool "${tool}" \
+		user_query "${user_query}" \
+		plan_outline "${plan_outline}" \
+		planner_thought "${planner_thought}" \
+		args_json "${args_json}" \
+		args_schema "${schema}" \
+		context_fields "${context_fields_json}" \
+		history_text "${prompt_safe_history}")"; then
+		log "WARN" "Failed to render executor prompt" "${tool}" || true
+		printf '%s' "${args_json}"
+		return 0
+	fi
+
+	log_pretty "INFO" "prompt" "${prompt}"
+
+	invoke_llm_with_schema() {
+		local llama_temperature_backup response_json
+		llama_temperature_backup="${LLAMA_TEMPERATURE:-}"
+		if [[ "$1" == "strict" ]]; then
+			LLAMA_TEMPERATURE=0
+			export LLAMA_TEMPERATURE
+		fi
+
+		if ! response_json="$(llama_infer "${prompt}" "" "${max_completion_tokens}" "${schema}" "${EXECUTOR_MODEL_REPO:-}" "${EXECUTOR_MODEL_FILE:-}")"; then
+			return 1
+		fi
+
+		if [[ "$1" == "strict" ]]; then
+			if [[ -n "${llama_temperature_backup}" ]]; then
+				LLAMA_TEMPERATURE="${llama_temperature_backup}"
+				export LLAMA_TEMPERATURE
+			else
+				unset LLAMA_TEMPERATURE
+			fi
+		fi
+
+		printf '%s' "${response_json}"
+	}
+
+	response="$(invoke_llm_with_schema "strict")" || {
+		log "ERROR" "llama_infer failed during arg fill" "${tool}" || true
+		return 1
+	}
+
+	if ! response_json="$(jq -ce 'if type == "object" then . else empty end' <<<"${response}" 2>/dev/null)"; then
+		log "ERROR" "Invalid llama response for arg fill" "tool=${tool} response=${response}" || true
+		return 1
+	fi
+
+	printf '%s' "${response_json}"
+	return 0
+}
+
+extract_context_controls() {
+	# Extracts context metadata and cleaned args from a resolved args JSON blob.
+	# Arguments:
+	#   $1 - resolved args JSON
+	# Returns:
+	#   JSON object with keys: args, context_fields, context_seed_lines
+	local resolved_json
+	resolved_json="$1"
+
+	jq -ce '
+                def ensure_array(x): if (x|type) == "array" then x else [] end;
+                def ensure_object(x): if (x|type) == "object" then x else {} end;
+
+                {
+                        args: (. | del(.__context_controlled) | del(.__context_seeds)),
+                        context_fields: ensure_array(.__context_controlled),
+                        context_seed_lines: (ensure_object(.__context_seeds) | to_entries | map("\(.key): \(.value)"))
+                }
+        ' <<<"${resolved_json}"
+}
+
+resolve_action_args() {
+	# Applies planner controls, fills context fields, and normalizes the final JSON.
+	# Arguments:
+	#   $1 - tool name
+	#   $2 - args JSON
+	#   $3 - planner plan entry JSON
+	#   $4 - user query
+	#   $5 - serialized history text
+	#   $6 - plan outline
+	#   $7 - planner thought
+	local tool args_json plan_entry_json user_query history_text plan_outline planner_thought
+	local resolved_args context_fields_json context_seed_lines history_for_prompt schema context_metadata
+	tool="$1"
+	args_json="$2"
+	plan_entry_json="$3"
+	user_query="$4"
+	history_text="$5"
+	plan_outline="$6"
+	planner_thought="$7"
+
+	resolved_args="$(apply_plan_arg_controls "${tool}" "${args_json}" "${plan_entry_json}" "${user_query}" "${history_text}")"
+
+	if ! context_metadata="$(extract_context_controls "${resolved_args}")"; then
+		printf 'Invalid args JSON after planner controls\n' >&2
+		return 1
+	fi
+
+	context_fields_json="$(jq -c '.context_fields' <<<"${context_metadata}")"
+	context_seed_lines="$(jq -r '.context_seed_lines[]?' <<<"${context_metadata}")"
+	resolved_args="$(jq -c '.args' <<<"${context_metadata}")"
+	schema="$(jq -c '.' <<<"$(tool_args_schema "${tool}")" 2>/dev/null || printf '{}')"
+
+	if [[ "${context_fields_json}" == "[]" ]]; then
+		normalize_args_json "${resolved_args}"
+		return 0
+	fi
+
+	history_for_prompt="${history_text}"
+	history_for_prompt="$(build_prompt_safe_history "${history_for_prompt}")"
+	if [[ -n "${context_seed_lines}" ]]; then
+		history_for_prompt+=$'\n'
+		history_for_prompt+="Context arg seeds:"
+		history_for_prompt+=$'\n'
+		history_for_prompt+="${context_seed_lines}"
+	fi
+
+	if ! resolved_args="$(fill_missing_args_with_llm "${tool}" "${resolved_args}" "${user_query}" "${plan_outline}" "${planner_thought}" "${history_for_prompt}" "${context_fields_json}")"; then
+		printf 'Context argument infill failed\n' >&2
+		return 1
+	fi
+
+	normalize_args_json "${resolved_args}"
+}
+
+export -f normalize_args_json
+export -f build_prompt_safe_history
+export -f apply_plan_arg_controls
+export -f fill_missing_args_with_llm
+export -f extract_context_controls
+export -f resolve_action_args
