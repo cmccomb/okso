@@ -35,13 +35,62 @@ planner_is_tool_available() {
 	#   $2 - newline-delimited tool names (string)
 	# Returns:
 	#   0 when available; 1 otherwise.
-	local tool
 	local tool available_tools
 	tool="$1"
 	available_tools="$2"
 
 	# Empty tool names are unavailable
 	grep -Fxq "${tool}" <<<"${available_tools}" 2>/dev/null
+}
+
+planner_args_satisfy_registered_schema() {
+	# Validates step args against the tool's registered JSON schema.
+	# Arguments:
+	#   $1 - tool name (string)
+	#   $2 - args JSON (string)
+	# Returns:
+	#   0 when valid or schema validation is unavailable; 1 when invalid.
+	local tool args_json args_object schema tmp_dir schema_path args_path status
+	tool="$1"
+	args_json="${2:-"{}"}"
+
+	if ! command -v tool_args_schema >/dev/null 2>&1; then
+		return 0
+	fi
+
+	schema="$(tool_args_schema "${tool}" 2>/dev/null || printf '')"
+	if [[ -z "${schema}" || "${schema}" == "null" ]]; then
+		return 0
+	fi
+
+	if ! args_object="$(jq -c 'if type == "object" then . else {} end' <<<"${args_json}" 2>/dev/null)"; then
+		return 1
+	fi
+
+	if ! command -v jsonschema >/dev/null 2>&1; then
+		return 0
+	fi
+
+	tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/okso_schema_validate.XXXXXX")" || return 1
+	schema_path="${tmp_dir}/schema.json"
+	args_path="${tmp_dir}/args.json"
+
+	if ! printf '%s\n' "${schema}" >"${schema_path}"; then
+		rm -rf "${tmp_dir}"
+		return 1
+	fi
+
+	if ! printf '%s\n' "${args_object}" >"${args_path}"; then
+		rm -rf "${tmp_dir}"
+		return 1
+	fi
+
+	status=0
+	if ! jsonschema validate --default-dialect "https://json-schema.org/draft/2020-12/schema" "${schema_path}" "${args_path}" >/dev/null 2>&1; then
+		status=1
+	fi
+	rm -rf "${tmp_dir}"
+	return "${status}"
 }
 
 planner_terminal_command_has_side_effects() {
@@ -256,6 +305,97 @@ planner_step_has_side_effects() {
 	return 1
 }
 
+planner_plan_criteria_report() {
+	# Evaluates minimum acceptance criteria for a planner candidate.
+	# Arguments:
+	#   $1 - normalized planner response JSON array (string)
+	# Returns:
+	#   JSON report: {ok:boolean, reasons:[string]}
+	local plan_json plan_length final_tool available_tools availability_known
+	local -a reasons=()
+	local missing_tools invalid_python_snippets side_effect_index idx
+	local all_tools_available
+	plan_json="$1"
+	plan_json="$(normalize_plan <<<"${plan_json}")" || return 1
+
+	plan_length="$(jq -r 'length' <<<"${plan_json}" 2>/dev/null || printf '0')"
+	if ((plan_length < 1)); then
+		reasons+=("Planner produced zero steps.")
+	fi
+
+	final_tool="$(jq -r '.[-1].tool // ""' <<<"${plan_json}")"
+	if [[ "${final_tool}" != "final_answer" ]]; then
+		reasons+=("Plan must terminate with final_answer.")
+	fi
+
+	availability_known=true
+	if command -v tool_names >/dev/null 2>&1; then
+		available_tools="$(tool_names)"
+	else
+		available_tools=""
+		availability_known=false
+	fi
+	if [[ -z "${available_tools}" ]]; then
+		availability_known=false
+	fi
+
+	all_tools_available=true
+	missing_tools=0
+	invalid_python_snippets=0
+	side_effect_index=-1
+	idx=0
+	while IFS= read -r step; do
+		local tool args python_repl_validation_output validation_status
+		tool="$(jq -r '.tool // ""' <<<"${step}")"
+		args="$(jq -c '.args // {}' <<<"${step}")"
+
+		if [[ "${availability_known}" == true ]]; then
+			if ! planner_is_tool_available "${tool}" "${available_tools}"; then
+				all_tools_available=false
+				missing_tools=$((missing_tools + 1))
+			fi
+		fi
+
+		if ((side_effect_index < 0)) && planner_step_has_side_effects "${tool}" "${args}"; then
+			side_effect_index=${idx}
+		fi
+
+		if [[ "${tool}" == "python_repl" ]]; then
+			if python_repl_validation_output="$(python_repl_validate_snippet "${args}")"; then
+				:
+			else
+				validation_status=$?
+				if [[ "${validation_status}" == "1" ]]; then
+					invalid_python_snippets=$((invalid_python_snippets + 1))
+					reasons+=("Python REPL snippet invalid at step $((idx + 1)): ${python_repl_validation_output}")
+				fi
+			fi
+		fi
+
+		idx=$((idx + 1))
+	done < <(jq -cr '.[]' <<<"${plan_json}")
+
+	if [[ "${all_tools_available}" != true ]]; then
+		reasons+=("Plan references ${missing_tools} unavailable tool(s).")
+	fi
+
+	if ((side_effect_index == 0 && plan_length > 1)); then
+		reasons+=("First step is side-effecting before information gathering.")
+	fi
+
+	if ((invalid_python_snippets > 0)); then
+		reasons+=("Plan contains ${invalid_python_snippets} invalid python_repl step(s).")
+	fi
+
+	if ((${#reasons[@]} == 0)); then
+		jq -nc '{ok:true,reasons:[]}'
+		return 0
+	fi
+
+	jq -nc --argjson reasons "$(printf '%s\0' "${reasons[@]}" | jq -Rs 'split("\u0000") | map(select(length>0))')" \
+		'{ok:false,reasons:$reasons}'
+}
+
 score_planner_candidate() {
 	# Scores a normalized planner response for downstream selection.
 	# Arguments:
@@ -296,8 +436,13 @@ score_planner_candidate() {
 	fi
 
 	# Check tool availability and timing of side-effecting steps
-	available_tools="$(tool_names)"
 	availability_known=true
+	if command -v tool_names >/dev/null 2>&1; then
+		available_tools="$(tool_names)"
+	else
+		available_tools=""
+		availability_known=false
+	fi
 	if [[ -z "${available_tools}" ]]; then
 		availability_known=false
 		rationale+=("Tool registry is empty; skipping availability checks.")
@@ -306,18 +451,22 @@ score_planner_candidate() {
 	# Evaluate each step
 	local idx=0 valid_tools=0 missing_tools=0 side_effect_index=-1
 	local invalid_python_snippets=0
+	local invalid_schema_steps=0
 	while IFS= read -r step; do
 		local tool args python_repl_validation_output
 		tool=$(jq -r '.tool // ""' <<<"${step}")
 		args=$(jq -c '.args // {}' <<<"${step}")
 
-		if [[ "${availability_known}" == true ]]; then
-			if planner_is_tool_available "${tool}" "${available_tools}"; then
-				valid_tools=$((valid_tools + 1))
-			else
-				missing_tools=$((missing_tools + 1))
+			if [[ "${availability_known}" == true ]]; then
+				if planner_is_tool_available "${tool}" "${available_tools}"; then
+					valid_tools=$((valid_tools + 1))
+					if ! planner_args_satisfy_registered_schema "${tool}" "${args}"; then
+						invalid_schema_steps=$((invalid_schema_steps + 1))
+					fi
+				else
+					missing_tools=$((missing_tools + 1))
+				fi
 			fi
-		fi
 
 		if ((side_effect_index < 0)) && planner_step_has_side_effects "${tool}" "${args}"; then
 			side_effect_index=${idx}
@@ -354,6 +503,15 @@ score_planner_candidate() {
 		rationale+=("All tools are registered in the planner catalog.")
 	fi
 
+	if ((invalid_schema_steps > 0)); then
+		score=$((score - (invalid_schema_steps * 25)))
+		rationale+=("Planner args violate registered tool schemas for ${invalid_schema_steps} step(s).")
+		log "INFO" "Planner scoring: schema violations detected" "$(jq -nc --argjson invalid "${invalid_schema_steps}" '{invalid_schema_steps:$invalid}')" >&2
+		return 1
+	elif [[ "${availability_known}" == true ]]; then
+		rationale+=("Planner args satisfy registered tool schemas.")
+	fi
+
 	if ((invalid_python_snippets > 0)); then
 		score=$((score - (invalid_python_snippets * 50)))
 		rationale+=("Python REPL pre-validation failed for ${invalid_python_snippets} step(s).")
@@ -383,7 +541,9 @@ score_planner_candidate() {
 }
 
 export -f planner_is_tool_available
+export -f planner_args_satisfy_registered_schema
 export -f planner_step_has_side_effects
 export -f planner_terminal_command_has_side_effects
 export -f python_repl_has_side_effects
+export -f planner_plan_criteria_report
 export -f score_planner_candidate

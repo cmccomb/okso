@@ -206,19 +206,24 @@ load_or_detect_system_profile() {
 	# Map resources to base tier
 	if [[ -z "${DETECTED_BASE_TIER:-}" && -n "${DETECTED_PHYS_MEM_BYTES:-}" ]]; then
 		DETECTED_BASE_TIER=$(map_resources_to_base_tier "${DETECTED_PHYS_MEM_BYTES}" "${DETECTED_IS_GHA:-0}")
-	fisd
+	fi
 
 	# Cache detections if all present
 	if [[ -n "${DETECTED_PHYS_MEM_BYTES:-}" && -n "${DETECTED_IS_GHA:-}" && -n "${DETECTED_BASE_TIER:-}" ]]; then
-		mkdir -p "${cache_home}"
 		DETECTED_PROFILE_DATE="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-		cat >"${cache_file}" <<EOC
+		if mkdir -p "${cache_home}" 2>/dev/null && [[ -w "${cache_home}" ]]; then
+			if ! {
+				cat <<EOC >"${cache_file}"
 DETECTED_PHYS_MEM_BYTES="${DETECTED_PHYS_MEM_BYTES}"
 DETECTED_PHYS_MEM_GB="${DETECTED_PHYS_MEM_GB:-}"
 DETECTED_IS_GHA="${DETECTED_IS_GHA}"
 DETECTED_BASE_TIER="${DETECTED_BASE_TIER}"
 DETECTED_PROFILE_DATE="${DETECTED_PROFILE_DATE}"
 EOC
+			} 2>/dev/null; then
+				:
+			fi
+		fi
 	fi
 }
 

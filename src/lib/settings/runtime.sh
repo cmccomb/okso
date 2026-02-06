@@ -53,12 +53,8 @@
 
 RUNTIME_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# shellcheck source=src/lib/core/errors.sh
-source "${RUNTIME_LIB_DIR}/../core/errors.sh"
 # shellcheck source=src/lib/cli/output.sh
 source "${RUNTIME_LIB_DIR}/../cli/output.sh"
-# shellcheck source=src/lib/tools/query.sh
-source "${RUNTIME_LIB_DIR}/../tools/query.sh"
 # shellcheck source=src/lib/core/json_state.sh
 source "${RUNTIME_LIB_DIR}/../core/json_state.sh"
 # shellcheck source=src/lib/settings/settings.sh
@@ -117,17 +113,7 @@ apply_settings_to_globals() {
 	#   $1 - settings namespace prefix
 	# Returns:
 	#   None.
-	local settings_prefix
-	settings_prefix="$1"
-
-	local json key var value
-	json="$(json_state_get_document "${settings_prefix}")"
-
-	while read -r key var; do
-		[[ -z "${key}" ]] && continue
-		value=$(jq -r --arg key "${key}" '.[$key] // ""' <<<"${json}")
-		set_by_name "${var}" "${value}"
-	done <<<"$(settings_field_mappings)"
+	sync_settings_fields "$1" "to_globals"
 }
 
 capture_globals_into_settings() {
@@ -136,15 +122,40 @@ capture_globals_into_settings() {
 	#   $1 - settings namespace prefix
 	# Returns:
 	#   None.
+	sync_settings_fields "$1" "from_globals"
+}
 
+sync_settings_fields() {
+	# Synchronizes fields between namespaced JSON settings and globals.
+	# Arguments:
+	#   $1 - settings namespace prefix
+	#   $2 - mode: to_globals|from_globals
+	# Returns:
+	#   None.
 	local settings_prefix
 	settings_prefix="$1"
+	local mode
+	mode="$2"
 
-	local key var value
+	local json key var value
+	json="$(json_state_get_document "${settings_prefix}")"
+
 	while read -r key var; do
 		[[ -z "${key}" ]] && continue
-		value="${!var-}"
-		json_state_set_key "${settings_prefix}" "${key}" "${value}"
+		case "${mode}" in
+		to_globals)
+			value="$(jq -r --arg key "${key}" '.[$key] // ""' <<<"${json}")"
+			set_by_name "${var}" "${value}"
+			;;
+		from_globals)
+			value="${!var-}"
+			json_state_set_key "${settings_prefix}" "${key}" "${value}"
+			;;
+		*)
+			log "ERROR" "Unknown settings sync mode" "${mode}" || true
+			return 1
+			;;
+		esac
 	done <<<"$(settings_field_mappings)"
 }
 

@@ -23,10 +23,8 @@
 
 # shellcheck source=src/lib/core/logging.sh
 source "${BASH_SOURCE[0]%/tools/mail/common.sh}/lib/core/logging.sh"
-# shellcheck source=src/tools/osascript_helpers.sh
-source "${BASH_SOURCE[0]%/tools/mail/common.sh}/tools/osascript_helpers.sh"
-# shellcheck source=src/tools/registry.sh
-source "${BASH_SOURCE[0]%/mail/common.sh}/registry.sh"
+# shellcheck source=src/tools/apple_app.sh
+source "${BASH_SOURCE[0]%/tools/mail/common.sh}/tools/apple_app.sh"
 
 mail_inbox_limit() {
 	# Prints a positive integer inbox limit.
@@ -117,5 +115,5 @@ mail_run_script() {
 	#   $@ - parameters forwarded to osascript
 	local bin
 	bin=${MAIL_OSASCRIPT_BIN:-osascript}
-	osascript_run_piped "${bin}" "$@"
+	apple_app_run_script "${bin}" "$@"
 }

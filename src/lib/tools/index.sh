@@ -23,8 +23,6 @@ TOOLS_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 TOOLS_SRC_ROOT=$(cd -- "${TOOLS_LIB_DIR}/../.." && pwd)
 TOOLS_DIR="${TOOLS_SRC_ROOT}/tools"
 
-# shellcheck source=src/lib/core/errors.sh
-source "${TOOLS_LIB_DIR}/../core/errors.sh"
 # shellcheck source=src/lib/core/logging.sh
 source "${TOOLS_LIB_DIR}/../core/logging.sh"
 # shellcheck source=src/lib/executor/workflow_loader.sh

@@ -23,8 +23,8 @@
 
 # shellcheck source=src/lib/core/logging.sh
 source "${BASH_SOURCE[0]%/tools/reminders/common.sh}/lib/core/logging.sh"
-# shellcheck source=src/tools/osascript_helpers.sh
-source "${BASH_SOURCE[0]%/tools/reminders/common.sh}/tools/osascript_helpers.sh"
+# shellcheck source=src/tools/apple_app.sh
+source "${BASH_SOURCE[0]%/tools/reminders/common.sh}/tools/apple_app.sh"
 
 reminders_list_name() {
 	# Prints the resolved Apple Reminders list name.
@@ -60,17 +60,12 @@ reminders_run_script() {
 	#   $@ - parameters forwarded to osascript
 	local bin
 	bin=${REMINDERS_OSASCRIPT_BIN:-osascript}
-	osascript_run_piped "${bin}" "$@"
+	apple_app_run_script "${bin}" "$@"
 }
 
 reminders_resolve_list_script() {
 	# Emits AppleScript lines that resolve the target list within the default account.
 	local list
 	list=$(reminders_list_name)
-	list=${list//"/\\"/}
-	printf '        set targetAccount to default account\n'
-	printf '        if not (exists list "%s" of targetAccount) then\n' "${list}"
-	printf '                error "List not found: %s"\n' "${list}"
-	printf '        end if\n'
-	printf '        set targetList to list "%s" of targetAccount\n' "${list}"
+	apple_script_resolve_in_default_account "list" "${list}" "targetList" "List"
 }

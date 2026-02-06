@@ -51,8 +51,6 @@ SRC_ROOT=$(cd "${SCRIPT_DIR}/.." && pwd)
 LIB_DIR="${SRC_ROOT}/lib"
 export OKSO_ENTRYPOINT="${OKSO_ENTRYPOINT:-./src/bin/okso}"
 
-# shellcheck source=src/lib/core/errors.sh
-source "${LIB_DIR}/core/errors.sh"
 # shellcheck source=src/lib/core/logging.sh
 source "${LIB_DIR}/core/logging.sh"
 # shellcheck source=src/lib/core/json_state.sh

@@ -22,8 +22,8 @@
 
 # shellcheck source=src/lib/core/logging.sh
 source "${BASH_SOURCE[0]%/tools/notes/common.sh}/lib/core/logging.sh"
-# shellcheck source=src/tools/osascript_helpers.sh
-source "${BASH_SOURCE[0]%/tools/notes/common.sh}/tools/osascript_helpers.sh"
+# shellcheck source=src/tools/apple_app.sh
+source "${BASH_SOURCE[0]%/tools/notes/common.sh}/tools/apple_app.sh"
 
 notes_folder_name() {
 	# Prints the resolved Apple Notes folder name.
@@ -58,17 +58,12 @@ notes_run_script() {
 	#   $@ - parameters forwarded to osascript
 	local bin
 	bin=${NOTES_OSASCRIPT_BIN:-osascript}
-	osascript_run_piped "${bin}" "$@"
+	apple_app_run_script "${bin}" "$@"
 }
 
 notes_resolve_folder_script() {
 	# Emits AppleScript lines that resolve the target folder within the default account.
 	local folder
 	folder=$(notes_folder_name)
-	folder=${folder//"/\\"/}
-	printf '        set targetAccount to default account\n'
-	printf '        if not (exists folder "%s" of targetAccount) then\n' "${folder}"
-	printf '                error "Folder not found: %s"\n' "${folder}"
-	printf '        end if\n'
-	printf '        set targetFolder to folder "%s" of targetAccount\n' "${folder}"
+	apple_script_resolve_in_default_account "folder" "${folder}" "targetFolder" "Folder"
 }

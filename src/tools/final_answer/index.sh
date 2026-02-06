@@ -7,7 +7,7 @@
 #   source "${BASH_SOURCE[0]%/tools/final_answer/index.sh}/tools/final_answer/index.sh"
 #
 # Environment variables:
-#   TOOL_ARGS (JSON object): structured args (unused; must be empty object when present).
+#   TOOL_ARGS (JSON object): structured args with required `input` answer text.
 #
 # Dependencies:
 #   - bash 3.2+
@@ -21,22 +21,16 @@
 source "${BASH_SOURCE[0]%/tools/final_answer/index.sh}/lib/core/logging.sh"
 # shellcheck source=src/lib/cli/output.sh
 source "${BASH_SOURCE[0]%/tools/final_answer/index.sh}/lib/cli/output.sh"
+# shellcheck source=src/lib/tools/args.sh
+source "${BASH_SOURCE[0]%/tools/final_answer/index.sh}/lib/tools/args.sh"
 # shellcheck source=src/tools/registry.sh
 source "${BASH_SOURCE[0]%/final_answer/index.sh}/registry.sh"
 
 tool_final_answer() {
-	# Emits the provided final answer text without modification.
-	# Arguments: none. Reads TOOL_ARGS when present.
-	local args_json message
-	args_json="${TOOL_ARGS:-}" || true
-	message=""
-
-	if [[ -n "${args_json}" ]]; then
-		if ! jq -e 'type == "object" and length == 0' <<<"${args_json}" >/dev/null 2>&1; then
-			log "ERROR" "Invalid TOOL_ARGS for final_answer" "${args_json}" >&2
-			return 1
-		fi
-	fi
+	# Emits TOOL_ARGS.input as the final user-facing answer.
+	# Arguments: none.
+	local message
+	message="$(tool_args_parse_strict_single_string "input" "" "final_answer")" || return 1
 
 	log "INFO" "final_answer tool invoked" "$(printf 'length=%s' "${#message}")" >&2
 	user_output "${message}" || true
@@ -49,14 +43,20 @@ register_final_answer() {
 		cat <<'JSON'
 {
   "type": "object",
+  "required": ["input"],
   "additionalProperties": false,
-  "properties": {}
+  "properties": {
+    "input": {
+      "type": "string",
+      "minLength": 1
+    }
+  }
 }
 JSON
 	)
 	register_tool \
 		"final_answer" \
-		"Emit the final user-facing answer without performing additional actions. When using final_answer, respond as a calm, courteous 'polite haunting' guide: gently uncanny, never intrusive. Keep the tone soft but decisive, prefer evidence over explanation, and anchor statements to concrete artifacts (filenames/paths/log lines) instead of pronouns. Output should be small, clean, and paste-ready." \
+		"Emit the final user-facing answer text from args.input without side effects." \
 		tool_final_answer \
 		"${args_schema}"
 }

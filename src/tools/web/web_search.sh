@@ -108,9 +108,18 @@ register_web_search() {
 		jq -c . <<'JSON'
 {
   "type": "object",
-  "required": ["query"],
+  "additionalProperties": false,
+  "anyOf": [
+    {"required": ["query"]},
+    {"required": ["input"]}
+  ],
   "properties": {
     "query": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "input": {
       "type": "string",
       "minLength": 1,
       "maxLength": 200

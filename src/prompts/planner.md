@@ -41,7 +41,7 @@ Plan:
   {
     "thought": "Confirm reminders and note status to the user.",
     "tool": "final_answer",
-    "args": {}
+    "args": {"input": {"__fill__": true}}
   }
 ]
 
@@ -59,7 +59,7 @@ Plan:
   {
     "thought": "Return a concise list of matches.",
     "tool": "final_answer",
-    "args": {}
+    "args": {"input": {"__fill__": true}}
   }
 ]
 

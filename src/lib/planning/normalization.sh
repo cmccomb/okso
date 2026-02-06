@@ -40,6 +40,11 @@ normalize_plan() {
 		raw="$(cat)"
 	fi
 
+	if [[ -z "${raw}" ]]; then
+		printf '%s\n' "planner_output_empty" >&2
+		return 1
+	fi
+
 	# Normalize and validate shape
 	if ! normalized=$(jq -c '
 if (type == "array") then

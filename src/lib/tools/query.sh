@@ -14,13 +14,6 @@
 # Exit codes:
 #   Functions return non-zero on misuse.
 
-TOOLS_QUERY_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-
-# shellcheck source=src/lib/core/logging.sh
-source "${TOOLS_QUERY_LIB_DIR}/../core/logging.sh"
-# shellcheck source=src/tools/registry.sh
-source "${TOOLS_QUERY_LIB_DIR}/../../tools/registry.sh"
-
 extract_tool_query() {
 	# Derives a human-readable query string for a tool invocation.
 	# Arguments:

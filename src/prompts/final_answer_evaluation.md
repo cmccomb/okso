@@ -9,7 +9,7 @@ ${user_query}
 ### Execution History
 ${trace}
 
-The final_answer tool is invoked with empty args because you are responsible for returning the final answer.
+The final_answer tool should carry the user-facing text in `args.input`; adjust or replace it when needed.
 
 ## Evaluation Criteria
 - The answer directly addresses the user’s request.

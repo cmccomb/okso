@@ -60,8 +60,6 @@ PLANNING_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 #
 # This file owns steps (1)–(4); execution dispatch lives in ../executor/loop.sh.
 
-# shellcheck source=src/lib/core/errors.sh
-source "${PLANNING_LIB_DIR}/../core/errors.sh"
 # shellcheck source=src/lib/core/logging.sh
 source "${PLANNING_LIB_DIR}/../core/logging.sh"
 # shellcheck source=src/lib/tools/index.sh
@@ -72,8 +70,6 @@ else
 fi
 # shellcheck source=src/lib/llm/schema.sh
 source "${PLANNING_LIB_DIR}/../llm/schema.sh"
-# shellcheck source=src/lib/core/json_state.sh
-source "${PLANNING_LIB_DIR}/../core/json_state.sh"
 # shellcheck source=src/lib/llm/llama_client.sh
 source "${PLANNING_LIB_DIR}/../llm/llama_client.sh"
 # shellcheck source=src/lib/settings/config.sh
@@ -88,10 +84,6 @@ source "${PLANNING_LIB_DIR}/prompting.sh"
 source "${PLANNING_LIB_DIR}/../intent/intent.sh"
 # shellcheck source=src/lib/planning/search.sh
 source "${PLANNING_LIB_DIR}/search.sh"
-if [[ "${PLANNER_SKIP_TOOL_LOAD:-false}" != true ]]; then
-	# shellcheck source=src/lib/executor/dispatch.sh
-	source "${PLANNING_LIB_DIR}/../executor/dispatch.sh"
-fi
 
 initialize_planner_models() {
 	# Hydrates planner and executor model specs when callers did not pass
@@ -123,6 +115,19 @@ planner_collect_tools() {
 		done <<<"${tool_override}"
 	fi
 
+	# Reuse caller-provided TOOLS array when available.
+	if [[ ${#catalog[@]} -eq 0 ]] && declare -p TOOLS >/dev/null 2>&1; then
+		local tools_decl
+		tools_decl="$(declare -p TOOLS 2>/dev/null || true)"
+		if [[ "${tools_decl}" == declare\ -a* || "${tools_decl}" == declare\ -ax* ]]; then
+			local tool_name
+			for tool_name in "${TOOLS[@]-}"; do
+				[[ -z "${tool_name}" ]] && continue
+				catalog+=("${tool_name}")
+			done
+		fi
+	fi
+
 	# Fall back to the registry if no explicit TOOLS were supplied.
 	if [[ ${#catalog[@]} -eq 0 ]]; then
 		if command -v tool_names >/dev/null 2>&1; then
@@ -135,7 +140,9 @@ planner_collect_tools() {
 		fi
 	fi
 
-	printf '%s\n' "${catalog[@]}"
+	if [[ ${#catalog[@]} -gt 0 ]]; then
+		printf '%s\n' "${catalog[@]-}"
+	fi
 }
 
 planner_build_plan_schema() {
@@ -321,112 +328,99 @@ generate_planner_response_with_context() {
 
 	# Log the tool catalog for operator visibility
 	local planner_tool_catalog
-	planner_tool_catalog="$(printf '%s\n' "${planner_tools[@]}" | paste -sd ',' -)"
+	planner_tool_catalog="$(printf '%s\n' "${planner_tools[@]-}" | paste -sd ',' -)"
 	log "DEBUG" "Planner tool catalog" "${planner_tool_catalog}" >&2
+
+	if [[ "${LLAMA_AVAILABLE:-true}" != true ]]; then
+		log "WARN" "LLM unavailable; emitting fallback planner response" "llama_available=false" >&2
+		jq -nc '[{
+			tool: "final_answer",
+			args: {input: "Model unavailable. Responding directly without tool execution."},
+			thought: "Provide a safe fallback response when planner inference is unavailable."
+		}]'
+		return 0
+	fi
 
 	# Build the planner prompt
 	local planner_schema_text tool_lines prompt intent_context
-	planner_schema_text="$(planner_build_plan_schema "${planner_tools[@]}")"
-	tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]}")" format_tool_line)"
-	intent_context="$(planner_format_intent_context "${intent_json}" "${planner_tools[@]}")"
+	planner_schema_text="$(planner_build_plan_schema "${planner_tools[@]-}")"
+	tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]-}")" format_tool_line)"
+	intent_context="$(planner_format_intent_context "${intent_json}" "${planner_tools[@]-}")"
 	prompt="$(build_planner_prompt "${user_query}" "${tool_lines}" "${search_context}" "${PLANNER_FEEDBACK_CONTEXT:-}" "${planner_schema_text}" "${intent_context}")"
 	log "DEBUG" "Generated planner prompt" "${prompt}" >&2
 
-	# Configure sampling parameters
-	local sample_count temperature debug_log_dir debug_log_file max_generation_tokens
-	# Sampling is intentionally pinned to one candidate for deterministic behavior.
-	sample_count=1
+	# Configure generation parameters
+	local temperature debug_log_dir debug_log_file max_generation_tokens
+	local raw_plan normalized_plan criteria_report replan_feedback prompt_feedback
 	temperature="$(validate_temperature "${PLANNER_TEMPERATURE:-0.7}" 0.7)"
 	max_generation_tokens="$(validate_positive_int "${PLANNER_MAX_OUTPUT_TOKENS:-1024}" 1024 "PLANNER_MAX_OUTPUT_TOKENS")"
 
-	# Capture the sampling configuration early so operators can verify the
-	# breadth of exploration before generation begins. This also doubles as
-	# a trace when investigating unexpected candidate rankings.
-	log "INFO" "Planner sampling configuration" "$(jq -nc --arg sample_count "${sample_count}" --arg temperature "${temperature}" '{sample_count:$sample_count,temperature:$temperature}')" >&2
+	log "INFO" "Planner generation configuration" "$(jq -nc --arg temperature "${temperature}" '{mode:"single_pass",temperature:$temperature}')" >&2
 
-	# Max generation tokens controls the budget for each llama.cpp call.
 	if ! [[ "${max_generation_tokens}" =~ ^[0-9]+$ ]] || ((max_generation_tokens < 1)); then
 		max_generation_tokens=1024
 	fi
 
-	# Debug log directory defaults to TMPDIR or /tmp when unset.
 	debug_log_dir="${TMPDIR:-/tmp}"
-
-	# Each candidate is appended to PLANNER_DEBUG_LOG as a JSON object with
-	# score, tie-breaker, rationale, and the normalized response. The file
-	# is truncated per invocation to keep the latest run isolated.
 	debug_log_file="${PLANNER_DEBUG_LOG:-${debug_log_dir%/}/okso_planner_candidates.log}"
 	mkdir -p "$(dirname "${debug_log_file}")" 2>/dev/null || true
 	: >"${debug_log_file}" 2>/dev/null || true
 
-	# Seed the best score with a very negative value so that even heavily
-	# penalized candidates remain eligible for selection. This avoids
-	# returning empty results when every candidate incurs availability or
-	# safety deductions during scoring.
-	local best_plan="" best_score=-999999 best_tie_breaker=-9999 candidate_index=0 raw_plan normalized_plan
-	local candidate_score candidate_tie_breaker candidate_scorecard candidate_rationale
-	while ((candidate_index < sample_count)); do
-		candidate_index=$((candidate_index + 1))
-
-		# Each loop iteration generates a single candidate, normalizes it
-		# into the canonical schema, and scores it for downstream
-		# selection. Any failure to normalize or score results in the
-		# candidate being skipped, which keeps downstream selection
-		# deterministic and safe.
-		raw_plan="$(LLAMA_TEMPERATURE="${temperature}" llama_infer "${prompt}" '' "${max_generation_tokens}" "${planner_schema_text}" "${PLANNER_MODEL_REPO:-}" "${PLANNER_MODEL_FILE:-}" "${PLANNER_CACHE_FILE:-}" "${prompt}")"
-
-		# Normalize the candidate plan and skip unusable outputs
-		if ! normalized_plan="$(normalize_plan <<<"${raw_plan}")"; then
-			log "WARN" "Planner output unusable from llama.cpp" "${raw_plan}" >&2
-			continue
-		fi
-
-		# Score the candidate plan and skip scoring failures
-		if ! candidate_scorecard="$(score_planner_candidate "${normalized_plan}")"; then
-			log "ERROR" "Planner output failed scoring" "${normalized_plan}" >&2
-			continue
-		fi
-
-		# Extract scoring details for logging and selection
-		candidate_score="$(jq -er '.score' <<<"${candidate_scorecard}" 2>/dev/null || printf '0')"
-		candidate_tie_breaker="$(jq -er '.tie_breaker // 0' <<<"${candidate_scorecard}" 2>/dev/null || printf '0')"
-		candidate_rationale="$(jq -c '.rationale // []' <<<"${candidate_scorecard}" 2>/dev/null || printf '[]')"
-
-		# Emit a detailed INFO log for each candidate so operators can
-		# trace how the scorer evaluated the plan. The rationale array
-		# is preserved intact for downstream debugging.
-		log "INFO" "Planner candidate scored" "$(jq -nc \
-			--argjson index "${candidate_index}" \
-			--argjson score "${candidate_score}" \
-			--argjson tie_breaker "${candidate_tie_breaker}" \
-			--argjson rationale "${candidate_rationale}" \
-			'{index:$index,score:$score,tie_breaker:$tie_breaker,rationale:$rationale}')" >&2
-
-		# Append the candidate to the debug log for post-mortem analysis.
-		jq -nc \
-			--argjson index "${candidate_index}" \
-			--argjson score "${candidate_score}" \
-			--argjson tie_breaker "${candidate_tie_breaker}" \
-			--argjson rationale "${candidate_rationale}" \
-			--argjson response "${normalized_plan}" \
-			'{index:$index, score:$score, tie_breaker:$tie_breaker, rationale:$rationale, response:$response}' >>"${debug_log_file}" 2>/dev/null || true
-
-		# Update the best candidate when the score or tie-breaker improves
-		if ((candidate_score > best_score)) || { ((candidate_score == best_score)) && ((candidate_tie_breaker > best_tie_breaker)); }; then
-			best_score=${candidate_score}
-			best_tie_breaker=${candidate_tie_breaker}
-			best_plan="${normalized_plan}"
-		fi
-
-	done
-
-	# Return the best candidate or error when none are valid
-	if [[ -z "${best_plan}" ]]; then
-		log "ERROR" "Planner produced no usable candidates; request llama regeneration" "no_valid_candidates" >&2
+	raw_plan="$(LLAMA_TEMPERATURE="${temperature}" llama_infer "${prompt}" '' "${max_generation_tokens}" "${planner_schema_text}" "${PLANNER_MODEL_REPO:-}" "${PLANNER_MODEL_FILE:-}" "${PLANNER_CACHE_FILE:-}" "${prompt}")"
+	if ! normalized_plan="$(normalize_plan <<<"${raw_plan}")"; then
+		log "ERROR" "Planner output unusable from llama.cpp" "${raw_plan}" >&2
 		return 1
 	fi
 
-	printf '%s' "${best_plan}"
+	if ! criteria_report="$(planner_plan_criteria_report "${normalized_plan}")"; then
+		log "ERROR" "Planner criteria check failed" "criteria_evaluation_error" >&2
+		return 1
+	fi
+
+	jq -nc \
+		--argjson attempt 1 \
+		--argjson response "${normalized_plan}" \
+		--argjson criteria "${criteria_report}" \
+		'{attempt:$attempt,response:$response,criteria:$criteria}' >>"${debug_log_file}" 2>/dev/null || true
+
+	if jq -e '.ok == true' <<<"${criteria_report}" >/dev/null 2>&1; then
+		printf '%s' "${normalized_plan}"
+		return 0
+	fi
+
+	replan_feedback="$(jq -r '.reasons | join(" ")' <<<"${criteria_report}" 2>/dev/null || printf 'Planner criteria failed.')"
+	log "WARN" "Planner candidate failed required criteria; replanning once" "${replan_feedback}" >&2
+
+	prompt_feedback="${PLANNER_FEEDBACK_CONTEXT:-}"
+	if [[ -n "${prompt_feedback}" ]]; then
+		prompt_feedback+=$'\n'
+	fi
+	prompt_feedback+="Criteria retry request: ${replan_feedback}"
+	prompt="$(build_planner_prompt "${user_query}" "${tool_lines}" "${search_context}" "${prompt_feedback}" "${planner_schema_text}" "${intent_context}")"
+
+	raw_plan="$(LLAMA_TEMPERATURE="${temperature}" llama_infer "${prompt}" '' "${max_generation_tokens}" "${planner_schema_text}" "${PLANNER_MODEL_REPO:-}" "${PLANNER_MODEL_FILE:-}" "${PLANNER_CACHE_FILE:-}" "${prompt}")"
+	if ! normalized_plan="$(normalize_plan <<<"${raw_plan}")"; then
+		log "ERROR" "Planner retry output unusable from llama.cpp" "${raw_plan}" >&2
+		return 1
+	fi
+
+	if ! criteria_report="$(planner_plan_criteria_report "${normalized_plan}")"; then
+		log "ERROR" "Planner retry criteria check failed" "criteria_evaluation_error" >&2
+		return 1
+	fi
+
+	jq -nc \
+		--argjson attempt 2 \
+		--argjson response "${normalized_plan}" \
+		--argjson criteria "${criteria_report}" \
+		'{attempt:$attempt,response:$response,criteria:$criteria}' >>"${debug_log_file}" 2>/dev/null || true
+
+	if ! jq -e '.ok == true' <<<"${criteria_report}" >/dev/null 2>&1; then
+		log "ERROR" "Planner retry failed required criteria" "$(jq -c '.reasons // []' <<<"${criteria_report}" 2>/dev/null || printf '[]')" >&2
+		return 1
+	fi
+
+	printf '%s' "${normalized_plan}"
 }
 
 generate_planner_response() {

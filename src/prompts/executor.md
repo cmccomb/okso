@@ -14,6 +14,8 @@ ${history_text}
 
 ### The Next Tool to Call
 You are determining the arguments for the ${tool} tool.
+Current argument scaffold:
+${args_json}
 You need to fill in these fields: ${context_fields}
 The planner provided these notes to guide you:
 ${planner_thought}

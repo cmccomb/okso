@@ -22,6 +22,8 @@
 
 # shellcheck source=src/lib/core/logging.sh
 source "${BASH_SOURCE[0]%/tools/python_repl/index.sh}/lib/core/logging.sh"
+# shellcheck source=src/lib/tools/args.sh
+source "${BASH_SOURCE[0]%/tools/python_repl/index.sh}/lib/tools/args.sh"
 # shellcheck source=src/tools/registry.sh
 source "${BASH_SOURCE[0]%/python_repl/index.sh}/registry.sh"
 
@@ -195,8 +197,7 @@ python_repl_resolve_query() {
 	# Resolves the Python input text from TOOL_ARGS (or TOOL_QUERY fallback).
 	# Returns:
 	#   Outputs the Python statements (string).
-	local args_json text_key query
-	text_key="input"
+	local args_json query
 	args_json="${TOOL_ARGS:-}"
 
 	if [[ -z "${args_json}" ]]; then
@@ -204,15 +205,8 @@ python_repl_resolve_query() {
 		return 0
 	fi
 
-	if ! query=$(jq -er --arg key "${text_key}" '
- if type != "object" then error("args must be object") end
-| if .[$key]? == null then error("missing ${key}") end
-| if (.[$key] | type) != "string" then error("${key} must be string") end
-| if (.[$key] | length) == 0 then error("${key} cannot be empty") end
-| if ((del(.[$key]) | length) != 0) then error("unexpected properties") end
-| .[$key]
-' <<<"${args_json}" 2>&1); then
-		log "ERROR" "Invalid TOOL_ARGS for python_repl" "${query}"
+	if ! query="$(tool_args_parse_strict_single_string "input" "" "python_repl")"; then
+		log "ERROR" "Invalid TOOL_ARGS for python_repl" "${TOOL_ARGS:-}" >&2
 		return 1
 	fi
 

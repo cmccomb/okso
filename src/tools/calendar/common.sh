@@ -24,10 +24,8 @@
 
 # shellcheck source=src/lib/core/logging.sh
 source "${BASH_SOURCE[0]%/tools/calendar/common.sh}/lib/core/logging.sh"
-# shellcheck source=src/tools/osascript_helpers.sh
-source "${BASH_SOURCE[0]%/tools/calendar/common.sh}/tools/osascript_helpers.sh"
-# shellcheck source=src/tools/registry.sh
-source "${BASH_SOURCE[0]%/calendar/common.sh}/registry.sh"
+# shellcheck source=src/tools/apple_app.sh
+source "${BASH_SOURCE[0]%/tools/calendar/common.sh}/tools/apple_app.sh"
 
 calendar_name() {
 	# Prints the resolved Apple Calendar name.
@@ -80,16 +78,12 @@ calendar_run_script() {
 	#   $@ - parameters forwarded to osascript
 	local bin
 	bin=${CALENDAR_OSASCRIPT_BIN:-osascript}
-	osascript_run_piped "${bin}" "$@"
+	apple_app_run_script "${bin}" "$@"
 }
 
 calendar_resolve_calendar_script() {
 	# Emits AppleScript lines that resolve the target calendar.
 	local cal
 	cal=$(calendar_name)
-	cal=${cal//"/\\"/}
-	printf '        if not (exists calendar "%s") then\n' "${cal}"
-	printf '                error "Calendar not found: %s"\n' "${cal}"
-	printf '        end if\n'
-	printf '        set targetCalendar to calendar "%s"\n' "${cal}"
+	apple_script_resolve_top_level "calendar" "${cal}" "targetCalendar" "Calendar"
 }

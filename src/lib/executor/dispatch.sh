@@ -20,12 +20,8 @@ EXEC_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck source=src/lib/core/logging.sh
 source "${EXEC_LIB_DIR}/../core/logging.sh"
-# shellcheck source=src/lib/core/errors.sh
-source "${EXEC_LIB_DIR}/../core/errors.sh"
-# shellcheck source=src/lib/settings/config.sh
-source "${EXEC_LIB_DIR}/../settings/config.sh"
-# shellcheck source=src/lib/tools/index.sh
-source "${EXEC_LIB_DIR}/../tools/index.sh"
+# shellcheck source=src/tools/registry.sh
+source "${EXEC_LIB_DIR}/../../tools/registry.sh"
 
 execute_tool_with_query() {
 	# Arguments:

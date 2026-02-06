@@ -12,12 +12,6 @@
 #   - register_tool utilities from tools/registry.sh
 
 FILES_TOOLS_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-SRC_ROOT=$(cd -- "${FILES_TOOLS_DIR}/../.." && pwd)
-
-# shellcheck source=src/lib/core/logging.sh
-source "${SRC_ROOT}/lib/core/logging.sh"
-# shellcheck source=src/tools/registry.sh
-source "${SRC_ROOT}/tools/registry.sh"
 
 # shellcheck source=src/tools/files/file_search.sh
 source "${FILES_TOOLS_DIR}/file_search.sh"
