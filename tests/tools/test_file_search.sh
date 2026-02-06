@@ -47,3 +47,19 @@ SCRIPT
 
 	[ "$status" -eq 0 ]
 }
+
+@test "initialize_tools registers file_search through the file suite" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+source ./src/lib/tools/index.sh
+init_tool_registry
+initialize_tools
+tool_names
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	[[ " ${lines[*]} " == *" file_search "* ]]
+	[[ " ${lines[*]} " == *" file_read "* ]]
+	[[ " ${lines[*]} " == *" file_write "* ]]
+	[[ " ${lines[*]} " == *" file_edit "* ]]
+}

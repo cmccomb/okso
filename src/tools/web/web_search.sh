@@ -26,6 +26,8 @@ SRC_ROOT=$(cd -- "${WEB_TOOLS_DIR}/../.." && pwd)
 
 # shellcheck source=src/lib/core/logging.sh
 source "${SRC_ROOT}/lib/core/logging.sh"
+# shellcheck source=src/lib/tools/args.sh
+source "${SRC_ROOT}/lib/tools/args.sh"
 # shellcheck source=src/tools/web/http.sh
 source "${WEB_TOOLS_DIR}/http.sh"
 # shellcheck source=src/tools/registry.sh
@@ -34,10 +36,7 @@ source "${SRC_ROOT}/tools/registry.sh"
 web_search_parse_args() {
 	# Parses TOOL_ARGS JSON for the web_search tool.
 	# Returns a JSON object with `query` and `num`.
-	local args_json err
-	args_json="${TOOL_ARGS:-}" || true
-
-	if ! err=$(jq -cer '
+	tool_args_parse_with_jq '
                 if (type != "object") then error("args must be object") end
                 | .query = (.query // .input)
                 | if (.query? == null) then error("missing query") end
@@ -50,11 +49,7 @@ web_search_parse_args() {
                 end
                 | if ((del(.query, .input, .num) | length) != 0) then error("unexpected properties") end
                 | {query: .query, num: (.num // 1)}
-        ' <<<"${args_json}" 2>&1); then
-		log "ERROR" "Invalid web_search arguments" "${err}" >&2
-		return 1
-	fi
-	printf '%s' "${err}"
+        ' "web_search"
 }
 
 tool_web_search() {

@@ -25,16 +25,15 @@ SRC_ROOT=$(cd -- "${FILES_TOOLS_DIR}/../.." && pwd)
 
 # shellcheck source=src/lib/core/logging.sh
 source "${SRC_ROOT}/lib/core/logging.sh"
+# shellcheck source=src/lib/tools/args.sh
+source "${SRC_ROOT}/lib/tools/args.sh"
 # shellcheck source=src/tools/registry.sh
 source "${SRC_ROOT}/tools/registry.sh"
 
 file_search_parse_args() {
 	# Parses TOOL_ARGS JSON for file_search.
 	# Returns a normalized JSON object.
-	local args_json err
-	args_json="${TOOL_ARGS:-}" || true
-
-	if ! err=$(jq -cer '
+	tool_args_parse_with_jq '
                 if (type != "object") then error("args must be object") end
                 | .query = (.query // .input)
                 | if (.query? == null) then error("missing query") end
@@ -57,11 +56,7 @@ file_search_parse_args() {
                 end
                 | if ((del(.query, .input, .paths, .case_sensitive, .max_results, .context_lines) | length) != 0) then error("unexpected properties") end
                 | {query: .query, paths: .paths, case_sensitive: (.case_sensitive // false), max_results: .max_results, context_lines: .context_lines}
-        ' <<<"${args_json}" 2>&1); then
-		log "ERROR" "Invalid file_search arguments" "${err}" >&2
-		return 1
-	fi
-	printf '%s' "${err}"
+        ' "file_search"
 }
 
 file_search_build_command() {

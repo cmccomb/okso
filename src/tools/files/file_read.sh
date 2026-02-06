@@ -26,16 +26,15 @@ SRC_ROOT=$(cd -- "${FILES_TOOLS_DIR}/../.." && pwd)
 
 # shellcheck source=src/lib/core/logging.sh
 source "${SRC_ROOT}/lib/core/logging.sh"
+# shellcheck source=src/lib/tools/args.sh
+source "${SRC_ROOT}/lib/tools/args.sh"
 # shellcheck source=src/tools/registry.sh
 source "${SRC_ROOT}/tools/registry.sh"
 
 file_read_parse_args() {
 	# Parses TOOL_ARGS JSON for file_read.
 	# Returns a normalized JSON object.
-	local args_json err
-	args_json="${TOOL_ARGS:-}" || true
-
-	if ! err=$(jq -cer '
+	tool_args_parse_with_jq '
                 if (type != "object") then error("args must be object") end
                 | .path = (.path // .input)
                 | if (.path? == null) then error("missing path") end
@@ -54,11 +53,7 @@ file_read_parse_args() {
                 end
                 | if ((del(.path, .input, .page, .page_size) | length) != 0) then error("unexpected properties") end
                 | {path: .path, page: .page, page_size: .page_size}
-        ' <<<"${args_json}" 2>&1); then
-		log "ERROR" "Invalid file_read arguments" "${err}" >&2
-		return 1
-	fi
-	printf '%s' "${err}"
+        ' "file_read"
 }
 
 file_read_detect_mime() {

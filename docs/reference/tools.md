@@ -8,7 +8,10 @@ use the canonical `input` property so prompts and schemas can reference `args.in
 - `python_repl`: run Python statements in an isolated sandbox using `python3 -I` with a startup hook that confines writes. The tool reads structured `TOOL_ARGS.input` (and falls back to `TOOL_QUERY` when `TOOL_ARGS` is empty) and persists state between calls.
 - `web_search`: query the Google Custom Search API with a structured payload (`query` and optional `num`, default `5`, maximum `10`) and return JSON results.
 - `web_fetch`: retrieve HTTP response bodies with a configurable size cap, returning JSON metadata (final URL, HTTP status, content type, headers, byte length, truncation flag, body encoding, body snippet, optional `body_markdown`, and anchor metadata). It only accepts a `url` argument and prefers normalized snippets from prior `web_search` results when available.
+- `file_search`: search local files/documents with `rga`, returning structured matches and an artifact path to the raw JSONL output.
 - `file_read`: read a local file and return a JSON object containing `content_markdown`, `page`, and `total_pages` (plus optional `artifact_paths`). Accepts `TOOL_ARGS.path` or `TOOL_ARGS.input`, with optional `page` and `page_size`.
+- `file_write`: write file contents in `create`, `overwrite`, or `append` mode with optional parent-directory creation.
+- `file_edit`: apply literal text replacements in an existing file with either `replace_all` or a specific `occurrence`.
 - `*_search`: Notes, Calendar, and Mail searches reuse the same `input` field for the search term.
 - `notes_*`: create, append, list, read, or search Apple Notes entries.
 - `reminders_*`: create, list, or complete Apple Reminders.
@@ -90,9 +93,9 @@ The `terminal` tool keeps a per-query working directory so subsequent calls shar
 
 `python_repl` runs `python3 -I` in a temporary sandbox directory and installs a startup hook that changes into the sandbox and wraps `open` so write modes only succeed inside the sandbox. It executes the supplied statements once, persists serializable globals to a sandbox state file, and returns stdout/stderr; uncaught exceptions exit non-zero and surface the traceback. Prefer short, single-purpose statements and use `print` to surface values.
 
-## File read tool
+## File tools
 
-`file_read` reads a local file and emits a JSON payload containing `content_markdown` plus pagination metadata. Use `TOOL_ARGS.input` (or `TOOL_ARGS.path`) to set the target file, then optionally set `page` (1-based) and `page_size` (lines per page; default `200`) to page through the content.
+`file_search` scans supported local files for matches, `file_read` paginates local file content into Markdown, `file_write` creates/overwrites/appends file content, and `file_edit` performs literal string replacement with ambiguity guards. Use explicit paths and structured `TOOL_ARGS` fields for deterministic behavior.
 
 ## macOS helpers
 

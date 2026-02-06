@@ -206,7 +206,7 @@ load_or_detect_system_profile() {
 	# Map resources to base tier
 	if [[ -z "${DETECTED_BASE_TIER:-}" && -n "${DETECTED_PHYS_MEM_BYTES:-}" ]]; then
 		DETECTED_BASE_TIER=$(map_resources_to_base_tier "${DETECTED_PHYS_MEM_BYTES}" "${DETECTED_IS_GHA:-0}")
-	fi
+	fisd
 
 	# Cache detections if all present
 	if [[ -n "${DETECTED_PHYS_MEM_BYTES:-}" && -n "${DETECTED_IS_GHA:-}" && -n "${DETECTED_BASE_TIER:-}" ]]; then

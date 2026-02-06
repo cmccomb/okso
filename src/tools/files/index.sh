@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 #
-# File tool suite aggregator, providing registration for file_search and file_read.
+# File tool suite aggregator for local file operations.
 #
 # Usage:
 #   source "${BASH_SOURCE[0]%/tools/files/index.sh}/tools/files/index.sh"
@@ -23,8 +23,14 @@ source "${SRC_ROOT}/tools/registry.sh"
 source "${FILES_TOOLS_DIR}/file_search.sh"
 # shellcheck source=src/tools/files/file_read.sh
 source "${FILES_TOOLS_DIR}/file_read.sh"
+# shellcheck source=src/tools/files/file_write.sh
+source "${FILES_TOOLS_DIR}/file_write.sh"
+# shellcheck source=src/tools/files/file_edit.sh
+source "${FILES_TOOLS_DIR}/file_edit.sh"
 
 register_file_suite() {
 	register_file_search
 	register_file_read
+	register_file_write
+	register_file_edit
 }

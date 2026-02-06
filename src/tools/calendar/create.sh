@@ -26,6 +26,8 @@
 source "${BASH_SOURCE[0]%/calendar/create.sh}/registry.sh"
 # shellcheck source=src/lib/core/logging.sh
 source "${BASH_SOURCE[0]%/tools/calendar/create.sh}/lib/core/logging.sh"
+# shellcheck source=src/lib/tools/args.sh
+source "${BASH_SOURCE[0]%/tools/calendar/create.sh}/lib/tools/args.sh"
 # shellcheck source=src/tools/calendar/common.sh
 source "${BASH_SOURCE[0]%/create.sh}/common.sh"
 
@@ -41,20 +43,11 @@ calendar_dry_run_guard() {
 }
 
 tool_calendar_create() {
-	local title start_time location calendar_script args_json text_key details
-	args_json="${TOOL_ARGS:-}" || true
-	text_key="input"
-	details=$(jq -er --arg key "${text_key}" '
- if type != "object" then error("args must be object") end
-| if .[$key]? == null then error("missing ${key}") end
-| if (.[$key] | type) != "string" then error("${key} must be string") end
-| if (.[$key] | length) == 0 then error("${key} cannot be empty") end
-| if ((del(.[$key]) | length) != 0) then error("unexpected properties") end
-| .[$key]
-' <<<"${args_json}" 2>/dev/null || true)
+	local title start_time location calendar_script details
+	details="$(tool_args_parse_strict_single_string "input" "" "calendar_create" || true)"
 
 	if [[ -z "${details}" ]]; then
-		log "ERROR" "Missing TOOL_ARGS.${text_key}" "${args_json}" || true
+		log "ERROR" "Missing TOOL_ARGS.input" "${TOOL_ARGS:-{}}" || true
 		return 1
 	fi
 

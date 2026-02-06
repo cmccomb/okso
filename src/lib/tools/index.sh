@@ -163,6 +163,6 @@ initialize_tools() {
 	register_final_answer
 	register_feedback
 	register_web_suite
-	register_file_read
+	register_file_suite
 	register_workflow_tools
 }

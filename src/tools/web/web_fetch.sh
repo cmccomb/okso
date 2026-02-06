@@ -25,6 +25,8 @@ SRC_ROOT=$(cd -- "${WEB_TOOLS_DIR}/../.." && pwd)
 
 # shellcheck source=src/lib/core/logging.sh
 source "${SRC_ROOT}/lib/core/logging.sh"
+# shellcheck source=src/lib/tools/args.sh
+source "${SRC_ROOT}/lib/tools/args.sh"
 # shellcheck source=src/tools/web/http.sh
 source "${WEB_TOOLS_DIR}/http.sh"
 # shellcheck source=src/tools/registry.sh
@@ -36,23 +38,13 @@ web_fetch_parse_args() {
 	#   None
 	# Returns:
 	#   A JSON object with `url`.
-	local args_json err
-	args_json="${TOOL_ARGS:-}" || true
-
-	# Validate args JSON
-	if ! err=$(jq -cer '
+	tool_args_parse_with_jq '
                 if (type != "object") then error("args must be object") end
                 | if (.url? == null) then error("missing url") end
                 | if (.url | type) != "string" or (.url | length) == 0 then error("url must be non-empty string") end
                 | if ((del(.url) | length) != 0) then error("unexpected properties") end
                 | {url: .url}
-        ' <<<"${args_json}" 2>&1); then
-		log "ERROR" "Invalid web_fetch arguments" "${err}" >&2
-		return 1
-	fi
-
-	# Return parsed args
-	printf '%s' "${err}"
+        ' "web_fetch"
 }
 
 web_fetch_normalize_snippet() {

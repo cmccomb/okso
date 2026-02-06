@@ -25,6 +25,8 @@
 source "${BASH_SOURCE[0]%/mail/draft.sh}/registry.sh"
 # shellcheck source=src/lib/core/logging.sh
 source "${BASH_SOURCE[0]%/tools/mail/draft.sh}/lib/core/logging.sh"
+# shellcheck source=src/lib/tools/args.sh
+source "${BASH_SOURCE[0]%/tools/mail/draft.sh}/lib/tools/args.sh"
 # shellcheck source=src/tools/mail/common.sh
 source "${BASH_SOURCE[0]%/draft.sh}/common.sh"
 
@@ -36,20 +38,11 @@ mail_build_recipient_args() {
 }
 
 tool_mail_draft() {
-	local recipients_line subject body args_json envelope text_key
-	args_json="${TOOL_ARGS:-}" || true
-	text_key="input"
-	envelope=$(jq -er --arg key "${text_key}" '
- if type != "object" then error("args must be object") end
-| if .[$key]? == null then error("missing ${key}") end
-| if (.[$key] | type) != "string" then error("${key} must be string") end
-| if (.[$key] | length) == 0 then error("${key} cannot be empty") end
-| if ((del(.[$key]) | length) != 0) then error("unexpected properties") end
-| .[$key]
-' <<<"${args_json}" 2>/dev/null || true)
+	local recipients_line subject body envelope
+	envelope="$(tool_args_parse_strict_single_string "input" "" "mail_draft" || true)"
 
 	if [[ -z "${envelope}" ]]; then
-		log "ERROR" "Missing TOOL_ARGS.${text_key}" "${args_json}" || true
+		log "ERROR" "Missing TOOL_ARGS.input" "${TOOL_ARGS:-{}}" || true
 		return 1
 	fi
 

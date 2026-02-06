@@ -25,6 +25,8 @@
 source "${BASH_SOURCE[0]%/notes/search.sh}/registry.sh"
 # shellcheck source=src/lib/core/logging.sh
 source "${BASH_SOURCE[0]%/tools/notes/search.sh}/lib/core/logging.sh"
+# shellcheck source=src/lib/tools/args.sh
+source "${BASH_SOURCE[0]%/tools/notes/search.sh}/lib/tools/args.sh"
 # shellcheck source=src/tools/notes/common.sh
 source "${BASH_SOURCE[0]%/search.sh}/common.sh"
 
@@ -35,22 +37,13 @@ derive_notes_search_query() {
 }
 
 tool_notes_search() {
-	local query folder_script args_json text_key
-	args_json="${TOOL_ARGS:-}" || true
-	text_key="input"
+	local query folder_script
 	query=""
 
-	query=$(jq -er --arg key "${text_key}" '
- if type != "object" then error("args must be object") end
-| if .[$key]? == null then error("missing ${key}") end
-| if (.[$key] | type) != "string" then error("${key} must be string") end
-| if (.[$key] | length) == 0 then error("${key} cannot be empty") end
-| if ((del(.[$key]) | length) != 0) then error("unexpected properties") end
-| .[$key]
-' <<<"${args_json}" 2>/dev/null || true)
+	query="$(tool_args_parse_strict_single_string "input" "" "notes_search" || true)"
 
 	if [[ -z "${query//[[:space:]]/}" ]]; then
-		log "ERROR" "Search term is required" "${args_json}" || true
+		log "ERROR" "Search term is required" "${TOOL_ARGS:-{}}" || true
 		return 1
 	fi
 
