@@ -8,10 +8,11 @@
 #
 # Environment variables:
 #   TOOL_ARGS (JSON object): structured args including `input` with Python statements.
+#   TOOL_QUERY (string): fallback Python statements when TOOL_ARGS is empty.
 #
 # Dependencies:
 #   - bash 3.2+
-#   - python 3+
+#   - python3
 #   - mktemp
 #   - logging helpers from logging.sh
 #   - register_tool from tools/registry.sh
@@ -191,22 +192,16 @@ PY
 }
 
 python_repl_resolve_query() {
-	# Resolves the Python input text from TOOL_ARGS.
+	# Resolves the Python input text from TOOL_ARGS (or TOOL_QUERY fallback).
 	# Returns:
 	#   Outputs the Python statements (string).
-	local args_json text_key jq_error_file jq_error query
+	local args_json text_key query
 	text_key="input"
 	args_json="${TOOL_ARGS:-}"
 
 	if [[ -z "${args_json}" ]]; then
 		printf '%s' "${TOOL_QUERY:-""}"
 		return 0
-	fi
-
-	jq_error_file=$(mktemp -t python_repl_jq.XXXXXX)
-	if [[ -z "${jq_error_file}" ]]; then
-		log "ERROR" "Failed to create temp file for jq stderr" "${args_json}"
-		return 1
 	fi
 
 	if ! query=$(jq -er --arg key "${text_key}" '
@@ -216,19 +211,16 @@ python_repl_resolve_query() {
 | if (.[$key] | length) == 0 then error("${key} cannot be empty") end
 | if ((del(.[$key]) | length) != 0) then error("unexpected properties") end
 | .[$key]
-' <<<"${args_json}" 2>"${jq_error_file}"); then
-		jq_error=$(<"${jq_error_file}")
-		rm -f "${jq_error_file}"
-		log "ERROR" "Invalid TOOL_ARGS for python_repl" "${jq_error}"
+' <<<"${args_json}" 2>&1); then
+		log "ERROR" "Invalid TOOL_ARGS for python_repl" "${query}"
 		return 1
 	fi
 
-	rm -f "${jq_error_file}"
 	printf '%s' "${query}"
 }
 
 tool_python_repl() {
-	# Executes Python statements in an isolated REPL sandbox.
+	# Executes Python statements in an isolated sandboxed interpreter run.
 	# Returns:
 	#   Exit code 0 on success, non-zero on failure.
 
@@ -274,7 +266,7 @@ tool_python_repl() {
 		PYTHON_REPL_STATE_FILE="${sandbox_dir}/.python_state.pkl" \
 		PYTHON_REPL_INPUT="${query}" \
 		PYTHONNOUSERSITE=1 \
-		python3.12 -I <<<"${repl_input}"
+		python3 -I <<<"${repl_input}"
 	status=$?
 	return "${status}"
 }

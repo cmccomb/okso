@@ -1,60 +1,40 @@
+---
+title: Okso Documentation
+layout: default
+description: Local-first automation for macOS with planning, approvals, and transparent tool execution.
+---
 # Okso documentation
 
-Okso is a local-first automation toolkit that turns natural-language intent into reliable command-line execution. It combines a planning loop, guarded tool execution, and transparent logs so teams can automate workflows without losing control of what runs or why.
+Okso is a local-first automation toolkit for macOS that turns natural-language intent into reliable, reviewable command-line execution. It plans first, shows you what it will do, and then runs tools with guardrails and logs you can audit.
 
-## Features
+## Start here
 
-- **Plan-aware execution** with step-by-step traces for accountability.
-- **Configurable tools and prompts** to tailor Okso to your environment.
-- **Deterministic schemas** that keep planner output predictable and auditable.
-- **Developer-friendly workflow** with clear install, usage, and contributor guides.
+- [Installation](user-guides/installation.md): install, upgrade, or uninstall the CLI.
+- [Usage](user-guides/usage.md): run your first request, approvals, and CLI flags.
+- [Configuration](reference/configuration.md): model specs, caches, and runtime overrides.
 
-## Getting Started
+## What makes Okso different
 
-1. **Install Okso** by following the installation guide: [Installation](user-guides/installation.md).
-2. **Run your first command** with the usage guide open for reference: [Usage](user-guides/usage.md).
+- **Local-first LLMs**: llama.cpp-powered planning and execution keep data on your machine.
+- **Plan before action**: a structured plan is generated and approved before any tool runs.
+- **Guarded tools**: each tool has a strict schema and safety checks.
+- **Transparent logs**: every step emits structured output you can inspect.
 
-If you want to go deeper, start with the core reference docs for configuration and execution details:
+## How it works (high level)
 
-- [Configuration](reference/configuration.md)
-- [Execution model](reference/execution-model.md)
-- [Tools](reference/tools.md)
+1. Intent classification narrows the tool catalog and decides whether to gather web context.
+2. A pre-planner web search (optional) gathers snippets to ground the plan.
+3. The planner produces a structured tool-by-tool outline.
+4. You approve (or refine) the plan before execution.
+5. The executor runs each tool deterministically and records observations.
+6. The final answer is generated from the execution trace (with optional evaluation and replanning).
 
-## Why Okso
+## Documentation map
 
-Okso is built on principles that prioritize safety and clarity:
-
-- **Transparency**: every plan and action is logged so you can review what happened.
-- **Control**: you decide which tools are available and how they are configured.
-- **Predictability**: schemas and sampling controls make outputs consistent and explainable.
-- **Portability**: it runs where you work, from local terminals to CI environments.
-
-## Next steps
-
-- Install and upgrade guidance: [Installation](user-guides/installation.md)
-- Learn CLI workflows and flags: [Usage](user-guides/usage.md)
-- Explore core references: [Architecture](reference/architecture.md), [Prompts](reference/prompts.md), [Schemas](reference/schemas.md)
-
-## Documentation Map
-
-Use this map to find the right guide:
-
-- **User guides** (`docs/user-guides/`)
-  - [Installation](user-guides/installation.md): install, upgrade, or uninstall the CLI.
-  - [Usage](user-guides/usage.md): command-line flags and common execution patterns.
-- **Reference** (`docs/reference/`)
-  - [Architecture](reference/architecture.md): planner flow, executor loop, llama.cpp fallbacks, and tool ranking.
-  - [Execution model](reference/execution-model.md): planning steps and executor loop details.
-  - [Planner sampling](reference/planner-sampling.md): sampling controls, scoring heuristics, and debug logs.
-  - [Prompts](reference/prompts.md): template layout and schema links.
-  - [Configuration](reference/configuration.md): environment variables and config file keys.
-  - [Tools](reference/tools.md): available tool handlers and platform notes.
-  - [Schemas](reference/schemas.md): JSON schemas that keep planner output predictable.
-  - [Feedback](reference/feedback.md): review process expectations and response constraints.
-  - [Final answer validation](reference/final-answer-validation.md): final response checks and formatting requirements.
-- **Contributor docs** (`docs/contributor/`)
-  - [Development](contributor/development.md): formatting, linting, and workflow notes.
-  - [Testing](contributor/testing.md): Bats entry points and coverage reporting.
-  - [Platform quirks](contributor/platform-quirks.md): macOS Bash compatibility tips.
-- **Project**
-  - [Project overview](project.md): maintainers, support paths, contribution expectations, and roadmap.
+- [Architecture](reference/architecture.md): end-to-end flow and system boundaries.
+- [Execution model](reference/execution-model.md): planner + executor lifecycle.
+- [Tools](reference/tools.md): tool schemas, behaviors, and platform notes.
+- [Prompts](reference/prompts.md): prompt templates and schema wiring.
+- [Schemas](reference/schemas.md): JSON schema inventory and intent payloads.
+- [Contributor guides](contributor/development.md): formatting, tests, and workflow notes.
+- [Project overview](project.md): support, roadmap, and contribution expectations.

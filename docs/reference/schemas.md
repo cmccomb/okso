@@ -1,10 +1,10 @@
 # Schemas
 
-Structured outputs keep planner interactions predictable. Schema files live in `src/schemas/` and are passed directly to `llama.cpp` during inference. Because responses are already constrained by these schemas, we rely on the structured generation instead of layering additional validation in Bash.
+Structured outputs keep planner interactions predictable. Schema files live in `src/schemas/` and are passed directly to `llama.cpp` during inference. The Bash layer still normalizes and validates outputs to guard against malformed responses.
 
 ## Available schemas
 
-- `planner_plan.schema.json`: JSON array of tool steps and rationales; each item requires `tool`, `args`, and `thought`. The executor consumes the serialized plan directly from the planner response.
+- `planner_plan.schema.json`: base template for the tool-plan array. At runtime `planner_build_plan_schema` injects per-tool argument schemas so each item requires `tool`, `args`, and `thought`. The executor consumes the serialized plan directly from the planner response.
 - `intent.schema.json`: intent classification payload (`intents`, `rationale`) used to filter tools and decide whether to run pre-planner web search.
 - `pre_planner_search_terms.schema.json`: array of one to three concise search terms (5–80 characters each) used for pre-planning web lookups.
 - `executor_action.schema.json`: template for dynamically generated per-tool schemas used during the executor loop. Tool names and argument shapes are injected at runtime before calls to `llama.cpp`.

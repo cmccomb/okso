@@ -419,18 +419,12 @@ evaluate_and_optionally_replan() {
 	#   $1 - state prefix
 	#   $2 - final answer text
 	#   $3 - emit output (true/false, optional; default true)
-	local state_name final_answer user_query history_text
-
-	# Evaluation outputs / control
-	local reasoning feedback_text errexit_was_set
+	local state_name final_answer emit_output replan_requested
+	local user_query history_text
+	local evaluation_json evaluation_type reasoning output
+	local feedback_text errexit_was_set
 	local validation_start_time validation_duration validation_status validation_reason
-
-	# UI render helpers
 	local history_pretty final_body validation_body
-
-	local evaluation_json evaluation_type reasoning output feedback_text errexit_was_set
-	local history_pretty replan_requested
-	local emit_output
 	state_name="$1"
 	final_answer="$2"
 	emit_output="${3:-true}"
@@ -460,7 +454,6 @@ evaluate_and_optionally_replan() {
 		set -e
 	fi
 
-	local validation_status validation_reason
 	validation_status=""
 	validation_reason=""
 

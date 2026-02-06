@@ -21,7 +21,7 @@
 #   APPROVE_ALL (bool): confirmation toggles.
 #   VERBOSITY (int): log level.
 #   PLANNER_SKIP_TOOL_LOAD (bool): skip sourcing the tool suite; useful for tests.
-#   PLANNER_SAMPLE_COUNT (int >=1): number of planner generations to sample; values below 1 are coerced to 1.
+#   PLANNER_SAMPLE_COUNT (int >=1): reserved; planner sampling is currently pinned to a single candidate.
 #   PLANNER_TEMPERATURE (float 0-1): temperature forwarded to planner llama.cpp calls.
 #   PLANNER_DEBUG_LOG (string): JSONL sink for scored planner candidates; truncated at each invocation.
 #   PLANNER_MAX_OUTPUT_TOKENS (int >=1): planner llama.cpp generation budget; values below 1 fall back to the default.
@@ -334,7 +334,8 @@ generate_planner_response_with_context() {
 
 	# Configure sampling parameters
 	local sample_count temperature debug_log_dir debug_log_file max_generation_tokens
-	sample_count=1 #"$(validate_positive_int "${PLANNER_SAMPLE_COUNT:-3}" 3 "PLANNER_SAMPLE_COUNT")"
+	# Sampling is intentionally pinned to one candidate for deterministic behavior.
+	sample_count=1
 	temperature="$(validate_temperature "${PLANNER_TEMPERATURE:-0.7}" 0.7)"
 	max_generation_tokens="$(validate_positive_int "${PLANNER_MAX_OUTPUT_TOKENS:-1024}" 1024 "PLANNER_MAX_OUTPUT_TOKENS")"
 
@@ -342,13 +343,6 @@ generate_planner_response_with_context() {
 	# breadth of exploration before generation begins. This also doubles as
 	# a trace when investigating unexpected candidate rankings.
 	log "INFO" "Planner sampling configuration" "$(jq -nc --arg sample_count "${sample_count}" --arg temperature "${temperature}" '{sample_count:$sample_count,temperature:$temperature}')" >&2
-
-	# Sample count controls how many candidates are generated and scored.
-	# Validation clamps values below 1 to a single candidate so downstream
-	# selection always has material to review.
-	if ! [[ "${sample_count}" =~ ^[0-9]+$ ]] || ((sample_count < 1)); then
-		sample_count=1
-	fi
 
 	# Max generation tokens controls the budget for each llama.cpp call.
 	if ! [[ "${max_generation_tokens}" =~ ^[0-9]+$ ]] || ((max_generation_tokens < 1)); then

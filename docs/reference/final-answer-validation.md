@@ -24,14 +24,14 @@ Because the evaluator output already conforms to the JSON schema, no additional 
 ## Configuration
 
 - `ENABLE_ANSWER_VALIDATION` (default: `true`): disable to skip the validation call entirely.
-- `VALIDATOR_MODEL_REPO` / `VALIDATOR_MODEL_FILE` / `VALIDATOR_CACHE_FILE`: optional overrides for the model and cache used during validation. When unset, the executor model configuration is reused.
+- `VALIDATOR_MODEL_SPEC` / `VALIDATOR_MODEL_BRANCH` / `VALIDATOR_CACHE_FILE`: optional overrides for the model and cache used during validation. When unset, the executor model configuration is reused.
 - `VALIDATION_MAX_TOKENS` (default: `2048`): max tokens for the evaluator response.
 
 Example:
 
 ```bash
 export ENABLE_ANSWER_VALIDATION=true
-export VALIDATOR_MODEL_REPO="bartowski/Qwen_Qwen3-4B-GGUF"
-export VALIDATOR_MODEL_FILE="Qwen_Qwen3-4B-Q4_K_M.gguf"
+export VALIDATOR_MODEL_SPEC="bartowski/Qwen_Qwen3-4B-GGUF:Qwen_Qwen3-4B-Q4_K_M.gguf"
+export VALIDATOR_MODEL_BRANCH=main
 export VALIDATOR_CACHE_FILE="${HOME}/.cache/okso/validator.promptcache"
 ```

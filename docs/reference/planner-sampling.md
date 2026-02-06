@@ -15,7 +15,7 @@ Planner scoring rewards concise, compliant plans and penalizes risky or invalid 
 
 - Plans within the `PLANNER_MAX_PLAN_STEPS` budget earn a baseline bonus; going over budget subtracts points per extra step.
 - Ending with `final_answer` is required; missing it incurs a heavy penalty.
-- Steps that reference unknown tools or include args that fail schema validation reduce the score, while registered tools with valid args earn a small bonus.
+- Steps that reference unknown tools reduce the score, while registered tools earn a small bonus.
 - Side-effecting tools that appear after information-gathering steps receive a positive adjustment; starting with a side-effecting action introduces a deduction.
 - A tie-breaker favors shorter plans when scores are equal by comparing remaining budget vs. overages.
 

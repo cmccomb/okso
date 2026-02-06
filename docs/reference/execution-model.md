@@ -6,14 +6,14 @@ okso separates high-level planning from step-by-step execution so that tool call
 
 1. The planner drafts a numbered outline that mentions the tools to use for each step.
 2. An intent classification step determines if the request needs web context and filters the tool catalog for the planner.
-3. A dedicated rephrasing step asks a Qwen3 1.7B model for 1–3 focused web search strings (constrained by a JSON schema) and runs
-   a search for each, folding the aggregated snippets into the planner prompt. When llama.cpp is unavailable, okso skips the model
-   call and uses the raw user query for search.
+3. A dedicated rephrasing step asks the configured search rephraser model (via `SEARCH_REPHRASER_MODEL_SPEC`, with autotuned defaults)
+   for 1–3 focused web search strings constrained by a JSON schema. Each query is searched and the aggregated snippets are folded into
+   the planner prompt. When llama.cpp is unavailable, okso skips the model call and uses the raw user query for search.
 4. The outline is emitted as structured JSON for logging and optional downstream automation.
 5. Approval prompts give you a chance to refine or abort the plan before any commands run.
 6. A side-effect-free scorer evaluates each sampled outline before selection. Plans that stay within the `PLANNER_MAX_PLAN_STEPS`
-   budget, end with `final_answer`, use registered tools with schema-compliant arguments, and delay side-effecting actions receive
-   higher scores and win ties when multiple candidates share the same numeric total.
+   budget, end with `final_answer`, use registered tools, and delay side-effecting actions receive higher scores and win ties when
+   multiple candidates share the same numeric total.
 7. Each planner invocation currently generates a single candidate (the `PLANNER_SAMPLE_COUNT` knob is pinned to `1` in the planner); the scored JSONL
    history is written to `PLANNER_DEBUG_LOG` so you can audit how the winner was chosen.
 8. The planner itself depends on llama.cpp for plan generation and scoring; if llama.cpp is unavailable the run stops before execution begins.

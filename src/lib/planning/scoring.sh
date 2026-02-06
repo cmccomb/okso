@@ -96,7 +96,7 @@ python_repl_has_side_effects() {
 	#   0 when side effects are likely; 1 otherwise.
 	local args_json snippet pattern
 	args_json=${1:-"{}"}
-	snippet=$(jq -r '.code // .snippet // .text // ""' <<<"${args_json}" 2>/dev/null)
+	snippet=$(jq -r '.input // .code // .snippet // .text // ""' <<<"${args_json}" 2>/dev/null)
 
 	# Empty or unreadable snippets default to side-effecting for safety.
 	if [[ -z "${snippet}" ]]; then
@@ -151,7 +151,7 @@ python_repl_validate_snippet() {
 	#   0 when valid; 1 when invalid; 2 when validation is unavailable.
 	local args_json snippet python_output
 	args_json=${1:-"{}"}
-	snippet=$(jq -r '.code // .snippet // .text // ""' <<<"${args_json}" 2>/dev/null)
+	snippet=$(jq -r '.input // .code // .snippet // .text // ""' <<<"${args_json}" 2>/dev/null)
 
 	if [[ -z "${snippet}" ]]; then
 		printf '%s\n' "python_repl snippet is empty"
@@ -164,7 +164,7 @@ python_repl_validate_snippet() {
 	fi
 
 	if ! python_output=$(
-		PYTHON_REPL_SNIPPET="${snippet}" PYTHONNOUSERSITE=1 python3.12 -I - <<'PY'
+		PYTHON_REPL_SNIPPET="${snippet}" PYTHONNOUSERSITE=1 python3 -I - <<'PY'
 import ast
 import importlib.util
 import os
@@ -295,7 +295,7 @@ score_planner_candidate() {
 		rationale+=("Plan must terminate with final_answer as the final step.")
 	fi
 
-	# Check tool availability and argument validity
+	# Check tool availability and timing of side-effecting steps
 	available_tools="$(tool_names)"
 	availability_known=true
 	if [[ -z "${available_tools}" ]]; then
@@ -304,7 +304,7 @@ score_planner_candidate() {
 	fi
 
 	# Evaluate each step
-	local idx=0 valid_tools=0 missing_tools=0 invalid_args=0 side_effect_index=-1
+	local idx=0 valid_tools=0 missing_tools=0 side_effect_index=-1
 	local invalid_python_snippets=0
 	while IFS= read -r step; do
 		local tool args python_repl_validation_output
@@ -354,15 +354,6 @@ score_planner_candidate() {
 		rationale+=("All tools are registered in the planner catalog.")
 	fi
 
-	# Argument schema validation
-	if ((invalid_args > 0)); then
-		score=$((score - (invalid_args * 10)))
-		rationale+=("Args fail schema checks for ${invalid_args} step(s).")
-		log "INFO" "Planner scoring: argument validation failed" "$(jq -nc --argjson invalid "${invalid_args}" --argjson checked "${idx}" '{invalid:$invalid,checked:$checked}')" >&2
-	else
-		rationale+=("Planner args satisfy registered tool schemas.")
-	fi
-
 	if ((invalid_python_snippets > 0)); then
 		score=$((score - (invalid_python_snippets * 50)))
 		rationale+=("Python REPL pre-validation failed for ${invalid_python_snippets} step(s).")
@@ -382,7 +373,7 @@ score_planner_candidate() {
 
 	# Emit final scorecard
 	rationale_json=$(printf '%s\0' "${rationale[@]}" | jq -Rs 'split("\u0000") | map(select(length>0))')
-	log "INFO" "Planner scoring summary" "$(jq -nc --argjson score "${score}" --argjson tie_breaker "${tie_breaker}" --argjson plan_length "${plan_length}" --argjson missing_tools "${missing_tools}" --argjson invalid_args "${invalid_args}" --argjson side_effect_index "${side_effect_index}" '{score:$score,tie_breaker:$tie_breaker,plan_length:$plan_length,missing_tools:$missing_tools,invalid_args:$invalid_args,side_effect_index:$side_effect_index}')" >&2
+	log "INFO" "Planner scoring summary" "$(jq -nc --argjson score "${score}" --argjson tie_breaker "${tie_breaker}" --argjson plan_length "${plan_length}" --argjson missing_tools "${missing_tools}" --argjson side_effect_index "${side_effect_index}" '{score:$score,tie_breaker:$tie_breaker,plan_length:$plan_length,missing_tools:$missing_tools,side_effect_index:$side_effect_index}')" >&2
 	jq -nc \
 		--argjson score "${score}" \
 		--argjson tie_breaker "${tie_breaker}" \

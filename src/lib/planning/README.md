@@ -1,35 +1,14 @@
 # Planning utilities
 
-Planner-related helpers reside here, including the planner orchestration flow, plan
-normalization, and formatting helpers. Shared utilities such as llama.cpp integration,
-prompt rendering, schema lookup, and execution dispatchers live in sibling modules under
-`../llm`, `../prompt`, `../schema`, and `../exec`. These helpers coordinate model
-interactions and planning responses while relying on `../core` for logging/state and
-`../cli` for user-facing output.
+Planner helpers live here: orchestration (`planner.sh`), prompt assembly (`prompting.sh`), pre-plan search (`search.sh`), normalization (`normalization.sh`), and scoring (`scoring.sh`). They depend on sibling modules under `src/lib/` (notably `llm/`, `tools/`, `intent/`, `settings/`, `executor/`, `core/`, and `cli/`), plus templates in `src/prompts/` and schemas in `src/schemas/`.
 
-The executor loop now lives in `../executor`. The planner populates plan entries, schema
-constraints, and llama.cpp client wiring that the executor loop consumes to execute tool
-calls and emit final answers.
+The executor loop lives in `../executor`. The planner emits plan JSON and allowed tools; the executor performs approvals, argument fill, tool execution, and final answer evaluation.
 
-### How the planner is wired
+## How the planner is wired
 
-1. **Tool + schema discovery:** `planner.sh` loads tool registrations and the planner
-   JSON schema so the model knows what actions exist and how to call them.
-2. **Search query rephrasing:** `rephrasing.sh` asks a lightweight Qwen3 1.7B model to
-   generate 1–3 focused web search queries derived from the user's request. llama.cpp
-   applies DRY sampling (multiplier 0.35, base 1.75, allowed length 2, last-n penalty
-   1024, sequence breaker disabled) and constrains decoding with a JSON schema. The
-   output is validated (non-empty JSON list, max three strings) with automatic fallback
-   to the original query when validation fails.
-3. **Context collection:** `planner_fetch_search_context` executes a web search for each
-   rephrased query and aggregates the results into a prompt-ready summary that the
-   planner can cite when drafting an outline.
-4. **Prompt assembly:** renders a prompt containing tools,
-   schemas, examples, and timestamps. The combined prompt is fed to `llama_client.sh`.
-5. **Normalization + scoring:** Raw model output is cleaned by
-   `normalization.sh#normalize_plan`, then ranked via
-   `scoring.sh#score_planner_candidate`. Scoring pre-validates python_repl snippets for
-   syntax and missing imports, applying heavy penalties when validation fails. The best
-   candidate's plan array and allowed tools are forwarded to the executor loop.
-6. **Execution:** `executor/loop.sh` executes the plan with approvals and emits the final
-   user-visible answer.
+1. **Tool + schema discovery:** `planner.sh` loads tool registrations and builds a planner schema from `src/schemas/planner_plan.schema.json` plus per-tool argument schemas.
+2. **Search query rephrasing:** `search.sh` renders the `pre_planner_search_terms` prompt. When llama.cpp is available, the search rephraser model (`SEARCH_REPHRASER_MODEL_SPEC`) produces 1–3 queries using schema-constrained decoding and DRY sampling (`SEARCH_REPHRASER_DRY_ARGS`). If llama.cpp is unavailable, the raw user query is used instead.
+3. **Context collection:** `planner_fetch_search_context` runs `web_search` for each query and formats the snippets into prompt-ready context.
+4. **Prompt assembly:** `prompting.sh` renders the planner prompt with tools, schemas, timestamps, intent context, feedback, and search context, then sends it to `llama_client.sh`.
+5. **Normalization + scoring:** `normalization.sh#normalize_plan` enforces the plan array shape and expands workflows. `scoring.sh#score_planner_candidate` ranks candidates and pre-validates python_repl snippets for syntax/import issues.
+6. **Execution:** `executor/loop.sh` runs the approved plan, handles context argument infill, and emits the final user-visible answer.

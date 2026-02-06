@@ -79,6 +79,8 @@ Environment variables with the same names as the config keys take precedence ove
 - `PLANNER_CACHE_FILE`: Prompt cache file for planner llama.cpp calls (no default unless set explicitly).
 - `EXECUTOR_CACHE_FILE`: Prompt cache file for executor llama.cpp calls (no default unless set explicitly).
 - `VALIDATOR_CACHE_FILE`: Prompt cache file for final-answer validation (defaults to `EXECUTOR_CACHE_FILE` when set).
+- `ENABLE_ANSWER_VALIDATION`: `true` to run final-answer evaluation (default: `true`).
+- `VALIDATION_MAX_TOKENS`: Maximum tokens for the evaluator response (default: `2048`).
 - `GOOGLE_SEARCH_API_KEY`: Google Custom Search API key used by the `web_search` tool (optional; falls back to the bundled key when unset).
 - `GOOGLE_SEARCH_CX`: Google Custom Search Engine ID used by the `web_search` tool (optional; falls back to the bundled CX when unset).
 

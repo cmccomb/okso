@@ -3,21 +3,23 @@
 This document provides concise, repo-wide recommendations for file headers, function docblocks, and workflow JSON documentation.
 
 Bash file header template (place in the first 4-6 lines):
-
+```
 #!/usr/bin/env bash
 # shellcheck shell=bash
 # Short one-line purpose (what this file provides).
 # Usage: example invocation or source pattern.
 # Environment: LIST key env vars (one-line)
+```
 
 Function docblock template (for bash functions):
-
+```
 # One-line summary of the function's purpose.
 # Arguments:
 #   $1 - description of arg1
 #   $2 - description of arg2
 # Returns:
 #   Description of return value and side-effects (stdout/json/exit code)
+```
 
 Workflow JSON guidance:
 

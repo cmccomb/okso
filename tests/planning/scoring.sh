@@ -213,13 +213,13 @@ source ./src/lib/planning/scoring.sh
 tool_names() { printf "%s\n" python_repl final_answer; }
 tool_args_schema() {
         if [[ "$1" == "python_repl" ]]; then
-                jq -nc '{"type":"object","required":["code"],"properties":{"code":{"type":"string","minLength":1}},"additionalProperties":false}'
+                jq -nc '{"type":"object","required":["input"],"properties":{"input":{"type":"string","minLength":1}},"additionalProperties":false}'
         else
                 jq -nc '{"type":"object","required":["input"],"properties":{"input":{"type":"string","minLength":1}},"additionalProperties":false}'
         fi
 }
-valid='[{"tool":"python_repl","args":{"code":"x = 1\nprint(x)"},"thought":"compute"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]'
-invalid='[{"tool":"python_repl","args":{"code":"def bad(:\n  pass"},"thought":"broken"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]'
+valid='[{"tool":"python_repl","args":{"input":"x = 1\nprint(x)"},"thought":"compute"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]'
+invalid='[{"tool":"python_repl","args":{"input":"def bad(:\n  pass"},"thought":"broken"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]'
 valid_score=$(score_planner_candidate "${valid}" | tail -n 1 | jq -r '.score')
 invalid_score=$(score_planner_candidate "${invalid}" | tail -n 1 | jq -r '.score')
 invalid_rationale=$(score_planner_candidate "${invalid}" | tail -n 1 | jq -r '.rationale | join(" ")')
@@ -244,12 +244,12 @@ source ./src/lib/planning/scoring.sh
 tool_names() { printf "%s\n" python_repl final_answer; }
 tool_args_schema() {
         if [[ "$1" == "python_repl" ]]; then
-                jq -nc '{"type":"object","required":["code"],"properties":{"code":{"type":"string","minLength":1}},"additionalProperties":false}'
+                jq -nc '{"type":"object","required":["input"],"properties":{"input":{"type":"string","minLength":1}},"additionalProperties":false}'
         else
                 jq -nc '{"type":"object","required":["input"],"properties":{"input":{"type":"string","minLength":1}},"additionalProperties":false}'
         fi
 }
-plan='[{"tool":"python_repl","args":{"code":"import totally_fake_lib\nprint(1)"},"thought":"check"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]'
+plan='[{"tool":"python_repl","args":{"input":"import totally_fake_lib\nprint(1)"},"thought":"check"},{"tool":"final_answer","args":{"input":"wrap"},"thought":"finish"}]'
 scorecard=$(score_planner_candidate "${plan}" | tail -n 1)
 printf '%s\n' "${scorecard}"
 SCRIPT
