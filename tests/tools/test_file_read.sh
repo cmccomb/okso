@@ -8,7 +8,7 @@
 @test "file_read renders text files as fenced markdown" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-source ./src/tools/file_read/index.sh
+source ./src/tools/files/index.sh
 text_file=$(mktemp -t file_read.XXXXXX)
 printf "Hello world" >"${text_file}"
 TOOL_ARGS=$(jq -nc --arg path "${text_file}" '{"input":$path}')
@@ -22,7 +22,7 @@ SCRIPT
 @test "file_read wraps each page for text inputs" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-source ./src/tools/file_read/index.sh
+source ./src/tools/files/index.sh
 text_file=$(mktemp -t file_read.XXXXXX)
 printf "abcdefghij" >"${text_file}"
 FILE_READ_PAGE_SIZE=4

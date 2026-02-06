@@ -53,8 +53,8 @@ source "${TOOLS_DIR}/final_answer/index.sh"
 source "${TOOLS_DIR}/feedback/index.sh"
 # shellcheck source=src/tools/web/index.sh
 source "${TOOLS_DIR}/web/index.sh"
-# shellcheck source=src/tools/file_read/index.sh
-source "${TOOLS_DIR}/file_read/index.sh"
+# shellcheck source=src/tools/files/index.sh
+source "${TOOLS_DIR}/files/index.sh"
 
 tools_normalize_path() {
 	# Returns a normalized absolute path for allowlist checks.
