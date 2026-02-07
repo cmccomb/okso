@@ -140,6 +140,57 @@ canonicalize_schema_for_llama() {
         .
       end;
 
+    def rewrite_const:
+      if type == "object" then
+        (
+          if has("const") and (has("enum") | not) then
+            .enum = [.const] | del(.const)
+          else
+            .
+          end
+        )
+        | with_entries(.value |= rewrite_const)
+      elif type == "array" then
+        map(rewrite_const)
+      else
+        .
+      end;
+
+    def rewrite_prefix_items:
+      if type == "object" then
+        . as $obj
+        | (
+            if has("prefixItems") and (.prefixItems | type == "array") then
+              .items = .prefixItems
+              | .additionalItems = (
+                  if ($obj | has("items")) then
+                    if $obj.items == false then
+                      false
+                    elif $obj.items == true then
+                      true
+                    elif ($obj.items | type) == "object" then
+                      $obj.items
+                    else
+                      true
+                    end
+                  else
+                    true
+                  end
+                )
+              | del(.prefixItems)
+            else
+              .
+            end
+          )
+        | with_entries(.value |= rewrite_prefix_items)
+      elif type == "array" then
+        map(rewrite_prefix_items)
+      else
+        .
+      end;
+
     expand_required_only_branches
+    | rewrite_const
+    | rewrite_prefix_items
   ' <<<"${schema_json}" 2>/dev/null || printf '{}'
 }

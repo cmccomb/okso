@@ -476,7 +476,10 @@ generate_planner_response_with_context() {
 	# Start fresh each planner invocation; this file captures only current-attempt candidates.
 	: >"${debug_log_file}" 2>/dev/null || true
 
-	raw_plan="$(LLAMA_TEMPERATURE="${temperature}" llama_infer "${prompt}" '' "${max_generation_tokens}" "${planner_schema_text}" "${PLANNER_MODEL_REPO:-}" "${PLANNER_MODEL_FILE:-}" "${PLANNER_CACHE_FILE:-}" "${prompt}")"
+	if ! raw_plan="$(LLAMA_TEMPERATURE="${temperature}" llama_infer "${prompt}" '' "${max_generation_tokens}" "${planner_schema_text}" "${PLANNER_MODEL_REPO:-}" "${PLANNER_MODEL_FILE:-}" "${PLANNER_CACHE_FILE:-}" "${prompt}")"; then
+		log "ERROR" "Planner inference failed" "attempt=1" >&2
+		return 1
+	fi
 	if ! normalized_plan="$(normalize_plan <<<"${raw_plan}")"; then
 		log "ERROR" "Planner output unusable from llama.cpp" "${raw_plan}" >&2
 		return 1
@@ -509,7 +512,10 @@ generate_planner_response_with_context() {
 	# Single feedback retry keeps planner latency bounded while still allowing self-correction.
 	prompt="$(build_planner_prompt "${user_query}" "${budgeted_tool_lines}" "${budgeted_search_context}" "${prompt_feedback}" "${planner_schema_text}" "${intent_context}")"
 
-	raw_plan="$(LLAMA_TEMPERATURE="${temperature}" llama_infer "${prompt}" '' "${max_generation_tokens}" "${planner_schema_text}" "${PLANNER_MODEL_REPO:-}" "${PLANNER_MODEL_FILE:-}" "${PLANNER_CACHE_FILE:-}" "${prompt}")"
+	if ! raw_plan="$(LLAMA_TEMPERATURE="${temperature}" llama_infer "${prompt}" '' "${max_generation_tokens}" "${planner_schema_text}" "${PLANNER_MODEL_REPO:-}" "${PLANNER_MODEL_FILE:-}" "${PLANNER_CACHE_FILE:-}" "${prompt}")"; then
+		log "ERROR" "Planner inference failed" "attempt=2" >&2
+		return 1
+	fi
 	if ! normalized_plan="$(normalize_plan <<<"${raw_plan}")"; then
 		log "ERROR" "Planner retry output unusable from llama.cpp" "${raw_plan}" >&2
 		return 1

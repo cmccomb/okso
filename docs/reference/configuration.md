@@ -56,6 +56,7 @@ Environment variables with the same names as the config keys take precedence ove
 - `LLAMA_CONTEXT_CAP`: Maximum context window okso will request for llama.cpp invocations (default: `8192`).
 - `LLAMA_CONTEXT_MARGIN_PERCENT`: Safety margin percentage applied to prompt + generation estimates when sizing context (default: `15`).
 - `LLAMA_TIMEOUT_SECONDS`: Hard timeout for llama.cpp invocations; `0` disables the timeout (default: `0`).
+- `LLAMA_JSON_SCHEMA_INLINE_MAX_BYTES`: Maximum inline schema size before okso switches to `--json-schema-file` (default: `4096`).
 - `LLAMA_TEMPLATE`: Optional llama.cpp prompt template name.
 - `LLAMA_GRAMMAR`: Optional llama.cpp grammar file path.
 - `LLAMA_ROPE_FREQ_BASE`: Optional RoPE base override for llama.cpp.

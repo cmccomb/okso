@@ -99,6 +99,69 @@ SCRIPT
 	[ "$status" -eq 0 ]
 }
 
+@test "llama_infer rewrites tuple schemas for llama compatibility" {
+	run env BASH_ENV= ENV= bash --noprofile --norc -c '
+                cd "$(git rev-parse --show-toplevel)" || exit 1
+                args_dir="$(mktemp -d)"
+                args_file="${args_dir}/args.txt"
+                mock_binary="${args_dir}/mock_llama.sh"
+                cat >"${mock_binary}" <<SCRIPT
+#!/usr/bin/env bash
+printf "%s\n" "\$@" >"${args_file}"
+SCRIPT
+                chmod +x "${mock_binary}"
+                export LLAMA_AVAILABLE=true
+                export LLAMA_BIN="${mock_binary}"
+                export EXECUTOR_MODEL_REPO=demo/repo
+                export EXECUTOR_MODEL_FILE=model.gguf
+                source ./src/lib/llm/llama_client.sh
+                schema_doc='"'"'{"type":"array","prefixItems":[{"type":"string"},{"const":"done"}],"items":false}'"'"'
+                llama_infer "example prompt" "" 12 "${schema_doc}" >/dev/null
+                args=()
+                while IFS= read -r line; do
+                        args+=("$line")
+                done <"${args_file}"
+                schema_arg=""
+                for i in "${!args[@]}"; do
+                        if [[ "${args[$i]}" == "--json-schema" ]]; then
+                                schema_arg="${args[$((i + 1))]}"
+                        fi
+                done
+                [[ -n "${schema_arg}" ]]
+                jq -e '"'"'(.items | type) == "array" and (.items | length) == 2 and .additionalItems == false and (.items[1].enum[0] == "done") and (has("prefixItems") | not)'"'"' <<<"${schema_arg}" >/dev/null
+        '
+	[ "$status" -eq 0 ]
+}
+
+@test "llama_infer uses json-schema-file when schema exceeds inline limit" {
+	run env BASH_ENV= ENV= bash --noprofile --norc -c '
+                cd "$(git rev-parse --show-toplevel)" || exit 1
+                args_dir="$(mktemp -d)"
+                args_file="${args_dir}/args.txt"
+                mock_binary="${args_dir}/mock_llama.sh"
+                cat >"${mock_binary}" <<SCRIPT
+#!/usr/bin/env bash
+printf "%s\n" "\$@" >"${args_file}"
+SCRIPT
+                chmod +x "${mock_binary}"
+                export LLAMA_AVAILABLE=true
+                export LLAMA_BIN="${mock_binary}"
+                export EXECUTOR_MODEL_REPO=demo/repo
+                export EXECUTOR_MODEL_FILE=model.gguf
+                export LLAMA_JSON_SCHEMA_INLINE_MAX_BYTES=10
+                source ./src/lib/llm/llama_client.sh
+                schema_doc='"'"'{"type":"object","properties":{"message":{"type":"string","minLength":1}},"required":["message"]}'"'"'
+                llama_infer "example prompt" "" 12 "${schema_doc}" >/dev/null
+                args=()
+                while IFS= read -r line; do
+                        args+=("$line")
+                done <"${args_file}"
+                [[ " ${args[*]} " == *" --json-schema-file "* ]]
+                [[ " ${args[*]} " != *" --json-schema "* ]]
+        '
+	[ "$status" -eq 0 ]
+}
+
 @test "llama_infer forwards optional extra arguments" {
 	run env BASH_ENV= ENV= bash --noprofile --norc -c '
                 cd "$(git rev-parse --show-toplevel)" || exit 1

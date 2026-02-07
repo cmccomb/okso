@@ -106,15 +106,39 @@ llama_infer() {
 	# Returns:
 	#   The generated text (string).
 	local prompt stop_string number_of_tokens schema_json repo_override file_override
+	local llama_bin schema_file schema_inline_limit schema_bytes schema_mode
 	prompt="$1"
 	stop_string="${2:-}"
 	number_of_tokens="${3:-256}"
 	schema_json="${4:-}"
 	repo_override="${5:-${EXECUTOR_MODEL_REPO:-}}"
 	file_override="${6:-${EXECUTOR_MODEL_FILE:-}}"
+	llama_bin="${LLAMA_BIN:-llama-completion}"
+	schema_file=""
+	schema_inline_limit="${LLAMA_JSON_SCHEMA_INLINE_MAX_BYTES:-4096}"
+	schema_bytes=0
+	schema_mode="none"
 
 	if [[ -n "${schema_json}" ]]; then
 		schema_json="$(canonicalize_schema_for_llama "${schema_json}")"
+		schema_bytes="${#schema_json}"
+		if ! [[ "${schema_inline_limit}" =~ ^[0-9]+$ ]] || ((schema_inline_limit < 1)); then
+			schema_inline_limit=4096
+		fi
+		if ((schema_bytes > schema_inline_limit)); then
+			schema_file="$(mktemp "${TMPDIR:-/tmp}/okso_json_schema.XXXXXX.json")" || schema_file=""
+			if [[ -n "${schema_file}" ]]; then
+				if ! printf '%s' "${schema_json}" >"${schema_file}"; then
+					rm -f "${schema_file}"
+					schema_file=""
+				fi
+			fi
+		fi
+		if [[ -n "${schema_file}" ]]; then
+			schema_mode="file"
+		else
+			schema_mode="inline"
+		fi
 	fi
 
 	# Check llama availability
@@ -129,7 +153,7 @@ llama_infer() {
 	local token_budget
 	local rope_freq_base rope_freq_scale template_descriptor prompt_context_detail
 	llama_args=(
-		"${LLAMA_BIN}"
+		"${llama_bin}"
 		--hf-repo "${repo_override}"
 		--hf-file "${file_override}"
 		-no-cnv --no-display-prompt --simple-io --verbose
@@ -189,7 +213,11 @@ llama_infer() {
 
 	# Add JSON schema if provided
 	if [[ -n "${schema_json}" ]]; then
-		llama_args+=(--json-schema "${schema_json}")
+		if [[ -n "${schema_file}" ]]; then
+			llama_args+=(--json-schema-file "${schema_file}")
+		else
+			llama_args+=(--json-schema "${schema_json}")
+		fi
 	fi
 
 	# Add optional rope frequency parameters
@@ -226,9 +254,11 @@ llama_infer() {
 	prompt_context_detail=$(jq -nc \
 		--arg stop_string "${stop_string}" \
 		--argjson schema_provided "$(if [[ -n "${schema_json}" ]]; then printf 'true'; else printf 'false'; fi)" \
+		--arg schema_mode "${schema_mode}" \
+		--argjson schema_bytes "${schema_bytes}" \
 		--argjson prompt_tokens "${prompt_tokens}" \
 		--argjson target_context "${target_context}" \
-		'{stop_string:$stop_string, schema_provided:$schema_provided, prompt_tokens:$prompt_tokens, target_context:$target_context}')
+		'{stop_string:$stop_string, schema_provided:$schema_provided, schema_mode:$schema_mode, schema_bytes:$schema_bytes, prompt_tokens:$prompt_tokens, target_context:$target_context}')
 	log "INFO" "llama prompt inputs" "${prompt_context_detail}"
 
 	# Add prompt at the end
@@ -257,16 +287,22 @@ llama_infer() {
 	# Handle timeouts
 	if [[ ${exit_code} -eq 124 || ${exit_code} -eq 137 || ${exit_code} -eq 143 ]]; then
 		llama_stderr="$(<"${stderr_file}")"
-		log "ERROR" "llama inference timed out" "bin=${LLAMA_BIN} args=${llama_arg_string} timeout_seconds=${LLAMA_TIMEOUT_SECONDS:-0} elapsed_ms=${elapsed_ms} stderr=${llama_stderr} prompt_context=${prompt_context_detail}"
+		log "ERROR" "llama inference timed out" "bin=${llama_bin} args=${llama_arg_string} timeout_seconds=${LLAMA_TIMEOUT_SECONDS:-0} elapsed_ms=${elapsed_ms} stderr=${llama_stderr} prompt_context=${prompt_context_detail}"
 		rm -f "${stderr_file}"
+		if [[ -n "${schema_file}" ]]; then
+			rm -f "${schema_file}"
+		fi
 		return "${exit_code}"
 	fi
 
 	# Handle llama.cpp errors
 	if [[ ${exit_code} -ne 0 ]]; then
 		llama_stderr="$(<"${stderr_file}")"
-		log "ERROR" "llama inference failed" "bin=${LLAMA_BIN} args=${llama_arg_string} elapsed_ms=${elapsed_ms} stderr=${llama_stderr} prompt_context=${prompt_context_detail}"
+		log "ERROR" "llama inference failed" "bin=${llama_bin} args=${llama_arg_string} elapsed_ms=${elapsed_ms} stderr=${llama_stderr} prompt_context=${prompt_context_detail}"
 		rm -f "${stderr_file}"
+		if [[ -n "${schema_file}" ]]; then
+			rm -f "${schema_file}"
+		fi
 		return "${exit_code}"
 	fi
 
@@ -276,4 +312,7 @@ llama_infer() {
 
 	# Clean up
 	rm -f "${stderr_file}"
+	if [[ -n "${schema_file}" ]]; then
+		rm -f "${schema_file}"
+	fi
 }
