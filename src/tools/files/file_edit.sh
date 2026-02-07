@@ -96,6 +96,8 @@ file_edit_count_occurrences() {
                 my $position = 0;
                 my $old_length = length($old);
 
+                # Use index() with an advancing cursor so matches are literal
+                # and non-overlapping, independent of regex metacharacters.
                 while (1) {
                         my $index = index($content, $old, $position);
                         last if $index < 0;
@@ -149,6 +151,8 @@ file_edit_render_output() {
                 my $old_length = length($old);
                 my $occurrence_target = ($occurrence ne q{}) ? int($occurrence) : 0;
 
+                # Rebuild content in one pass to keep replacement semantics
+                # deterministic for first/occurrence/all modes.
                 while (1) {
                         my $index = index($content, $old, $position);
                         last if $index < 0;
@@ -256,6 +260,8 @@ tool_file_edit() {
 		replacements=1
 	else
 		if ((match_count != 1)); then
+			# Default mode is strict: ambiguous matches force caller to choose an
+			# explicit occurrence or opt into replace_all.
 			rm -f "${old_text_path}" "${new_text_path}" "${rendered_path}"
 			log "ERROR" "file_edit is ambiguous; set occurrence or replace_all" "${path}" >&2
 			return 1

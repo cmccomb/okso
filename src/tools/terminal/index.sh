@@ -95,6 +95,8 @@ terminal_args_from_json() {
 		done < <(jq -r '(.args // []) | map(tostring) | .[]' <<<"${args_json}" 2>/dev/null || true)
 		;;
 	string | number | boolean | null)
+		# Keep backward compatibility with callers that send scalar args by
+		# treating them as "no args" instead of hard-failing the tool.
 		TERMINAL_CMD_ARGS=()
 		;;
 	*)
@@ -123,6 +125,8 @@ terminal_run_in_workdir() {
 	command="$1"
 	shift
 	(
+		# Run inside a subshell so failed `cd` or command-local env changes
+		# cannot mutate global terminal session state.
 		cd "${TERMINAL_WORKDIR}" &&
 			"${command}" "$@"
 	)
@@ -349,6 +353,8 @@ tool_terminal() {
 		done
 		rm_args=()
 		if [[ "${has_interactive}" != true ]]; then
+			# Default to interactive deletion unless caller explicitly opted into
+			# their own rm interaction mode.
 			rm_args+=("-i")
 		fi
 		rm_args+=("${args[@]}")
@@ -384,9 +390,12 @@ tool_terminal() {
 		shifted_args=("${args[@]:1}")
 		case "${mode}" in
 		encode)
+			# Encode the provided argument payload directly; this mode does not
+			# read files from disk.
 			terminal_run_in_workdir base64 <<<"${shifted_args[@]}"
 			;;
 		decode)
+			# Decode the provided inline payload (not a file path).
 			terminal_run_in_workdir base64 -d <<<"${shifted_args[@]}"
 			;;
 		*)

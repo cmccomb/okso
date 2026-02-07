@@ -24,6 +24,8 @@ ui_width_target() {
 	if ! [[ "${width}" =~ ^[0-9]+$ ]]; then
 		width=110
 	fi
+	# Clamp width so one-line progress remains legible on small terminals and
+	# avoids over-expanding in wider desktop panes.
 	if ((width < 80)); then
 		width=80
 	fi
@@ -46,6 +48,7 @@ ui_truncate_line() {
 	text="$(ui_trim_spaces "$1")"
 	limit="$(ui_width_target)"
 	if ((${#text} > limit)); then
+		# Reserve three characters for the ellipsis suffix.
 		printf '%s...' "${text:0:$((limit - 3))}"
 		return 0
 	fi
@@ -139,8 +142,10 @@ ui_display_url() {
 	local url
 	url="$1"
 	if ui_trace_enabled; then
+		# Trace mode prioritizes full-fidelity diagnostics.
 		printf '%s' "${url}"
 	else
+		# Normal progress mode favors compact URLs for line budget.
 		ui_shorten_url "${url}"
 	fi
 }
@@ -154,6 +159,7 @@ ui_status() {
 		return 0
 	fi
 	query="$(ui_truncate_line "${query}")"
+	# Keep field names stable for downstream parsers and tests.
 	line="okso ▸ query: \"${query}\"  phase=${phase}  t=${elapsed}"
 	printf '%s\n' "$(ui_truncate_line "${line}")" >&2
 }
