@@ -242,6 +242,8 @@ workflow_render_steps() {
 
 	jq -c --argjson args "${args}" '
 		def walk(f):
+			# Local walk helper keeps compatibility with jq builds where the
+			# standard walk/1 helper is unavailable.
 			. as $in
 			| if type == "object" then
 				reduce keys[] as $key ({}; . + {($key): ($in[$key] | walk(f))}) | f
@@ -266,6 +268,8 @@ workflow_render_steps() {
 		.steps
 		| map({
 			tool: .tool,
+			# Remove empty keys after render so optional placeholders can disappear
+			# without producing invalid empty-string args.
 			args: ((.args // {}) | render($args) | to_entries | map(select(.value != "" and .value != null)) | from_entries),
 			thought: ((.thought // "") | render($args))
 		})

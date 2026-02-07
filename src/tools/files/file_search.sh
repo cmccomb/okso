@@ -129,6 +129,7 @@ tool_file_search() {
 		log "ERROR" "file_search failed" "status=${status}" >&2
 		return 1
 	fi
+	# rga exit code 1 means "no matches", which is not a tool failure.
 
 	match_payload=$(jq -s --argjson max "${max_results}" '
                 map(select(.type == "match")

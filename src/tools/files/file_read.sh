@@ -140,6 +140,7 @@ file_read_paginate() {
 	fi
 
 	if ((total_lines == 0)); then
+		# Keep empty files addressable as page 1/1 for consistent UX.
 		total_pages=1
 	else
 		total_pages=$(((total_lines + page_size - 1) / page_size))
@@ -154,6 +155,7 @@ file_read_paginate() {
 	end_line=$((page * page_size))
 	page_content=$(sed -n "${start_line},${end_line}p" "${rendered_path}")
 
+	# Output protocol: first line is total_pages, remaining bytes are page body.
 	printf '%s\n' "${total_pages}"
 	printf '%s' "${page_content}"
 }
@@ -205,12 +207,14 @@ tool_file_read() {
 	esac
 
 	if [[ -z "${type_hint}" && "${mime}" == text/* ]]; then
+		# Extension-based routing wins; MIME only backfills unknown extensions.
 		type_hint="text"
 	fi
 
 	tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/file_read.XXXXXX") || return 1
 	extracted_path=""
 	rendered_path="${tmp_dir}/rendered"
+	# wrap_page=true means we fence plain text as ```text``` for markdown safety.
 	wrap_page=false
 
 	case "${type_hint}" in
@@ -305,6 +309,7 @@ tool_file_read() {
                 total_pages: $total_pages,
                 content_markdown: $content,
                 mime: (if ($mime | length) > 0 then $mime else null end),
+                # Expose temp artifacts for follow-up tool calls within the same run.
                 artifact_paths: {
                         extracted_text: (if ($extracted | length) > 0 then $extracted else null end),
                         rendered_markdown: (if ($rendered | length) > 0 then $rendered else null end)

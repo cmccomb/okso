@@ -111,6 +111,7 @@ parse_args() {
 			shift
 			;;
 		--)
+			# Explicit end-of-options marker: everything after this is query text.
 			shift
 			break
 			;;
@@ -125,8 +126,10 @@ parse_args() {
 	done
 
 	if [[ ${#positional[@]} -gt 0 ]]; then
+		# Preserve user spacing intent by joining captured positional tokens.
 		USER_QUERY="${positional[*]}"
 	else
+		# Supports invocations that pass query only after `--`.
 		USER_QUERY="$*"
 	fi
 

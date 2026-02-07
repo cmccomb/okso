@@ -78,6 +78,8 @@ tool_file_write() {
 	create_parents=$(jq -r '.create_parents' <<<"${parsed_args}")
 
 	content_path=$(mktemp "${TMPDIR:-/tmp}/file_write.content.XXXXXX") || return 1
+	# Stage content through jq -> temp file so writes preserve exact bytes and do
+	# not depend on shell escaping or trailing newline behavior.
 	if ! jq -j '.content' <<<"${parsed_args}" >"${content_path}"; then
 		rm -f "${content_path}"
 		log "ERROR" "file_write failed to render content payload" "${path}" >&2
@@ -112,6 +114,7 @@ tool_file_write() {
 
 	case "${mode}" in
 	create)
+		# create is strict and never clobbers an existing file.
 		if [[ "${existed}" == "true" ]]; then
 			rm -f "${content_path}"
 			log "ERROR" "file_write create mode requires a new file" "${path}" >&2
@@ -131,6 +134,7 @@ tool_file_write() {
 		fi
 		;;
 	append)
+		# append creates the file implicitly when absent, matching shell `>>`.
 		if ! cat "${content_path}" >>"${path}"; then
 			rm -f "${content_path}"
 			log "ERROR" "file_write failed to append file" "${path}" >&2
