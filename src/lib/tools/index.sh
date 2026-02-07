@@ -20,7 +20,10 @@
 #   Functions emit errors via log and return non-zero when misused.
 
 if [[ "${OKSO_TOOLS_INDEX_LOADED:-false}" == true ]]; then
-	return 0 2>/dev/null || exit 0
+	if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
+		return 0
+	fi
+	exit 0
 fi
 OKSO_TOOLS_INDEX_LOADED=true
 

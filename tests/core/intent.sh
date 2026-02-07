@@ -20,6 +20,22 @@ SCRIPT
 	[ "${lines[0]}" = "notes" ]
 }
 
+@test "intent keyword fallback prioritizes web before coding test substrings" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+source ./src/lib/planning/intent.sh
+printf '%s\n' \
+  "$(intent_keyword_fallback "Show latest news in tech" | jq -r '.intents[0]')" \
+  "$(intent_keyword_fallback "Please debug this test function" | jq -r '.intents[0]')" \
+  "$(intent_keyword_fallback "Email my inbox summary" | jq -r '.intents[0]')"
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "web" ]
+	[ "${lines[1]}" = "coding" ]
+	[ "${lines[2]}" = "mail" ]
+}
+
 @test "planner_fetch_search_context skips search for non-web intents" {
 	run bash <<'SCRIPT'
 set -euo pipefail

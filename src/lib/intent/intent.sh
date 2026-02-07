@@ -81,6 +81,24 @@ lowercase_intent() {
 	printf '%s' "$1" | tr '[:upper:]' '[:lower:]'
 }
 
+intent_pattern_matches() {
+	# Checks whether an input string matches any regex pattern.
+	# Arguments:
+	#   $1 - input string
+	#   $@ - regex patterns to test
+	# Returns:
+	#   0 when any pattern matches; 1 otherwise.
+	local input pattern
+	input="$1"
+	shift
+	for pattern in "$@"; do
+		if [[ "${input}" =~ ${pattern} ]]; then
+			return 0
+		fi
+	done
+	return 1
+}
+
 intent_keyword_fallback() {
 	# Lightweight fallback classifier used when model inference is unavailable.
 	# Arguments:
@@ -90,35 +108,25 @@ intent_keyword_fallback() {
 	local lowered
 	lowered="$(lowercase_intent "$1")"
 
-	case "${lowered}" in
-	*note* | *journal* | *memo*)
+	if intent_pattern_matches "${lowered}" '(^|[^[:alnum:]_])(note|notes|journal|memo)([^[:alnum:]_]|$)'; then
 		intent_fallback_json "notes" "fallback keyword match: notes"
-		;;
-	*reminder* | *todo* | *to-do*)
+	elif intent_pattern_matches "${lowered}" '(^|[^[:alnum:]_])(reminder|todo|to-do|to[[:space:]]+do)([^[:alnum:]_]|$)'; then
 		intent_fallback_json "reminders" "fallback keyword match: reminders"
-		;;
-	*calendar* | *schedule* | *meeting*)
+	elif intent_pattern_matches "${lowered}" '(^|[^[:alnum:]_])(calendar|schedule|meeting)([^[:alnum:]_]|$)'; then
 		intent_fallback_json "calendar" "fallback keyword match: calendar"
-		;;
-	*mail* | *email* | *inbox*)
+	elif intent_pattern_matches "${lowered}" '(^|[^[:alnum:]_])(email|inbox|mail)([^[:alnum:]_]|$)'; then
 		intent_fallback_json "mail" "fallback keyword match: mail"
-		;;
-	*file* | *folder* | *directory* | *path*)
+	elif intent_pattern_matches "${lowered}" '(^|[^[:alnum:]_])(file|folder|directory|path)([^[:alnum:]_]|$)'; then
 		intent_fallback_json "filesystem" "fallback keyword match: filesystem"
-		;;
-	*code* | *debug* | *test* | *refactor* | *function*)
-		intent_fallback_json "coding" "fallback keyword match: coding"
-		;;
-	*calculate* | *math* | *equation*)
-		intent_fallback_json "math" "fallback keyword match: math"
-		;;
-	*search* | *research* | *latest* | *news* | *web*)
+	elif intent_pattern_matches "${lowered}" '(^|[^[:alnum:]_])(search|research|latest|news|web)([^[:alnum:]_]|$)'; then
 		intent_fallback_json "web" "fallback keyword match: web"
-		;;
-	*)
+	elif intent_pattern_matches "${lowered}" '(^|[^[:alnum:]_])(code|debug|test|refactor|function)([^[:alnum:]_]|$)'; then
+		intent_fallback_json "coding" "fallback keyword match: coding"
+	elif intent_pattern_matches "${lowered}" '(^|[^[:alnum:]_])(calculate|math|equation)([^[:alnum:]_]|$)'; then
+		intent_fallback_json "math" "fallback keyword match: math"
+	else
 		intent_fallback_json "general" "fallback keyword match: general"
-		;;
-	esac
+	fi
 }
 
 recognize_intent() {

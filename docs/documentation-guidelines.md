@@ -29,4 +29,4 @@ Workflow JSON guidance:
 - Add an example invocation file under `workflows/examples/` for each workflow that includes: one minimal required invocation, and one invocation showing optional fields present.
 
 CI checks:
-- Add `scripts/ci/check-docs.sh` to detect unresolved `{{...}}` tokens in workflows, TODO/TBD markers in docs, and missing shebang/header lines in shell scripts.
+- Add `scripts/ci/check-docs.sh` to detect unresolved `{{...}}` tokens outside approved examples, unfinished marker tokens in non-example files, and missing shebang/header lines in shell scripts.

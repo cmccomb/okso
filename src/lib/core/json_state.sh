@@ -150,9 +150,23 @@ json_state_get_document() {
 	#   $2 - fallback JSON document (string, optional; defaults to '{}')
 	# Behavior:
 	#   Returns the fallback when the namespaced variable is unset or contains
-	#   invalid JSON, preventing downstream jq errors.
+	#   invalid JSON, preventing downstream jq errors. When invalid in-memory
+	#   JSON is repaired, persists the sanitized value to cache.
 	local prefix fallback json_var fallback_provided resolved_document output_var
+	local prior_document prior_has_value prior_is_valid
 	prefix="$1"
+	json_var=$(json_state_namespace_var "${prefix}")
+	prior_document=""
+	prior_has_value=false
+	prior_is_valid=false
+	if [[ -n "${!json_var+x}" ]]; then
+		prior_has_value=true
+		prior_document="${!json_var}"
+		if json_state_sanitize_json "${prior_document}" "" >/dev/null 2>&1; then
+			prior_is_valid=true
+		fi
+	fi
+
 	if [[ $# -ge 3 && -n "${3}" ]]; then
 		output_var="$3"
 	else
@@ -170,8 +184,13 @@ json_state_get_document() {
 		fallback=""
 	fi
 	resolved_document=$(json_state_resolve_document "${prefix}" "${fallback}")
-	json_var=$(json_state_namespace_var "${prefix}")
 	printf -v "${json_var}" '%s' "${resolved_document}"
+
+	# Persist repaired fallbacks so subsequent calls can recover from
+	# malformed in-memory state even if the namespace is later unset.
+	if [[ "${prior_has_value}" != true || "${prior_is_valid}" != true ]]; then
+		json_state_write_cache "${prefix}" "${resolved_document}"
+	fi
 
 	if [[ -n "${output_var}" ]]; then
 		printf -v "${output_var}" '%s' "${resolved_document}"

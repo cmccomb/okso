@@ -116,6 +116,7 @@ planner_collect_tools() {
 	fi
 
 	# Reuse caller-provided TOOLS array when available.
+	# shellcheck disable=SC2153
 	if [[ ${#catalog[@]} -eq 0 ]] && declare -p TOOLS >/dev/null 2>&1; then
 		local tools_decl
 		tools_decl="$(declare -p TOOLS 2>/dev/null || true)"

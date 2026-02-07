@@ -2,25 +2,16 @@
 
 ## Formatting, linting, and tests
 
-Run the format and lint steps before the Bats suite:
+Run the same checks used by CI:
 
 ```bash
-find src scripts tests -type f \( -name '*.sh' -o -name 'okso' \) -print0 | xargs -0 shfmt -w
-find src scripts tests -type f \( -name '*.sh' -o -name 'okso' \) -print0 | xargs -0 shellcheck
-bats tests/core/test_planner.sh tests/tools/test_registry.sh tests/runtime/test_macos_tiny_llama.sh
+find src scripts tests -type f \( -name '*.sh' -o -name 'okso' \) -print0 | xargs -0 shfmt -d
+bash ./scripts/ci/run-shellcheck.sh
+bash ./scripts/ci/run-bats.sh
+bash ./scripts/ci/check-docs.sh
 ```
 
-The suite covers CLI help/version output, confirmation prompts, deterministic mock scoring via `tests/fixtures/mock_llama.sh`, and graceful handling when `LLAMA_BIN` is missing. Set `TESTING_PASSTHROUGH=true` to bypass llama.cpp during tests while keeping deterministic planner behavior.
-
-### Coverage
-
-Generate HTML, JSON, and Cobertura coverage reports with bashcov:
-
-```bash
-./scripts/coverage.sh
-```
-
-Artifacts are written to `coverage/`. Set `COVERAGE_THRESHOLD=75` to warn when totals dip below 75%, and enable `COVERAGE_STRICT=true` to fail the run when the threshold is not met.
+The suite covers CLI help/version output, confirmation prompts, deterministic mock scoring via `tests/fixtures/mock_llama_relevance.sh`, and graceful handling when `LLAMA_BIN` is missing. Set `TESTING_PASSTHROUGH=true` to bypass llama.cpp during tests while keeping deterministic planner behavior.
 
 ## Planning workflow
 

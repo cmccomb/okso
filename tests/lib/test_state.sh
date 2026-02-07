@@ -85,8 +85,22 @@ setup() {
 	json_state_get_document "${prefix}" '{}' second >/dev/null
 	cache_path=$(json_state_cache_path "${prefix}")
 	cache_contents=$(cat "${cache_path}")
-	printf '%s|%s|%s|%s' "${first}" "${second}" "${!json_var}" "${cache_contents}" >output
-	[ "$(cat output)" = '{"ok":true}|{"ok":true}|{"ok":true}|{"ok":true}' ]
+	[ "${first}" = '{"ok":true}' ]
+	[ "${second}" = '{"ok":true}' ]
+	[ "${!json_var}" = '{"ok":true}' ]
+	[ "${cache_contents}" = '{"ok":true}' ]
+}
+
+@test "repaired fallback is reused after namespace reset" {
+	# shellcheck disable=SC1091
+	source ./src/lib/core/json_state.sh
+	prefix=invalid_cache_reuse_case
+	json_var=$(json_state_namespace_var "${prefix}")
+	printf -v "${json_var}" "%s" "{invalid"
+	json_state_get_document "${prefix}" '{"ok":true}' >/dev/null
+	unset "${json_var}"
+	output=$(json_state_get_document "${prefix}")
+	[ "${output}" = '{"ok":true}' ]
 }
 
 @test "cache is used when namespace resets" {

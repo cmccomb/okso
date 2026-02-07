@@ -19,22 +19,14 @@ jobs:
 
       - name: Check formatting
         run: |
-          find src tests -type f \( -name '*.sh' -o -name 'okso' \) -print0 \
+          find src scripts tests -type f \( -name '*.sh' -o -name 'okso' \) -print0 \
             | xargs -0 shfmt -d
 
       - name: Run Bats suite
-        run: | 
-          bats --verbose-run \
-            tests/core/*.sh \
-            tests/executor/*.sh \
-            tests/install/*.sh \
-            tests/lib/*.sh \
-            tests/planner/*.sh \
-            tests/planning/*.sh \
-            tests/runtime/*.sh \
-            tests/tools/*.sh
+        run: bash ./scripts/ci/run-bats.sh
 
       - name: Run shellcheck
-        run: |
-          find src tests -type f \( -name '*.sh' -o -name 'okso' \) -print0 \
-            | xargs -0 shellcheck
+        run: bash ./scripts/ci/run-shellcheck.sh
+
+      - name: Check docs
+        run: bash ./scripts/ci/check-docs.sh

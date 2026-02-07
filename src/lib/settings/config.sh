@@ -31,7 +31,10 @@
 #   2 when model resolution fails.
 
 if [[ "${OKSO_SETTINGS_CONFIG_LOADED:-false}" == true ]]; then
-	return 0 2>/dev/null || exit 0
+	if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
+		return 0
+	fi
+	exit 0
 fi
 OKSO_SETTINGS_CONFIG_LOADED=true
 
