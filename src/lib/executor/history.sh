@@ -547,8 +547,10 @@ evaluate_and_optionally_replan() {
 		render_step_box "Evaluation" "${validation_duration:-$(format_duration_seconds 0)}" "$(format_validation_summary "${validation_status}" "${validation_reason}")"
 		return 0
 	else
+		# Defer user-facing output to finalize_executor_result so all modes emit the
+		# same final summary path exactly once.
 		render_step_box "Final Answer" "${validation_duration}" "$(format_final_answer_summary "${final_answer}")"
-		json_state_set_key "${state_name}" "final_answer_emitted" "true"
+		json_state_set_key "${state_name}" "final_answer_emitted" "false"
 	fi
 }
 

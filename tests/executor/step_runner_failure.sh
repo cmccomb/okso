@@ -58,6 +58,7 @@ echo "result=${result}"
 echo "final_answer=$(json_state_get_key "${state_prefix}" "final_answer")"
 echo "validation_status=$(json_state_get_key "${state_prefix}" "validation_status")"
 echo "validation_reason=$(json_state_get_key "${state_prefix}" "validation_reason")"
+echo "final_answer_emitted=$(json_state_get_key "${state_prefix}" "final_answer_emitted")"
 SCRIPT
 
 	[ "$status" -eq 0 ]
@@ -65,4 +66,5 @@ SCRIPT
 	[[ "$output" == *"final_answer=tool output"* ]]
 	[[ "$output" == *"validation_status=Accepted"* ]]
 	[[ "$output" == *"non-conforming output"* ]]
+	[[ "$output" == *"final_answer_emitted=false"* ]]
 }
