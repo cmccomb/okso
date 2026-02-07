@@ -100,6 +100,7 @@ feedback_capture_input() {
 
 	if [[ -n "${FEEDBACK_NONINTERACTIVE_INPUT:-}" ]]; then
 		provided="${FEEDBACK_NONINTERACTIVE_INPUT}"
+		# Format is "<rating>|<comment>"; comment may be empty.
 		rating_input="${provided%%|*}"
 		if [[ "${provided}" == *"|"* ]]; then
 			comment_input="${provided#*|}"
@@ -163,6 +164,7 @@ tool_feedback() {
 	while IFS= read -r line; do
 		context_parts+=("$line")
 	done < <(feedback_normalize_context)
+	# Process substitution preserves array updates in the current shell.
 	if [[ ${#context_parts[@]} -eq 0 ]]; then
 		return 1
 	fi
@@ -197,6 +199,7 @@ tool_feedback() {
 		return 1
 	fi
 
+	# Emit canonical JSON for downstream history/state recording.
 	printf '%s' "${payload}"
 }
 
