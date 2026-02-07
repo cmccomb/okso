@@ -280,6 +280,7 @@ collect_web_fetch_allowlist() {
 	plan_outline="$3"
 	planner_thought="$4"
 
+	# Use history + current text sources so direct user-provided URLs are not blocked.
 	urls_json=$(
 		{
 			if [[ -n "${history_text}" ]]; then
@@ -379,6 +380,7 @@ collect_web_fetch_snippet_map() {
 				continue
 			fi
 			normalized_url="$(normalize_web_fetch_url "${url}")"
+			# Mirror snippet under both keys because allowlist matching uses normalized URLs.
 			snippet_map="$(jq -c \
 				--arg url "${url}" \
 				--arg snippet "${snippet}" \
@@ -456,6 +458,7 @@ prepare_web_fetch_context() {
 	snippet_json="$(validate_web_fetch_snippet_map "${snippet_json}")"
 
 	if [[ -n "${out_var}" ]]; then
+		# Support pass-by-name to avoid mixing function output with caller stdout streams.
 		printf -v "${out_var}" '%s' "${snippet_json}"
 		return 0
 	fi

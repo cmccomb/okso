@@ -82,6 +82,8 @@ apply_plan_arg_controls() {
 	args_obj="$(jq -ce 'if type=="object" then . else {} end' <<<"${args_json}" 2>/dev/null || printf '{}')"
 	plan_args="$(jq -ce '.args // {} | if type=="object" then . else {} end' <<<"${plan_entry_json}" 2>/dev/null || printf '{}')"
 
+	# Merge planner args into executor args while tracking placeholders that must
+	# be filled from context and preserving string literals as hint seeds.
 	jq_filter=$(
 		cat <<'JQ'
 $planned as $p
@@ -160,6 +162,8 @@ fill_missing_args_with_llm() {
 		return 0
 	fi
 
+	# Summarize only history, then re-render the full prompt to keep template
+	# structure stable after context shortening.
 	prompt_safe_history="$(apply_prompt_context_budget "${prompt_raw}" "${history_text}" "${max_completion_tokens}" "executor_history")"
 
 	if ! prompt="$(render_executor_prompt "${prompt_safe_history}")"; then
@@ -175,6 +179,7 @@ fill_missing_args_with_llm() {
 		had_llama_temperature=true
 		llama_temperature_backup="${LLAMA_TEMPERATURE}"
 	fi
+	# Force deterministic infill and restore caller temperature afterwards.
 	LLAMA_TEMPERATURE=0
 	export LLAMA_TEMPERATURE
 
@@ -265,8 +270,10 @@ infer_missing_required_context_fields() {
                                 | if ($prepared | length) == 0 then
                                         []
                                   elif any($prepared[]; (.missing | length) == 0) then
+                                        # At least one union branch is already satisfied, so no union-driven infill is required.
                                         []
                                   else
+                                        # Otherwise pick the branch with the fewest missing fields to minimize speculative filling.
                                         ($prepared | sort_by(.missing | length) | .[0].missing)
                                   end
                         end;
@@ -313,6 +320,7 @@ resolve_action_args() {
 	resolved_args="$(jq -c '.args' <<<"${context_metadata}")"
 
 	inferred_context_fields_json="$(infer_missing_required_context_fields "${tool}" "${resolved_args}")"
+	# Union explicit planner placeholders with inferred schema-required gaps.
 	context_fields_json="$(
 		jq -cn \
 			--argjson explicit "${context_fields_json}" \
@@ -327,6 +335,7 @@ resolve_action_args() {
 	history_for_prompt="${history_text}"
 	history_for_prompt="$(build_prompt_safe_history "${history_for_prompt}")"
 	if [[ -n "${context_seed_lines}" ]]; then
+		# Seeds are appended in plain text so the model can reuse planner literals during fill.
 		history_for_prompt+=$'\n'
 		history_for_prompt+="Context arg seeds:"
 		history_for_prompt+=$'\n'

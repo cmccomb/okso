@@ -416,6 +416,7 @@ score_planner_candidate() {
 
 	# Start at 0; prefer shorter plans in ties
 	score=0
+	# tie_breaker is sorted descending later, so negate length to prefer shorter plans.
 	tie_breaker=$((-plan_length))
 
 	# Quadratic length penalty: -(k * L^2)
@@ -469,6 +470,7 @@ score_planner_candidate() {
 		fi
 
 		if ((side_effect_index < 0)) && planner_step_has_side_effects "${tool}" "${args}"; then
+			# Keep only the first side-effecting step to evaluate whether reads happen first.
 			side_effect_index=${idx}
 		fi
 
@@ -498,6 +500,7 @@ score_planner_candidate() {
 		score=$((score - (missing_tools * 25)))
 		rationale+=("Plan references ${missing_tools} unavailable tool(s).")
 		log "INFO" "Planner scoring: unavailable tools detected" "$(jq -nc --argjson missing "${missing_tools}" --argjson valid "${valid_tools}" '{missing:$missing,valid:$valid}')" >&2
+		# Hard reject: score is informative, but an unavailable tool plan is never executable.
 		return 1
 	elif [[ "${availability_known}" == true ]]; then
 		rationale+=("All tools are registered in the planner catalog.")
@@ -507,6 +510,7 @@ score_planner_candidate() {
 		score=$((score - (invalid_schema_steps * 25)))
 		rationale+=("Planner args violate registered tool schemas for ${invalid_schema_steps} step(s).")
 		log "INFO" "Planner scoring: schema violations detected" "$(jq -nc --argjson invalid "${invalid_schema_steps}" '{invalid_schema_steps:$invalid}')" >&2
+		# Hard reject: schema-invalid plans are treated as unusable regardless of rank.
 		return 1
 	elif [[ "${availability_known}" == true ]]; then
 		rationale+=("Planner args satisfy registered tool schemas.")

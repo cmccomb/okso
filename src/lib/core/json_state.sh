@@ -134,6 +134,7 @@ json_state_resolve_document() {
 
 	sanitized_fallback=$(json_state_sanitize_json "${fallback}" '{}')
 	if [[ "${fallback_provided}" != true ]]; then
+		# Only consult on-disk cache when caller did not explicitly request a fallback.
 		cache_document=$(json_state_read_cache "${prefix}")
 		if [[ -n "${cache_document}" ]]; then
 			sanitized_fallback="${cache_document}"
@@ -168,6 +169,7 @@ json_state_get_document() {
 	fi
 
 	if [[ $# -ge 3 && -n "${3}" ]]; then
+		# Optional pass-by-name output keeps callers from reparsing stdout.
 		output_var="$3"
 	else
 		output_var=""
@@ -181,6 +183,7 @@ json_state_get_document() {
 	fi
 
 	if [[ "${fallback_provided}" != true ]]; then
+		# Empty fallback means resolve_document may prefer persisted cache content.
 		fallback=""
 	fi
 	resolved_document=$(json_state_resolve_document "${prefix}" "${fallback}")

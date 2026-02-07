@@ -60,6 +60,7 @@ executor_loop() {
 		((++step_index))
 
 		if ! execute_planned_action "${state_prefix}" "${step_index}" "${plan_entry}"; then
+			# Execution failures that set needs_replanning have already produced user_feedback context.
 			if [[ "$(json_state_get_key "${state_prefix}" "needs_replanning")" == "true" ]]; then
 				executor_replan_with_feedback "${state_prefix}" "$(json_state_get_key "${state_prefix}" "user_feedback")"
 				return $?
@@ -74,9 +75,11 @@ executor_loop() {
 		fi
 
 		if [[ -n "$(json_state_get_key "${state_prefix}" "final_answer")" ]]; then
+			# final_answer is terminal for the executor loop even if additional planned steps exist.
 			break
 		fi
 	done < <(jq -c '.[]' <<<"${plan_entries}")
+	# Process substitution keeps loop state in the current shell (vs. a pipeline subshell).
 
 	finalize_executor_result "${state_prefix}"
 }

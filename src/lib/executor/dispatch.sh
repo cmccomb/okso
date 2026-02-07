@@ -49,6 +49,7 @@ execute_tool_with_args() {
 	stderr_file="$(mktemp)"
 
 	# Execute the tool handler
+	# TOOL_ARGS is injected per call so handlers can stay zero-argument shell functions.
 	TOOL_ARGS="${tool_args_json}" ${handler} >"${stdout_file}" 2>"${stderr_file}"
 
 	# Capture outputs and status
@@ -74,7 +75,7 @@ execute_tool_with_args() {
 		--argjson exit_code "${status}" \
 		'{output: $output, error: $error, exit_code: $exit_code}'
 
-	# If we reach here, execution was successful
+	# Handler failure is represented in exit_code; dispatcher success means payload emission succeeded.
 	return 0
 }
 

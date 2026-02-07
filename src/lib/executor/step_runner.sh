@@ -81,6 +81,7 @@ execute_planned_action() {
 
 	observation_exit_code="$(jq -r '.exit_code // 0' <<<"${observation}" 2>/dev/null || printf '1')"
 	if [[ ! "${observation_exit_code}" =~ ^-?[0-9]+$ ]]; then
+		# Treat malformed tool payloads as hard failures so executor can replan safely.
 		observation_exit_code=1
 	fi
 	if ((observation_exit_code != 0)); then
@@ -99,6 +100,7 @@ execute_planned_action() {
 
 	if [[ "${tool}" == "final_answer" ]]; then
 		local final_answer_text
+		# Preserve the raw final_answer tool payload for post-hoc debugging/inspection.
 		json_state_set_key "${state_prefix}" "final_answer_action" "${observation}"
 		if jq -e '.output != null and .exit_code != null' <<<"${observation}" >/dev/null 2>&1; then
 			final_answer_text="$(jq -r '.output' <<<"${observation}")"

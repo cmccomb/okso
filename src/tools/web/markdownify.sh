@@ -214,6 +214,7 @@ main() {
 	path=${parsed%%|*}
 	content_type=${parsed#*|}
 	content_type=${content_type%%|*}
+	# parse_args emits a single pipe-delimited record to keep subshell parsing simple.
 	limit=${parsed##*|}
 
 	if ! markdown=$(convert_body "${path}" "${content_type}"); then

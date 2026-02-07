@@ -169,6 +169,7 @@ apply_prompt_context_budget() {
 			summarized_tokens=0
 			adjusted_total=$((base_prompt_tokens + max_completion_tokens))
 		else
+			# Coarse conversion: use ~4 chars/token to cap context length when token-level trimming is unavailable.
 			max_characters_for_context=$((remaining_budget * 4))
 			summarized_context="$(truncate_for_summary "${summarized_context}" "${max_characters_for_context}")"
 			summarized_tokens=$(estimate_token_count "${summarized_context}")
