@@ -77,3 +77,69 @@ load_schema_text() {
 	# Also trim leading/trailing spaces.
 	tr -d '\r\n' <"${schema_file_path}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//'
 }
+
+canonicalize_schema_for_llama() {
+	# Rewrites JSON Schema constructs that llama.cpp rejects while preserving
+	# equivalent validation semantics.
+	# Arguments:
+	#   $1 - raw schema JSON (string)
+	# Returns:
+	#   Canonicalized schema JSON (single-line string).
+	local schema_json
+	schema_json="$1"
+
+	if [[ -z "${schema_json}" ]]; then
+		printf '{}'
+		return 0
+	fi
+
+	jq -c '
+    def expand_required_only_branches:
+      if type == "object" then
+        . as $obj
+        | (
+            if has("anyOf") and (.anyOf | type == "array") then
+              .anyOf |= map(
+                if (type == "object") and (keys == ["required"]) then
+                  {
+                    type: "object",
+                    required: .required,
+                    properties: ($obj.properties // {}),
+                    additionalProperties: ($obj.additionalProperties // true)
+                  }
+                else
+                  .
+                end
+              )
+            else
+              .
+            end
+          )
+        | (
+            if has("oneOf") and (.oneOf | type == "array") then
+              .oneOf |= map(
+                if (type == "object") and (keys == ["required"]) then
+                  {
+                    type: "object",
+                    required: .required,
+                    properties: ($obj.properties // {}),
+                    additionalProperties: ($obj.additionalProperties // true)
+                  }
+                else
+                  .
+                end
+              )
+            else
+              .
+            end
+          )
+        | with_entries(.value |= expand_required_only_branches)
+      elif type == "array" then
+        map(expand_required_only_branches)
+      else
+        .
+      end;
+
+    expand_required_only_branches
+  ' <<<"${schema_json}" 2>/dev/null || printf '{}'
+}

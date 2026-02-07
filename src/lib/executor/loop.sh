@@ -59,7 +59,14 @@ executor_loop() {
 	while IFS= read -r plan_entry || [[ -n "$plan_entry" ]]; do
 		((++step_index))
 
-		execute_planned_action "${state_prefix}" "${step_index}" "${plan_entry}"
+		if ! execute_planned_action "${state_prefix}" "${step_index}" "${plan_entry}"; then
+			if [[ "$(json_state_get_key "${state_prefix}" "needs_replanning")" == "true" ]]; then
+				executor_replan_with_feedback "${state_prefix}" "$(json_state_get_key "${state_prefix}" "user_feedback")"
+				return $?
+			fi
+			log "ERROR" "Executor step failed" "step=${step_index}" || true
+			return 1
+		fi
 
 		if [[ "$(json_state_get_key "${state_prefix}" "needs_replanning")" == "true" ]]; then
 			executor_replan_with_feedback "${state_prefix}" "$(json_state_get_key "${state_prefix}" "user_feedback")"

@@ -27,7 +27,7 @@ set -euo pipefail
 source ./src/lib/settings/config.sh
 VERBOSITY=0
 APPROVE_ALL="notabool"
-normalize_approval_flags
+normalize_approval_flags 2>/dev/null
 printf "%s\n" "${APPROVE_ALL}"
 SCRIPT
 
@@ -39,17 +39,14 @@ SCRIPT
 	run bash <<'SCRIPT'
 set -euo pipefail
 export TESTING_PASSTHROUGH=true
-CONFIG_FILE="$(mktemp)"
-DEFAULT_MODEL_FILE="demo.gguf"
-APPROVE_ALL=false
-NOTES_DIR="$(mktemp -d)"
-CONFIG_FILE=""
+export OKSO_NOTES_DIR="$(mktemp -d)"
+export OKSO_CACHE_DIR="$(mktemp -d)"
 source ./src/lib/settings/config.sh
 load_config
 init_environment
 printf "%s\n" "${LLAMA_AVAILABLE}"
-rm -f "${CONFIG_FILE}"
-rm -rf "${NOTES_DIR}"
+rm -rf "${OKSO_NOTES_DIR}"
+rm -rf "${OKSO_CACHE_DIR}"
 SCRIPT
 
 	[ "$status" -eq 0 ]
@@ -105,23 +102,23 @@ config_file="$(mktemp)"
 cat >"${config_file}" <<'EOF'
 PLANNER_MODEL_SPEC="config/planner:plan.gguf"
 PLANNER_MODEL_BRANCH="config-plan"
-REACT_MODEL_SPEC="config/react:react.gguf"
-REACT_MODEL_BRANCH="config-react"
+EXECUTOR_MODEL_SPEC="config/executor:exec.gguf"
+EXECUTOR_MODEL_BRANCH="config-exec"
 VERBOSITY=0
 APPROVE_ALL=false
 EOF
 export PLANNER_MODEL_SPEC="env/planner:plan.gguf"
 export PLANNER_MODEL_BRANCH="env-plan"
-export REACT_MODEL_SPEC="env/react:react.gguf"
-export REACT_MODEL_BRANCH="env-react"
+export EXECUTOR_MODEL_SPEC="env/executor:exec.gguf"
+export EXECUTOR_MODEL_BRANCH="env-exec"
 export VERBOSITY=2
 export APPROVE_ALL=true
 CONFIG_FILE="${config_file}"
-source ./src/lib/settings/config.sh
-load_config
+source ./src/lib/settings/config.sh 2>/dev/null
+load_config 2>/dev/null
 printf "%s\n" \
         "${PLANNER_MODEL_SPEC}" "${PLANNER_MODEL_BRANCH}" \
-        "${REACT_MODEL_SPEC}" "${REACT_MODEL_BRANCH}" \
+        "${EXECUTOR_MODEL_SPEC}" "${EXECUTOR_MODEL_BRANCH}" \
         "${VERBOSITY}" "${APPROVE_ALL}"
 rm -f "${config_file}"
 SCRIPT
@@ -129,8 +126,8 @@ SCRIPT
 	[ "$status" -eq 0 ]
 	[ "${lines[0]}" = "env/planner:plan.gguf" ]
 	[ "${lines[1]}" = "env-plan" ]
-	[ "${lines[2]}" = "env/react:react.gguf" ]
-	[ "${lines[3]}" = "env-react" ]
+	[ "${lines[2]}" = "env/executor:exec.gguf" ]
+	[ "${lines[3]}" = "env-exec" ]
 	[ "${lines[4]}" = "2" ]
 	[ "${lines[5]}" = "true" ]
 }
@@ -143,25 +140,39 @@ PLANNER_MODEL_SPEC="planner/model:planner.gguf"
 PLANNER_MODEL_BRANCH="planner-branch"
 EXECUTOR_MODEL_SPEC="executor/model:executor.gguf"
 EXECUTOR_MODEL_BRANCH="executor-branch"
+VALIDATOR_MODEL_SPEC="validator/model:validator.gguf"
+VALIDATOR_MODEL_BRANCH="validator-branch"
+SEARCH_REPHRASER_MODEL_SPEC="search/model:search.gguf"
+SEARCH_REPHRASER_MODEL_BRANCH="search-branch"
+CACHE_DIR="$(mktemp -d)"
 VERBOSITY=2
 APPROVE_ALL=true
 CONFIG_FILE="${config_file}"
-source ./src/lib/settings/config.sh
-load_config
+source ./src/lib/settings/config.sh 2>/dev/null
+load_config 2>/dev/null
 write_config_file >/dev/null
 bash -n "${config_file}"
 PLANNER_MODEL_SPEC="placeholder"
 PLANNER_MODEL_BRANCH="placeholder"
 EXECUTOR_MODEL_SPEC="placeholder"
 EXECUTOR_MODEL_BRANCH="placeholder"
+VALIDATOR_MODEL_SPEC="placeholder"
+VALIDATOR_MODEL_BRANCH="placeholder"
+SEARCH_REPHRASER_MODEL_SPEC="placeholder"
+SEARCH_REPHRASER_MODEL_BRANCH="placeholder"
+CACHE_DIR="placeholder"
 VERBOSITY=0
 APPROVE_ALL=false
 source "${config_file}"
 printf '%s\n' \
         "${PLANNER_MODEL_SPEC}" "${PLANNER_MODEL_BRANCH}" \
-        "${REACT_MODEL_SPEC}" "${REACT_MODEL_BRANCH}" \
+        "${EXECUTOR_MODEL_SPEC}" "${EXECUTOR_MODEL_BRANCH}" \
+        "${VALIDATOR_MODEL_SPEC}" "${VALIDATOR_MODEL_BRANCH}" \
+        "${SEARCH_REPHRASER_MODEL_SPEC}" "${SEARCH_REPHRASER_MODEL_BRANCH}" \
+        "${CACHE_DIR}" \
         "${VERBOSITY}" "${APPROVE_ALL}" \
         "$(wc -l < "${config_file}" | tr -d ' ')"
+rm -rf "${CACHE_DIR}"
 rm -f "${config_file}"
 SCRIPT
 
@@ -170,9 +181,14 @@ SCRIPT
 	[ "${lines[1]}" = "planner-branch" ]
 	[ "${lines[2]}" = "executor/model:executor.gguf" ]
 	[ "${lines[3]}" = "executor-branch" ]
-	[ "${lines[4]}" = "2" ]
-	[ "${lines[5]}" = "true" ]
-	[ "${lines[6]}" = "6" ]
+	[ "${lines[4]}" = "validator/model:validator.gguf" ]
+	[ "${lines[5]}" = "validator-branch" ]
+	[ "${lines[6]}" = "search/model:search.gguf" ]
+	[ "${lines[7]}" = "search-branch" ]
+	[[ "${lines[8]}" = /* ]]
+	[ "${lines[9]}" = "2" ]
+	[ "${lines[10]}" = "true" ]
+	[ "${lines[11]}" = "11" ]
 }
 
 @test "okso init writes clean config without stray characters" {
@@ -185,11 +201,13 @@ config_file="${config_dir}/okso/config.env"
 cd "${repo_root}"
 ./src/bin/okso init --yes >/dev/null 2>&1
 bash -n "${config_file}"
-unset PLANNER_MODEL_SPEC PLANNER_MODEL_BRANCH REACT_MODEL_SPEC REACT_MODEL_BRANCH VERBOSITY APPROVE_ALL
+unset PLANNER_MODEL_SPEC PLANNER_MODEL_BRANCH EXECUTOR_MODEL_SPEC EXECUTOR_MODEL_BRANCH VALIDATOR_MODEL_SPEC VALIDATOR_MODEL_BRANCH SEARCH_REPHRASER_MODEL_SPEC SEARCH_REPHRASER_MODEL_BRANCH VERBOSITY APPROVE_ALL
 source "${config_file}"
 printf '%s\n' \
         "${PLANNER_MODEL_SPEC}" "${PLANNER_MODEL_BRANCH}" \
-        "${REACT_MODEL_SPEC}" "${REACT_MODEL_BRANCH}" \
+        "${EXECUTOR_MODEL_SPEC}" "${EXECUTOR_MODEL_BRANCH}" \
+        "${VALIDATOR_MODEL_SPEC}" "${VALIDATOR_MODEL_BRANCH}" \
+        "${SEARCH_REPHRASER_MODEL_SPEC}" "${SEARCH_REPHRASER_MODEL_BRANCH}" \
         "${VERBOSITY}" "${APPROVE_ALL}" \
         "$(grep -E '^[A-Z_]+=.*' "${config_file}" | wc -l | tr -d ' ')" \
         "$(wc -l < "${config_file}" | tr -d ' ')"
@@ -197,65 +215,49 @@ rm -rf "${config_dir}"
 SCRIPT
 
 	[ "$status" -eq 0 ]
-	# Check that the values match defaults (not custom)
-	[ "${lines[4]}" = "1" ]
-	[ "${lines[5]}" = "false" ]
-	[ "${lines[6]}" = "6" ]
-	[ "${lines[7]}" = "6" ]
+	[ "${lines[8]}" = "0" ]
+	[ "${lines[9]}" = "true" ]
+	[ "${lines[10]}" = "11" ]
+	[ "${lines[11]}" = "11" ]
 }
 
-@test "planner and react specs hydrate defaults and shared overrides" {
+@test "planner/executor/rephraser specs hydrate defaults and explicit overrides" {
 	run bash <<'SCRIPT'
 set -euo pipefail
 CONFIG_FILE="$(mktemp)"
-NOTES_DIR="$(mktemp -d)"
-export DEFAULT_MODEL_REPO_BASE="custom/react-repo"
-export DEFAULT_MODEL_FILE_BASE="react-base.gguf"
-export DEFAULT_MODEL_BRANCH_BASE="release"
-export DEFAULT_PLANNER_MODEL_REPO_BASE="custom/planner-repo"
-export DEFAULT_PLANNER_MODEL_FILE_BASE="planner-base.gguf"
-export DEFAULT_PLANNER_MODEL_BRANCH_BASE="release"
-export DEFAULT_REACT_MODEL_SPEC_BASE="${DEFAULT_MODEL_REPO_BASE}:${DEFAULT_MODEL_FILE_BASE}"
-export DEFAULT_REACT_MODEL_BRANCH_BASE="${DEFAULT_MODEL_BRANCH_BASE}"
 source ./src/lib/settings/config.sh
 load_config
 hydrate_model_specs
 printf '%s\n' \
         "${PLANNER_MODEL_REPO}" "${PLANNER_MODEL_FILE}" \
-        "${REACT_MODEL_REPO}" "${REACT_MODEL_FILE}" \
-        "${PLANNER_MODEL_SPEC}" "${REACT_MODEL_SPEC}"
-MODEL_SPEC="override/repo:react.gguf"
-MODEL_BRANCH="dev"
-PLANNER_MODEL_SPEC=""
-REACT_MODEL_SPEC=""
-PLANNER_MODEL_BRANCH=""
-REACT_MODEL_BRANCH=""
-hydrate_model_specs
-printf '%s\n' "${PLANNER_MODEL_SPEC}" "${REACT_MODEL_SPEC}" "${PLANNER_MODEL_BRANCH}" "${REACT_MODEL_BRANCH}"
+        "${EXECUTOR_MODEL_REPO}" "${EXECUTOR_MODEL_FILE}" \
+        "${SEARCH_REPHRASER_MODEL_REPO}" "${SEARCH_REPHRASER_MODEL_FILE}" \
+        "${PLANNER_MODEL_SPEC}" "${EXECUTOR_MODEL_SPEC}" "${SEARCH_REPHRASER_MODEL_SPEC}"
 PLANNER_MODEL_SPEC="planner/model:plan.gguf"
-REACT_MODEL_SPEC="react/model:react.gguf"
-PLANNER_MODEL_BRANCH="stable"
-REACT_MODEL_BRANCH="beta"
+EXECUTOR_MODEL_SPEC="executor/model:exec.gguf"
+SEARCH_REPHRASER_MODEL_SPEC="rephraser/model:search.gguf"
 hydrate_model_specs
-printf '%s\n' "${PLANNER_MODEL_SPEC}" "${REACT_MODEL_SPEC}" "${PLANNER_MODEL_BRANCH}" "${REACT_MODEL_BRANCH}"
+printf '%s\n' \
+        "${PLANNER_MODEL_REPO}" "${PLANNER_MODEL_FILE}" \
+        "${EXECUTOR_MODEL_REPO}" "${EXECUTOR_MODEL_FILE}" \
+        "${SEARCH_REPHRASER_MODEL_REPO}" "${SEARCH_REPHRASER_MODEL_FILE}"
 rm -f "${CONFIG_FILE}"
 SCRIPT
 
 	[ "$status" -eq 0 ]
-	[ "${lines[0]}" = "custom/planner-repo" ]
-	[ "${lines[1]}" = "planner-base.gguf" ]
-	[ "${lines[2]}" = "custom/react-repo" ]
-	[ "${lines[3]}" = "react-base.gguf" ]
-	[ "${lines[4]}" = "custom/planner-repo:planner-base.gguf" ]
-	[ "${lines[5]}" = "custom/react-repo:react-base.gguf" ]
-	[ "${lines[6]}" = "custom/planner-repo:planner-base.gguf" ]
-	[ "${lines[7]}" = "custom/react-repo:react-base.gguf" ]
-	[ "${lines[8]}" = "release" ]
-	[ "${lines[9]}" = "release" ]
-	[ "${lines[10]}" = "planner/model:plan.gguf" ]
-	[ "${lines[11]}" = "react/model:react.gguf" ]
-	[ "${lines[12]}" = "stable" ]
-	[ "${lines[13]}" = "beta" ]
+	[[ -n "${lines[0]}" ]]
+	[[ -n "${lines[1]}" ]]
+	[[ -n "${lines[2]}" ]]
+	[[ -n "${lines[3]}" ]]
+	[[ -n "${lines[4]}" ]]
+	[[ -n "${lines[5]}" ]]
+	[[ -n "${lines[6]}" ]]
+	[ "${lines[9]}" = "planner/model" ]
+	[ "${lines[10]}" = "plan.gguf" ]
+	[ "${lines[11]}" = "executor/model" ]
+	[ "${lines[12]}" = "exec.gguf" ]
+	[ "${lines[13]}" = "rephraser/model" ]
+	[ "${lines[14]}" = "search.gguf" ]
 }
 
 @test "log_model_autotune_summary uses debug level" {

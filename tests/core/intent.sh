@@ -12,8 +12,8 @@ setup() {
 	run bash <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/planning/intent.sh
-intent_json="$(recognize_intent "Create a note about the meeting")"
-printf '%s' "${intent_json}" | jq -r '.intent'
+intent_json="$(recognize_intent "Create a note about the meeting" 2>/dev/null)"
+printf '%s' "${intent_json}" | jq -r '.intents[0]'
 SCRIPT
 
 	[ "$status" -eq 0 ]
@@ -45,6 +45,8 @@ source ./src/lib/executor/workflow_loader.sh
 source ./src/tools/registry.sh
 source ./src/lib/planning/intent.sh
 init_tool_registry
+register_tool "notes_create" "Create note" true '{"type":"object","properties":{},"additionalProperties":true}'
+register_tool "final_answer" "Respond to user" true '{"type":"object","properties":{},"additionalProperties":true}'
 register_workflow_tools
 intent_json='{"intent":"notes","rationale":"capture note"}'
 intent_to_tools "${intent_json}" | sort

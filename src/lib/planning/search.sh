@@ -67,8 +67,8 @@ planner_generate_search_queries() {
 	dry_sampling_args="${SEARCH_REPHRASER_DRY_ARGS:---dry-multiplier 0.35 --dry-base 1.75 --dry-allowed-length 2 --dry-penalty-last-n 1024 --dry-sequence-breaker none}"
 
 	# Check llama availability
-	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
-		log "WARN" "llama unavailable; using raw query for search" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}" >&2
+	if [[ "${LLAMA_AVAILABLE:-false}" != true ]]; then
+		log "WARN" "llama unavailable; using raw query for search" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE:-false}" >&2
 		jq -nc --arg query "${user_query}" '[ $query ]'
 		return 0
 	fi

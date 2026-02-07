@@ -81,6 +81,46 @@ lowercase_intent() {
 	printf '%s' "$1" | tr '[:upper:]' '[:lower:]'
 }
 
+intent_keyword_fallback() {
+	# Lightweight fallback classifier used when model inference is unavailable.
+	# Arguments:
+	#   $1 - user query (string)
+	# Returns:
+	#   intent JSON payload on stdout.
+	local lowered
+	lowered="$(lowercase_intent "$1")"
+
+	case "${lowered}" in
+	*note* | *journal* | *memo*)
+		intent_fallback_json "notes" "fallback keyword match: notes"
+		;;
+	*reminder* | *todo* | *to-do*)
+		intent_fallback_json "reminders" "fallback keyword match: reminders"
+		;;
+	*calendar* | *schedule* | *meeting*)
+		intent_fallback_json "calendar" "fallback keyword match: calendar"
+		;;
+	*mail* | *email* | *inbox*)
+		intent_fallback_json "mail" "fallback keyword match: mail"
+		;;
+	*file* | *folder* | *directory* | *path*)
+		intent_fallback_json "filesystem" "fallback keyword match: filesystem"
+		;;
+	*code* | *debug* | *test* | *refactor* | *function*)
+		intent_fallback_json "coding" "fallback keyword match: coding"
+		;;
+	*calculate* | *math* | *equation*)
+		intent_fallback_json "math" "fallback keyword match: math"
+		;;
+	*search* | *research* | *latest* | *news* | *web*)
+		intent_fallback_json "web" "fallback keyword match: web"
+		;;
+	*)
+		intent_fallback_json "general" "fallback keyword match: general"
+		;;
+	esac
+}
+
 recognize_intent() {
 	# Classifies the user query into a canonical intent.
 	# Arguments:
@@ -97,6 +137,7 @@ recognize_intent() {
 
 	prompt="$(render_intent_prompt "${user_query}")" || {
 		log "ERROR" "Failed to render intent prompt" "intent_prompt_render_failed" >&2
+		intent_keyword_fallback "${user_query}"
 		return 0
 	}
 
@@ -107,11 +148,13 @@ recognize_intent() {
 
 	if ! raw="$(LLAMA_TEMPERATURE=0.0 llama_infer "${prompt}" '' "${max_generation_tokens}" "${schema_json}" "${model_repo}" "${model_file}" "${cache_file}" "${prompt}")"; then
 		log "WARN" "Intent model invocation failed; falling back" "intent_infer_failed" >&2
+		intent_keyword_fallback "${user_query}"
 		return 0
 	fi
 
 	if ! jq -e '.intents and (.intents | length > 0) and .rationale' <<<"${raw}" >/dev/null 2>&1; then
 		log "WARN" "Intent output invalid; falling back" "intent_parse_failed" >&2
+		intent_keyword_fallback "${user_query}"
 		return 0
 	fi
 
@@ -303,6 +346,10 @@ intent_to_tools() {
 	done
 
 	if [[ ${#selected_tools[@]} -eq 0 ]]; then
+		if printf '%s\n' "${available_tools[@]}" | grep -Fxq "final_answer"; then
+			printf '%s\n' "final_answer"
+			return 0
+		fi
 		printf '%s\n' "${available_tools[@]}"
 		return 0
 	fi

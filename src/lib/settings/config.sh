@@ -186,11 +186,167 @@ load_config() {
 	#   None
 	# Returns:
 	#   None; sets global configuration variables.
+	local preexisting_planner_model_spec preexisting_planner_model_spec_set
+	local preexisting_planner_model_branch preexisting_planner_model_branch_set
+	local preexisting_executor_model_spec preexisting_executor_model_spec_set
+	local preexisting_executor_model_branch preexisting_executor_model_branch_set
+	local preexisting_validator_model_spec preexisting_validator_model_spec_set
+	local preexisting_validator_model_branch preexisting_validator_model_branch_set
+	local preexisting_search_rephraser_model_spec preexisting_search_rephraser_model_spec_set
+	local preexisting_search_rephraser_model_branch preexisting_search_rephraser_model_branch_set
+	local preexisting_okso_google_cse_api_key preexisting_okso_google_cse_api_key_set
+	local preexisting_okso_google_cse_id preexisting_okso_google_cse_id_set
+	local preexisting_okso_cache_dir preexisting_okso_cache_dir_set
+	local preexisting_okso_notes_dir preexisting_okso_notes_dir_set
+	local preexisting_cache_dir preexisting_cache_dir_set
+	local preexisting_notes_dir preexisting_notes_dir_set
+	local preexisting_verbosity preexisting_verbosity_set
+	local preexisting_approve_all preexisting_approve_all_set
+	local preexisting_okso_run_id preexisting_okso_run_id_set
+	preexisting_planner_model_spec_set=false
+	preexisting_planner_model_branch_set=false
+	preexisting_executor_model_spec_set=false
+	preexisting_executor_model_branch_set=false
+	preexisting_validator_model_spec_set=false
+	preexisting_validator_model_branch_set=false
+	preexisting_search_rephraser_model_spec_set=false
+	preexisting_search_rephraser_model_branch_set=false
+	preexisting_okso_google_cse_api_key_set=false
+	preexisting_okso_google_cse_id_set=false
+	preexisting_okso_cache_dir_set=false
+	preexisting_okso_notes_dir_set=false
+	preexisting_cache_dir_set=false
+	preexisting_notes_dir_set=false
+	preexisting_verbosity_set=false
+	preexisting_approve_all_set=false
+	preexisting_okso_run_id_set=false
+
+	if [[ -n "${PLANNER_MODEL_SPEC+x}" ]]; then
+		preexisting_planner_model_spec="${PLANNER_MODEL_SPEC}"
+		preexisting_planner_model_spec_set=true
+	fi
+	if [[ -n "${PLANNER_MODEL_BRANCH+x}" ]]; then
+		preexisting_planner_model_branch="${PLANNER_MODEL_BRANCH}"
+		preexisting_planner_model_branch_set=true
+	fi
+	if [[ -n "${EXECUTOR_MODEL_SPEC+x}" ]]; then
+		preexisting_executor_model_spec="${EXECUTOR_MODEL_SPEC}"
+		preexisting_executor_model_spec_set=true
+	fi
+	if [[ -n "${EXECUTOR_MODEL_BRANCH+x}" ]]; then
+		preexisting_executor_model_branch="${EXECUTOR_MODEL_BRANCH}"
+		preexisting_executor_model_branch_set=true
+	fi
+	if [[ -n "${VALIDATOR_MODEL_SPEC+x}" ]]; then
+		preexisting_validator_model_spec="${VALIDATOR_MODEL_SPEC}"
+		preexisting_validator_model_spec_set=true
+	fi
+	if [[ -n "${VALIDATOR_MODEL_BRANCH+x}" ]]; then
+		preexisting_validator_model_branch="${VALIDATOR_MODEL_BRANCH}"
+		preexisting_validator_model_branch_set=true
+	fi
+	if [[ -n "${SEARCH_REPHRASER_MODEL_SPEC+x}" ]]; then
+		preexisting_search_rephraser_model_spec="${SEARCH_REPHRASER_MODEL_SPEC}"
+		preexisting_search_rephraser_model_spec_set=true
+	fi
+	if [[ -n "${SEARCH_REPHRASER_MODEL_BRANCH+x}" ]]; then
+		preexisting_search_rephraser_model_branch="${SEARCH_REPHRASER_MODEL_BRANCH}"
+		preexisting_search_rephraser_model_branch_set=true
+	fi
+	if [[ -n "${OKSO_GOOGLE_CSE_API_KEY+x}" ]]; then
+		preexisting_okso_google_cse_api_key="${OKSO_GOOGLE_CSE_API_KEY}"
+		preexisting_okso_google_cse_api_key_set=true
+	fi
+	if [[ -n "${OKSO_GOOGLE_CSE_ID+x}" ]]; then
+		preexisting_okso_google_cse_id="${OKSO_GOOGLE_CSE_ID}"
+		preexisting_okso_google_cse_id_set=true
+	fi
+	if [[ -n "${OKSO_CACHE_DIR+x}" ]]; then
+		preexisting_okso_cache_dir="${OKSO_CACHE_DIR}"
+		preexisting_okso_cache_dir_set=true
+	fi
+	if [[ -n "${OKSO_NOTES_DIR+x}" ]]; then
+		preexisting_okso_notes_dir="${OKSO_NOTES_DIR}"
+		preexisting_okso_notes_dir_set=true
+	fi
+	if [[ -n "${CACHE_DIR+x}" ]]; then
+		preexisting_cache_dir="${CACHE_DIR}"
+		preexisting_cache_dir_set=true
+	fi
+	if [[ -n "${NOTES_DIR+x}" ]]; then
+		preexisting_notes_dir="${NOTES_DIR}"
+		preexisting_notes_dir_set=true
+	fi
+	if [[ -n "${VERBOSITY+x}" ]]; then
+		preexisting_verbosity="${VERBOSITY}"
+		preexisting_verbosity_set=true
+	fi
+	if [[ -n "${APPROVE_ALL+x}" ]]; then
+		preexisting_approve_all="${APPROVE_ALL}"
+		preexisting_approve_all_set=true
+	fi
+	if [[ -n "${OKSO_RUN_ID+x}" ]]; then
+		preexisting_okso_run_id="${OKSO_RUN_ID}"
+		preexisting_okso_run_id_set=true
+	fi
 
 	# Load from file if it exists
 	if [[ -f "${CONFIG_FILE}" ]]; then
 		# shellcheck source=/dev/null
 		source "${CONFIG_FILE}"
+	fi
+
+	# Preserve explicit environment values over config file values.
+	if [[ "${preexisting_planner_model_spec_set}" == true ]]; then
+		PLANNER_MODEL_SPEC="${preexisting_planner_model_spec}"
+	fi
+	if [[ "${preexisting_planner_model_branch_set}" == true ]]; then
+		PLANNER_MODEL_BRANCH="${preexisting_planner_model_branch}"
+	fi
+	if [[ "${preexisting_executor_model_spec_set}" == true ]]; then
+		EXECUTOR_MODEL_SPEC="${preexisting_executor_model_spec}"
+	fi
+	if [[ "${preexisting_executor_model_branch_set}" == true ]]; then
+		EXECUTOR_MODEL_BRANCH="${preexisting_executor_model_branch}"
+	fi
+	if [[ "${preexisting_validator_model_spec_set}" == true ]]; then
+		VALIDATOR_MODEL_SPEC="${preexisting_validator_model_spec}"
+	fi
+	if [[ "${preexisting_validator_model_branch_set}" == true ]]; then
+		VALIDATOR_MODEL_BRANCH="${preexisting_validator_model_branch}"
+	fi
+	if [[ "${preexisting_search_rephraser_model_spec_set}" == true ]]; then
+		SEARCH_REPHRASER_MODEL_SPEC="${preexisting_search_rephraser_model_spec}"
+	fi
+	if [[ "${preexisting_search_rephraser_model_branch_set}" == true ]]; then
+		SEARCH_REPHRASER_MODEL_BRANCH="${preexisting_search_rephraser_model_branch}"
+	fi
+	if [[ "${preexisting_okso_google_cse_api_key_set}" == true ]]; then
+		OKSO_GOOGLE_CSE_API_KEY="${preexisting_okso_google_cse_api_key}"
+	fi
+	if [[ "${preexisting_okso_google_cse_id_set}" == true ]]; then
+		OKSO_GOOGLE_CSE_ID="${preexisting_okso_google_cse_id}"
+	fi
+	if [[ "${preexisting_okso_cache_dir_set}" == true ]]; then
+		OKSO_CACHE_DIR="${preexisting_okso_cache_dir}"
+	fi
+	if [[ "${preexisting_okso_notes_dir_set}" == true ]]; then
+		OKSO_NOTES_DIR="${preexisting_okso_notes_dir}"
+	fi
+	if [[ "${preexisting_cache_dir_set}" == true ]]; then
+		CACHE_DIR="${preexisting_cache_dir}"
+	fi
+	if [[ "${preexisting_notes_dir_set}" == true ]]; then
+		NOTES_DIR="${preexisting_notes_dir}"
+	fi
+	if [[ "${preexisting_verbosity_set}" == true ]]; then
+		VERBOSITY="${preexisting_verbosity}"
+	fi
+	if [[ "${preexisting_approve_all_set}" == true ]]; then
+		APPROVE_ALL="${preexisting_approve_all}"
+	fi
+	if [[ "${preexisting_okso_run_id_set}" == true ]]; then
+		OKSO_RUN_ID="${preexisting_okso_run_id}"
 	fi
 
 	# Apply environment variable defaults
@@ -210,12 +366,14 @@ load_config() {
 	VERBOSITY=${VERBOSITY:-1}
 	APPROVE_ALL=${APPROVE_ALL:-false}
 	OKSO_RUN_ID=${OKSO_RUN_ID:-$(default_run_id)}
+	GOOGLE_SEARCH_API_KEY=${GOOGLE_SEARCH_API_KEY:-${OKSO_GOOGLE_CSE_API_KEY:-}}
+	GOOGLE_SEARCH_CX=${GOOGLE_SEARCH_CX:-${OKSO_GOOGLE_CSE_ID:-}}
 
 	# Cache configuration
 	local default_cache_dir
 	default_cache_dir="${XDG_CACHE_HOME:-${HOME}/.cache}/okso"
-	CACHE_DIR="${OKSO_CACHE_DIR:-${default_cache_dir}}"
-	NOTES_DIR="${OKSO_NOTES_DIR:-${HOME}/.okso}"
+	CACHE_DIR="${CACHE_DIR:-${OKSO_CACHE_DIR:-${default_cache_dir}}}"
+	NOTES_DIR="${NOTES_DIR:-${OKSO_NOTES_DIR:-${HOME}/.okso}}"
 
 	log_model_autotune_summary
 }

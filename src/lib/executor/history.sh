@@ -421,7 +421,7 @@ evaluate_and_optionally_replan() {
 	#   $3 - emit output (true/false, optional; default true)
 	local state_name final_answer emit_output replan_requested
 	local user_query history_text
-	local evaluation_json evaluation_type reasoning output
+	local evaluation_json evaluation_type reasoning output evaluation_status_code
 	local feedback_text errexit_was_set
 	local validation_start_time validation_duration validation_status validation_reason
 	local history_pretty final_body validation_body
@@ -446,6 +446,7 @@ evaluate_and_optionally_replan() {
 
 	validation_start_time="$(date +%s)"
 	evaluation_json="$(evaluate_final_answer_against_query "${user_query}" "${history_text}")"
+	evaluation_status_code=$?
 	validation_duration="$(format_duration_from "${validation_start_time}")"
 
 	json_state_set_key "${state_name}" "final_answer_evaluated" "true"
@@ -456,6 +457,14 @@ evaluate_and_optionally_replan() {
 
 	validation_status=""
 	validation_reason=""
+
+	if ((evaluation_status_code != 0)); then
+		log "WARN" "Answer evaluation failed; using tool output" "status=${evaluation_status_code}" || true
+		evaluation_json="$(jq -nc \
+			--arg output "${final_answer}" \
+			--arg reason "Evaluator unavailable or invalid response; using tool output." \
+			'{evaluation_type:"FINAL", reasoning:$reason, output:$output}')"
+	fi
 
 	evaluation_type="$(jq -r '.evaluation_type // empty' <<<"${evaluation_json}" 2>/dev/null)"
 	reasoning="$(jq -r '.reasoning // empty' <<<"${evaluation_json}" 2>/dev/null)"

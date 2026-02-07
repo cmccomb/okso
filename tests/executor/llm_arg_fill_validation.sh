@@ -86,3 +86,45 @@ SCRIPT
 	[[ "$output" != *"LONG_BODY_TOKEN"* ]]
 	[[ "$output" == *"short snippet"* ]]
 }
+
+@test "fill_missing_args_with_llm works with required-only anyOf schemas" {
+	run env -i PATH="$PATH" HOME="$HOME" TMPDIR="${TMPDIR:-/tmp}" VERBOSITY=0 bash --noprofile --norc <<'SCRIPT'
+set -euo pipefail
+source ./src/lib/executor/loop.sh
+
+work_dir="$(mktemp -d)"
+args_file="${work_dir}/args.txt"
+mock_bin="${work_dir}/mock_llama.sh"
+cat >"${mock_bin}" <<'MOCK'
+#!/usr/bin/env bash
+printf "%s\n" "$@" >"${ARGS_FILE}"
+printf '{}'
+MOCK
+chmod +x "${mock_bin}"
+
+export ARGS_FILE="${args_file}"
+export LLAMA_AVAILABLE=true
+export LLAMA_BIN="${mock_bin}"
+export EXECUTOR_MODEL_REPO="demo/repo"
+export EXECUTOR_MODEL_FILE="model.gguf"
+
+render_prompt_template() { echo "prompt"; }
+tool_args_schema() {
+	echo '{"type":"object","additionalProperties":false,"anyOf":[{"required":["query"]},{"required":["input"]}],"properties":{"query":{"type":"string"},"input":{"type":"string"}}}'
+}
+
+fill_missing_args_with_llm "web_search" "{}" "query" "outline" "thought" "" '["query"]' >/dev/null
+
+schema_arg=""
+while IFS= read -r arg_line; do
+	if [[ "${arg_line}" == "--json-schema" ]]; then
+		read -r schema_arg
+		break
+	fi
+done <"${args_file}"
+
+jq -e '.anyOf | all(.[]; .type == "object" and (.required | type == "array") and (.properties | type == "object"))' <<<"${schema_arg}" >/dev/null
+SCRIPT
+
+	[ "$status" -eq 0 ]
+}

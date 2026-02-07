@@ -30,6 +30,8 @@ LLM_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck source=src/lib/core/logging.sh
 source "${LLM_LIB_DIR}/../core/logging.sh"
+# shellcheck source=src/lib/llm/schema.sh
+source "${LLM_LIB_DIR}/schema.sh"
 # shellcheck source=src/lib/llm/tokens.sh
 source "${LLM_LIB_DIR}/tokens.sh"
 
@@ -103,35 +105,40 @@ llama_infer() {
 	#   $6 - model file override (string, optional)
 	# Returns:
 	#   The generated text (string).
-	local prompt stop_string number_of_tokens schema_json repo_override file_override
+	local prompt stop_string number_of_tokens schema_json schema_json_raw repo_override file_override
 	prompt="$1"
 	stop_string="${2:-}"
 	number_of_tokens="${3:-256}"
-	schema_json="${4:-}"
+	schema_json_raw="${4:-}"
+	schema_json="${schema_json_raw}"
 	repo_override="${5:-${EXECUTOR_MODEL_REPO:-}}"
 	file_override="${6:-${EXECUTOR_MODEL_FILE:-}}"
 
+	if [[ -n "${schema_json}" ]]; then
+		schema_json="$(canonicalize_schema_for_llama "${schema_json}")"
+	fi
+
 	# Check llama availability
-	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
-		log "WARN" "llama unavailable; skipping inference" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE}"
+	if [[ "${LLAMA_AVAILABLE:-false}" != true ]]; then
+		log "WARN" "llama unavailable; skipping inference" "LLAMA_AVAILABLE=${LLAMA_AVAILABLE:-false}"
 		return 1
 	fi
 
 	# Build llama.cpp arguments
 	local llama_args llama_arg_string stderr_file exit_code llama_stderr start_time_ns end_time_ns elapsed_ms llama_output
 	local default_context_size context_cap margin_percent prompt_tokens total_tokens computed_context target_context
+	local token_budget
 	local rope_freq_base rope_freq_scale template_descriptor prompt_context_detail
 	llama_args=(
 		"${LLAMA_BIN}"
 		--hf-repo "${repo_override}"
 		--hf-file "${file_override}"
 		-no-cnv --no-display-prompt --simple-io --verbose
-		-n "${number_of_tokens}"
 	)
 
 	# Determine context size
 	default_context_size=${LLAMA_DEFAULT_CONTEXT_SIZE:-4096}
-	context_cap=${LLAMA_CONTEXT_CAP:-8192}
+	context_cap=${LLAMA_CONTEXT_CAP:-${default_context_size}}
 	margin_percent=${LLAMA_CONTEXT_MARGIN_PERCENT:-15}
 
 	# Ensure context cap is at least the default context size
@@ -153,8 +160,21 @@ llama_infer() {
 			target_context=${context_cap}
 		fi
 
-		llama_args+=(-c "${target_context}")
+		if [[ ${target_context} -gt ${default_context_size} ]]; then
+			llama_args+=(-c "${target_context}")
+		fi
 	fi
+
+	# Keep generation within the selected context budget.
+	token_budget=$((target_context - prompt_tokens))
+	if [[ ${token_budget} -lt 1 ]]; then
+		token_budget=1
+	fi
+	if [[ ${number_of_tokens} -gt ${token_budget} ]]; then
+		log "INFO" "llama output tokens reduced for context budget" "requested_tokens=${number_of_tokens} adjusted_tokens=${token_budget} prompt_tokens=${prompt_tokens} target_context=${target_context}"
+		number_of_tokens=${token_budget}
+	fi
+	llama_args+=(-n "${number_of_tokens}")
 
 	# Add stop string if provided
 	if [[ -n "${stop_string}" ]]; then

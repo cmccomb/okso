@@ -22,12 +22,17 @@ jobs:
           find src tests -type f \( -name '*.sh' -o -name 'okso' \) -print0 \
             | xargs -0 shfmt -d
 
-      - name: Run Bats suite with coverage
+      - name: Run Bats suite
         run: | 
-          find tests -type f \( -name '*.bats' -o -name 'test_*.sh' \) -print \
-            | sort \
-            | tr '\n' ' ' \
-            | xargs bats --verbose-run
+          bats --verbose-run \
+            tests/core/*.sh \
+            tests/executor/*.sh \
+            tests/install/*.sh \
+            tests/lib/*.sh \
+            tests/planner/*.sh \
+            tests/planning/*.sh \
+            tests/runtime/*.sh \
+            tests/tools/*.sh
 
       - name: Run shellcheck
         run: |

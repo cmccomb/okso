@@ -38,6 +38,7 @@ execute_planned_action() {
 	#   $3 - validated action JSON
 	local state_prefix step_index action_json tool args_json thought args_after_controls
 	local observation history_text web_fetch_snippets execution_status user_query plan_outline
+	local observation_exit_code observation_error
 	state_prefix="$1"
 	step_index="$2"
 	action_json="$3"
@@ -57,7 +58,9 @@ execute_planned_action() {
 		"${plan_outline}" \
 		"${thought}" \
 		web_fetch_snippets
-	web_fetch_snippets="${web_fetch_snippets:-{}}"
+	if [[ -z "${web_fetch_snippets}" ]]; then
+		web_fetch_snippets='{}'
+	fi
 
 	if ! args_after_controls="$(resolve_action_args "${tool}" "${args_json}" "${action_json}" "${user_query}" "${history_text}" "${plan_outline}" "${thought}")"; then
 		log "ERROR" "Argument resolution failed" "${tool}" || true
@@ -76,6 +79,22 @@ execute_planned_action() {
 
 	if ((execution_status != 0)); then
 		return "${execution_status}"
+	fi
+
+	observation_exit_code="$(jq -r '.exit_code // 0' <<<"${observation}" 2>/dev/null || printf '1')"
+	if [[ ! "${observation_exit_code}" =~ ^-?[0-9]+$ ]]; then
+		observation_exit_code=1
+	fi
+	if ((observation_exit_code != 0)); then
+		record_tool_execution "${state_prefix}" "${tool}" "${thought}" "${args_after_controls}" "${observation}" "${step_index}"
+		observation_error="$(jq -r '.error // empty' <<<"${observation}" 2>/dev/null || printf '')"
+		json_state_set_key "${state_prefix}" "needs_replanning" "true" || true
+		if [[ -n "${observation_error}" ]]; then
+			json_state_set_key "${state_prefix}" "user_feedback" "Tool ${tool} failed: ${observation_error}" || true
+		else
+			json_state_set_key "${state_prefix}" "user_feedback" "Tool ${tool} failed with exit code ${observation_exit_code}" || true
+		fi
+		return "${observation_exit_code}"
 	fi
 
 	record_tool_execution "${state_prefix}" "${tool}" "${thought}" "${args_after_controls}" "${observation}" "${step_index}"

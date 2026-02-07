@@ -156,7 +156,7 @@ planner_build_plan_schema() {
 	base_schema="$(load_schema_text planner_plan | jq -c '.')" || return 1
 
 	tool_schema_json="$(
-		tool_schema_map | jq -c '
+		canonicalize_schema_for_llama "$(tool_schema_map)" | jq -c '
     def fill_placeholder:
       {
         type: "object",
@@ -164,20 +164,21 @@ planner_build_plan_schema() {
         required: ["__fill__"],
         properties: {"__fill__": {const: true}}
       };
-    def allow_fill_placeholder:
+    def allow_fill_top_level:
       if type != "object" then .
       else
-        ( .
-          | if has("properties") then .properties |= with_entries(.value |= allow_fill_placeholder) else . end
-          | if has("items")      then .items      |= allow_fill_placeholder                         else . end
-          | if has("anyOf")      then .anyOf      |= map(allow_fill_placeholder)                   else . end
-          | if has("oneOf")      then .oneOf      |= map(allow_fill_placeholder)                   else . end
-          | if has("allOf")      then .allOf      |= map(allow_fill_placeholder)                   else . end
+        (
+          .
+          | if has("properties") and (.properties | type == "object") then
+              .properties |= with_entries(.value |= {anyOf: [., fill_placeholder]})
+            else
+              .
+            end
         )
         | {anyOf: [., fill_placeholder]}
       end;
 
-    map_values(allow_fill_placeholder)
+    map_values(allow_fill_top_level)
   '
 	)" || return 1
 	tools_json="$(printf '%s\n' "$@" | jq -Rsc 'split("\n") | map(select(length > 0))')"
@@ -528,6 +529,38 @@ emit_plan_json() {
 		jq -sc 'map(select(type=="object"))'
 }
 
+planner_fallback_plan() {
+	# Returns a minimal safe plan when planner output is invalid.
+	jq -nc '[{
+		tool: "final_answer",
+		args: {},
+		thought: "Respond directly to the user."
+	}]'
+}
+
+planner_extract_plan_array() {
+	# Extracts a plan array from planner output objects or arrays.
+	# Arguments:
+	#   $1 - planner response payload (string)
+	# Returns:
+	#   JSON array on stdout.
+	local payload extracted
+	payload="${1:-[]}"
+
+	if extracted="$(jq -c '
+		if type == "array" then .
+		elif type == "object" and (.plan | type == "array") then .plan
+		elif type == "object" and (.plan | type == "string") then (try (.plan | fromjson) catch null)
+		else null
+		end
+	' <<<"${payload}" 2>/dev/null)" && jq -e 'type == "array"' <<<"${extracted}" >/dev/null 2>&1; then
+		printf '%s' "${extracted}"
+		return 0
+	fi
+
+	planner_fallback_plan
+}
+
 derive_allowed_tools_from_plan() {
 	# Derives the required tool list from a planner response.
 	# Arguments:
@@ -536,6 +569,8 @@ derive_allowed_tools_from_plan() {
 	#   newline-delimited list of required tool names (string)
 	local plan_json tool seen
 	plan_json="${1:-[]}"
+
+	plan_json="$(planner_extract_plan_array "${plan_json}")"
 
 	# Normalize the plan JSON
 	plan_json="$(normalize_plan <<<"${plan_json}")" || return 1
@@ -554,6 +589,10 @@ derive_allowed_tools_from_plan() {
 		seen+="${tool}"$'\n'
 	done < <(jq -r '.[] | .tool // empty' <<<"${plan_json}" 2>/dev/null || true)
 
+	if ! grep -Fxq "final_answer" <<<"${seen}"; then
+		required+=("final_answer")
+	fi
+
 	# Return the required tool list
 	printf '%s\n' "${required[@]}"
 }
@@ -561,6 +600,8 @@ derive_allowed_tools_from_plan() {
 plan_json_to_entries() {
 	local plan_json
 	plan_json="$1"
+
+	plan_json="$(planner_extract_plan_array "${plan_json}")"
 
 	# Normalize the plan JSON
 	plan_json="$(normalize_plan <<<"${plan_json}")" || return 1

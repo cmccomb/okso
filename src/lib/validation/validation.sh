@@ -36,6 +36,8 @@ source "${VALIDATION_PARENT_DIR}/core/logging.sh"
 source "${VALIDATION_PARENT_DIR}/llm/llama_client.sh"
 # shellcheck source=src/lib/llm/schema.sh
 source "${VALIDATION_PARENT_DIR}/llm/schema.sh"
+# shellcheck source=src/lib/llm/context_budget.sh
+source "${VALIDATION_PARENT_DIR}/llm/context_budget.sh"
 # shellcheck source=src/lib/llm/templates.sh
 source "${VALIDATION_PARENT_DIR}/llm/templates.sh"
 
@@ -84,14 +86,14 @@ evaluate_final_answer_against_query() {
 	output_var="${3:-}"
 
 	# Check llama availability
-	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
+	if [[ "${LLAMA_AVAILABLE:-false}" != true ]]; then
 		log "WARN" "LLM unavailable; skipping final answer evaluation" || true
 		return 2
 	fi
 
 	# Build the evaluation prompt
-	local evaluation_prompt response
-	evaluation_prompt="$(build_evaluation_prompt "${user_query}" "${trace}")"
+	local evaluation_prompt response response_json prompt_safe_trace prompt_raw
+	prompt_raw="$(build_evaluation_prompt "${user_query}" "${trace}")"
 
 	# Load the evaluation schema
 	local schema_text
@@ -110,19 +112,43 @@ evaluate_final_answer_against_query() {
 	# Invoke the evaluator model
 	local validation_max_tokens
 	validation_max_tokens="${VALIDATION_MAX_TOKENS:-2048}"
-	response="$(llama_infer "${evaluation_prompt}" "" "${validation_max_tokens}" "${schema_text}" "${validator_model_repo}" "${validator_model_file}" "${validator_cache_file}")"
+
+	prompt_safe_trace="$(apply_prompt_context_budget "${prompt_raw}" "${trace}" "${validation_max_tokens}" "validation_trace")"
+	evaluation_prompt="$(build_evaluation_prompt "${user_query}" "${prompt_safe_trace}")"
+
+	if ! response="$(llama_infer "${evaluation_prompt}" "" "${validation_max_tokens}" "${schema_text}" "${validator_model_repo}" "${validator_model_file}" "${validator_cache_file}")"; then
+		log "ERROR" "Evaluator model invocation failed" || true
+		return 2
+	fi
+
+	if ! response_json="$(jq -ce '
+                if type != "object" then
+                        empty
+                elif (.evaluation_type | type) != "string" then
+                        empty
+                elif (.reasoning | type) != "string" then
+                        empty
+                elif (.output | type) != "string" then
+                        empty
+                else
+                        .
+                end
+        ' <<<"${response}" 2>/dev/null)"; then
+		log "ERROR" "Evaluator returned invalid JSON" "$(printf 'response=%s' "${response}")" || true
+		return 2
+	fi
 
 	# Log the evaluation result
 	local evaluation_type reasoning
-	evaluation_type="$(jq -r '.evaluation_type' <<<"${response}")"
-	reasoning="$(jq -r '.reasoning' <<<"${response}")"
+	evaluation_type="$(jq -r '.evaluation_type' <<<"${response_json}")"
+	reasoning="$(jq -r '.reasoning' <<<"${response_json}")"
 	log "INFO" "Evaluation result" "$(printf 'type=%s, %s' "${evaluation_type}" "${reasoning}")" || true
 
 	# Output result
 	if [[ -n "${output_var}" ]]; then
-		printf -v "${output_var}" '%s' "${response}"
+		printf -v "${output_var}" '%s' "${response_json}"
 	else
-		printf '%s' "${response}"
+		printf '%s' "${response_json}"
 	fi
 }
 

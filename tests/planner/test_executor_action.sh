@@ -70,3 +70,32 @@ INNERSCRIPT
 	run bash -lc "${script}"
 	[ "$status" -eq 0 ]
 }
+
+@test "resolve_action_args infers missing required fields for llm fill" {
+	script=$(
+		cat <<'INNERSCRIPT'
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)" || exit 1
+
+source ./src/lib/executor/loop.sh
+
+tool_args_schema() { printf '{"type":"object","required":["input"],"properties":{"input":{"type":"string"}}}'; }
+export -f tool_args_schema
+
+render_prompt_template() { printf 'executor prompt'; }
+export -f render_prompt_template
+
+llama_infer() { printf '{"input":"filled by llm"}'; }
+export -f llama_infer
+
+LLAMA_AVAILABLE=true
+
+output="$(resolve_action_args "demo_tool" '{}' '{}' 'user query' '' '' '')"
+
+[[ "${output}" == '{"input":"filled by llm"}' ]]
+INNERSCRIPT
+	)
+
+	run bash -lc "${script}"
+	[ "$status" -eq 0 ]
+}

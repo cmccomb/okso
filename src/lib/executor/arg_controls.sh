@@ -128,7 +128,7 @@ fill_missing_args_with_llm() {
 	schema="$(jq -c '.' <<<"$(tool_args_schema "${tool}")" 2>/dev/null || printf '{}')"
 	max_completion_tokens=256
 
-	if [[ "${LLAMA_AVAILABLE}" != true ]]; then
+	if [[ "${LLAMA_AVAILABLE:-false}" != true ]]; then
 		log "WARN" "LLM unavailable; context args remain unchanged" "${tool}" || true
 		printf '%s' "${args_json}"
 		return 0
@@ -225,6 +225,61 @@ extract_context_controls() {
         ' <<<"${resolved_json}"
 }
 
+infer_missing_required_context_fields() {
+	# Infers missing required fields from tool schema when planner omitted them.
+	# Arguments:
+	#   $1 - tool name
+	#   $2 - args JSON
+	# Returns:
+	#   JSON array of field names that should be LLM-filled.
+	local tool resolved_args schema
+	tool="$1"
+	resolved_args="$2"
+	if [[ -z "${resolved_args}" ]]; then
+		resolved_args='{}'
+	fi
+	schema="$(jq -c '.' <<<"$(tool_args_schema "${tool}")" 2>/dev/null || printf '{}')"
+
+	jq -cn \
+		--argjson args "${resolved_args}" \
+		--argjson schema "${schema}" '
+                def is_missing(v):
+                        (v == null)
+                        or (v == "")
+                        or ((v | type) == "object" and (v.__fill__ // false) == true);
+
+                def missing_from_required(req; a):
+                        [ req[] | select(type == "string" and length > 0) | select(is_missing(a[.])) ];
+
+                def select_missing_union_fields(branches; a):
+                        if (branches | type) != "array" then
+                                []
+                        else
+                                (branches
+                                        | map(select(type == "object"))
+                                        | map({required: (.required // [])})
+                                        | map(select((.required | type) == "array" and (.required | length) > 0))
+                                        | map({missing: missing_from_required(.required; a)})
+                                ) as $prepared
+                                | if ($prepared | length) == 0 then
+                                        []
+                                  elif any($prepared[]; (.missing | length) == 0) then
+                                        []
+                                  else
+                                        ($prepared | sort_by(.missing | length) | .[0].missing)
+                                  end
+                        end;
+
+                (
+                        missing_from_required(($schema.required // []); $args)
+                        + select_missing_union_fields(($schema.anyOf // []); $args)
+                        + select_missing_union_fields(($schema.oneOf // []); $args)
+                )
+                | map(select(type == "string" and length > 0))
+                | unique
+        ' 2>/dev/null || printf '[]'
+}
+
 resolve_action_args() {
 	# Applies planner controls, fills context fields, and normalizes the final JSON.
 	# Arguments:
@@ -236,7 +291,7 @@ resolve_action_args() {
 	#   $6 - plan outline
 	#   $7 - planner thought
 	local tool args_json plan_entry_json user_query history_text plan_outline planner_thought
-	local resolved_args context_fields_json context_seed_lines history_for_prompt schema context_metadata
+	local resolved_args context_fields_json context_seed_lines history_for_prompt context_metadata inferred_context_fields_json
 	tool="$1"
 	args_json="$2"
 	plan_entry_json="$3"
@@ -255,8 +310,14 @@ resolve_action_args() {
 	context_fields_json="$(jq -c '.context_fields' <<<"${context_metadata}")"
 	context_seed_lines="$(jq -r '.context_seed_lines[]?' <<<"${context_metadata}")"
 	resolved_args="$(jq -c '.args' <<<"${context_metadata}")"
-	schema="$(jq -c '.' <<<"$(tool_args_schema "${tool}")" 2>/dev/null || printf '{}')"
 
+	inferred_context_fields_json="$(infer_missing_required_context_fields "${tool}" "${resolved_args}")"
+	context_fields_json="$(
+		jq -cn \
+			--argjson explicit "${context_fields_json}" \
+			--argjson inferred "${inferred_context_fields_json}" \
+			'[($explicit // []), ($inferred // [])] | add | map(select(type == "string" and length > 0)) | unique'
+	)"
 	if [[ "${context_fields_json}" == "[]" ]]; then
 		normalize_args_json "${resolved_args}"
 		return 0
@@ -284,4 +345,5 @@ export -f build_prompt_safe_history
 export -f apply_plan_arg_controls
 export -f fill_missing_args_with_llm
 export -f extract_context_controls
+export -f infer_missing_required_context_fields
 export -f resolve_action_args

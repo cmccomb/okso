@@ -10,39 +10,39 @@ setup() {
 set -euo pipefail
 export WORKFLOWS_DIR=./workflows
 source ./src/lib/executor/workflow_loader.sh
-plan='[{"tool":"workflow_daily_briefing","args":{"topic":"ai policy","source_url":"https://example.com","note_title":"Daily Briefing"}}]'
+plan='[{"tool":"workflow_daily_briefing","args":{"current_date":"2026-02-06"}}]'
 expanded=$(expand_workflow_plan "${plan}")
-printf '%s\n' "${expanded}" | jq -r '.[0].tool,.[1].tool,.[2].tool,.[3].tool,.[0].args.query,.[1].args.url,.[2].args.title'
+printf '%s\n' "${expanded}" | jq -r '.[0].tool,.[1].tool,.[2].tool,.[3].tool,.[4].tool,.[5].tool,.[0].args.query'
 SCRIPT
 
 	[ "$status" -eq 0 ]
 	[ "${lines[0]}" = "web_search" ]
-	[ "${lines[1]}" = "web_fetch" ]
-	[ "${lines[2]}" = "notes_create" ]
-	[ "${lines[3]}" = "final_answer" ]
-	[ "${lines[4]}" = "daily briefing ai policy" ]
-	[ "${lines[5]}" = "https://example.com" ]
-	[ "${lines[6]}" = "Daily Briefing" ]
+	[ "${lines[1]}" = "web_search" ]
+	[ "${lines[2]}" = "web_search" ]
+	[ "${lines[3]}" = "web_search" ]
+	[ "${lines[4]}" = "web_search" ]
+	[ "${lines[5]}" = "final_answer" ]
+	[ "${lines[6]}" = "top headlines after:2026-02-06" ]
 }
 
-@test "expand_workflow_plan expands research and summarize workflow" {
+@test "expand_workflow_plan expands research workflow" {
 	run bash <<'SCRIPT'
 set -euo pipefail
 export WORKFLOWS_DIR=./workflows
 source ./src/lib/executor/workflow_loader.sh
-plan='[{"tool":"workflow_research_and_summarize","args":{"query":"battery recycling","source_url":"https://example.com","note_title":"Research notes"}}]'
+plan='[{"tool":"workflow_research","args":{"query":"battery recycling"}}]'
 expanded=$(expand_workflow_plan "${plan}")
-printf '%s\n' "${expanded}" | jq -r '.[0].tool,.[1].tool,.[2].tool,.[3].tool,.[0].args.query,.[1].args.url,.[2].args.title'
+printf '%s\n' "${expanded}" | jq -r '.[0].tool,.[1].tool,.[2].tool,.[3].tool,.[4].tool,.[5].tool,.[0].args.query.__fill__'
 SCRIPT
 
 	[ "$status" -eq 0 ]
 	[ "${lines[0]}" = "web_search" ]
-	[ "${lines[1]}" = "web_fetch" ]
-	[ "${lines[2]}" = "notes_create" ]
-	[ "${lines[3]}" = "final_answer" ]
-	[ "${lines[4]}" = "battery recycling" ]
-	[ "${lines[5]}" = "https://example.com" ]
-	[ "${lines[6]}" = "Research notes" ]
+	[ "${lines[1]}" = "web_search" ]
+	[ "${lines[2]}" = "web_fetch" ]
+	[ "${lines[3]}" = "web_fetch" ]
+	[ "${lines[4]}" = "web_fetch" ]
+	[ "${lines[5]}" = "final_answer" ]
+	[ "${lines[6]}" = "true" ]
 }
 
 @test "expand_workflow_plan expands inbox to reminders workflow" {

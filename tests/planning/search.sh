@@ -5,12 +5,14 @@ setup() {
 	unset -f __zsh_like_cd cd 2>/dev/null || true
 	# shellcheck disable=SC2034
 	chpwd_functions=()
+	# shellcheck disable=SC2155
+	export REPO_ROOT="$(git rev-parse --show-toplevel)"
 }
 
 @test "planner_format_search_context renders empty search results" {
-	run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
+	run env -i HOME="$HOME" PATH="$PATH" TMPDIR="${TMPDIR:-/tmp}" REPO_ROOT="${REPO_ROOT}" bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
-cd "$(git rev-parse --show-toplevel)"
+cd "${REPO_ROOT}"
 source ./src/lib/planning/search.sh
 raw_context='{"query":"what day is it in japan right now","items":[]}'
 planner_format_search_context "${raw_context}"
@@ -21,9 +23,9 @@ SCRIPT
 }
 
 @test "planner_format_search_context renders query and formatted items" {
-	run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
+	run env -i HOME="$HOME" PATH="$PATH" TMPDIR="${TMPDIR:-/tmp}" REPO_ROOT="${REPO_ROOT}" bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
-cd "$(git rev-parse --show-toplevel)"
+cd "${REPO_ROOT}"
 source ./src/lib/planning/search.sh
 raw_context='{"query":"example query","items":[{"title":"Title","url":"https://example.com","snippet":"Snippet"}]}'
 planner_format_search_context "${raw_context}"

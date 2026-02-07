@@ -64,6 +64,41 @@ SCRIPT
 	[ "$status" -eq 0 ]
 }
 
+@test "llama_infer canonicalizes required-only anyOf branches" {
+	run env BASH_ENV= ENV= bash --noprofile --norc -c '
+                cd "$(git rev-parse --show-toplevel)" || exit 1
+                args_dir="$(mktemp -d)"
+                args_file="${args_dir}/args.txt"
+                mock_binary="${args_dir}/mock_llama.sh"
+                cat >"${mock_binary}" <<SCRIPT
+#!/usr/bin/env bash
+printf "%s\n" "\$@" >"${args_file}"
+SCRIPT
+                chmod +x "${mock_binary}"
+                export LLAMA_AVAILABLE=true
+                export LLAMA_BIN="${mock_binary}"
+                export EXECUTOR_MODEL_REPO=demo/repo
+                export EXECUTOR_MODEL_FILE=model.gguf
+                source ./src/lib/llm/llama_client.sh
+                schema_doc='"'"'{"type":"object","additionalProperties":false,"anyOf":[{"required":["query"]},{"required":["input"]}],"properties":{"query":{"type":"string"},"input":{"type":"string"}}}'"'"'
+                llama_infer "example prompt" "" 12 "${schema_doc}" >/dev/null
+                args=()
+                while IFS= read -r line; do
+                        args+=("$line")
+                done <"${args_file}"
+                schema_arg=""
+                for i in "${!args[@]}"; do
+                        if [[ "${args[$i]}" == "--json-schema" ]]; then
+                                schema_arg="${args[$((i + 1))]}"
+                        fi
+                done
+                [[ -n "${schema_arg}" ]]
+                jq -e '"'"'.anyOf | all(.[]; .type == "object" and (.required | type == "array") and (.properties | type == "object"))'"'"' <<<"${schema_arg}" >/dev/null
+                jq -e '"'"'.anyOf | all(.[]; ((keys | length) > 1))'"'"' <<<"${schema_arg}" >/dev/null
+        '
+	[ "$status" -eq 0 ]
+}
+
 @test "llama_infer forwards optional extra arguments" {
 	run env BASH_ENV= ENV= bash --noprofile --norc -c '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
@@ -257,4 +292,41 @@ SCRIPT
 	[[ "${message}" == "llama context capped" ]]
 	[[ "${detail}" == *"required_context=161"* ]]
 	[[ "${detail}" == *"capped_context=90"* ]]
+}
+
+@test "llama_infer keeps default context by default and trims output tokens" {
+	run env BASH_ENV= ENV= bash --noprofile --norc -c '
+                cd "$(git rev-parse --show-toplevel)" || exit 1
+                args_dir="$(mktemp -d)"
+                args_file="${args_dir}/args.txt"
+                mock_binary="${args_dir}/mock_llama.sh"
+                cat >"${mock_binary}" <<SCRIPT
+#!/usr/bin/env bash
+printf "%s\n" "\$@" >"${args_file}"
+SCRIPT
+                chmod +x "${mock_binary}"
+                long_prompt=$(printf "q%.0s" {1..15000})
+                export LLAMA_AVAILABLE=true
+                export LLAMA_BIN="${mock_binary}"
+                export EXECUTOR_MODEL_REPO=demo/repo
+                export EXECUTOR_MODEL_FILE=model.gguf
+                export LLAMA_DEFAULT_CONTEXT_SIZE=4096
+                unset LLAMA_CONTEXT_CAP
+                source ./src/lib/llm/llama_client.sh
+                llama_infer "${long_prompt}" "" 512
+                args=()
+                while IFS= read -r line; do
+                        args+=("$line")
+                done <"${args_file}"
+                [[ " ${args[*]} " != *" -c "* ]]
+                n_value=""
+                for i in "${!args[@]}"; do
+                        if [[ "${args[$i]}" == "-n" ]]; then
+                                n_value="${args[$((i + 1))]}"
+                        fi
+                done
+                [[ "${n_value}" == "346" ]]
+        '
+	[ "$status" -eq 0 ]
+	[[ "${output}" == *"llama output tokens reduced for context budget"* ]]
 }
