@@ -29,7 +29,7 @@ SCRIPT
 	score=$(printf '%s' "${scorecard}" | jq -r '.score')
 	rationale=$(printf '%s' "${scorecard}" | jq -r '.rationale | join(" ")')
 	[[ "${score}" -gt 0 ]]
-	[[ "${rationale}" == *"final_answer"* ]]
+	[[ "${rationale}" == *"Planner args satisfy registered tool schemas."* ]]
 }
 
 @test "score_planner_candidate accepts structured web_search args" {

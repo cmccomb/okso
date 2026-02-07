@@ -311,7 +311,7 @@ planner_plan_criteria_report() {
 	#   $1 - normalized planner response JSON array (string)
 	# Returns:
 	#   JSON report: {ok:boolean, reasons:[string]}
-	local plan_json plan_length final_tool available_tools availability_known
+	local plan_json plan_length available_tools availability_known
 	local -a reasons=()
 	local missing_tools invalid_python_snippets side_effect_index idx
 	local all_tools_available
@@ -321,11 +321,6 @@ planner_plan_criteria_report() {
 	plan_length="$(jq -r 'length' <<<"${plan_json}" 2>/dev/null || printf '0')"
 	if ((plan_length < 1)); then
 		reasons+=("Planner produced zero steps.")
-	fi
-
-	final_tool="$(jq -r '.[-1].tool // ""' <<<"${plan_json}")"
-	if [[ "${final_tool}" != "final_answer" ]]; then
-		reasons+=("Plan must terminate with final_answer.")
 	fi
 
 	availability_known=true
@@ -403,7 +398,7 @@ score_planner_candidate() {
 	# Returns:
 	#   scorecard JSON on stdout; non-zero on failure.
 	local plan_json plan_length available_tools availability_known
-	local score tie_breaker rationale_json final_tool
+	local score tie_breaker rationale_json
 	local -a rationale=()
 
 	plan_json="$1"
@@ -425,16 +420,6 @@ score_planner_candidate() {
 
 	score=$((score - len_penalty))
 	rationale+=("Applied quadratic plan-length penalty: -${LEN_PENALTY_K}*${plan_length}^2 = -${len_penalty}.")
-
-	# Add a score based on the final answer tool
-	final_tool=$(jq -r '.[-1].tool // ""' <<<"${plan_json}")
-	if [[ "${final_tool}" == "final_answer" ]]; then
-		score=$((score + 15))
-		rationale+=("Plan terminates with final_answer.")
-	else
-		score=$((score - 25))
-		rationale+=("Plan must terminate with final_answer as the final step.")
-	fi
 
 	# Check tool availability and timing of side-effecting steps
 	availability_known=true

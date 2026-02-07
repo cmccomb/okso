@@ -64,7 +64,24 @@ SCRIPT
 
 	[ "$status" -eq 0 ]
 	catalog=$(printf '%s' "${output}" | tail -n 1)
-	[ "${catalog}" = "alpha,beta" ]
+	[ "${catalog}" = "alpha,beta,final_answer" ]
+}
+
+@test "planner_collect_tools appends final_answer when missing from override" {
+	run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+PLANNER_SKIP_TOOL_LOAD=true
+export PLANNER_SKIP_TOOL_LOAD
+source ./src/lib/planning/planner.sh
+
+planner_collect_tools $'notes_read\nweb_search' | paste -sd ',' -
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	catalog=$(printf '%s' "${output}" | tail -n 1)
+	[ "${catalog}" = "notes_read,web_search,final_answer" ]
 }
 
 @test "planner falls back to tool_names when TOOLS is unset" {

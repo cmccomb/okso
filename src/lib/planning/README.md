@@ -6,7 +6,7 @@ The executor loop lives in `../executor`. The planner emits plan JSON and allowe
 
 ## How the planner is wired
 
-1. **Tool + schema discovery:** `planner.sh` loads tool registrations and builds a planner schema from `src/schemas/planner_plan.schema.json` plus per-tool argument schemas.
+1. **Tool + schema discovery:** `planner.sh` loads tool registrations and builds a planner schema from `src/schemas/planner_plan.schema.json` plus per-tool argument schemas, with tuple variants that require a terminal `final_answer` step.
 2. **Search query rephrasing:** `search.sh` renders the `pre_planner_search_terms` prompt. When llama.cpp is available, the search rephraser model (`SEARCH_REPHRASER_MODEL_SPEC`) produces 1–3 queries using schema-constrained decoding and DRY sampling (`SEARCH_REPHRASER_DRY_ARGS`). If llama.cpp is unavailable, the raw user query is used instead.
 3. **Context collection:** `planner_fetch_search_context` runs `web_search` for each query and formats the snippets into prompt-ready context.
 4. **Prompt assembly:** `prompting.sh` renders the planner prompt with tools, schemas, timestamps, intent context, feedback, and search context, then sends it to `llama_client.sh`.

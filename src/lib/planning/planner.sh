@@ -109,8 +109,10 @@ planner_collect_tools() {
 	#   newline-delimited list of tool names on stdout.
 
 	local -a catalog=()
+	local has_final_answer
 	local tool_override
 	tool_override="${1:-}"
+	has_final_answer=false
 
 	if [[ -n "${tool_override}" ]]; then
 		while IFS= read -r tool_name; do
@@ -146,6 +148,16 @@ planner_collect_tools() {
 	fi
 
 	if [[ ${#catalog[@]} -gt 0 ]]; then
+		local tool_name
+		for tool_name in "${catalog[@]-}"; do
+			if [[ "${tool_name}" == "final_answer" ]]; then
+				has_final_answer=true
+				break
+			fi
+		done
+		if [[ "${has_final_answer}" != true ]]; then
+			catalog+=("final_answer")
+		fi
 		printf '%s\n' "${catalog[@]-}"
 	fi
 }
@@ -156,7 +168,7 @@ planner_build_plan_schema() {
 	#   $@ - tool names available to the planner (strings)
 	# Returns:
 	#   Planner plan schema JSON on stdout; non-zero on failure.
-	local base_schema tool_schema_json tools_json branches
+	local base_schema tool_schema_json tools_json final_step_schema non_final_branches plan_variants max_plan_steps
 
 	base_schema="$(load_schema_text planner_plan | jq -c '.')" || return 1
 
@@ -188,32 +200,106 @@ planner_build_plan_schema() {
   '
 	)" || return 1
 	tools_json="$(printf '%s\n' "$@" | jq -Rsc 'split("\n") | map(select(length > 0))')"
-
 	if [[ "${tools_json}" == "[]" ]]; then
-		printf '%s' "${base_schema}"
-		return 0
+		tools_json='["final_answer"]'
 	fi
 
-	branches=$(jq -nc \
-		--argjson toolSchemas "${tool_schema_json}" \
-		--argjson tools "${tools_json}" \
-		'[
-                        $tools[] |
-                        {
-                                type: "object",
-                                additionalProperties: false,
-                                required: ["thought", "tool", "args"],
-                                properties: {
-                                        thought: {type: "string", minLength: 5},
-                                        tool: {type: "string", enum: [.]},
-                                        args: ($toolSchemas[.] // {type: "object"})
-                                }
-                        }
-                ]') || return 1
+	max_plan_steps="$(validate_positive_int "${PLANNER_MAX_PLAN_STEPS:-6}" 6 "PLANNER_MAX_PLAN_STEPS")"
 
-	jq -n -c --argjson base "${base_schema}" --argjson anyOf "${branches}" '
-                $base | .items = {anyOf: $anyOf}
-        '
+	final_step_schema="$(
+		jq -nc \
+			--argjson toolSchemas "${tool_schema_json}" \
+			'{
+			type: "object",
+			additionalProperties: false,
+			required: ["thought", "tool", "args"],
+			properties: {
+				thought: {type: "string", minLength: 5},
+				tool: {const: "final_answer"},
+				args: (
+					$toolSchemas["final_answer"] // {
+						anyOf: [
+							{
+								type: "object",
+								required: ["input"],
+								additionalProperties: false,
+								properties: {
+									input: {type: "string", minLength: 1}
+								}
+							},
+							{
+								type: "object",
+								required: ["__fill__"],
+								additionalProperties: false,
+								properties: {"__fill__": {const: true}}
+							}
+						]
+					}
+				)
+			}
+		}'
+	)" || return 1
+
+	non_final_branches="$(
+		jq -nc \
+			--argjson toolSchemas "${tool_schema_json}" \
+			--argjson tools "${tools_json}" \
+			'[
+			$tools[]
+			| select(. != "final_answer")
+			| {
+				type: "object",
+				additionalProperties: false,
+				required: ["thought", "tool", "args"],
+				properties: {
+					thought: {type: "string", minLength: 5},
+					tool: {type: "string", enum: [.]},
+					args: ($toolSchemas[.] // {type: "object"})
+				}
+			}
+		]'
+	)" || return 1
+
+	plan_variants="$(
+		jq -nc \
+			--argjson finalStep "${final_step_schema}" \
+			--argjson nonFinalBranches "${non_final_branches}" \
+			--argjson maxSteps "${max_plan_steps}" '
+			def non_final_step:
+				if ($nonFinalBranches | length) == 0 then null
+				else {anyOf: $nonFinalBranches}
+				end;
+
+			[
+				{
+					type: "array",
+					minItems: 1,
+					maxItems: 1,
+					prefixItems: [$finalStep],
+					items: false
+				},
+				(
+					if (non_final_step == null) then empty
+					else
+						range(2; ($maxSteps + 1))
+						| {
+							type: "array",
+							minItems: .,
+							maxItems: .,
+							prefixItems: (([range(0; . - 1) | non_final_step]) + [$finalStep]),
+							items: false
+						}
+					end
+				)
+			]
+		'
+	)" || return 1
+
+	jq -n -c --argjson base "${base_schema}" --argjson variants "${plan_variants}" '
+		$base
+		| del(.items)
+		| .anyOf = $variants
+	'
 }
 export -f planner_build_plan_schema
 
