@@ -105,12 +105,11 @@ llama_infer() {
 	#   $6 - model file override (string, optional)
 	# Returns:
 	#   The generated text (string).
-	local prompt stop_string number_of_tokens schema_json schema_json_raw repo_override file_override
+	local prompt stop_string number_of_tokens schema_json repo_override file_override
 	prompt="$1"
 	stop_string="${2:-}"
 	number_of_tokens="${3:-256}"
-	schema_json_raw="${4:-}"
-	schema_json="${schema_json_raw}"
+	schema_json="${4:-}"
 	repo_override="${5:-${EXECUTOR_MODEL_REPO:-}}"
 	file_override="${6:-${EXECUTOR_MODEL_FILE:-}}"
 

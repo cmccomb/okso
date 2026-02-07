@@ -92,7 +92,7 @@ evaluate_final_answer_against_query() {
 	fi
 
 	# Build the evaluation prompt
-	local evaluation_prompt response response_json prompt_safe_trace prompt_raw
+	local evaluation_prompt response prompt_safe_trace prompt_raw
 	prompt_raw="$(build_evaluation_prompt "${user_query}" "${trace}")"
 
 	# Load the evaluation schema
@@ -121,34 +121,17 @@ evaluate_final_answer_against_query() {
 		return 2
 	fi
 
-	if ! response_json="$(jq -ce '
-                if type != "object" then
-                        empty
-                elif (.evaluation_type | type) != "string" then
-                        empty
-                elif (.reasoning | type) != "string" then
-                        empty
-                elif (.output | type) != "string" then
-                        empty
-                else
-                        .
-                end
-        ' <<<"${response}" 2>/dev/null)"; then
-		log "ERROR" "Evaluator returned invalid JSON" "$(printf 'response=%s' "${response}")" || true
-		return 2
-	fi
-
 	# Log the evaluation result
 	local evaluation_type reasoning
-	evaluation_type="$(jq -r '.evaluation_type' <<<"${response_json}")"
-	reasoning="$(jq -r '.reasoning' <<<"${response_json}")"
+	evaluation_type="$(jq -r '.evaluation_type // "unknown"' <<<"${response}" 2>/dev/null || printf 'unknown')"
+	reasoning="$(jq -r '.reasoning // ""' <<<"${response}" 2>/dev/null || printf '')"
 	log "INFO" "Evaluation result" "$(printf 'type=%s, %s' "${evaluation_type}" "${reasoning}")" || true
 
 	# Output result
 	if [[ -n "${output_var}" ]]; then
-		printf -v "${output_var}" '%s' "${response_json}"
+		printf -v "${output_var}" '%s' "${response}"
 	else
-		printf '%s' "${response_json}"
+		printf '%s' "${response}"
 	fi
 }
 

@@ -118,6 +118,7 @@ fill_missing_args_with_llm() {
 	#   JSON string with filled args, or original args if LLM unavailable or fails.
 	local tool args_json user_query plan_outline planner_thought schema prompt response context_fields_json
 	local history_text prompt_raw prompt_safe_history max_completion_tokens
+	local had_llama_temperature llama_temperature_backup
 	tool="$1"
 	args_json="$2"
 	user_query="$3"
@@ -134,15 +135,26 @@ fill_missing_args_with_llm() {
 		return 0
 	fi
 
-	if ! prompt_raw="$(render_prompt_template "executor" \
-		tool "${tool}" \
-		user_query "${user_query}" \
-		plan_outline "${plan_outline}" \
-		planner_thought "${planner_thought}" \
-		args_json "${args_json}" \
-		args_schema "${schema}" \
-		context_fields "${context_fields_json}" \
-		history_text "${history_text}")"; then
+	render_executor_prompt() {
+		local history_payload rendered
+		history_payload="$1"
+
+		if ! rendered="$(render_prompt_template "executor" \
+			tool "${tool}" \
+			user_query "${user_query}" \
+			plan_outline "${plan_outline}" \
+			planner_thought "${planner_thought}" \
+			args_json "${args_json}" \
+			args_schema "${schema}" \
+			context_fields "${context_fields_json}" \
+			history_text "${history_payload}")"; then
+			return 1
+		fi
+
+		printf '%s' "${rendered}"
+	}
+
+	if ! prompt_raw="$(render_executor_prompt "${history_text}")"; then
 		log "WARN" "Failed to render executor prompt" "${tool}" || true
 		printf '%s' "${args_json}"
 		return 0
@@ -150,15 +162,7 @@ fill_missing_args_with_llm() {
 
 	prompt_safe_history="$(apply_prompt_context_budget "${prompt_raw}" "${history_text}" "${max_completion_tokens}" "executor_history")"
 
-	if ! prompt="$(render_prompt_template "executor" \
-		tool "${tool}" \
-		user_query "${user_query}" \
-		plan_outline "${plan_outline}" \
-		planner_thought "${planner_thought}" \
-		args_json "${args_json}" \
-		args_schema "${schema}" \
-		context_fields "${context_fields_json}" \
-		history_text "${prompt_safe_history}")"; then
+	if ! prompt="$(render_executor_prompt "${prompt_safe_history}")"; then
 		log "WARN" "Failed to render executor prompt" "${tool}" || true
 		printf '%s' "${args_json}"
 		return 0
@@ -166,34 +170,31 @@ fill_missing_args_with_llm() {
 
 	log_pretty "INFO" "prompt" "${prompt}"
 
-	invoke_llm_with_schema() {
-		local llama_temperature_backup response_json
-		llama_temperature_backup="${LLAMA_TEMPERATURE:-}"
-		if [[ "$1" == "strict" ]]; then
-			LLAMA_TEMPERATURE=0
+	had_llama_temperature=false
+	if [[ "${LLAMA_TEMPERATURE+x}" == "x" ]]; then
+		had_llama_temperature=true
+		llama_temperature_backup="${LLAMA_TEMPERATURE}"
+	fi
+	LLAMA_TEMPERATURE=0
+	export LLAMA_TEMPERATURE
+
+	if ! response="$(llama_infer "${prompt}" "" "${max_completion_tokens}" "${schema}" "${EXECUTOR_MODEL_REPO:-}" "${EXECUTOR_MODEL_FILE:-}")"; then
+		if [[ "${had_llama_temperature}" == true ]]; then
+			LLAMA_TEMPERATURE="${llama_temperature_backup}"
 			export LLAMA_TEMPERATURE
+		else
+			unset LLAMA_TEMPERATURE
 		fi
-
-		if ! response_json="$(llama_infer "${prompt}" "" "${max_completion_tokens}" "${schema}" "${EXECUTOR_MODEL_REPO:-}" "${EXECUTOR_MODEL_FILE:-}")"; then
-			return 1
-		fi
-
-		if [[ "$1" == "strict" ]]; then
-			if [[ -n "${llama_temperature_backup}" ]]; then
-				LLAMA_TEMPERATURE="${llama_temperature_backup}"
-				export LLAMA_TEMPERATURE
-			else
-				unset LLAMA_TEMPERATURE
-			fi
-		fi
-
-		printf '%s' "${response_json}"
-	}
-
-	response="$(invoke_llm_with_schema "strict")" || {
 		log "ERROR" "llama_infer failed during arg fill" "${tool}" || true
 		return 1
-	}
+	fi
+
+	if [[ "${had_llama_temperature}" == true ]]; then
+		LLAMA_TEMPERATURE="${llama_temperature_backup}"
+		export LLAMA_TEMPERATURE
+	else
+		unset LLAMA_TEMPERATURE
+	fi
 
 	if ! response_json="$(jq -ce 'if type == "object" then . else empty end' <<<"${response}" 2>/dev/null)"; then
 		log "ERROR" "Invalid llama response for arg fill" "tool=${tool} response=${response}" || true

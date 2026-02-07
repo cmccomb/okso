@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # shellcheck shell=bash
 
-@test "evaluate_final_answer_against_query fails cleanly on invalid evaluator json" {
+@test "evaluate_final_answer_against_query does not post-validate constrained output" {
 	run env -i PATH="$PATH" HOME="$HOME" VERBOSITY=0 bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/validation/validation.sh
@@ -13,12 +13,14 @@ load_schema_text() { echo '{"type":"object"}'; }
 llama_infer() { echo '"unterminated'; }
 
 result=0
-evaluate_final_answer_against_query "query" "trace" >/tmp/okso_eval.out || result=$?
+evaluation_json="$(evaluate_final_answer_against_query "query" "trace")" || result=$?
 echo "result=${result}"
+echo "evaluation=${evaluation_json}"
 SCRIPT
 
 	[ "$status" -eq 0 ]
-	[[ "$output" == *"result=2"* ]]
+	[[ "$output" == *"result=0"* ]]
+	[[ "$output" == *'evaluation="unterminated'* ]]
 	[[ "$output" != *"jq: parse error"* ]]
 }
 
