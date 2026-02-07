@@ -19,13 +19,3 @@ Please align contributions with the existing workflow:
 1. Follow the formatting, linting, and test steps in the [development guide](contributor/development.md).
 2. Add or update tests as needed; see the [testing guide](contributor/testing.md).
 3. Keep changes focused and document any user-facing updates in the docs.
-
-## What’s next
-
-This lightweight roadmap keeps near-term priorities visible:
-
-- Expand user guides with real-world macOS workflows and troubleshooting tips.
-- Continue improving planner/executor reliability and test coverage.
-- Refine configuration and reference docs to better explain advanced settings.
-
-If you are interested in an item above, open an issue describing your proposal and suggested approach.
