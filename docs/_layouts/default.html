@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% if page.title %}{{ page.title }} | {{ site.title }}{% else %}{{ site.title }}{% endif %}</title>
+    <meta name="description" content="{{ page.description | default: site.description }}">
+    <style>
+      :root {
+        color-scheme: light;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+        line-height: 1.6;
+        color: #0f172a;
+        background: #f8fafc;
+      }
+
+      .site-header {
+        border-bottom: 1px solid #dbe1ea;
+        background: #ffffff;
+      }
+
+      .wrap {
+        width: min(900px, 92vw);
+        margin: 0 auto;
+      }
+
+      .site-header .wrap {
+        padding: 0.9rem 0;
+      }
+
+      .brand {
+        color: #0f172a;
+        text-decoration: none;
+        font-weight: 700;
+      }
+
+      main.wrap {
+        padding: 2rem 0 3rem;
+      }
+
+      a {
+        color: #0d4f8c;
+      }
+
+      a:hover {
+        color: #083b6a;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="wrap">
+        <a class="brand" href="{{ '/' | relative_url }}">{{ site.title }}</a>
+      </div>
+    </header>
+    <main class="wrap">
+      {{ content }}
+    </main>
+  </body>
+</html>

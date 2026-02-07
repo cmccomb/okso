@@ -1,3 +1,6 @@
+---
+---
+
 # macOS Bash quirks
 
 macOS still ships Bash 3.2. The codebase targets that shell so the installer and runtime work without requiring Homebrew's newer Bash.

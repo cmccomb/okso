@@ -1,6 +1,10 @@
+---
+---
+
 # Documentation Guidelines
 
 This document provides concise, repo-wide recommendations for file headers, function docblocks, and workflow JSON documentation.
+For enforceable policy and CI expectations, use [Code Quality Standards](contributor/code-quality-standards.md) as the source of truth.
 
 Bash file header template (place in the first 4-6 lines):
 ```
@@ -30,3 +34,5 @@ Workflow JSON guidance:
 
 CI checks:
 - Add `scripts/ci/check-docs.sh` to detect unresolved `{{...}}` tokens outside approved examples, unfinished marker tokens in non-example files, and missing shebang/header lines in shell scripts.
+- Run `scripts/ci/audit-comments.sh` to enforce header policy, suppression rationale format, and debt-register references.
+- Run `scripts/ci/audit-consistency.sh` to enforce unresolved-marker and terminology consistency checks.

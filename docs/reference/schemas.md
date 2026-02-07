@@ -1,3 +1,6 @@
+---
+---
+
 # Schemas
 
 Structured outputs keep planner interactions predictable. Schema files live in `src/schemas/` and are passed directly to `llama.cpp` during inference. The Bash layer still normalizes and validates outputs to guard against malformed responses.

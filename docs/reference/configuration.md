@@ -1,3 +1,6 @@
+---
+---
+
 # Configuration
 
 Defaults live in `${XDG_CONFIG_HOME:-~/.config}/okso/config.env`. Create or update that file without running a query:

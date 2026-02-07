@@ -1,0 +1,53 @@
+---
+layout: default
+---
+<section class="home-hero" aria-label="ok so">
+  <h1 class="home-command">
+    ok so <span class="home-cursor" aria-hidden="true">_</span>
+  </h1>
+  {% if page.description %}
+  <p class="home-description">{{ page.description }}</p>
+  {% endif %}
+</section>
+
+{{ content }}
+
+<style>
+  .home-hero {
+    text-align: center;
+    margin: 1.25rem 0 2rem;
+  }
+
+  .home-command {
+    margin: 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: clamp(2rem, 8vw, 3.5rem);
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+  }
+
+  .home-cursor {
+    display: inline-block;
+    transform: translateY(-0.05em);
+    animation: okso-blink 1s steps(1, end) infinite;
+  }
+
+  .home-description {
+    margin: 0.8rem auto 0;
+    color: #334155;
+    max-width: 60ch;
+  }
+
+  @keyframes okso-blink {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .home-cursor {
+      animation: none;
+      opacity: 1;
+    }
+  }
+</style>

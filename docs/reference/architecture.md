@@ -1,3 +1,6 @@
+---
+---
+
 # Architecture
 
 This page follows a typical run from the first prompt through tool execution so you can see where planning happens, when llama.cpp is invoked, and how tools are ranked and executed.

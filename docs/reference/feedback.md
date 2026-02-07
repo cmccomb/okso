@@ -1,3 +1,6 @@
+---
+---
+
 # Capturing feedback
 
 Use the bundled `feedback` tool to record ratings for each plan item. Feedback events help tune prompts and surface regressions without storing raw transcripts.

@@ -1,3 +1,6 @@
+---
+---
+
 # Planner sampling, scoring, and debugging
 
 Planner runs score and debug each outline candidate before execution. Use these controls to understand scoring and inspect alternatives.

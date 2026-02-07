@@ -1,0 +1,22 @@
+title: okso
+description: Local-first automation for macOS
+
+markdown: kramdown
+kramdown:
+  input: GFM
+
+permalink: pretty
+
+plugins:
+  - jekyll-relative-links
+
+relative_links:
+  enabled: true
+  collections: true
+
+defaults:
+  - scope:
+      path: ""
+      type: pages
+    values:
+      layout: default

@@ -1,3 +1,6 @@
+---
+---
+
 # Execution model
 
 okso separates high-level planning from step-by-step execution so that tool calls stay predictable and reviewable.

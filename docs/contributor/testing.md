@@ -1,3 +1,6 @@
+---
+---
+
 # Testing
 
 Bats provides unit and integration coverage for the shell scripts. Run formatting and linting first to avoid masking failures:
@@ -17,6 +20,8 @@ Run docs checks before opening a PR:
 
 ```bash
 bash ./scripts/ci/check-docs.sh
+bash ./scripts/ci/audit-comments.sh
+bash ./scripts/ci/audit-consistency.sh
 ```
 
 Set `TESTING_PASSTHROUGH=true` to disable llama.cpp calls while keeping deterministic tool-planning behavior. Point `LLAMA_BIN` at `tests/fixtures/mock_llama_relevance.sh` for stable scoring during offline runs.

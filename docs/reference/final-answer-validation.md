@@ -1,3 +1,6 @@
+---
+---
+
 # Final answer evaluation
 
 The executor can run a lightweight evaluation pass before emitting the final response. When enabled, the helper sends a structured prompt to `llama.cpp` and expects a schema-constrained JSON object that either returns the final answer (`FINAL`) or requests replanning (`REPLAN`). The evaluator is used to produce the final answer whenever it is available, while replanning continues to be optional and bounded to a single retry.

@@ -1,3 +1,6 @@
+---
+---
+
 # Prompt assets
 
 Prompt templates live alongside schema definitions so the assistant behaviour stays easy to review and update.

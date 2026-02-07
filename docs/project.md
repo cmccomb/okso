@@ -1,3 +1,6 @@
+---
+---
+
 # Project
 
 ## Maintainers
@@ -29,4 +32,6 @@ find src scripts tests -type f \( -name '*.sh' -o -name 'okso' \) -print0 | xarg
 bash ./scripts/ci/run-shellcheck.sh
 bash ./scripts/ci/run-bats.sh
 bash ./scripts/ci/check-docs.sh
+bash ./scripts/ci/audit-comments.sh
+bash ./scripts/ci/audit-consistency.sh
 ```

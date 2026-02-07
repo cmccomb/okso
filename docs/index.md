@@ -1,42 +1,8 @@
 ---
 title: Okso Documentation
-layout: default
+layout: home
 description: Local-first automation for macOS
 ---
-
-<div style="display:flex; justify-content:center;">
-  <div class="okso-invoke" aria-label="ok, so...">
-    <span class="okso-text">ok so&nbsp;</span><span class="okso-cursor" aria-hidden="true">_</span>
-  </div>
-</div>
-
-<style>
-  .okso-invoke{
-    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-    font-size: 56px;
-    font-weight: 700;
-    line-height: 1.05;
-    letter-spacing: -0.02em;
-    margin: 0;
-    display: inline-flex;
-    align-items: baseline;
-    gap: 0.12em;
-  }
-  .okso-cursor{
-    display: inline-block;
-    transform: translateY(-0.06em);
-    animation: okso-blink 1s steps(1, end) infinite;
-  }
-  @keyframes okso-blink{
-    0%, 49% { opacity: 1; }
-    50%, 100% { opacity: 0; }
-  }
-
-  /* Respect "reduce motion" */
-  @media (prefers-reduced-motion: reduce){
-    .okso-cursor{ animation: none; opacity: 1; }
-  }
-</style>
 
 `okso` is a local-first automation toolkit for macOS that turns natural-language intent into reliable, reviewable command-line execution. It plans first, shows you what it will do, and then runs tools with guardrails and logs you can audit.
 
@@ -70,4 +36,6 @@ description: Local-first automation for macOS
 - [Prompts](reference/prompts.md): prompt templates and schema wiring.
 - [Schemas](reference/schemas.md): JSON schema inventory and intent payloads.
 - [Contributor guides](contributor/development.md): formatting, tests, and workflow notes.
+- [Code quality standards](contributor/code-quality-standards.md): header policy, suppressions, and CI gates.
+- [Tech debt register](contributor/tech-debt-register.md): active `TD-###` items and remediation targets.
 - [Project overview](project.md): support, roadmap, and contribution expectations.
