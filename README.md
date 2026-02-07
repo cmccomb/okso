@@ -3,7 +3,7 @@
 
 # `okso`: a local-first agent for macOS
 
-`okso` is a command-line agent native to the a modern macOS environment.
+`okso` is a command-line agent native to the modern macOS environment.
 It is designed to run all LLMs strictly locally via `llama.cpp`. 
 When a user sends a new query `okso` first identifies the general intent of the query, which is used to filter the available toolset.
 Next, a dedicated planner generates a structure dplan of action before passing it to an executor that runs each step in sequence.
