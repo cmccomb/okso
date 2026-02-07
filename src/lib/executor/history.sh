@@ -315,21 +315,21 @@ finalize_executor_result() {
 	fi
 
 	if [[ "$(json_state_get_key "${state_name}" "final_answer_emitted")" != "true" ]]; then
-		local final_body validation_body validation_status validation_reason
+		local validation_status validation_reason history_lines
 		validation_status="$(json_state_get_key "${state_name}" "validation_status")"
 		validation_reason="$(json_state_get_key "${state_name}" "validation_reason")"
+		history_lines="$(state_get_history_lines "${state_name}")"
 
 		if [[ -z "${validation_status}" ]]; then
 			validation_status="Skipped"
 			validation_reason="Answer evaluation disabled"
 		fi
 
-		final_body="$(format_final_answer_summary "${final_answer}")"
-		render_step_box "Final Answer" "$(format_duration_seconds 0)" "${final_body}"
-
-		validation_body="$(format_validation_summary "${validation_status}" "${validation_reason}")"
-		render_step_box "Evaluation" "$(format_duration_seconds 0)" "${validation_body}"
-
+		ui_event "answer" "composing ..."
+		emit_final_timeline_summary "${final_answer}" "${history_lines}"
+		if [[ -n "${validation_status}" ]]; then
+			ui_trace_block "validation" "$(format_validation_summary "${validation_status}" "${validation_reason}")"
+		fi
 		json_state_set_key "${state_name}" "final_answer_emitted" "true"
 	fi
 }
@@ -362,6 +362,7 @@ executor_replan_with_feedback() {
 	if [[ -n "${feedback_text}" ]]; then
 		json_state_set_key "${state_name}" "user_feedback" "${feedback_text}" || true
 	fi
+	ui_event "warn" "replanning with feedback: ${feedback_text}"
 	log "INFO" "Replanning after failed evaluation" "${feedback_text}" || true
 
 	# Set feedback context for planner
@@ -425,7 +426,7 @@ evaluate_and_optionally_replan() {
 	local evaluation_json evaluation_type reasoning output evaluation_status_code
 	local feedback_text errexit_was_set
 	local validation_start_time validation_duration validation_status validation_reason
-	local history_pretty final_body validation_body
+	local history_pretty
 	state_name="$1"
 	final_answer="$2"
 	emit_output="${3:-true}"
@@ -502,6 +503,7 @@ evaluate_and_optionally_replan() {
 		;;
 	REPLAN)
 		log "WARN" "Evaluator requested replanning" || true
+		ui_event "warn" "validator requested replanning"
 		json_state_set_key "${state_name}" "answer_validation_failed" "true" || true
 		json_state_set_key "${state_name}" "validation_failure_reason" "${reasoning}" || true
 		log_pretty "WARN" "validation_failure_reason" "${reasoning}" || true
@@ -537,19 +539,15 @@ evaluate_and_optionally_replan() {
 			log_pretty "INFO" "Execution summary" "${history_pretty}"
 		fi
 
-		final_body="$(format_final_answer_summary "${final_answer}")"
-		render_step_box "Final Answer" "$(format_duration_seconds 0)" "${final_body}"
-
-		validation_body="$(format_validation_summary "${validation_status}" "${validation_reason}")"
-		render_step_box "Evaluation" "${validation_duration:-$(format_duration_seconds 0)}" "${validation_body}"
+		ui_event "answer" "composing ..."
+		emit_final_timeline_summary "${final_answer}" "${history_text}"
+		ui_trace_block "validation" "$(format_validation_summary "${validation_status}" "${validation_reason}")"
 		json_state_set_key "${state_name}" "final_answer_emitted" "true"
 	elif [[ "${replan_requested}" == "true" ]]; then
-		validation_body="$(format_validation_summary "${validation_status}" "${validation_reason}")"
-		render_step_box "Evaluation" "${validation_duration:-$(format_duration_seconds 0)}" "${validation_body}"
+		render_step_box "Evaluation" "${validation_duration:-$(format_duration_seconds 0)}" "$(format_validation_summary "${validation_status}" "${validation_reason}")"
 		return 0
 	else
-		final_body="$(format_final_answer_summary "${final_answer}")"
-		render_step_box "Final Answer" "${validation_duration}" "${final_body}"
+		render_step_box "Final Answer" "${validation_duration}" "$(format_final_answer_summary "${final_answer}")"
 		json_state_set_key "${state_name}" "final_answer_emitted" "true"
 	fi
 }

@@ -20,6 +20,8 @@ OUTPUT_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck source=src/lib/cli/box.sh
 source "${OUTPUT_LIB_DIR}/box.sh"
+# shellcheck source=src/lib/ui/render.sh
+source "${OUTPUT_LIB_DIR}/../ui/render.sh"
 # shellcheck source=src/tools/registry.sh
 source "${OUTPUT_LIB_DIR}/../../tools/registry.sh"
 
@@ -191,27 +193,24 @@ format_header_line() {
 }
 
 render_step_box() {
-	# Renders a lifecycle step box with a header showing duration and step name.
+	# Renders lifecycle details as a trace block when trace mode is enabled.
 	# Arguments:
 	#   $1 - step name (string)
 	#   $2 - duration string (string)
 	#   $3 - body content (string)
 	# Returns:
-	#   Boxed content rendered to stdout
-	local step_name duration body width_limit header_line rendered_lines
+	#   None.
+	local step_name duration body header_line
 	step_name="$1"
 	duration="$2"
 	body="$3"
-	width_limit="$(output_box_width_limit)"
-
-	header_line="$(format_header_line "${step_name}" "${duration}" "${width_limit}")"
+	header_line="$(format_header_line "${step_name}" "${duration}" "$(ui_width_target)")"
 
 	if [[ -z "${body}" ]]; then
 		body="(none)"
 	fi
 
-	rendered_lines="${header_line}"$'\n'"$(output_wrap_lines "${width_limit}" "${body}")"
-	output_render_box_lines "${rendered_lines}"
+	ui_trace_block "${header_line}" "${body}"
 }
 
 indent_block() {
@@ -250,14 +249,14 @@ format_box_section() {
 }
 
 render_boxed_summary() {
-	# Renders a boxed summary of the query, plan, tool history, and final answer.
+	# Renders a full execution summary only in trace mode.
 	# Arguments:
 	#   $1 - user query (string)
 	#   $2 - planner outline (string)
 	#   $3 - tool invocation history (newline-delimited string)
 	#   $4 - final answer (string)
 	# Returns:
-	#   Boxed summary rendered to stdout
+	#   None.
 
 	local user_query plan_outline tool_history final_answer formatted_tools formatted_content
 	user_query="$1"
@@ -279,7 +278,7 @@ render_boxed_summary() {
 		"$(format_box_section "Tool runs" "${formatted_tools}")" \
 		"$(format_box_section "Final answer" "${final_answer}")")
 
-	render_box "${formatted_content}"
+	ui_trace_block "run summary" "${formatted_content}"
 }
 
 format_plan_summary() {
@@ -410,7 +409,11 @@ format_tool_example_line() {
 	#   $1 - tool name (string)
 	# Returns:
 	#   Formatted tool line (string)
-	format_tool_line "$1"
+	if ui_trace_verbose_enabled; then
+		format_tool_line "$1" true
+	else
+		format_tool_line "$1" false
+	fi
 }
 
 format_tool_observation_raw() {
@@ -647,4 +650,188 @@ emit_boxed_summary() {
 	# Returns:
 	#   None; outputs boxed summary to stdout
 	render_boxed_summary "$@"
+}
+
+output_clean_line() {
+	# Normalizes arbitrary text for one-line summaries.
+	# Arguments:
+	#   $1 - raw text
+	# Returns:
+	#   normalized single-line text.
+	ui_trim_spaces "$1"
+}
+
+format_deadlines_block_from_answer() {
+	# Extracts timeline/deadline bullets from a final answer.
+	# Arguments:
+	#   $1 - final answer text
+	# Returns:
+	#   newline-delimited bullet lines for DEADLINES section.
+	local final_answer line cleaned
+	local -a extracted=()
+	final_answer="$1"
+
+	while IFS= read -r line || [[ -n "${line}" ]]; do
+		cleaned="$(output_clean_line "${line}")"
+		cleaned="${cleaned#- }"
+		cleaned="${cleaned#• }"
+		if [[ -z "${cleaned}" ]]; then
+			continue
+		fi
+		if [[ "${cleaned}" =~ [Dd]eadline|[Dd]ue|[Rr]eturn|[Pp]ayment|[Qq]uarter|[Ee]st\.|[Ee]stimated|[Ee]xtension|[0-9]{4}|[[:alpha:]]+[[:space:]][0-9]{1,2} ]]; then
+			extracted+=("${cleaned}")
+		fi
+		if ((${#extracted[@]} >= 6)); then
+			break
+		fi
+	done <<<"${final_answer}"
+
+	if ((${#extracted[@]} == 0)); then
+		while IFS= read -r line || [[ -n "${line}" ]]; do
+			cleaned="$(output_clean_line "${line}")"
+			cleaned="${cleaned#- }"
+			if [[ -z "${cleaned}" ]]; then
+				continue
+			fi
+			extracted+=("${cleaned}")
+			if ((${#extracted[@]} >= 3)); then
+				break
+			fi
+		done <<<"${final_answer}"
+	fi
+
+	if ((${#extracted[@]} == 0)); then
+		printf '  • No deadlines identified.\n'
+		return 0
+	fi
+
+	local item
+	for item in "${extracted[@]}"; do
+		printf '  • %s\n' "$(ui_truncate_line "${item}")"
+	done
+}
+
+collect_web_sources_json() {
+	# Collects flattened search hit objects from executor history.
+	# Arguments:
+	#   $1 - newline-delimited history entries
+	# Returns:
+	#   JSON array of objects with title/url.
+	local history_text
+	history_text="$1"
+
+	printf '%s\n' "${history_text}" | jq -Rsc '
+		split("\n")
+		| map(select(length > 0) | (try fromjson catch empty))
+		| [ .[]
+				| select(.action.tool == "web_search")
+				| (.observation
+						| if (type == "object" and has("output") and has("exit_code")) then
+								(try (.output | fromjson) catch {})
+							else
+								.
+							end
+					)
+				| .items[]?
+				| {
+						title: (.title // "Untitled"),
+						url: (.url // "")
+					}
+			]
+	' 2>/dev/null || printf '[]'
+}
+
+format_sources_block_from_history() {
+	# Builds SOURCES lines from history with URL shortening in non-trace mode.
+	# Arguments:
+	#   $1 - newline-delimited history entries
+	# Returns:
+	#   newline-delimited source lines.
+	local history_text sources_json line url title site url_display
+	local rank seen_urls
+	history_text="$1"
+	rank=0
+	seen_urls=""
+
+	sources_json="$(collect_web_sources_json "${history_text}")"
+	while IFS= read -r line || [[ -n "${line}" ]]; do
+		url="$(jq -r '.url // ""' <<<"${line}")"
+		title="$(jq -r '.title // "Untitled"' <<<"${line}")"
+		if [[ -z "${url}" ]]; then
+			continue
+		fi
+		if grep -Fqx "${url}" <<<"${seen_urls}"; then
+			continue
+		fi
+		seen_urls+="${url}"$'\n'
+		rank=$((rank + 1))
+		site="$(ui_domain_for_url "${url}")"
+		url_display="$(ui_display_url "${url}")"
+		printf '  [%d] %s — %s' "${rank}" "${site}" "$(ui_truncate_line "${title}")"
+		if [[ -n "${url_display}" ]]; then
+			printf ' (%s)' "${url_display}"
+		fi
+		printf '\n'
+		if ((rank >= 5)); then
+			break
+		fi
+	done < <(jq -c '.[]' <<<"${sources_json}" 2>/dev/null || true)
+
+	if ((rank == 0)); then
+		printf '  (no web sources captured)\n'
+	fi
+}
+
+emit_final_timeline_summary() {
+	# Emits the final timeline-first summary.
+	# Arguments:
+	#   $1 - final answer text
+	#   $2 - history lines
+	# Returns:
+	#   None.
+	local final_answer history_text deadlines_block sources_block
+	final_answer="$1"
+	history_text="${2:-}"
+
+	deadlines_block="$(format_deadlines_block_from_answer "${final_answer}")"
+	sources_block="$(format_sources_block_from_history "${history_text}")"
+	ui_final_summary "${deadlines_block}" "${sources_block}"
+}
+
+format_tool_event_message() {
+	# Creates a one-line tool event message from tool + args.
+	# Arguments:
+	#   $1 - tool name
+	#   $2 - args JSON
+	# Returns:
+	#   one-line message text.
+	local tool args_json query url compact
+	tool="$1"
+	args_json="$2"
+
+	case "${tool}" in
+	web_search)
+		query="$(jq -r '.query // .input // empty' <<<"${args_json}" 2>/dev/null || true)"
+		if [[ -n "${query}" ]]; then
+			printf '%s  query="%s"' "${tool}" "$(ui_truncate_line "${query}")"
+		else
+			printf '%s' "${tool}"
+		fi
+		;;
+	web_fetch)
+		url="$(jq -r '.url // empty' <<<"${args_json}" 2>/dev/null || true)"
+		if [[ -n "${url}" ]]; then
+			printf '%s  %s' "${tool}" "$(ui_display_url "${url}")"
+		else
+			printf '%s' "${tool}"
+		fi
+		;;
+	final_answer)
+		printf '%s' "composing ..."
+		;;
+	*)
+		compact="$(jq -c '.' <<<"${args_json}" 2>/dev/null || printf '{}')"
+		printf '%s  %s' "${tool}" "$(ui_truncate_line "${compact}")"
+		;;
+	esac
 }

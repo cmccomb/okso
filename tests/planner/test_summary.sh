@@ -9,7 +9,7 @@
 #   - bats
 #   - bash 3.2+
 
-@test "finalize_executor_result emits boxed summary" {
+@test "finalize_executor_result emits timeline-first summary" {
 	run bash -lc '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 source ./src/lib/planning/planner.sh
@@ -23,9 +23,8 @@
                 json_state_set_key "${state_prefix}" "final_answer" "All done"
 
                 output="$(finalize_executor_result "${state_prefix}")"
-                [[ "${output}" == *"Do something"* ]]
-                [[ "${output}" == *"Plan outline"* ]]
-                [[ "${output}" == *"tool-a did work"* ]]
+                [[ "${output}" == *"DEADLINES (timeline-first)"* ]]
+                [[ "${output}" == *"SOURCES (top hits)"* ]]
                 [[ "${output}" == *"All done"* ]]
         '
 	[ "$status" -eq 0 ]

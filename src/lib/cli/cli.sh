@@ -85,8 +85,29 @@ parse_args() {
 			VERBOSITY=3
 			shift
 			;;
+		--progress)
+			OKSO_PROGRESS=1
+			if ! [[ "${VERBOSITY:-0}" =~ ^[0-9]+$ ]] || ((${VERBOSITY} < 1)); then
+				VERBOSITY=1
+			fi
+			shift
+			;;
+		--trace | --trace=1)
+			OKSO_PROGRESS=1
+			OKSO_TRACE=1
+			if ! [[ "${VERBOSITY:-0}" =~ ^[0-9]+$ ]] || ((${VERBOSITY} < 2)); then
+				VERBOSITY=2
+			fi
+			shift
+			;;
+		--trace=0)
+			OKSO_TRACE=0
+			shift
+			;;
 		-q | --quiet)
 			VERBOSITY=0
+			OKSO_PROGRESS=0
+			OKSO_TRACE=0
 			shift
 			;;
 		--)

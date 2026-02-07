@@ -26,6 +26,8 @@ source "${PLANNING_SEARCH_DIR}/../llm/schema.sh"
 source "${PLANNING_SEARCH_DIR}/../llm/llama_client.sh"
 # shellcheck source=src/lib/intent/intent.sh
 source "${PLANNING_SEARCH_DIR}/../intent/intent.sh"
+# shellcheck source=src/lib/ui/render.sh
+source "${PLANNING_SEARCH_DIR}/../ui/render.sh"
 
 # Inlined rephrasing helpers (merged from rephrasing.sh)
 render_rephrase_prompt() {
@@ -140,12 +142,14 @@ planner_fetch_search_context() {
 	# Returns:
 	#   Formatted search context (string). Fallbacks are empty but non-fatal.
 	local user_query intent_json tool_args raw_context queries_json formatted_context
+	local hit_item hit_rank hit_title hit_url hit_site
 	local -a formatted_sections=()
 	user_query="$1"
 	intent_json="${2:-}"
 
 	if ! intent_requires_search "${intent_json}"; then
 		log "INFO" "Pre-planner search skipped for intent" "${intent_json}" >&2
+		ui_event "search" "skipped (intent does not require live web context)"
 		printf '%s' ""
 		return 0
 	fi
@@ -163,6 +167,7 @@ planner_fetch_search_context() {
 		if [[ -z "${search_query}" ]]; then
 			continue
 		fi
+		ui_event "search" "started  query=\"${search_query}\""
 
 		# Prepare tool arguments
 		tool_args=$(jq -nc --arg query "${search_query}" '{query:$query, num:5}' 2>/dev/null)
@@ -175,6 +180,23 @@ planner_fetch_search_context() {
 			# Individual query failures are soft-fail so remaining queries can still contribute context.
 			log "WARN" "Pre-plan search failed" "planner_preplan_search_failed" >&2
 			raw_context=$(jq -nc --arg query "${search_query}" '{query:$query,items:[]}' 2>/dev/null)
+		fi
+
+		if ui_trace_enabled; then
+			ui_trace_block "tool: web_search args" "${tool_args}"
+			ui_trace_block "tool: web_search observation" "$(jq '.' <<<"${raw_context}" 2>/dev/null || printf '%s' "${raw_context}")"
+		fi
+
+		hit_rank=0
+		while IFS= read -r hit_item || [[ -n "${hit_item}" ]]; do
+			hit_rank=$((hit_rank + 1))
+			hit_title="$(jq -r '.title // "Untitled"' <<<"${hit_item}")"
+			hit_url="$(jq -r '.url // ""' <<<"${hit_item}")"
+			hit_site="$(ui_domain_for_url "${hit_url}")"
+			ui_hit "${hit_rank}" "${hit_site}" "${hit_title}" "$(ui_display_url "${hit_url}")"
+		done < <(jq -c '.items[:5][]?' <<<"${raw_context}" 2>/dev/null)
+		if ((hit_rank == 0)); then
+			ui_event "search" "no hits for query=\"${search_query}\""
 		fi
 
 		# Format the search context

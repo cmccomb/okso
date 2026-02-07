@@ -66,6 +66,14 @@ execute_planned_action() {
 		json_state_set_key "${state_prefix}" "user_feedback" "Unable to validate arguments for ${tool}" || true
 		return 1
 	fi
+	if [[ "${tool}" == "final_answer" ]]; then
+		ui_event "answer" "$(format_tool_event_message "${tool}" "${args_after_controls}")"
+	else
+		ui_event "tool" "$(format_tool_event_message "${tool}" "${args_after_controls}")"
+	fi
+	if ui_trace_enabled; then
+		ui_trace_block "tool args: ${tool}" "$(jq '.' <<<"${args_after_controls}" 2>/dev/null || printf '%s' "${args_after_controls}")"
+	fi
 
 	json_state_set_key "${state_prefix}" "step_started_at" "$(date +%s)" || true
 	if [[ "${tool}" == "web_fetch" ]]; then
@@ -76,7 +84,11 @@ execute_planned_action() {
 	execution_status=$?
 
 	if ((execution_status != 0)); then
+		ui_event "warn" "tool ${tool} failed to execute (exit=${execution_status})"
 		return "${execution_status}"
+	fi
+	if ui_trace_enabled; then
+		ui_trace_block "tool observation: ${tool}" "$(jq '.' <<<"${observation}" 2>/dev/null || printf '%s' "${observation}")"
 	fi
 
 	observation_exit_code="$(jq -r '.exit_code // 0' <<<"${observation}" 2>/dev/null || printf '1')"
@@ -87,6 +99,7 @@ execute_planned_action() {
 	if ((observation_exit_code != 0)); then
 		record_tool_execution "${state_prefix}" "${tool}" "${thought}" "${args_after_controls}" "${observation}" "${step_index}"
 		observation_error="$(jq -r '.error // empty' <<<"${observation}" 2>/dev/null || printf '')"
+		ui_event "warn" "tool ${tool} reported failure (exit=${observation_exit_code})"
 		json_state_set_key "${state_prefix}" "needs_replanning" "true" || true
 		if [[ -n "${observation_error}" ]]; then
 			json_state_set_key "${state_prefix}" "user_feedback" "Tool ${tool} failed: ${observation_error}" || true
@@ -114,8 +127,7 @@ execute_planned_action() {
 		else
 			json_state_set_key "${state_prefix}" "validation_status" "Skipped" || true
 			json_state_set_key "${state_prefix}" "validation_reason" "Answer evaluation disabled" || true
-			render_step_box "Final Answer" "$(format_duration_seconds 0)" "$(format_final_answer_summary "${final_answer_text}")"
-			render_step_box "Evaluation" "$(format_duration_seconds 0)" "$(format_validation_summary "Skipped" "Answer evaluation disabled")"
+			emit_final_timeline_summary "${final_answer_text}" "$(state_get_history_lines "${state_prefix}")"
 			json_state_set_key "${state_prefix}" "final_answer_emitted" "true"
 		fi
 	fi

@@ -319,3 +319,32 @@ SCRIPT
 	[ "$status" -eq 0 ]
 	[ "${output}" = "0" ]
 }
+
+@test "verbosity maps to progress and trace flags" {
+	run bash <<'SCRIPT'
+set -euo pipefail
+source ./src/lib/settings/runtime.sh
+VERBOSITY=0
+unset OKSO_PROGRESS OKSO_TRACE OKSO_TRACE_VERBOSE
+configure_ui_flags
+printf '%s,%s,%s\n' "${OKSO_PROGRESS}" "${OKSO_TRACE}" "${OKSO_TRACE_VERBOSE}"
+VERBOSITY=1
+unset OKSO_PROGRESS OKSO_TRACE OKSO_TRACE_VERBOSE
+configure_ui_flags
+printf '%s,%s,%s\n' "${OKSO_PROGRESS}" "${OKSO_TRACE}" "${OKSO_TRACE_VERBOSE}"
+VERBOSITY=2
+unset OKSO_PROGRESS OKSO_TRACE OKSO_TRACE_VERBOSE
+configure_ui_flags
+printf '%s,%s,%s\n' "${OKSO_PROGRESS}" "${OKSO_TRACE}" "${OKSO_TRACE_VERBOSE}"
+VERBOSITY=3
+unset OKSO_PROGRESS OKSO_TRACE OKSO_TRACE_VERBOSE
+configure_ui_flags
+printf '%s,%s,%s\n' "${OKSO_PROGRESS}" "${OKSO_TRACE}" "${OKSO_TRACE_VERBOSE}"
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	[ "${lines[0]}" = "0,0,0" ]
+	[ "${lines[1]}" = "1,0,0" ]
+	[ "${lines[2]}" = "1,1,0" ]
+	[ "${lines[3]}" = "1,1,1" ]
+}

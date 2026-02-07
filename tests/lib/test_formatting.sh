@@ -26,14 +26,17 @@ EOF
 	[ "$status" -eq 0 ]
 }
 
-@test "format_tool_example_line includes command examples" {
+@test "format_tool_example_line hides schema unless trace verbose is enabled" {
 	run bash -s <<'EOF'
 cd "$(git rev-parse --show-toplevel)" || exit 1
 source ./src/lib/cli/output.sh
 tool_description() { printf "describe-%s" "$1"; }
 tool_args_schema() { printf '{"type":"object","properties":{"input":{"type":"string"}}}'; }
 line="$(format_tool_example_line "demo")"
-[[ "${line}" == "- demo: describe-demo | Args Schema: {\"type\":\"object\",\"properties\":{\"input\":{\"type\":\"string\"}}}" ]]
+[[ "${line}" == "- demo: describe-demo" ]]
+OKSO_TRACE_VERBOSE=1
+line_with_schema="$(format_tool_example_line "demo")"
+[[ "${line_with_schema}" == "- demo: describe-demo | Args Schema: {\"type\":\"object\",\"properties\":{\"input\":{\"type\":\"string\"}}}" ]]
 EOF
 	[ "$status" -eq 0 ]
 }

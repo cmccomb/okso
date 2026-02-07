@@ -116,7 +116,9 @@ main() {
 	local feedback_context_in_env previous_feedback_context
 	local plan_start_time plan_duration plan_summary_body plan_iteration
 	local search_context search_start_time search_duration
-	local intent_json planner_tools
+	local intent_json planner_tools intent_start_time intent_duration intent_context
+	local intent_label intent_reason plan_tools_one_line
+	local missing_final_answer_replanned
 	local user_query
 
 	# Initialize runtime settings and environment.
@@ -132,8 +134,12 @@ main() {
 	prepare_environment_with_settings "${settings_prefix}"
 	initialize_planner_models
 	user_query="$(json_state_get_key "${settings_prefix}" "user_query")"
+	OKSO_UI_RUN_STARTED_AT="$(date +%s)"
+	export OKSO_UI_RUN_STARTED_AT
+	export OKSO_JSON_LOGS="${OKSO_JSON_LOGS:-false}"
 
 	# Recognize user intent.
+	ui_status "${user_query}" "intent" "$(ui_elapsed_since_start)"
 	intent_start_time="$(date +%s)"
 	intent_json="$(recognize_intent "${user_query}")"
 	log "INFO" "Recognized intent" "${intent_json}"
@@ -141,9 +147,17 @@ main() {
 	log "INFO" "Intent tool filter" "$(printf '%s\n' "${planner_tools}" | paste -sd ',' -)"
 	intent_context="$(render_intent_log_summary "${intent_json}" "${planner_tools}")"
 	intent_duration="$(format_duration_from "${intent_start_time}")"
+	intent_label="$(jq -r '.intents[0] // .intent // "general"' <<<"${intent_json}" 2>/dev/null || printf 'general')"
+	intent_reason="$(jq -r '.rationale // ""' <<<"${intent_json}" 2>/dev/null || printf '')"
+	if [[ -n "${intent_reason}" ]]; then
+		ui_event "intent" "${intent_label} (${intent_reason})"
+	else
+		ui_event "intent" "${intent_label}"
+	fi
 	render_step_box "Intent" "${intent_duration}" "${intent_context}"
 
 	# Fetch search context.
+	ui_status "${user_query}" "search" "$(ui_elapsed_since_start)"
 	search_start_time="$(date +%s)"
 	search_context="$(planner_fetch_search_context "${user_query}" "${intent_json}")"
 	search_duration="$(format_duration_from "${search_start_time}")"
@@ -152,6 +166,7 @@ main() {
 	# 1. Generate an outline, 2. identify tools, 3. build concrete plan entries
 	# for execution, then 4. render plan outputs before proceeding.
 	feedback_context_in_env=false
+	missing_final_answer_replanned=false
 	if printenv PLANNER_FEEDBACK_CONTEXT >/dev/null 2>&1; then
 		feedback_context_in_env=true
 		previous_feedback_context="${PLANNER_FEEDBACK_CONTEXT}"
@@ -160,6 +175,8 @@ main() {
 	plan_iteration=0
 	while true; do
 		plan_iteration=$((plan_iteration + 1))
+		ui_status "${user_query}" "plan" "$(ui_elapsed_since_start)"
+		ui_event "plan" "iteration ${plan_iteration}"
 		plan_start_time="$(date +%s)"
 		log "INFO" "Starting plan generation" "${user_query}"
 		plan_response="$(generate_planner_response_with_context "${user_query}" "${search_context}" "${planner_tools}" "${intent_json}")"
@@ -169,8 +186,30 @@ main() {
 		plan_entries="$(plan_json_to_entries "${plan_response}")"
 		plan_duration="$(format_duration_from "${plan_start_time}")"
 		plan_summary_body="$(format_plan_summary "${plan_outline}" "${required_tools}" "${plan_entries}")"
+		plan_tools_one_line="$(printf '%s\n' "${required_tools}" | sed '/^[[:space:]]*$/d' | paste -sd ',' - | sed 's/,/, /g')"
+		if [[ -n "${plan_tools_one_line}" ]]; then
+			ui_event "plan" "tools: ${plan_tools_one_line}"
+		fi
 
 		render_step_box "Plan Iteration ${plan_iteration}" "${plan_duration}" "${plan_summary_body}"
+		ui_trace_block "plan outline (iteration ${plan_iteration})" "${plan_outline}"
+		if ui_trace_verbose_enabled; then
+			ui_trace_block "planner response (iteration ${plan_iteration})" "$(jq '.' <<<"${plan_response}" 2>/dev/null || printf '%s' "${plan_response}")"
+			ui_trace_block "tool schemas" "$(format_tool_descriptions "${required_tools}" "format_tool_line")"
+		fi
+
+		if ! jq -e 'type == "array" and any(.[]; .tool == "final_answer")' <<<"${plan_entries}" >/dev/null 2>&1; then
+			if [[ "${missing_final_answer_replanned}" == false ]]; then
+				ui_event "warn" "planner missing final_answer -> replanning once"
+				PLANNER_FEEDBACK_CONTEXT="Plan must include a final_answer tool action."
+				export PLANNER_FEEDBACK_CONTEXT
+				missing_final_answer_replanned=true
+				continue
+			fi
+			ui_event "warn" "planner still missing final_answer -> appending fallback"
+			plan_entries="$(jq -c '. + [{tool:"final_answer", thought:"Provide a concise direct response.", args:{input:"I was unable to complete all planned steps, but here is the best available answer."}}]' <<<"${plan_entries}" 2>/dev/null || printf '%s' "${plan_entries}")"
+		fi
+
 		render_plan_outputs plan_action "${settings_prefix}" "${required_tools}" "${plan_entries}" "${plan_outline}" "${plan_response}"
 		if [[ "${plan_action}" == "exit" ]]; then
 			break
@@ -181,6 +220,7 @@ main() {
 		fi
 
 		log "INFO" "Plan not approved; regenerating" "${plan_feedback}"
+		ui_event "warn" "plan not approved -> replanning"
 		PLANNER_FEEDBACK_CONTEXT="${plan_feedback:-Plan was not approved.}"
 		export PLANNER_FEEDBACK_CONTEXT
 	done
@@ -196,6 +236,7 @@ main() {
 		unset PLANNER_FEEDBACK_CONTEXT
 	fi
 
+	ui_status "${user_query}" "execute" "$(ui_elapsed_since_start)"
 	select_response_strategy "${settings_prefix}" "${required_tools}" "${plan_entries}" "${plan_outline}" "${plan_response}"
 }
 

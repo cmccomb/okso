@@ -122,6 +122,10 @@ log_emit() {
 	verbosity=${VERBOSITY:-1}
 	should_emit="$(log_should_emit "${level}" "${verbosity}")"
 
+	if [[ "${OKSO_JSON_LOGS:-true}" != "true" ]]; then
+		return 0
+	fi
+
 	if [[ "${level}" != "DEBUG" && "${level}" != "INFO" && "${level}" != "WARN" && "${level}" != "ERROR" ]]; then
 		level="INFO"
 	fi

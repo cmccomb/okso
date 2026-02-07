@@ -41,6 +41,7 @@ executor_loop() {
 	initialize_executor_state "${state_prefix}" "${user_query}" "${allowed_tools}" "${plan_entries}" "${plan_outline}"
 
 	if [[ -z "${plan_entries}" ]]; then
+		ui_event "warn" "planner returned no executable steps"
 		log "ERROR" "No planner actions provided" "${user_query}" >&2
 		json_state_set_key "${state_prefix}" "final_answer" "Planner did not provide any executable steps."
 		finalize_executor_result "${state_prefix}"
@@ -50,6 +51,7 @@ executor_loop() {
 	step_index=0
 
 	if ! jq -e 'type == "array" and (length > 0)' <<<"${plan_entries}" >/dev/null 2>&1; then
+		ui_event "warn" "planner returned no actionable steps"
 		log "ERROR" "Planner returned no actionable steps" "${plan_entries}" >&2
 		json_state_set_key "${state_prefix}" "final_answer" "Planner did not provide any executable steps."
 		finalize_executor_result "${state_prefix}"
@@ -62,6 +64,7 @@ executor_loop() {
 		if ! execute_planned_action "${state_prefix}" "${step_index}" "${plan_entry}"; then
 			# Execution failures that set needs_replanning have already produced user_feedback context.
 			if [[ "$(json_state_get_key "${state_prefix}" "needs_replanning")" == "true" ]]; then
+				ui_event "warn" "executor requesting replanning"
 				executor_replan_with_feedback "${state_prefix}" "$(json_state_get_key "${state_prefix}" "user_feedback")"
 				return $?
 			fi
@@ -70,6 +73,7 @@ executor_loop() {
 		fi
 
 		if [[ "$(json_state_get_key "${state_prefix}" "needs_replanning")" == "true" ]]; then
+			ui_event "warn" "executor requesting replanning"
 			executor_replan_with_feedback "${state_prefix}" "$(json_state_get_key "${state_prefix}" "user_feedback")"
 			return $?
 		fi

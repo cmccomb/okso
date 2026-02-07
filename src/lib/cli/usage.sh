@@ -18,9 +18,11 @@ Options:
   -V, --version         Show version information.
   -y, --yes, --no-confirm
                         Approve all tool runs without prompting.
-  -v, --verbose [LEVEL] Enable verbose logs (optionally set integer level).
-  -vv, -vvv             Increase verbosity (INFO/DEBUG).
-  -q, --quiet           Silence informational logs.
+  -v, --verbose [LEVEL] Stream progress events (LEVEL: 1 progress, 2 trace, 3 trace+schemas).
+  -vv, -vvv             Shorthand for trace levels 2/3.
+  -q, --quiet           Final summary only (no progress events).
+  --progress            Alias for level 1 progress mode.
+  --trace[=1|0]         Alias for trace mode on/off.
 USAGE
 }
 

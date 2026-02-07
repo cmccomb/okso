@@ -180,8 +180,50 @@ load_runtime_settings() {
 	parse_args "$@"
 	normalize_approval_flags
 	hydrate_model_specs
+	configure_ui_flags
 
 	capture_globals_into_settings "${settings_prefix}"
+}
+
+configure_ui_flags() {
+	# Derives UI streaming mode flags from verbosity unless explicitly set.
+	# Arguments:
+	#   None.
+	# Returns:
+	#   None; exports OKSO_PROGRESS/OKSO_TRACE/OKSO_TRACE_VERBOSE.
+	local verbosity
+	verbosity="${VERBOSITY:-0}"
+	if ! [[ "${verbosity}" =~ ^[0-9]+$ ]]; then
+		verbosity=0
+	fi
+
+	if [[ -z "${OKSO_PROGRESS+x}" ]]; then
+		if ((verbosity >= 1)); then
+			OKSO_PROGRESS=1
+		else
+			OKSO_PROGRESS=0
+		fi
+	fi
+
+	if [[ -z "${OKSO_TRACE+x}" ]]; then
+		if ((verbosity >= 2)); then
+			OKSO_TRACE=1
+		else
+			OKSO_TRACE=0
+		fi
+	fi
+
+	if ((verbosity >= 3)); then
+		OKSO_TRACE_VERBOSE=1
+	else
+		OKSO_TRACE_VERBOSE=0
+	fi
+
+	if [[ "${OKSO_TRACE}" == "1" ]]; then
+		OKSO_PROGRESS=1
+	fi
+
+	export OKSO_PROGRESS OKSO_TRACE OKSO_TRACE_VERBOSE
 }
 
 prepare_environment_with_settings() {
