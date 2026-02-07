@@ -661,56 +661,6 @@ output_clean_line() {
 	ui_trim_spaces "$1"
 }
 
-format_deadlines_block_from_answer() {
-	# Extracts timeline/deadline bullets from a final answer.
-	# Arguments:
-	#   $1 - final answer text
-	# Returns:
-	#   newline-delimited bullet lines for DEADLINES section.
-	local final_answer line cleaned
-	local -a extracted=()
-	final_answer="$1"
-
-	while IFS= read -r line || [[ -n "${line}" ]]; do
-		cleaned="$(output_clean_line "${line}")"
-		cleaned="${cleaned#- }"
-		cleaned="${cleaned#• }"
-		if [[ -z "${cleaned}" ]]; then
-			continue
-		fi
-		if [[ "${cleaned}" =~ [Dd]eadline|[Dd]ue|[Rr]eturn|[Pp]ayment|[Qq]uarter|[Ee]st\.|[Ee]stimated|[Ee]xtension|[0-9]{4}|[[:alpha:]]+[[:space:]][0-9]{1,2} ]]; then
-			extracted+=("${cleaned}")
-		fi
-		if ((${#extracted[@]} >= 6)); then
-			break
-		fi
-	done <<<"${final_answer}"
-
-	if ((${#extracted[@]} == 0)); then
-		while IFS= read -r line || [[ -n "${line}" ]]; do
-			cleaned="$(output_clean_line "${line}")"
-			cleaned="${cleaned#- }"
-			if [[ -z "${cleaned}" ]]; then
-				continue
-			fi
-			extracted+=("${cleaned}")
-			if ((${#extracted[@]} >= 3)); then
-				break
-			fi
-		done <<<"${final_answer}"
-	fi
-
-	if ((${#extracted[@]} == 0)); then
-		printf '  • No deadlines identified.\n'
-		return 0
-	fi
-
-	local item
-	for item in "${extracted[@]}"; do
-		printf '  • %s\n' "$(ui_truncate_line "${item}")"
-	done
-}
-
 collect_web_sources_json() {
 	# Collects flattened search hit objects from executor history.
 	# Arguments:
@@ -742,12 +692,12 @@ collect_web_sources_json() {
 }
 
 format_sources_block_from_history() {
-	# Builds SOURCES lines from history with URL shortening in non-trace mode.
+	# Builds source lines from history for the final answer section.
 	# Arguments:
 	#   $1 - newline-delimited history entries
 	# Returns:
 	#   newline-delimited source lines.
-	local history_text sources_json line url title site url_display
+	local history_text sources_json line url title
 	local rank seen_urls
 	history_text="$1"
 	rank=0
@@ -765,37 +715,30 @@ format_sources_block_from_history() {
 		fi
 		seen_urls+="${url}"$'\n'
 		rank=$((rank + 1))
-		site="$(ui_domain_for_url "${url}")"
-		url_display="$(ui_display_url "${url}")"
-		printf '  [%d] %s — %s' "${rank}" "${site}" "$(ui_truncate_line "${title}")"
-		if [[ -n "${url_display}" ]]; then
-			printf ' (%s)' "${url_display}"
-		fi
-		printf '\n'
+		printf '[%d] %s — %s\n' "${rank}" "${title}" "${url}"
 		if ((rank >= 5)); then
 			break
 		fi
 	done < <(jq -c '.[]' <<<"${sources_json}" 2>/dev/null || true)
 
 	if ((rank == 0)); then
-		printf '  (no web sources captured)\n'
+		printf '(no web sources captured)\n'
 	fi
 }
 
 emit_final_timeline_summary() {
-	# Emits the final timeline-first summary.
+	# Emits the final answer and supporting source list.
 	# Arguments:
 	#   $1 - final answer text
 	#   $2 - history lines
 	# Returns:
 	#   None.
-	local final_answer history_text deadlines_block sources_block
+	local final_answer history_text sources_block
 	final_answer="$1"
 	history_text="${2:-}"
 
-	deadlines_block="$(format_deadlines_block_from_answer "${final_answer}")"
 	sources_block="$(format_sources_block_from_history "${history_text}")"
-	ui_final_summary "${deadlines_block}" "${sources_block}"
+	ui_final_summary "${final_answer}" "${sources_block}"
 }
 
 format_tool_event_message() {

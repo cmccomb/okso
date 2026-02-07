@@ -25,6 +25,8 @@ source "${EXECUTOR_ARG_CONTROLS_DIR}/../llm/context_budget.sh"
 source "${EXECUTOR_ARG_CONTROLS_DIR}/../llm/templates.sh"
 # shellcheck source=src/lib/executor/history.sh
 source "${EXECUTOR_ARG_CONTROLS_DIR}/history.sh"
+# shellcheck source=src/lib/executor/context_policies.sh
+source "${EXECUTOR_ARG_CONTROLS_DIR}/context_policies.sh"
 # shellcheck source=src/tools/registry.sh
 source "${EXECUTOR_ARG_CONTROLS_DIR}/../../tools/registry.sh"
 
@@ -61,6 +63,61 @@ build_prompt_safe_history() {
 
 	summarized="$(summarize_executor_history "${history_text}")"
 	printf '%s' "${summarized}"
+}
+
+build_source_list_for_citations() {
+	# Builds a numbered source list from web_search history for citation use.
+	# Arguments:
+	#   $1 - history text (newline-delimited JSON entries)
+	# Returns:
+	#   newline-delimited source lines in format: [n] title — url
+	local history_text sources_json item title url seen_urls rank
+	history_text="$1"
+	seen_urls=""
+	rank=0
+
+	if [[ -z "${history_text}" ]]; then
+		return 0
+	fi
+
+	sources_json="$(
+		printf '%s\n' "${history_text}" | jq -Rsc '
+			split("\n")
+			| map(select(length > 0) | (try fromjson catch empty))
+			| [ .[]
+					| select(.action.tool == "web_search")
+					| (.observation
+							| if (type == "object" and has("output") and has("exit_code")) then
+									(try (.output | fromjson) catch {})
+								else
+									.
+								end
+						)
+					| .items[]?
+					| {
+							title: (.title // "Untitled"),
+							url: (.url // "")
+						}
+				]
+		' 2>/dev/null
+	)"
+
+	while IFS= read -r item || [[ -n "${item}" ]]; do
+		url="$(jq -r '.url // ""' <<<"${item}")"
+		title="$(jq -r '.title // "Untitled"' <<<"${item}")"
+		if [[ -z "${url}" ]]; then
+			continue
+		fi
+		if grep -Fqx "${url}" <<<"${seen_urls}"; then
+			continue
+		fi
+		seen_urls+="${url}"$'\n'
+		rank=$((rank + 1))
+		printf '[%d] %s — %s\n' "${rank}" "${title}" "${url}"
+		if ((rank >= 10)); then
+			break
+		fi
+	done < <(jq -c '.[]' <<<"${sources_json}" 2>/dev/null || true)
 }
 
 apply_plan_arg_controls() {
@@ -299,7 +356,7 @@ resolve_action_args() {
 	#   $6 - plan outline
 	#   $7 - planner thought
 	local tool args_json plan_entry_json user_query history_text plan_outline planner_thought
-	local resolved_args context_fields_json context_seed_lines history_for_prompt context_metadata inferred_context_fields_json
+	local resolved_args context_fields_json context_seed_lines history_for_prompt context_metadata inferred_context_fields_json source_list_for_citations
 	tool="$1"
 	args_json="$2"
 	plan_entry_json="$3"
@@ -334,6 +391,15 @@ resolve_action_args() {
 
 	history_for_prompt="${history_text}"
 	history_for_prompt="$(build_prompt_safe_history "${history_for_prompt}")"
+	if [[ "${tool}" == "final_answer" ]]; then
+		source_list_for_citations="$(build_source_list_for_citations "${history_text}")"
+		if [[ -n "${source_list_for_citations}" ]]; then
+			history_for_prompt+=$'\n\n'
+			history_for_prompt+="Source list for citations:"
+			history_for_prompt+=$'\n'
+			history_for_prompt+="${source_list_for_citations}"
+		fi
+	fi
 	if [[ -n "${context_seed_lines}" ]]; then
 		# Seeds are appended in plain text so the model can reuse planner literals during fill.
 		history_for_prompt+=$'\n'
@@ -352,6 +418,7 @@ resolve_action_args() {
 
 export -f normalize_args_json
 export -f build_prompt_safe_history
+export -f build_source_list_for_citations
 export -f apply_plan_arg_controls
 export -f fill_missing_args_with_llm
 export -f extract_context_controls

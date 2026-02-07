@@ -9,7 +9,7 @@
 #   - bats
 #   - bash 3.2+
 
-@test "finalize_executor_result emits timeline-first summary" {
+@test "finalize_executor_result emits answer plus sources" {
 	run bash -lc '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 source ./src/lib/planning/planner.sh
@@ -23,8 +23,7 @@
                 json_state_set_key "${state_prefix}" "final_answer" "All done"
 
                 output="$(finalize_executor_result "${state_prefix}")"
-                [[ "${output}" == *"DEADLINES (timeline-first)"* ]]
-                [[ "${output}" == *"SOURCES (top hits)"* ]]
+                [[ "${output}" == *"(no web sources captured)"* ]]
                 [[ "${output}" == *"All done"* ]]
         '
 	[ "$status" -eq 0 ]

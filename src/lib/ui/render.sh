@@ -205,20 +205,19 @@ ui_trace_block() {
 }
 
 ui_final_summary() {
-	local deadlines_block sources_block
-	deadlines_block="$1"
+	local answer_text sources_block
+	answer_text="$1"
 	sources_block="$2"
 
-	printf 'DEADLINES (timeline-first)\n'
-	if [[ -n "${deadlines_block}" ]]; then
-		printf '%s\n' "${deadlines_block}"
+	if [[ -n "${answer_text}" ]]; then
+		printf '%s\n' "${answer_text}"
 	else
-		printf '  • No deadlines identified.\n'
+		printf '(no final answer)\n'
 	fi
-	printf 'SOURCES (top hits)\n'
+	printf '\n'
 	if [[ -n "${sources_block}" ]]; then
 		printf '%s\n' "${sources_block}"
 	else
-		printf '  (no web sources captured)\n'
+		printf '(no web sources captured)\n'
 	fi
 }

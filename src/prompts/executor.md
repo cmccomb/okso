@@ -23,6 +23,7 @@ ${planner_thought}
 ## Task Rules
 - Do NOT add or remove keys.
 - Populate fields using information from the execution history.
+- If the next tool is `final_answer` and a `Source list for citations` section is present, include bracketed citations like `[1]`, `[2]` in the answer text, matching that source list.
 - Do NOT include placeholder tokens such as:
   `TODO`, `TBD`, `__MISSING__`, `[insert]`, `<todo>`, `lorem ipsum`.
 - If required information is missing, explain the limitation directly in the field value.

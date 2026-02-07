@@ -87,6 +87,41 @@ SCRIPT
 	[[ "$output" == *"short snippet"* ]]
 }
 
+@test "resolve_action_args appends source list context for final_answer citations" {
+	run env -i PATH="$PATH" HOME="$HOME" VERBOSITY=0 bash --noprofile --norc <<'SCRIPT'
+set -euo pipefail
+source ./src/lib/executor/loop.sh
+LLAMA_AVAILABLE=true
+prompt_file="$(mktemp)"
+tool_args_schema() { echo '{"type":"object","properties":{"input":{"type":"string"}},"required":["input"]}'; }
+render_prompt_template() {
+	local history_text
+	shift
+	while (($# > 0)); do
+		if [[ "$1" == "history_text" ]]; then
+			history_text="$2"
+		fi
+		shift 2
+	done
+	printf '%s' "${history_text}"
+}
+llama_infer() {
+	printf '%s' "$1" >"${prompt_file}"
+	printf '{"input":"answer with [1]"}'
+}
+
+history_line='{"step":1,"thought":"search","action":{"tool":"web_search","args":{"query":"australia citizenship"}},"observation":{"items":[{"title":"Become an Australian citizen","url":"https://immi.homeaffairs.gov.au/citizenship/become-a-citizen","snippet":"Official process"}]}}'
+output="$(resolve_action_args "final_answer" '{}' '{"tool":"final_answer","args":{"input":{"__fill__":true}},"thought":"compose"}' "query" "${history_line}" "outline" "compose answer")"
+printf '%s\n' "${output}"
+grep -F 'Source list for citations:' "${prompt_file}"
+grep -F '[1] Become an Australian citizen — https://immi.homeaffairs.gov.au/citizenship/become-a-citizen' "${prompt_file}"
+rm -f "${prompt_file}"
+SCRIPT
+
+	[ "$status" -eq 0 ]
+	[[ "$output" == *'"input":"answer with [1]"'* ]]
+}
+
 @test "fill_missing_args_with_llm works with required-only anyOf schemas" {
 	run env -i PATH="$PATH" HOME="$HOME" TMPDIR="${TMPDIR:-/tmp}" VERBOSITY=0 bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
