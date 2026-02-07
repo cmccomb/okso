@@ -180,6 +180,7 @@ planner_build_plan_schema() {
               .
             end
         )
+        # Permit planner to emit {"__fill__":true} for whole-args infill when context is missing.
         | {anyOf: [., fill_placeholder]}
       end;
 

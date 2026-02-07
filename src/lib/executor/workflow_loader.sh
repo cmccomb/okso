@@ -251,16 +251,17 @@ workflow_render_steps() {
 				f
 			  end;
 
-		def render($vars):
-			walk(
-				if type == "string" then
-					reduce ($vars | keys[]) as $key (.;
-						gsub("\\{\\{" + $key + "\\}\\}"; ($vars[$key] | tostring)))
-					| gsub("\\{\\{[^}]+\\}\\}"; "")
-				else
-					.
-				end
-			);
+			def render($vars):
+				walk(
+					if type == "string" then
+						reduce ($vars | keys[]) as $key (.;
+							gsub("\\{\\{" + $key + "\\}\\}"; ($vars[$key] | tostring)))
+						# Drop unresolved placeholders to avoid leaking template syntax into tool args.
+						| gsub("\\{\\{[^}]+\\}\\}"; "")
+					else
+						.
+					end
+				);
 
 		.steps
 		| map({
