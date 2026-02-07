@@ -107,3 +107,67 @@ SCRIPT
 	catalog=$(printf '%s' "${output}" | tail -n 1)
 	[ "${catalog}" = "scratch,final_answer" ]
 }
+
+@test "planner prompt avoids duplicate args-schema tool catalog text" {
+	run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+export PLANNER_SKIP_TOOL_LOAD=true
+export LLAMA_AVAILABLE=true
+export VERBOSITY=0
+source ./src/lib/planning/planner.sh
+
+prompt_file="$(mktemp)"
+tool_description() { printf 'desc-%s' "$1"; }
+planner_build_plan_schema() { printf '{"type":"array","items":{"type":"object"}}'; }
+planner_plan_criteria_report() { printf '{"ok":true,"reasons":[]}'; }
+llama_infer() {
+        printf '%s' "$1" >"${prompt_file}"
+        printf '[{"thought":"Return answer","tool":"final_answer","args":{"input":"ok"}}]'
+}
+
+generate_planner_response_with_context "help me" "Search 1: recipe" $'terminal\nfinal_answer' '{}'
+if grep -q "Args Schema:" "${prompt_file}"; then
+        echo "planner prompt still includes duplicate Args Schema text"
+        exit 1
+fi
+SCRIPT
+
+	[ "$status" -eq 0 ]
+}
+
+@test "planner budgets oversized search context before llama invocation" {
+	run env -i HOME="$HOME" PATH="$PATH" bash --noprofile --norc <<'SCRIPT'
+set -euo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+export PLANNER_SKIP_TOOL_LOAD=true
+export LLAMA_AVAILABLE=true
+export LLAMA_DEFAULT_CONTEXT_SIZE=4096
+export LLAMA_CONTEXT_CAP=4096
+export PLANNER_MAX_OUTPUT_TOKENS=1024
+export VERBOSITY=0
+source ./src/lib/planning/planner.sh
+
+prompt_file="$(mktemp)"
+tool_description() { printf 'desc-%s' "$1"; }
+planner_build_plan_schema() { printf '{"type":"array","items":{"type":"object"}}'; }
+planner_plan_criteria_report() { printf '{"ok":true,"reasons":[]}'; }
+llama_infer() {
+        printf '%s' "$1" >"${prompt_file}"
+        printf '[{"thought":"Return answer","tool":"final_answer","args":{"input":"ok"}}]'
+}
+
+large_search_context="$(printf 'Search 1: %s\n' "$(printf 'entry %.0s' {1..12000})")"
+generate_planner_response_with_context "help me" "${large_search_context}" $'terminal\nfinal_answer' '{}'
+
+prompt_tokens="$(estimate_token_count "$(cat "${prompt_file}")")"
+if ((prompt_tokens + 1024 > 4096)); then
+        echo "planner prompt exceeded context budget: prompt_tokens=${prompt_tokens}"
+        exit 1
+fi
+SCRIPT
+
+	[ "$status" -eq 0 ]
+}

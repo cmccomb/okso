@@ -72,6 +72,8 @@ fi
 source "${PLANNING_LIB_DIR}/../llm/schema.sh"
 # shellcheck source=src/lib/llm/llama_client.sh
 source "${PLANNING_LIB_DIR}/../llm/llama_client.sh"
+# shellcheck source=src/lib/llm/context_budget.sh
+source "${PLANNING_LIB_DIR}/../llm/context_budget.sh"
 # shellcheck source=src/lib/settings/config.sh
 source "${PLANNING_LIB_DIR}/../settings/config.sh"
 # shellcheck source=src/lib/planning/normalization.sh
@@ -273,6 +275,48 @@ validate_temperature() {
 	printf '%s' "${sanitized}"
 }
 
+planner_format_tool_line() {
+	# Formats planner tool lines without duplicating per-tool arg schemas.
+	# The planner schema already carries argument contracts.
+	# Arguments:
+	#   $1 - tool name (string)
+	# Returns:
+	#   formatted tool line (string)
+	format_tool_line "$1" false
+}
+
+planner_prompt_token_budget() {
+	# Resolves the prompt token budget used for planner prompt assembly.
+	# Priority: explicit planner budget -> llama context cap -> llama default context.
+	# Returns:
+	#   positive integer budget (string)
+	local budget
+	budget="${PLANNER_PROMPT_TOKEN_BUDGET:-${LLAMA_CONTEXT_CAP:-${LLAMA_DEFAULT_CONTEXT_SIZE:-4096}}}"
+	if ! [[ "${budget}" =~ ^[0-9]+$ ]] || ((budget < 1)); then
+		budget=4096
+	fi
+	printf '%s' "${budget}"
+}
+
+planner_apply_context_budget() {
+	# Applies prompt-budget summarization to a single planner prompt section.
+	# Arguments:
+	#   $1 - full prompt text (string)
+	#   $2 - section text to budget (string)
+	#   $3 - max completion tokens (int)
+	#   $4 - context label for logs (string)
+	# Returns:
+	#   budgeted section text (string)
+	local prompt_text section_text max_completion_tokens context_label budget
+	prompt_text="$1"
+	section_text="$2"
+	max_completion_tokens="$3"
+	context_label="$4"
+	budget="$(planner_prompt_token_budget)"
+
+	PROMPT_TOKEN_BUDGET="${budget}" apply_prompt_context_budget "${prompt_text}" "${section_text}" "${max_completion_tokens}" "${context_label}"
+}
+
 generate_planner_response_with_context() {
 	# Arguments:
 	#   $1 - user query (string)
@@ -313,14 +357,6 @@ generate_planner_response_with_context() {
 		return 0
 	fi
 
-	# Build the planner prompt
-	local planner_schema_text tool_lines prompt intent_context
-	planner_schema_text="$(planner_build_plan_schema "${planner_tools[@]-}")"
-	tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]-}")" format_tool_line)"
-	intent_context="$(render_intent_prompt_context "${intent_json}" "$(printf '%s\n' "${planner_tools[@]-}")")"
-	prompt="$(build_planner_prompt "${user_query}" "${tool_lines}" "${search_context}" "${PLANNER_FEEDBACK_CONTEXT:-}" "${planner_schema_text}" "${intent_context}")"
-	log "DEBUG" "Generated planner prompt" "${prompt}" >&2
-
 	# Configure generation parameters
 	local temperature debug_log_dir debug_log_file max_generation_tokens
 	local raw_plan normalized_plan criteria_report replan_feedback prompt_feedback
@@ -332,6 +368,19 @@ generate_planner_response_with_context() {
 	if ! [[ "${max_generation_tokens}" =~ ^[0-9]+$ ]] || ((max_generation_tokens < 1)); then
 		max_generation_tokens=1024
 	fi
+
+	# Build the planner prompt with explicit context budgeting for tool and search sections.
+	local planner_schema_text tool_lines prompt intent_context budgeted_tool_lines budgeted_search_context
+	planner_schema_text="$(planner_build_plan_schema "${planner_tools[@]-}")"
+	tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]-}")" planner_format_tool_line)"
+	intent_context="$(render_intent_prompt_context "${intent_json}" "$(printf '%s\n' "${planner_tools[@]-}")")"
+
+	prompt="$(build_planner_prompt "${user_query}" "${tool_lines}" "" "${PLANNER_FEEDBACK_CONTEXT:-}" "${planner_schema_text}" "${intent_context}")"
+	budgeted_tool_lines="$(planner_apply_context_budget "${prompt}" "${tool_lines}" "${max_generation_tokens}" "planner_tool_catalog")"
+	prompt="$(build_planner_prompt "${user_query}" "${budgeted_tool_lines}" "${search_context}" "${PLANNER_FEEDBACK_CONTEXT:-}" "${planner_schema_text}" "${intent_context}")"
+	budgeted_search_context="$(planner_apply_context_budget "${prompt}" "${search_context}" "${max_generation_tokens}" "planner_search_context")"
+	prompt="$(build_planner_prompt "${user_query}" "${budgeted_tool_lines}" "${budgeted_search_context}" "${PLANNER_FEEDBACK_CONTEXT:-}" "${planner_schema_text}" "${intent_context}")"
+	log "DEBUG" "Generated planner prompt" "${prompt}" >&2
 
 	debug_log_dir="${TMPDIR:-/tmp}"
 	debug_log_file="${PLANNER_DEBUG_LOG:-${debug_log_dir%/}/okso_planner_candidates.log}"
@@ -368,7 +417,7 @@ generate_planner_response_with_context() {
 		prompt_feedback+=$'\n'
 	fi
 	prompt_feedback+="Criteria retry request: ${replan_feedback}"
-	prompt="$(build_planner_prompt "${user_query}" "${tool_lines}" "${search_context}" "${prompt_feedback}" "${planner_schema_text}" "${intent_context}")"
+	prompt="$(build_planner_prompt "${user_query}" "${budgeted_tool_lines}" "${budgeted_search_context}" "${prompt_feedback}" "${planner_schema_text}" "${intent_context}")"
 
 	raw_plan="$(LLAMA_TEMPERATURE="${temperature}" llama_infer "${prompt}" '' "${max_generation_tokens}" "${planner_schema_text}" "${PLANNER_MODEL_REPO:-}" "${PLANNER_MODEL_FILE:-}" "${PLANNER_CACHE_FILE:-}" "${prompt}")"
 	if ! normalized_plan="$(normalize_plan <<<"${raw_plan}")"; then

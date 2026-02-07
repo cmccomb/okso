@@ -64,10 +64,8 @@ Plan:
 ]
 
 ## Output Contract
-Respond using the following JSON schema:
-${planner_schema}
-
-Return ONLY valid JSON matching the schema.
+Return ONLY valid JSON matching the runtime-provided JSON schema.
+Do not include markdown or code fences.
 
 ## Context
 Current time: ${current_time} (${current_weekday}, ${current_date})
