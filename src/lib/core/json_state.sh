@@ -36,11 +36,19 @@ json_state_cache_path() {
 	#   $1 - namespace prefix (string)
 	# Returns:
 	#   The file path (string).
-	local prefix cache_dir
+	local prefix
 	prefix="$1"
-	cache_dir="${TMPDIR:-/tmp}/okso_json_state"
-	mkdir -p "${cache_dir}" 2>/dev/null || true
-	printf '%s/%s.json' "${cache_dir}" "${prefix}"
+
+	if [[ -z "${JSON_STATE_CACHE_DIR:-}" ]]; then
+		JSON_STATE_CACHE_DIR="${TMPDIR:-/tmp}/okso_json_state"
+	fi
+
+	if [[ "${JSON_STATE_CACHE_DIR_READY:-false}" != true ]]; then
+		mkdir -p "${JSON_STATE_CACHE_DIR}" 2>/dev/null || true
+		JSON_STATE_CACHE_DIR_READY=true
+	fi
+
+	printf '%s/%s.json' "${JSON_STATE_CACHE_DIR}" "${prefix}"
 }
 
 json_state_write_cache() {
@@ -111,23 +119,24 @@ json_state_resolve_document() {
 		fallback_provided=true
 	fi
 
-	sanitized_fallback=$(json_state_sanitize_json "${fallback}" '{}')
-	cache_document=$(json_state_read_cache "${prefix}")
-	if [[ "${fallback_provided}" != true && -n "${cache_document}" ]]; then
-		sanitized_fallback="${cache_document}"
-	fi
-
 	json_var=$(json_state_namespace_var "${prefix}")
-	if [[ -z "${!json_var+x}" ]]; then
-		printf '%s' "${sanitized_fallback}"
-		return 0
+
+	# Hot path: trust already-loaded process state before touching the filesystem.
+	if [[ -n "${!json_var+x}" ]]; then
+		document_value="${!json_var}"
+		if sanitized_document=$(json_state_sanitize_json "${document_value}" ""); then
+			if [[ -n "${sanitized_document}" ]]; then
+				printf '%s' "${sanitized_document}"
+				return 0
+			fi
+		fi
 	fi
 
-	document_value="${!json_var}"
-	if sanitized_document=$(json_state_sanitize_json "${document_value}" ""); then
-		if [[ -n "${sanitized_document}" ]]; then
-			printf '%s' "${sanitized_document}"
-			return 0
+	sanitized_fallback=$(json_state_sanitize_json "${fallback}" '{}')
+	if [[ "${fallback_provided}" != true ]]; then
+		cache_document=$(json_state_read_cache "${prefix}")
+		if [[ -n "${cache_document}" ]]; then
+			sanitized_fallback="${cache_document}"
 		fi
 	fi
 
@@ -163,7 +172,6 @@ json_state_get_document() {
 	resolved_document=$(json_state_resolve_document "${prefix}" "${fallback}")
 	json_var=$(json_state_namespace_var "${prefix}")
 	printf -v "${json_var}" '%s' "${resolved_document}"
-	json_state_write_cache "${prefix}" "${resolved_document}"
 
 	if [[ -n "${output_var}" ]]; then
 		printf -v "${output_var}" '%s' "${resolved_document}"

@@ -30,6 +30,11 @@
 #   1 when required arguments are missing during flag parsing.
 #   2 when model resolution fails.
 
+if [[ "${OKSO_SETTINGS_CONFIG_LOADED:-false}" == true ]]; then
+	return 0 2>/dev/null || exit 0
+fi
+OKSO_SETTINGS_CONFIG_LOADED=true
+
 CONFIG_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck source=src/lib/core/logging.sh

@@ -19,6 +19,11 @@
 # Exit codes:
 #   Functions emit errors via log and return non-zero when misused.
 
+if [[ "${OKSO_TOOLS_INDEX_LOADED:-false}" == true ]]; then
+	return 0 2>/dev/null || exit 0
+fi
+OKSO_TOOLS_INDEX_LOADED=true
+
 TOOLS_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 TOOLS_SRC_ROOT=$(cd -- "${TOOLS_LIB_DIR}/../.." && pwd)
 TOOLS_DIR="${TOOLS_SRC_ROOT}/tools"

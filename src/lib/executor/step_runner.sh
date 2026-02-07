@@ -37,7 +37,7 @@ execute_planned_action() {
 	#   $2 - step index
 	#   $3 - validated action JSON
 	local state_prefix step_index action_json tool args_json thought args_after_controls
-	local observation history_text web_fetch_snippets execution_status
+	local observation history_text web_fetch_snippets execution_status user_query plan_outline
 	state_prefix="$1"
 	step_index="$2"
 	action_json="$3"
@@ -46,18 +46,20 @@ execute_planned_action() {
 	args_json="$(jq -c '.args' <<<"${action_json}")"
 	thought="$(jq -r '.thought' <<<"${action_json}")"
 	history_text="$(state_get_history_lines "${state_prefix}")"
+	user_query="$(json_state_get_key "${state_prefix}" "user_query")"
+	plan_outline="$(json_state_get_key "${state_prefix}" "plan_outline")"
 	web_fetch_snippets="{}"
 
 	prepare_tool_context_for_action \
 		"${tool}" \
 		"${history_text}" \
-		"$(json_state_get_key "${state_prefix}" "user_query")" \
-		"$(json_state_get_key "${state_prefix}" "plan_outline")" \
+		"${user_query}" \
+		"${plan_outline}" \
 		"${thought}" \
 		web_fetch_snippets
 	web_fetch_snippets="${web_fetch_snippets:-{}}"
 
-	if ! args_after_controls="$(resolve_action_args "${tool}" "${args_json}" "${action_json}" "$(json_state_get_key "${state_prefix}" "user_query")" "${history_text}" "$(json_state_get_key "${state_prefix}" "plan_outline")" "${thought}")"; then
+	if ! args_after_controls="$(resolve_action_args "${tool}" "${args_json}" "${action_json}" "${user_query}" "${history_text}" "${plan_outline}" "${thought}")"; then
 		log "ERROR" "Argument resolution failed" "${tool}" || true
 		json_state_set_key "${state_prefix}" "needs_replanning" "true" || true
 		json_state_set_key "${state_prefix}" "user_feedback" "Unable to validate arguments for ${tool}" || true

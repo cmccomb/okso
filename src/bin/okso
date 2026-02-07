@@ -46,6 +46,39 @@ resolve_script_dir() {
 	cd -P -- "$(dirname -- "${source_path}")" && pwd
 }
 
+fast_path_cli_flags() {
+	# Handles --help/--version without loading full runtime dependencies.
+	# Arguments:
+	#   $@ - raw CLI arguments
+	local first_arg entrypoint_display
+	first_arg="${1:-}"
+	entrypoint_display="${OKSO_ENTRYPOINT:-./src/bin/okso}"
+
+	case "${first_arg}" in
+	-h | --help)
+		cat <<USAGE
+Usage: ${entrypoint_display} [OPTIONS] -- "user query"
+
+Options:
+  -h, --help            Show help text.
+  -V, --version         Show version information.
+  -y, --yes, --no-confirm
+                        Approve all tool runs without prompting.
+  -v, --verbose [LEVEL] Enable verbose logs (optionally set integer level).
+  -vv, -vvv             Increase verbosity (INFO/DEBUG).
+  -q, --quiet           Silence informational logs.
+USAGE
+		exit 0
+		;;
+	-V | --version)
+		printf 'okso %s\n' "${OKSO_VERSION:-0.1.0}"
+		exit 0
+		;;
+	esac
+}
+
+fast_path_cli_flags "$@"
+
 SCRIPT_DIR=$(resolve_script_dir)
 SRC_ROOT=$(cd "${SCRIPT_DIR}/.." && pwd)
 LIB_DIR="${SRC_ROOT}/lib"
@@ -57,14 +90,27 @@ source "${LIB_DIR}/core/logging.sh"
 source "${LIB_DIR}/core/json_state.sh"
 # shellcheck source=src/lib/settings/config.sh
 source "${LIB_DIR}/settings/config.sh"
-# shellcheck source=src/lib/tools/index.sh
-source "${LIB_DIR}/tools/index.sh"
-# shellcheck source=src/lib/planning/planner.sh
-source "${LIB_DIR}/planning/planner.sh"
 # shellcheck source=src/lib/cli/cli.sh
 source "${LIB_DIR}/cli/cli.sh"
 # shellcheck source=src/lib/settings/runtime.sh
 source "${LIB_DIR}/settings/runtime.sh"
+
+load_runtime_modules() {
+	# Lazily loads heavy planner/tool modules once per process.
+	# Arguments:
+	#   None.
+	# Returns:
+	#   None.
+	if [[ "${OKSO_RUNTIME_MODULES_LOADED:-false}" == true ]]; then
+		return 0
+	fi
+
+	# shellcheck source=src/lib/tools/index.sh
+	source "${LIB_DIR}/tools/index.sh"
+	# shellcheck source=src/lib/planning/planner.sh
+	source "${LIB_DIR}/planning/planner.sh"
+	OKSO_RUNTIME_MODULES_LOADED=true
+}
 
 main() {
 	# Main entrypoint for the okso assistant.
@@ -79,6 +125,7 @@ main() {
 	local plan_start_time plan_duration plan_summary_body plan_iteration
 	local search_context search_start_time search_duration
 	local intent_json planner_tools
+	local user_query
 
 	# Initialize runtime settings and environment.
 	settings_prefix="settings"
@@ -89,12 +136,14 @@ main() {
 		write_config_file
 		return 0
 	fi
+	load_runtime_modules
 	prepare_environment_with_settings "${settings_prefix}"
 	initialize_planner_models
+	user_query="$(json_state_get_key "${settings_prefix}" "user_query")"
 
 	# Recognize user intent.
 	intent_start_time="$(date +%s)"
-	intent_json="$(recognize_intent "$(json_state_get_key "${settings_prefix}" "user_query")")"
+	intent_json="$(recognize_intent "${user_query}")"
 	log "INFO" "Recognized intent" "${intent_json}"
 	planner_tools="$(intent_to_tools "${intent_json}")"
 	log "INFO" "Intent tool filter" "$(printf '%s\n' "${planner_tools}" | paste -sd ',' -)"
@@ -104,7 +153,7 @@ main() {
 
 	# Fetch search context.
 	search_start_time="$(date +%s)"
-	search_context="$(planner_fetch_search_context "$(json_state_get_key "${settings_prefix}" "user_query")" "${intent_json}")"
+	search_context="$(planner_fetch_search_context "${user_query}" "${intent_json}")"
 	search_duration="$(format_duration_from "${search_start_time}")"
 	render_step_box "Search Context" "${search_duration}" "${search_context}"
 	# Planner flow:
@@ -120,8 +169,8 @@ main() {
 	while true; do
 		plan_iteration=$((plan_iteration + 1))
 		plan_start_time="$(date +%s)"
-		log "INFO" "Starting plan generation" "$(json_state_get_key "${settings_prefix}" "user_query")"
-		plan_response="$(generate_planner_response_with_context "$(json_state_get_key "${settings_prefix}" "user_query")" "${search_context}" "${planner_tools}" "${intent_json}")"
+		log "INFO" "Starting plan generation" "${user_query}"
+		plan_response="$(generate_planner_response_with_context "${user_query}" "${search_context}" "${planner_tools}" "${intent_json}")"
 		plan_outline="$(plan_json_to_outline "${plan_response}")"
 		required_tools="$(derive_allowed_tools_from_plan "${plan_response}")"
 		log "INFO" "Planner identified tools" "${required_tools}"
