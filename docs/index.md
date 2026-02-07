@@ -3,7 +3,42 @@ title: Okso Documentation
 layout: default
 description: Local-first automation for macOS
 ---
-Okso is a local-first automation toolkit for macOS that turns natural-language intent into reliable, reviewable command-line execution. It plans first, shows you what it will do, and then runs tools with guardrails and logs you can audit.
+
+<div style="display:flex; justify-content:center;">
+  <div class="okso-invoke" aria-label="ok, so...">
+    <span class="okso-text">ok so&nbsp;</span><span class="okso-cursor" aria-hidden="true">_</span>
+  </div>
+</div>
+
+<style>
+  .okso-invoke{
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 56px;
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin: 0;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.12em;
+  }
+  .okso-cursor{
+    display: inline-block;
+    transform: translateY(-0.06em);
+    animation: okso-blink 1s steps(1, end) infinite;
+  }
+  @keyframes okso-blink{
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0; }
+  }
+
+  /* Respect "reduce motion" */
+  @media (prefers-reduced-motion: reduce){
+    .okso-cursor{ animation: none; opacity: 1; }
+  }
+</style>
+
+`okso` is a local-first automation toolkit for macOS that turns natural-language intent into reliable, reviewable command-line execution. It plans first, shows you what it will do, and then runs tools with guardrails and logs you can audit.
 
 ## Start here
 
