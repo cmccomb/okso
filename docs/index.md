@@ -1,10 +1,8 @@
 ---
 title: Okso Documentation
 layout: default
-description: Local-first automation for macOS with planning, approvals, and transparent tool execution.
+description: Local-first automation for macOS
 ---
-# Okso documentation
-
 Okso is a local-first automation toolkit for macOS that turns natural-language intent into reliable, reviewable command-line execution. It plans first, shows you what it will do, and then runs tools with guardrails and logs you can audit.
 
 ## Start here
