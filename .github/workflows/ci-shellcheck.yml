@@ -1,0 +1,21 @@
+name: CI - Shellcheck
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  shellcheck:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          brew update
+          brew install shellcheck
+
+      - name: Run shellcheck
+        run: bash ./scripts/ci/run-shellcheck.sh

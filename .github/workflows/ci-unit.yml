@@ -15,7 +15,7 @@ jobs:
       - name: Install dependencies
         run: |
           brew update
-          brew install shellcheck shfmt jq bc bats-core pandoc
+          brew install shfmt jq bc bats-core pandoc llama.cpp
 
       - name: Check formatting
         run: |
@@ -24,9 +24,6 @@ jobs:
 
       - name: Run Bats suite
         run: bash ./scripts/ci/run-bats.sh
-
-      - name: Run shellcheck
-        run: bash ./scripts/ci/run-shellcheck.sh
 
       - name: Check docs
         run: bash ./scripts/ci/check-docs.sh
