@@ -376,6 +376,7 @@ generate_planner_response_with_context() {
 	intent_context="$(render_intent_prompt_context "${intent_json}" "$(printf '%s\n' "${planner_tools[@]-}")")"
 
 	prompt="$(build_planner_prompt "${user_query}" "${tool_lines}" "" "${PLANNER_FEEDBACK_CONTEXT:-}" "${planner_schema_text}" "${intent_context}")"
+	# Budget tool catalog first because it is usually the largest static prompt section.
 	budgeted_tool_lines="$(planner_apply_context_budget "${prompt}" "${tool_lines}" "${max_generation_tokens}" "planner_tool_catalog")"
 	prompt="$(build_planner_prompt "${user_query}" "${budgeted_tool_lines}" "${search_context}" "${PLANNER_FEEDBACK_CONTEXT:-}" "${planner_schema_text}" "${intent_context}")"
 	budgeted_search_context="$(planner_apply_context_budget "${prompt}" "${search_context}" "${max_generation_tokens}" "planner_search_context")"
@@ -385,6 +386,7 @@ generate_planner_response_with_context() {
 	debug_log_dir="${TMPDIR:-/tmp}"
 	debug_log_file="${PLANNER_DEBUG_LOG:-${debug_log_dir%/}/okso_planner_candidates.log}"
 	mkdir -p "$(dirname "${debug_log_file}")" 2>/dev/null || true
+	# Start fresh each planner invocation; this file captures only current-attempt candidates.
 	: >"${debug_log_file}" 2>/dev/null || true
 
 	raw_plan="$(LLAMA_TEMPERATURE="${temperature}" llama_infer "${prompt}" '' "${max_generation_tokens}" "${planner_schema_text}" "${PLANNER_MODEL_REPO:-}" "${PLANNER_MODEL_FILE:-}" "${PLANNER_CACHE_FILE:-}" "${prompt}")"
@@ -417,6 +419,7 @@ generate_planner_response_with_context() {
 		prompt_feedback+=$'\n'
 	fi
 	prompt_feedback+="Criteria retry request: ${replan_feedback}"
+	# Single feedback retry keeps planner latency bounded while still allowing self-correction.
 	prompt="$(build_planner_prompt "${user_query}" "${budgeted_tool_lines}" "${budgeted_search_context}" "${prompt_feedback}" "${planner_schema_text}" "${intent_context}")"
 
 	raw_plan="$(LLAMA_TEMPERATURE="${temperature}" llama_infer "${prompt}" '' "${max_generation_tokens}" "${planner_schema_text}" "${PLANNER_MODEL_REPO:-}" "${PLANNER_MODEL_FILE:-}" "${PLANNER_CACHE_FILE:-}" "${prompt}")"

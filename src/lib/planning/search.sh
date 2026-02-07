@@ -172,6 +172,7 @@ planner_fetch_search_context() {
 			log "WARN" "Failed to encode search args" "planner_search_args_encoding_failed" >&2
 			raw_context=$(jq -nc --arg query "${search_query}" '{query:$query,items:[]}' 2>/dev/null)
 		elif ! raw_context=$(TOOL_ARGS="${tool_args}" tool_web_search 2>/dev/null); then
+			# Individual query failures are soft-fail so remaining queries can still contribute context.
 			log "WARN" "Pre-plan search failed" "planner_preplan_search_failed" >&2
 			raw_context=$(jq -nc --arg query "${search_query}" '{query:$query,items:[]}' 2>/dev/null)
 		fi
@@ -181,6 +182,7 @@ planner_fetch_search_context() {
 		formatted_sections+=("Search ${index}: ${formatted_context}")
 	done < <(jq -r '.[]' <<<"${queries_json}" 2>/dev/null)
 
+	# Keep section order stable (Search 1, Search 2, ...) for deterministic prompt traces.
 	# Return the combined search context
 	printf '%s' "$(printf '%s\n' "${formatted_sections[@]}" | sed '/^[[:space:]]*$/d' | paste -sd $'\n\n' -)"
 }

@@ -126,6 +126,8 @@ JSON
 	)
 	args_schema="${4:-${default_args_schema}}"
 
+	# Keep single-string tools on a consistent `input` key so planner prompts
+	# and executor arg infill can rely on one canonical text field shape.
 	if ! jq -e --arg key "${text_key}" --arg name "${name}" '
                 def is_single_string_schema:
                         (.type == "object")
@@ -164,6 +166,7 @@ JSON
 		--argjson args_schema "${args_schema}" \
 		'(.names //= [])
                 | (.registry //= {})
+                # Re-registering a tool updates metadata in place without duplicating names.
                 | (if (.names | index($name)) == null then .names += [$name] else . end)
                 | .registry[$name] = {description:$description, handler:$handler, args_schema:$args_schema}' <<<"$(tool_registry_json)")
 }

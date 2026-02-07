@@ -148,6 +148,7 @@ llama_infer() {
 	# Estimate required context size
 	prompt_tokens=$(estimate_token_count "${prompt}")
 	total_tokens=$((prompt_tokens + number_of_tokens))
+	# Integer math equivalent of ceil(total_tokens * (1 + margin_percent/100)).
 	computed_context=$(((total_tokens * (100 + margin_percent) + 99) / 100))
 	target_context=${default_context_size}
 
@@ -160,6 +161,7 @@ llama_infer() {
 		fi
 
 		if [[ ${target_context} -gt ${default_context_size} ]]; then
+			# Omit -c when default context is sufficient to keep llama invocation stable across versions.
 			llama_args+=(-c "${target_context}")
 		fi
 	fi
@@ -215,6 +217,7 @@ llama_infer() {
 	if [[ -n "${LLAMA_EXTRA_ARGS:-}" ]]; then
 		local extra_args
 		# shellcheck disable=SC2206 # intended splitting into an array
+		# Intentionally word-split to let callers pass raw flag lists via env.
 		extra_args=(${LLAMA_EXTRA_ARGS})
 		llama_args+=("${extra_args[@]}")
 	fi

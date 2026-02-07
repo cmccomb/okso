@@ -388,6 +388,7 @@ executor_replan_with_feedback() {
 
 	# Restore previous feedback context
 	if [[ "${feedback_context_in_env}" == true ]]; then
+		# Preserve caller-scoped planner feedback when replanning was nested.
 		PLANNER_FEEDBACK_CONTEXT="${previous_feedback_context}"
 		export PLANNER_FEEDBACK_CONTEXT
 	else
@@ -452,6 +453,7 @@ evaluate_and_optionally_replan() {
 	# Always capture output; keep exit code separately.
 	errexit_was_set=false
 	if [[ $- == *e* ]]; then
+		# Evaluator failures are handled explicitly, so temporarily disable errexit.
 		errexit_was_set=true
 		set +e
 	fi
@@ -509,6 +511,7 @@ evaluate_and_optionally_replan() {
 
 		feedback_text="${output:-${reasoning:-Evaluator requested replanning without providing details.}}"
 		if [[ "${emit_output}" == "true" ]]; then
+			# Attempt inline replanning first so users receive a corrected answer in one run.
 			if executor_replan_with_feedback "${state_name}" "${feedback_text}"; then
 				return 0
 			fi

@@ -190,6 +190,7 @@ workflows_load_specs() {
 	local file spec normalized
 
 	if [[ "${WORKFLOWS_LOADED}" == true && "${WORKFLOWS_LOADED_DIR}" == "${WORKFLOWS_DIR}" ]]; then
+		# Cache is scoped to directory path so test runs can swap WORKFLOWS_DIR safely.
 		return 0
 	fi
 
@@ -297,6 +298,7 @@ expand_workflow_plan() {
 			if ! expanded_steps=$(workflow_render_steps "${spec}" "${args}"); then
 				return 1
 			fi
+			# Workflow expansion is a splice operation: each workflow step becomes a top-level plan step.
 			expanded=$(jq -c --argjson current "${expanded}" --argjson steps "${expanded_steps}" '$current + $steps' <<<"${expanded}")
 		else
 			expanded=$(jq -c --argjson current "${expanded}" --argjson step "${entry}" '$current + [$step]' <<<"${expanded}")

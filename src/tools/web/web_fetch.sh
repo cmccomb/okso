@@ -270,6 +270,7 @@ web_fetch_anchor_preview() {
 
 	# Extract tokens from body
 	window_size=60
+	# Sliding windows overlap by 50% to balance recall and runtime for large pages.
 	window_step=$((window_size / 2))
 	if ! body_token_lines="$(web_fetch_extract_tokens_with_positions "${body_markdown}")"; then
 		jq -nc --arg snippet "${base_snippet}" --argjson matched false '{snippet: $snippet, matched: $matched}'

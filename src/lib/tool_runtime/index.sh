@@ -20,6 +20,7 @@
 #   Functions emit errors via log and return non-zero when misused.
 
 if [[ "${OKSO_TOOL_RUNTIME_INDEX_LOADED:-false}" == true ]]; then
+	# Support both `source` and direct execution without double-registering tools.
 	if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
 		return 0
 	fi
@@ -123,6 +124,7 @@ tools_writable_directory_allowed() {
 	# Check against allowlist
 	for allowed in "${TOOL_WRITABLE_DIRECTORY_ALLOWLIST[@]}"; do
 		normalized_allowed=$(tools_normalize_path "${allowed}") || continue
+		# Prefix match intentionally allows writes inside allowlisted directory trees.
 		if [[ "${normalized}" == "${normalized_allowed}"* ]]; then
 			return 0
 		fi

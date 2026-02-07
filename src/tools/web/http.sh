@@ -128,6 +128,7 @@ web_http_request() {
 		meta+=("$line")
 	done <<<"${curl_output}"
 	local http_code final_url content_type downloaded_bytes
+	# Field order must match --write-out sequence above.
 	http_code="${meta[0]:-0}"
 	final_url="${meta[1]:-${url}}"
 	content_type="${meta[2]:-application/octet-stream}"
@@ -143,6 +144,7 @@ web_http_request() {
 	body_size=$(wc -c <"${body_file}")
 	truncated=false
 	if ((body_size > max_bytes)); then
+		# Hard byte cap is enforced post-download to avoid large payload propagation downstream.
 		head -c "${max_bytes}" "${body_file}" >"${body_file}.trimmed"
 		mv "${body_file}.trimmed" "${body_file}"
 		truncated=true
