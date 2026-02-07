@@ -369,25 +369,52 @@ intent_to_tools() {
 	printf '%s\n' "${selected_tools[@]}" | awk 'NF && !seen[$0]++'
 }
 
-format_intent_context() {
-	# Formats intent JSON for logging.
+render_intent_prompt_context() {
+	# Formats intent data for planner prompts.
 	# Arguments:
 	#   $1 - intent JSON payload (string)
 	#   $2 - planner tool list (newline-delimited string)
 	# Returns:
-	#   formatted string on stdout.
-
-	local intent_json planner_tools
+	#   prompt-safe intent context (single line) on stdout.
+	local intent_json planner_tools intent_labels rationale tool_catalog
 	intent_json="$1"
 	planner_tools="$2"
 
-	# Extract fields
-	local rationale intents tools
+	if [[ -z "${intent_json}" ]]; then
+		printf '%s' "None provided."
+		return 0
+	fi
+
+	intent_labels="$(jq -r 'if .intents and (.intents | length > 0) then (.intents | join(",")) else .intent // "" end' <<<"${intent_json}" 2>/dev/null)"
+	rationale="$(jq -r '.rationale // ""' <<<"${intent_json}" 2>/dev/null)"
+
+	if [[ -z "${intent_labels}" ]]; then
+		printf '%s' "None provided."
+		return 0
+	fi
+
+	tool_catalog="$(printf '%s\n' "${planner_tools}" | paste -sd ',' -)"
+	if [[ -z "${tool_catalog}" ]]; then
+		tool_catalog="none"
+	fi
+
+	printf '%s' "intents=${intent_labels} rationale=${rationale} allowed_tools=${tool_catalog}"
+}
+
+render_intent_log_summary() {
+	# Formats intent JSON for logging and operator display.
+	# Arguments:
+	#   $1 - intent JSON payload (string)
+	#   $2 - planner tool list (newline-delimited string)
+	# Returns:
+	#   multi-line summary string on stdout.
+	local intent_json planner_tools rationale intents tools
+	intent_json="$1"
+	planner_tools="$2"
+
 	rationale="$(jq -r '.rationale // "No rationale provided"' <<<"${intent_json}" 2>/dev/null)"
 	intents="$(jq -r '.intents // [] | join(", ")' <<<"${intent_json}" 2>/dev/null)"
 	tools="$(printf '%s\n' "${planner_tools}" | paste -sd ',' -)"
-
-	# Format output
 	printf 'Rationale: %s\nIntents: %s\nEnabled Tools: %s' "${rationale}" "${intents}" "${tools}"
 }
 
@@ -395,4 +422,5 @@ export -f recognize_intent
 export -f intent_to_tools
 export -f intent_requires_search
 export -f render_intent_prompt
-export -f format_intent_context
+export -f render_intent_prompt_context
+export -f render_intent_log_summary

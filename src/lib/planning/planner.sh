@@ -62,9 +62,9 @@ PLANNING_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck source=src/lib/core/logging.sh
 source "${PLANNING_LIB_DIR}/../core/logging.sh"
-# shellcheck source=src/lib/tools/index.sh
+# shellcheck source=src/lib/tool_runtime/index.sh
 if [[ "${PLANNER_SKIP_TOOL_LOAD:-false}" != true ]]; then
-	source "${PLANNING_LIB_DIR}/../tools/index.sh"
+	source "${PLANNING_LIB_DIR}/../tool_runtime/index.sh"
 else
 	log "DEBUG" "Skipping tool suite load" "planner_skip_tool_load=true" >&2
 fi
@@ -80,6 +80,8 @@ source "${PLANNING_LIB_DIR}/normalization.sh"
 source "${PLANNING_LIB_DIR}/scoring.sh"
 # shellcheck source=src/lib/planning/prompting.sh
 source "${PLANNING_LIB_DIR}/prompting.sh"
+# shellcheck source=src/lib/planning/postprocess.sh
+source "${PLANNING_LIB_DIR}/postprocess.sh"
 # shellcheck source=src/lib/intent/intent.sh
 source "${PLANNING_LIB_DIR}/../intent/intent.sh"
 # shellcheck source=src/lib/planning/search.sh
@@ -271,38 +273,6 @@ validate_temperature() {
 	printf '%s' "${sanitized}"
 }
 
-planner_format_intent_context() {
-	# Formats intent data for the planner prompt.
-	# Arguments:
-	#   $1 - intent JSON payload (string)
-	#   $2... - allowed tool names (strings)
-	# Returns:
-	#   intent context string on stdout.
-	local intent_json intent_labels rationale tool_catalog
-	intent_json="$1"
-	shift
-
-	if [[ -z "${intent_json}" ]]; then
-		printf '%s' "None provided."
-		return 0
-	fi
-
-	intent_labels="$(jq -r 'if .intents and (.intents | length > 0) then (.intents | join(",")) else .intent // "" end' <<<"${intent_json}" 2>/dev/null)"
-	rationale="$(jq -r '.rationale // ""' <<<"${intent_json}" 2>/dev/null)"
-
-	if [[ -z "${intent_labels}" ]]; then
-		printf '%s' "None provided."
-		return 0
-	fi
-
-	tool_catalog="$(printf '%s\n' "$@" | paste -sd ',' -)"
-	if [[ -z "${tool_catalog}" ]]; then
-		tool_catalog="none"
-	fi
-
-	printf '%s' "intents=${intent_labels} rationale=${rationale} allowed_tools=${tool_catalog}"
-}
-
 generate_planner_response_with_context() {
 	# Arguments:
 	#   $1 - user query (string)
@@ -347,7 +317,7 @@ generate_planner_response_with_context() {
 	local planner_schema_text tool_lines prompt intent_context
 	planner_schema_text="$(planner_build_plan_schema "${planner_tools[@]-}")"
 	tool_lines="$(format_tool_descriptions "$(printf '%s\n' "${planner_tools[@]-}")" format_tool_line)"
-	intent_context="$(planner_format_intent_context "${intent_json}" "${planner_tools[@]-}")"
+	intent_context="$(render_intent_prompt_context "${intent_json}" "$(printf '%s\n' "${planner_tools[@]-}")")"
 	prompt="$(build_planner_prompt "${user_query}" "${tool_lines}" "${search_context}" "${PLANNER_FEEDBACK_CONTEXT:-}" "${planner_schema_text}" "${intent_context}")"
 	log "DEBUG" "Generated planner prompt" "${prompt}" >&2
 
@@ -426,6 +396,7 @@ generate_planner_response_with_context() {
 }
 
 generate_planner_response() {
+	# Backward-compatible wrapper that auto-fetches search context.
 	# Arguments:
 	#   $1 - user query (string)
 	# Returns:
@@ -437,178 +408,16 @@ generate_planner_response() {
 }
 
 generate_plan_outline() {
+	# Backward-compatible helper to render a human outline from planner output.
 	# Arguments:
 	#   $1 - user query (string)
 	# Returns:
-	#   plan outline text (string)
+	#   outline text (string)
 	local response_json
-
-	# Generate the planner response
 	if ! response_json="$(generate_planner_response "$1")"; then
 		return 1
 	fi
-
-	# Convert the plan JSON into an outline
 	plan_json_to_outline "${response_json}"
-}
-
-tool_query_deriver() {
-	# Arguments:
-	#   $1 - tool name (string)
-	# Returns:
-	#   name of the query derivation function (string)
-
-	case "$1" in
-	terminal)
-		printf '%s' "derive_terminal_query"
-		;;
-	reminders_create)
-		printf '%s' "derive_reminders_create_query"
-		;;
-	reminders_list)
-		printf '%s' "derive_reminders_list_query"
-		;;
-	notes_create)
-		printf '%s' "derive_notes_create_query"
-		;;
-	notes_append)
-		printf '%s' "derive_notes_append_query"
-		;;
-	notes_search)
-		printf '%s' "derive_notes_search_query"
-		;;
-	notes_read)
-		printf '%s' "derive_notes_read_query"
-		;;
-	notes_list)
-		printf '%s' "derive_notes_list_query"
-		;;
-	*)
-		printf '%s' "derive_default_tool_query"
-		;;
-	esac
-}
-
-derive_default_tool_query() {
-	# Arguments:
-	#   $1 - user query (string)
-	# Returns:
-	#   tool query (string)
-	printf '%s\n' "$1"
-}
-
-derive_tool_query() {
-	# Arguments:
-	#   $1 - tool name (string)
-	#   $2 - user query (string)
-	# Returns:
-	#   tool query (string)
-	local tool_name user_query handler
-	tool_name="$1"
-	user_query="$2"
-
-	# Select the appropriate derivation function
-	handler="$(tool_query_deriver "${tool_name}")"
-
-	# Invoke the derivation function
-	"${handler}" "${user_query}"
-}
-
-emit_plan_json() {
-	# Converts plan entries into a normalized JSON array.
-	# Arguments:
-	#   $1 - plan entries string
-	# Returns:
-	#   normalized plan JSON array (string)
-
-	local plan_entries
-	plan_entries="$1"
-
-	# Normalize the plan entries into a JSON array
-	printf '%s\n' "${plan_entries}" |
-		sed '/^[[:space:]]*$/d' |
-		jq -sc 'map(select(type=="object"))'
-}
-
-planner_fallback_plan() {
-	# Returns a minimal safe plan when planner output is invalid.
-	jq -nc '[{
-		tool: "final_answer",
-		args: {},
-		thought: "Respond directly to the user."
-	}]'
-}
-
-planner_extract_plan_array() {
-	# Extracts a plan array from planner output objects or arrays.
-	# Arguments:
-	#   $1 - planner response payload (string)
-	# Returns:
-	#   JSON array on stdout.
-	local payload extracted
-	payload="${1:-[]}"
-
-	if extracted="$(jq -c '
-		if type == "array" then .
-		elif type == "object" and (.plan | type == "array") then .plan
-		elif type == "object" and (.plan | type == "string") then (try (.plan | fromjson) catch null)
-		else null
-		end
-	' <<<"${payload}" 2>/dev/null)" && jq -e 'type == "array"' <<<"${extracted}" >/dev/null 2>&1; then
-		printf '%s' "${extracted}"
-		return 0
-	fi
-
-	planner_fallback_plan
-}
-
-derive_allowed_tools_from_plan() {
-	# Derives the required tool list from a planner response.
-	# Arguments:
-	#   $1 - planner response JSON array
-	# Returns:
-	#   newline-delimited list of required tool names (string)
-	local plan_json tool seen
-	plan_json="${1:-[]}"
-
-	plan_json="$(planner_extract_plan_array "${plan_json}")"
-
-	# Normalize the plan JSON
-	plan_json="$(normalize_plan <<<"${plan_json}")" || return 1
-
-	# Derive the unique tool list
-	seen=""
-	local -a required=()
-
-	# Collect unique tool names
-	while IFS= read -r tool; do
-		[[ -z "${tool}" ]] && continue
-		if grep -Fxq "${tool}" <<<"${seen}"; then
-			continue
-		fi
-		required+=("${tool}")
-		seen+="${tool}"$'\n'
-	done < <(jq -r '.[] | .tool // empty' <<<"${plan_json}" 2>/dev/null || true)
-
-	if ! grep -Fxq "final_answer" <<<"${seen}"; then
-		required+=("final_answer")
-	fi
-
-	# Return the required tool list
-	printf '%s\n' "${required[@]}"
-}
-
-plan_json_to_entries() {
-	local plan_json
-	plan_json="$1"
-
-	plan_json="$(planner_extract_plan_array "${plan_json}")"
-
-	# Normalize the plan JSON
-	plan_json="$(normalize_plan <<<"${plan_json}")" || return 1
-
-	# Convert the plan JSON into entries
-	printf '%s' "${plan_json}"
 }
 
 EXECUTOR_ENTRYPOINT=${EXECUTOR_ENTRYPOINT:-"${PLANNING_LIB_DIR}/../executor/loop.sh"}

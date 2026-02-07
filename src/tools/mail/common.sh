@@ -47,18 +47,6 @@ mail_trim_whitespace() {
 	printf '%s' "${value}"
 }
 
-mail_resolve_query() {
-	local text_key query
-	text_key="input"
-	query=$(jq -er --arg key "${text_key}" 'if type == "object" then .[$key] // empty else empty end' <<<"${TOOL_ARGS:-{}}" 2>/dev/null || true)
-
-	if [[ -z "${query}" ]]; then
-		query=${TOOL_QUERY:-""}
-	fi
-
-	printf '%s' "${query}"
-}
-
 mail_extract_envelope() {
 	# Splits the provided envelope string into recipients, subject, and body.
 	# Emits three NUL-delimited fields: recipients, subject, body.

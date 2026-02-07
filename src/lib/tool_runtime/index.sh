@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 #
-# Tool registration aggregator for the okso assistant CLI.
+# Tool runtime bootstrap for the okso assistant CLI.
 #
 # Usage:
 #   source "${BASH_SOURCE[0]%/index.sh}/index.sh"
 #
 # Environment variables:
-#   TOOL_QUERY (string): populated before handler execution.
+#   TOOL_ARGS (JSON object): populated before handler execution.
 #   IS_MACOS (bool): platform flag used by macOS-only tools.
 #
 # Dependencies:
@@ -19,22 +19,22 @@
 # Exit codes:
 #   Functions emit errors via log and return non-zero when misused.
 
-if [[ "${OKSO_TOOLS_INDEX_LOADED:-false}" == true ]]; then
+if [[ "${OKSO_TOOL_RUNTIME_INDEX_LOADED:-false}" == true ]]; then
 	if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
 		return 0
 	fi
 	exit 0
 fi
-OKSO_TOOLS_INDEX_LOADED=true
+OKSO_TOOL_RUNTIME_INDEX_LOADED=true
 
-TOOLS_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-TOOLS_SRC_ROOT=$(cd -- "${TOOLS_LIB_DIR}/../.." && pwd)
-TOOLS_DIR="${TOOLS_SRC_ROOT}/tools"
+TOOL_RUNTIME_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+TOOL_RUNTIME_SRC_ROOT=$(cd -- "${TOOL_RUNTIME_LIB_DIR}/../.." && pwd)
+TOOLS_DIR="${TOOL_RUNTIME_SRC_ROOT}/tools"
 
 # shellcheck source=src/lib/core/logging.sh
-source "${TOOLS_LIB_DIR}/../core/logging.sh"
+source "${TOOL_RUNTIME_LIB_DIR}/../core/logging.sh"
 # shellcheck source=src/lib/executor/workflow_loader.sh
-source "${TOOLS_LIB_DIR}/../executor/workflow_loader.sh"
+source "${TOOL_RUNTIME_LIB_DIR}/../executor/workflow_loader.sh"
 # shellcheck source=src/tools/registry.sh
 source "${TOOLS_DIR}/registry.sh"
 TOOL_WRITABLE_DIRECTORY_ALLOWLIST=(

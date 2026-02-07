@@ -25,8 +25,8 @@
 source "${BASH_SOURCE[0]%/mail/send.sh}/registry.sh"
 # shellcheck source=src/lib/core/logging.sh
 source "${BASH_SOURCE[0]%/tools/mail/send.sh}/lib/core/logging.sh"
-# shellcheck source=src/lib/tools/args.sh
-source "${BASH_SOURCE[0]%/tools/mail/send.sh}/lib/tools/args.sh"
+# shellcheck source=src/lib/tool_runtime/args.sh
+source "${BASH_SOURCE[0]%/tools/mail/send.sh}/lib/tool_runtime/args.sh"
 # shellcheck source=src/tools/mail/common.sh
 source "${BASH_SOURCE[0]%/send.sh}/common.sh"
 

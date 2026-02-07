@@ -7,14 +7,14 @@ setup() {
 	chpwd_functions=()
 }
 
-@test "execute_tool_with_query runs handlers without confirmation prompts" {
+@test "execute_tool_with_args runs handlers without confirmation prompts" {
 	run env -i HOME="$HOME" PATH="$PATH" VERBOSITY=2 bash --noprofile --norc <<'SCRIPT'
 set -euo pipefail
 source ./src/lib/executor/dispatch.sh
 demo_handler() { echo "ok"; }
 tool_handler() { printf 'demo_handler'; }
 export -f demo_handler tool_handler
-execute_tool_with_query "demo" "ignored" "{}"
+execute_tool_with_args "demo" "{}"
 SCRIPT
 
 	[ "$status" -eq 0 ]

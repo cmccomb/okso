@@ -25,8 +25,8 @@ SRC_ROOT=$(cd -- "${WEB_TOOLS_DIR}/../.." && pwd)
 
 # shellcheck source=src/lib/core/logging.sh
 source "${SRC_ROOT}/lib/core/logging.sh"
-# shellcheck source=src/lib/tools/args.sh
-source "${SRC_ROOT}/lib/tools/args.sh"
+# shellcheck source=src/lib/tool_runtime/args.sh
+source "${SRC_ROOT}/lib/tool_runtime/args.sh"
 # shellcheck source=src/tools/web/http.sh
 source "${WEB_TOOLS_DIR}/http.sh"
 # shellcheck source=src/tools/registry.sh

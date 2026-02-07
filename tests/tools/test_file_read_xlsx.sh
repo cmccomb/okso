@@ -1,9 +1,9 @@
 #!/usr/bin/env bats
 #
-# Tests for the files/file_read tool.
+# Regression tests for file_read format handling.
 #
 # Usage:
-#   bats tests/tools/test_files_file_read.sh
+#   bats tests/tools/test_file_read_xlsx.sh
 
 @test "file_read rejects xlsx inputs with a clear error" {
 	run bash <<'SCRIPT'

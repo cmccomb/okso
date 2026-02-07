@@ -8,7 +8,7 @@
 #   source "${BASH_SOURCE[0]%/tools/feedback/index.sh}/tools/feedback/index.sh"
 #
 # Environment variables:
-#   TOOL_QUERY (string): JSON object with "plan_item" (string) and
+#   TOOL_ARGS (json): object with "plan_item" (string) and optional
 #       "observations" (string) describing the current step and recent tool
 #       output.
 #   FEEDBACK_ENABLED (bool): when "false", skip prompts and return a skipped
@@ -34,26 +34,25 @@ source "${BASH_SOURCE[0]%/tools/feedback/index.sh}/lib/core/logging.sh"
 source "${BASH_SOURCE[0]%/feedback/index.sh}/registry.sh"
 
 feedback_normalize_context() {
-	# Parses TOOL_QUERY JSON into discrete variables.
-	# Arguments: none. Reads TOOL_QUERY.
+	# Parses TOOL_ARGS JSON into discrete variables.
+	# Arguments: none. Reads TOOL_ARGS.
 	local plan_item observations
 
-	if [[ -z "${TOOL_QUERY:-}" ]]; then
-		log "ERROR" "Feedback context missing" "TOOL_QUERY is empty" || true
+	if [[ -z "${TOOL_ARGS:-}" ]]; then
+		log "ERROR" "Feedback context missing" "TOOL_ARGS is empty" || true
 		return 1
 	fi
 
-	if ! plan_item=$(jq -er '.plan_item' <<<"${TOOL_QUERY}" 2>/dev/null); then
-		if ! plan_item=$(jq -er 'if type == "string" then . else .detail // .message // empty end' <<<"${TOOL_QUERY}" 2>/dev/null); then
-			plan_item="${TOOL_QUERY}"
-		fi
-	fi
-
-	observations=$(jq -er '.observations' <<<"${TOOL_QUERY}" 2>/dev/null || true)
-	observations="${observations:-}" # string observation summary
+	plan_item="$(jq -er '
+		if type != "object" then empty
+		else .plan_item // .input // .detail // .message // empty
+		end
+	' <<<"${TOOL_ARGS}" 2>/dev/null || true)"
+	observations="$(jq -er 'if type == "object" then (.observations // "") else "" end' <<<"${TOOL_ARGS}" 2>/dev/null || true)"
+	observations="${observations:-}"
 
 	if [[ -z "${plan_item}" ]]; then
-		log "ERROR" "Feedback context requires plan description" "${TOOL_QUERY}" || true
+		log "ERROR" "Feedback context requires plan description" "${TOOL_ARGS}" || true
 		return 1
 	fi
 
@@ -151,7 +150,7 @@ feedback_persist_payload() {
 
 tool_feedback() {
 	# Emits structured feedback after prompting the user.
-	# Arguments: none. Reads TOOL_QUERY and optional environment overrides.
+	# Arguments: none. Reads TOOL_ARGS and optional environment overrides.
 	local plan_item observations rating comment payload output_path
 
 	if [[ "${FEEDBACK_ENABLED:-true}" != true ]]; then
@@ -208,8 +207,12 @@ register_feedback() {
 		cat <<'JSON'
 {
   "type": "object",
+  "required": ["plan_item"],
   "properties": {
-    "input": {
+    "plan_item": {
+      "type": "string"
+    },
+    "observations": {
       "type": "string"
     }
   }

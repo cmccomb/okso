@@ -8,7 +8,7 @@
 #   source "${BASH_SOURCE[0]%/tools/terminal/index.sh}/tools/terminal/index.sh"
 #
 # Environment variables:
-#   TOOL_QUERY (string): command to run within the session (defaults to "status").
+#   TOOL_ARGS (json): structured args with optional `command` and `args` array.
 #   IS_MACOS (bool): enables the macOS-specific `open` command when true.
 #   TERMINAL_SESSION_ID (string, optional): reused session identifier for logging.
 #   TERMINAL_WORKDIR (string, optional): starting working directory for the session.
@@ -58,36 +58,6 @@ TERMINAL_CMD_ARGS=() # array command arguments parsed from TOOL_ARGS
 
 TERMINAL_SESSION_ID="${TERMINAL_SESSION_ID:-}" # string session identifier
 TERMINAL_WORKDIR="${TERMINAL_WORKDIR:-}"       # string working directory for the persistent session
-
-derive_terminal_query() {
-	# Arguments:
-	#   $1 - user query (string)
-	local user_query lower_query
-	user_query="$1"
-	lower_query=$(printf '%s' "${user_query}" | tr '[:upper:]' '[:lower:]')
-
-	if [[ "${user_query}" =~ \`([^\`]+)\` ]]; then
-		user_output_line "${BASH_REMATCH[1]}"
-		return
-	fi
-
-	if [[ "${lower_query}" == *"todo"* ]]; then
-		user_output_line 'rg -n "TODO" .'
-		return
-	fi
-
-	if [[ "${lower_query}" == *"list files"* || "${lower_query}" == *"show directory"* || "${lower_query}" == *"show folder"* ]]; then
-		user_output_line 'ls -la'
-		return
-	fi
-
-	if [[ "${user_query}" =~ (^|[[:space:]])(ls|cd|cat|grep|find|pwd|rg)([[:space:]]|$) ]]; then
-		user_output_line "${BASH_REMATCH[2]}"
-		return
-	fi
-
-	user_output_line 'status'
-}
 
 terminal_args_from_json() {
 	# Parses TOOL_ARGS into a command and argument array.

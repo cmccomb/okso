@@ -5,7 +5,7 @@ Handlers expect structured arguments in `TOOL_ARGS` that follow the registered J
 use the canonical `input` property so prompts and schemas can reference `args.input` consistently across tools:
 
 - `terminal`: persistent working directory with `status`, `pwd`, `ls`, `cd`, `cat`, `head`, `tail`, `find`, `grep`, `stat`, `wc`, `du`, `date`, `base64` encode/decode, and guarded mutations (`rm -i`, `mkdir`, `rmdir`, `mv`, `cp`, `touch`). Uses `open` on macOS.
-- `python_repl`: run Python statements in an isolated sandbox using `python3 -I` with a startup hook that confines writes. The tool reads structured `TOOL_ARGS.input` (and falls back to `TOOL_QUERY` when `TOOL_ARGS` is empty) and persists state between calls.
+- `python_repl`: run Python statements in an isolated sandbox using `python3 -I` with a startup hook that confines writes. The tool reads structured `TOOL_ARGS.input` and persists state between calls.
 - `web_search`: query the Google Custom Search API with a structured payload (`query` and optional `num`, default `5`, maximum `10`) and return JSON results.
 - `web_fetch`: retrieve HTTP response bodies with a configurable size cap, returning JSON metadata (final URL, HTTP status, content type, headers, byte length, truncation flag, body encoding, body snippet, optional `body_markdown`, and anchor metadata). It only accepts a `url` argument and prefers normalized snippets from prior `web_search` results when available.
 - `file_search`: search local files/documents with `rga`, returning structured matches and an artifact path to the raw JSONL output.

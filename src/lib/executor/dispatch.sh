@@ -23,18 +23,16 @@ source "${EXEC_LIB_DIR}/../core/logging.sh"
 # shellcheck source=src/tools/registry.sh
 source "${EXEC_LIB_DIR}/../../tools/registry.sh"
 
-execute_tool_with_query() {
+execute_tool_with_args() {
 	# Arguments:
 	#   $1 - tool name
-	#   $2 - tool query (legacy string)
-	#   $4 - structured args JSON
+	#   $2 - structured args JSON
 	# Returns:
 	#   JSON object with keys: output (string), error (string), exit_code (int)
 
-	local tool_name tool_query handler output status tool_args_json
+	local tool_name handler output status tool_args_json
 	tool_name="$1"
-	tool_query="$2"
-	tool_args_json="$3"
+	tool_args_json="$2"
 
 	# Lookup the tool handler
 	handler="$(tool_handler "${tool_name}")"
@@ -51,7 +49,7 @@ execute_tool_with_query() {
 	stderr_file="$(mktemp)"
 
 	# Execute the tool handler
-	TOOL_QUERY="${tool_query}" TOOL_ARGS="${tool_args_json}" ${handler} >"${stdout_file}" 2>"${stderr_file}"
+	TOOL_ARGS="${tool_args_json}" ${handler} >"${stdout_file}" 2>"${stderr_file}"
 
 	# Capture outputs and status
 	status=$?
@@ -80,4 +78,4 @@ execute_tool_with_query() {
 	return 0
 }
 
-export -f execute_tool_with_query
+export -f execute_tool_with_args

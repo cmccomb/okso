@@ -11,7 +11,7 @@ setup() {
 @test "recognize_intent falls back to heuristic when llama is unavailable" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-source ./src/lib/planning/intent.sh
+source ./src/lib/intent/intent.sh
 intent_json="$(recognize_intent "Create a note about the meeting" 2>/dev/null)"
 printf '%s' "${intent_json}" | jq -r '.intents[0]'
 SCRIPT
@@ -23,7 +23,7 @@ SCRIPT
 @test "intent keyword fallback prioritizes web before coding test substrings" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-source ./src/lib/planning/intent.sh
+source ./src/lib/intent/intent.sh
 printf '%s\n' \
   "$(intent_keyword_fallback "Show latest news in tech" | jq -r '.intents[0]')" \
   "$(intent_keyword_fallback "Please debug this test function" | jq -r '.intents[0]')" \
@@ -59,7 +59,7 @@ set -euo pipefail
 export WORKFLOWS_DIR=./tests/fixtures/workflows/valid
 source ./src/lib/executor/workflow_loader.sh
 source ./src/tools/registry.sh
-source ./src/lib/planning/intent.sh
+source ./src/lib/intent/intent.sh
 init_tool_registry
 register_tool "notes_create" "Create note" true '{"type":"object","properties":{},"additionalProperties":true}'
 register_tool "final_answer" "Respond to user" true '{"type":"object","properties":{},"additionalProperties":true}'

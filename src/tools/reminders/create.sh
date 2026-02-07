@@ -28,41 +28,6 @@ source "${BASH_SOURCE[0]%/tools/reminders/create.sh}/lib/core/logging.sh"
 # shellcheck source=src/tools/reminders/common.sh
 source "${BASH_SOURCE[0]%/create.sh}/common.sh"
 
-derive_reminders_create_query() {
-	# Arguments:
-	#   $1 - user query (string)
-	local user_query nocasematch_enabled
-	user_query="$1"
-	nocasematch_enabled=false
-
-	if shopt -q nocasematch; then
-		nocasematch_enabled=true
-	fi
-	shopt -s nocasematch
-
-	if [[ "${user_query}" =~ remind[[:space:]]+me[[:space:]]+to[[:space:]]+(.+) ]]; then
-		printf '%s\n' "${BASH_REMATCH[1]}"
-		if [[ "${nocasematch_enabled}" == false ]]; then
-			shopt -u nocasematch
-		fi
-		return
-	fi
-
-	if [[ "${user_query}" =~ remind[[:space:]]+me[[:space:]]+(.+) ]]; then
-		printf '%s\n' "${BASH_REMATCH[1]}"
-		if [[ "${nocasematch_enabled}" == false ]]; then
-			shopt -u nocasematch
-		fi
-		return
-	fi
-
-	if [[ "${nocasematch_enabled}" == false ]]; then
-		shopt -u nocasematch
-	fi
-
-	printf '%s\n' "${user_query}"
-}
-
 tool_reminders_create() {
 	local title body list_script
 

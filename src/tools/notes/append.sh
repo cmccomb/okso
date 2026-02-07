@@ -28,12 +28,6 @@ source "${BASH_SOURCE[0]%/tools/notes/append.sh}/lib/core/logging.sh"
 # shellcheck source=src/tools/notes/common.sh
 source "${BASH_SOURCE[0]%/append.sh}/common.sh"
 
-derive_notes_append_query() {
-	# Arguments:
-	#   $1 - user query (string)
-	printf '%s\n' "$1"
-}
-
 tool_notes_append() {
 	local title body folder_script
 

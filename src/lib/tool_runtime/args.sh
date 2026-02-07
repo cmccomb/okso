@@ -14,10 +14,10 @@
 # Exit codes:
 #   Functions return non-zero on invalid TOOL_ARGS payloads.
 
-TOOLS_ARGS_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+TOOL_RUNTIME_ARGS_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck source=src/lib/core/logging.sh
-source "${TOOLS_ARGS_LIB_DIR}/../core/logging.sh"
+source "${TOOL_RUNTIME_ARGS_LIB_DIR}/../core/logging.sh"
 
 tool_args_parse_with_jq() {
 	# Parses TOOL_ARGS with a provided jq filter and consistent error handling.

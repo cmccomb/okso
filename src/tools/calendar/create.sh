@@ -26,8 +26,8 @@
 source "${BASH_SOURCE[0]%/calendar/create.sh}/registry.sh"
 # shellcheck source=src/lib/core/logging.sh
 source "${BASH_SOURCE[0]%/tools/calendar/create.sh}/lib/core/logging.sh"
-# shellcheck source=src/lib/tools/args.sh
-source "${BASH_SOURCE[0]%/tools/calendar/create.sh}/lib/tools/args.sh"
+# shellcheck source=src/lib/tool_runtime/args.sh
+source "${BASH_SOURCE[0]%/tools/calendar/create.sh}/lib/tool_runtime/args.sh"
 # shellcheck source=src/tools/calendar/common.sh
 source "${BASH_SOURCE[0]%/create.sh}/common.sh"
 

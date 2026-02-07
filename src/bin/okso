@@ -50,39 +50,29 @@ fast_path_cli_flags() {
 	# Handles --help/--version without loading full runtime dependencies.
 	# Arguments:
 	#   $@ - raw CLI arguments
-	local first_arg entrypoint_display
+	local first_arg
 	first_arg="${1:-}"
-	entrypoint_display="${OKSO_ENTRYPOINT:-./src/bin/okso}"
 
 	case "${first_arg}" in
 	-h | --help)
-		cat <<USAGE
-Usage: ${entrypoint_display} [OPTIONS] -- "user query"
-
-Options:
-  -h, --help            Show help text.
-  -V, --version         Show version information.
-  -y, --yes, --no-confirm
-                        Approve all tool runs without prompting.
-  -v, --verbose [LEVEL] Enable verbose logs (optionally set integer level).
-  -vv, -vvv             Increase verbosity (INFO/DEBUG).
-  -q, --quiet           Silence informational logs.
-USAGE
+		render_cli_usage
 		exit 0
 		;;
 	-V | --version)
-		printf 'okso %s\n' "${OKSO_VERSION:-0.1.0}"
+		render_cli_version
 		exit 0
 		;;
 	esac
 }
 
-fast_path_cli_flags "$@"
-
 SCRIPT_DIR=$(resolve_script_dir)
 SRC_ROOT=$(cd "${SCRIPT_DIR}/.." && pwd)
 LIB_DIR="${SRC_ROOT}/lib"
 export OKSO_ENTRYPOINT="${OKSO_ENTRYPOINT:-./src/bin/okso}"
+# shellcheck source=src/lib/cli/usage.sh
+source "${LIB_DIR}/cli/usage.sh"
+
+fast_path_cli_flags "$@"
 
 # shellcheck source=src/lib/core/logging.sh
 source "${LIB_DIR}/core/logging.sh"
@@ -105,8 +95,8 @@ load_runtime_modules() {
 		return 0
 	fi
 
-	# shellcheck source=src/lib/tools/index.sh
-	source "${LIB_DIR}/tools/index.sh"
+	# shellcheck source=src/lib/tool_runtime/index.sh
+	source "${LIB_DIR}/tool_runtime/index.sh"
 	# shellcheck source=src/lib/planning/planner.sh
 	source "${LIB_DIR}/planning/planner.sh"
 	OKSO_RUNTIME_MODULES_LOADED=true
@@ -147,7 +137,7 @@ main() {
 	log "INFO" "Recognized intent" "${intent_json}"
 	planner_tools="$(intent_to_tools "${intent_json}")"
 	log "INFO" "Intent tool filter" "$(printf '%s\n' "${planner_tools}" | paste -sd ',' -)"
-	intent_context="$(format_intent_context "${intent_json}" "${planner_tools}")"
+	intent_context="$(render_intent_log_summary "${intent_json}" "${planner_tools}")"
 	intent_duration="$(format_duration_from "${intent_start_time}")"
 	render_step_box "Intent" "${intent_duration}" "${intent_context}"
 

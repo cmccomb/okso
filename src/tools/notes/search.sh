@@ -25,16 +25,10 @@
 source "${BASH_SOURCE[0]%/notes/search.sh}/registry.sh"
 # shellcheck source=src/lib/core/logging.sh
 source "${BASH_SOURCE[0]%/tools/notes/search.sh}/lib/core/logging.sh"
-# shellcheck source=src/lib/tools/args.sh
-source "${BASH_SOURCE[0]%/tools/notes/search.sh}/lib/tools/args.sh"
+# shellcheck source=src/lib/tool_runtime/args.sh
+source "${BASH_SOURCE[0]%/tools/notes/search.sh}/lib/tool_runtime/args.sh"
 # shellcheck source=src/tools/notes/common.sh
 source "${BASH_SOURCE[0]%/search.sh}/common.sh"
-
-derive_notes_search_query() {
-	# Arguments:
-	#   $1 - user query (string)
-	printf '%s\n' "$1"
-}
 
 tool_notes_search() {
 	local query folder_script

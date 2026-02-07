@@ -27,12 +27,6 @@ source "${BASH_SOURCE[0]%/tools/notes/list.sh}/lib/core/logging.sh"
 # shellcheck source=src/tools/notes/common.sh
 source "${BASH_SOURCE[0]%/list.sh}/common.sh"
 
-derive_notes_list_query() {
-	# Arguments:
-	#   $1 - user query (string)
-	printf '%s\n' "$1"
-}
-
 tool_notes_list() {
 	local folder_script
 

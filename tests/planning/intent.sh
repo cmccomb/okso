@@ -10,7 +10,7 @@ setup() {
 @test "recognize_intent defaults to planner model when intent model unset" {
 	run env -i HOME="$HOME" PATH="$PATH" bash <<'SCRIPT'
 set -euo pipefail
-source ./src/lib/planning/intent.sh
+source ./src/lib/intent/intent.sh
 PLANNER_MODEL_REPO="planner/repo"
 PLANNER_MODEL_FILE="planner.gguf"
 load_schema_text() { printf '{"type":"object"}'; }

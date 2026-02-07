@@ -29,12 +29,6 @@ source "${BASH_SOURCE[0]%/tools/reminders/list.sh}/lib/core/logging.sh"
 # shellcheck source=src/tools/reminders/common.sh
 source "${BASH_SOURCE[0]%/list.sh}/common.sh"
 
-derive_reminders_list_query() {
-	# Arguments:
-	#   $1 - user query (string)
-	printf 'list\n'
-}
-
 tool_reminders_list() {
 	local list_script
 

@@ -20,31 +20,20 @@ CLI_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck source=src/lib/core/logging.sh
 source "${CLI_LIB_DIR}/../core/logging.sh"
+# shellcheck source=src/lib/cli/usage.sh
+source "${CLI_LIB_DIR}/usage.sh"
 
 render_usage() {
 	# Renders the usage text for the okso CLI.
 	# Returns:
 	#   usage text on stdout (string)
-
-	local entrypoint_display
-	entrypoint_display="${OKSO_ENTRYPOINT:-./src/bin/okso}"
-
-	cat <<USAGE
-Usage: ${entrypoint_display} [OPTIONS] -- "user query"
-
-Options:
-  -h, --help            Show help text.
-  -V, --version         Show version information.
-  -y, --yes, --no-confirm
-                        Approve all tool runs without prompting.
-  -v, --verbose [LEVEL] Enable verbose logs (optionally set integer level).
-  -vv, -vvv             Increase verbosity (INFO/DEBUG).
-  -q, --quiet           Silence informational logs.
+	render_cli_usage
+	cat <<'DETAILS'
 
 The script orchestrates a llama.cpp-backed planner with a registry of
 machine-checkable tools. Provide a natural language query after
 "--" to trigger planning, ranking, and execution.
-USAGE
+DETAILS
 }
 
 show_help() {
@@ -52,7 +41,7 @@ show_help() {
 }
 
 show_version() {
-	printf 'okso %s\n' "${VERSION}"
+	render_cli_version
 }
 
 # shellcheck disable=SC2034

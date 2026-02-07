@@ -9,7 +9,7 @@ Additionally, you can run the `feedback` tool inside a plan to capture ratings a
 Provide a JSON context payload describing the current plan item and any prior observations, then supply the score and optional notes:
 
 ```bash
-TOOL_QUERY='{"plan_item":"Summarize notes","observations":"Draft complete"}' \
+TOOL_ARGS='{"plan_item":"Summarize notes","observations":"Draft complete"}' \
   FEEDBACK_NONINTERACTIVE_INPUT="5|Clear summary" \
   bash -lc 'source ./src/tools/feedback/index.sh; tool_feedback'
 ```

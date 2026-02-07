@@ -8,7 +8,7 @@
 #
 # Environment variables:
 #   TOOL_ARGS (JSON object): structured args including `input` with Python statements.
-#   TOOL_QUERY (string): fallback Python statements when TOOL_ARGS is empty.
+#   TOOL_ARGS (json): structured args including required `input` Python code.
 #
 # Dependencies:
 #   - bash 3.2+
@@ -22,8 +22,8 @@
 
 # shellcheck source=src/lib/core/logging.sh
 source "${BASH_SOURCE[0]%/tools/python_repl/index.sh}/lib/core/logging.sh"
-# shellcheck source=src/lib/tools/args.sh
-source "${BASH_SOURCE[0]%/tools/python_repl/index.sh}/lib/tools/args.sh"
+# shellcheck source=src/lib/tool_runtime/args.sh
+source "${BASH_SOURCE[0]%/tools/python_repl/index.sh}/lib/tool_runtime/args.sh"
 # shellcheck source=src/tools/registry.sh
 source "${BASH_SOURCE[0]%/python_repl/index.sh}/registry.sh"
 
@@ -194,16 +194,10 @@ PY
 }
 
 python_repl_resolve_query() {
-	# Resolves the Python input text from TOOL_ARGS (or TOOL_QUERY fallback).
+	# Resolves the Python input text from TOOL_ARGS.
 	# Returns:
 	#   Outputs the Python statements (string).
-	local args_json query
-	args_json="${TOOL_ARGS:-}"
-
-	if [[ -z "${args_json}" ]]; then
-		printf '%s' "${TOOL_QUERY:-""}"
-		return 0
-	fi
+	local query
 
 	if ! query="$(tool_args_parse_strict_single_string "input" "" "python_repl")"; then
 		log "ERROR" "Invalid TOOL_ARGS for python_repl" "${TOOL_ARGS:-}" >&2

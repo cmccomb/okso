@@ -19,8 +19,6 @@ EXECUTOR_STEP_RUNNER_DIR=${EXECUTOR_STEP_RUNNER_DIR:-$(cd -- "$(dirname "${BASH_
 source "${EXECUTOR_STEP_RUNNER_DIR}/../core/logging.sh"
 # shellcheck source=src/lib/core/json_state.sh
 source "${EXECUTOR_STEP_RUNNER_DIR}/../core/json_state.sh"
-# shellcheck source=src/lib/tools/query.sh
-source "${EXECUTOR_STEP_RUNNER_DIR}/../tools/query.sh"
 # shellcheck source=src/lib/executor/history.sh
 source "${EXECUTOR_STEP_RUNNER_DIR}/history.sh"
 # shellcheck source=src/lib/executor/dispatch.sh
@@ -71,9 +69,9 @@ execute_planned_action() {
 
 	json_state_set_key "${state_prefix}" "step_started_at" "$(date +%s)" || true
 	if [[ "${tool}" == "web_fetch" ]]; then
-		observation="$(WEB_FETCH_SEARCH_SNIPPETS="${web_fetch_snippets}" execute_tool_with_query "${tool}" "$(extract_tool_query "${tool}" "${args_after_controls}")" "${args_after_controls}")"
+		observation="$(WEB_FETCH_SEARCH_SNIPPETS="${web_fetch_snippets}" execute_tool_with_args "${tool}" "${args_after_controls}")"
 	else
-		observation="$(execute_tool_with_query "${tool}" "$(extract_tool_query "${tool}" "${args_after_controls}")" "${args_after_controls}")"
+		observation="$(execute_tool_with_args "${tool}" "${args_after_controls}")"
 	fi
 	execution_status=$?
 

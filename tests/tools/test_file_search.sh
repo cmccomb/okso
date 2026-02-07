@@ -51,7 +51,7 @@ SCRIPT
 @test "initialize_tools registers file_search through the file suite" {
 	run bash <<'SCRIPT'
 set -euo pipefail
-source ./src/lib/tools/index.sh
+source ./src/lib/tool_runtime/index.sh
 init_tool_registry
 initialize_tools
 tool_names
