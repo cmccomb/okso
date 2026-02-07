@@ -457,16 +457,16 @@ score_planner_candidate() {
 		tool=$(jq -r '.tool // ""' <<<"${step}")
 		args=$(jq -c '.args // {}' <<<"${step}")
 
-			if [[ "${availability_known}" == true ]]; then
-				if planner_is_tool_available "${tool}" "${available_tools}"; then
-					valid_tools=$((valid_tools + 1))
-					if ! planner_args_satisfy_registered_schema "${tool}" "${args}"; then
-						invalid_schema_steps=$((invalid_schema_steps + 1))
-					fi
-				else
-					missing_tools=$((missing_tools + 1))
+		if [[ "${availability_known}" == true ]]; then
+			if planner_is_tool_available "${tool}" "${available_tools}"; then
+				valid_tools=$((valid_tools + 1))
+				if ! planner_args_satisfy_registered_schema "${tool}" "${args}"; then
+					invalid_schema_steps=$((invalid_schema_steps + 1))
 				fi
+			else
+				missing_tools=$((missing_tools + 1))
 			fi
+		fi
 
 		if ((side_effect_index < 0)) && planner_step_has_side_effects "${tool}" "${args}"; then
 			side_effect_index=${idx}
