@@ -13,6 +13,7 @@
 @test "finalize_executor_result emits answer plus sources" {
 	run bash -lc '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
+                unset PLANNER_SKIP_TOOL_LOAD
                 source ./src/lib/planning/planner.sh
                 # Silence structured logs for assertion clarity.
                 log() { :; }
