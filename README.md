@@ -46,16 +46,3 @@ okso "can you rephrase this question more accurately? 'What is the capital of th
 
 For more detailed usage guidance, read the [documentation](http://cmccomb.com/okso).
 For maintainer, support, and roadmap details, see [Project](docs/project.md).
-
-## Maintainer quality checks
-
-Before merging, run:
-
-```bash
-find src scripts tests -type f \( -name '*.sh' -o -name 'okso' \) -print0 | xargs -0 shfmt -d
-bash ./scripts/ci/run-shellcheck.sh
-bash ./scripts/ci/run-bats.sh
-bash ./scripts/ci/check-docs.sh
-bash ./scripts/ci/audit-comments.sh
-bash ./scripts/ci/audit-consistency.sh
-```
