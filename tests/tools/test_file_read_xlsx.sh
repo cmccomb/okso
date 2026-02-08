@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# shellcheck shell=bash
 #
 # Regression tests for file_read format handling.
 #

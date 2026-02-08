@@ -1,7 +1,9 @@
 #!/usr/bin/env bats
+# shellcheck shell=bash
+# Test coverage for config.sh.
 
 setup() {
-	#shellcheck disable=SC2155
+	# shellcheck disable=SC2155 # TD-003: test setup keeps declaration-plus-assignment for concise fixtures.
 	export REPO_ROOT="$(git rev-parse --show-toplevel)"
 }
 

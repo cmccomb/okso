@@ -1,8 +1,10 @@
 #!/usr/bin/env bats
+# shellcheck shell=bash
+# Test coverage for prompting.sh.
 
 setup() {
 	unset -f chpwd _mise_hook 2>/dev/null || true
-	# shellcheck disable=SC2155
+	# shellcheck disable=SC2155 # TD-003: test setup keeps declaration-plus-assignment for concise fixtures.
 	export TOOL_REGISTRY_JSON=$(prompting_registry_payload)
 }
 

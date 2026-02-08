@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 # Simple documentation/placeholder checks for CI.
+# Usage: bash ./scripts/ci/check-docs.sh
 
 set -euo pipefail
 
@@ -13,7 +14,8 @@ echo "Checking for unresolved placeholders outside approved examples"
 if rg -n "\{\{[^}]+\}\}" src docs \
 	--glob '!src/prompts/executor.md' \
 	--glob '!docs/reference/tools.md' \
-	--glob '!docs/documentation-guidelines.md'; then
+	--glob '!docs/documentation-guidelines.md' \
+	--glob '!docs/_layouts/**'; then
 	echo "Found unresolved placeholders outside approved examples (see above)."
 	errors=$((errors + 1))
 fi
@@ -22,7 +24,8 @@ echo "Checking for TODO/TBD/__MISSING__ tokens in src/ and docs/"
 if rg -n "\b(TODO|TBD|__MISSING__)\b" src docs workflows \
 	--glob '!src/prompts/executor.md' \
 	--glob '!src/tools/terminal/index.sh' \
-	--glob '!docs/documentation-guidelines.md'; then
+	--glob '!docs/documentation-guidelines.md' \
+	--glob '!docs/contributor/code-quality-standards.md'; then
 	echo "Found TODO/TBD markers (see above)."
 	errors=$((errors + 1))
 fi

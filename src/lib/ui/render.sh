@@ -16,9 +16,12 @@
 # Exit codes:
 #   Functions return 0 on success.
 
-UI_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-
 ui_width_target() {
+	# Resolves and clamps the target UI line width.
+	# Arguments:
+	#   None.
+	# Returns:
+	#   Width value on stdout.
 	local width
 	width="${OKSO_UI_WIDTH:-110}"
 	if ! [[ "${width}" =~ ^[0-9]+$ ]]; then

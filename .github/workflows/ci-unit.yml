@@ -27,3 +27,9 @@ jobs:
 
       - name: Check docs
         run: bash ./scripts/ci/check-docs.sh
+
+      - name: Audit comments
+        run: bash ./scripts/ci/audit-comments.sh
+
+      - name: Audit consistency
+        run: bash ./scripts/ci/audit-consistency.sh

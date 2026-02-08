@@ -38,6 +38,8 @@ create_default_settings() {
 	# Arguments:
 	#   $1 - settings namespace prefix (string)
 	#   $2 - overrides JSON to merge with defaults (string, optional)
+	# Returns:
+	#   0 on success; non-zero when JSON generation or persistence fails.
 	local settings_prefix overrides default_model_file default_planner_model_file config_dir config_file
 	local planner_model_spec executor_model_spec rephraser_model_spec default_json override_json cache_dir run_id
 	local planner_cache_file executor_cache_file rephraser_cache_file executor_model_branch

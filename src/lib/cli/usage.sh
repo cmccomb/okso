@@ -7,6 +7,11 @@
 #   source "${BASH_SOURCE[0]%/usage.sh}/usage.sh"
 
 render_cli_usage() {
+	# Renders the CLI usage text for the configured entrypoint name.
+	# Arguments:
+	#   None.
+	# Returns:
+	#   Usage text on stdout.
 	local entrypoint_display
 	entrypoint_display="${OKSO_ENTRYPOINT:-./src/bin/okso}"
 
@@ -27,6 +32,11 @@ USAGE
 }
 
 render_cli_version() {
+	# Renders the CLI version string.
+	# Arguments:
+	#   None.
+	# Returns:
+	#   Version text on stdout.
 	local version
 	version="${OKSO_VERSION:-${VERSION:-0.1.0}}"
 	printf 'okso %s\n' "${version}"

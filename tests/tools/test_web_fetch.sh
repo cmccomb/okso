@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# shellcheck shell=bash
 #
 # Tests for the web_fetch tool, including argument validation and registration.
 #

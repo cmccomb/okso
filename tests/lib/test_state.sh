@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# shellcheck shell=bash
 #
 # Tests for JSON-backed state helpers.
 #
@@ -17,7 +18,7 @@ setup() {
 }
 
 @test "json_state helpers persist values and history" {
-	# shellcheck disable=SC1091
+	# shellcheck disable=SC1091 # TD-002: test fixtures are sourced from dynamic temporary paths.
 	source ./src/lib/core/json_state.sh
 	prefix=state_case
 	json_state_set_key "${prefix}" "foo" "bar"
@@ -32,7 +33,7 @@ setup() {
 }
 
 @test "json_state_get_document falls back on invalid JSON" {
-	# shellcheck disable=SC1091
+	# shellcheck disable=SC1091 # TD-002: test fixtures are sourced from dynamic temporary paths.
 	source ./src/lib/core/json_state.sh
 	prefix=invalid_state_case
 	json_var=$(json_state_namespace_var "${prefix}")
@@ -42,7 +43,7 @@ setup() {
 }
 
 @test "json_state_sanitize_json normalizes or falls back" {
-	# shellcheck disable=SC1091
+	# shellcheck disable=SC1091 # TD-002: test fixtures are sourced from dynamic temporary paths.
 	source ./src/lib/core/json_state.sh
 	output=$(json_state_sanitize_json '{"b":2,"a":1}' '{}')
 	jq -e '.a == 1 and .b == 2' <<<"${output}" >/dev/null
@@ -54,7 +55,7 @@ setup() {
 }
 
 @test "json_state_resolve_document uses cache when fallback omitted" {
-	# shellcheck disable=SC1091
+	# shellcheck disable=SC1091 # TD-002: test fixtures are sourced from dynamic temporary paths.
 	source ./src/lib/core/json_state.sh
 	prefix=resolve_cache_case
 	json_state_write_cache "${prefix}" '{"cached":true}'
@@ -64,7 +65,7 @@ setup() {
 }
 
 @test "json_state_resolve_document prefers valid namespace data" {
-	# shellcheck disable=SC1091
+	# shellcheck disable=SC1091 # TD-002: test fixtures are sourced from dynamic temporary paths.
 	source ./src/lib/core/json_state.sh
 	prefix=resolve_var_case
 	json_var=$(json_state_namespace_var "${prefix}")
@@ -74,7 +75,7 @@ setup() {
 }
 
 @test "invalid documents are cached as sanitized fallbacks" {
-	# shellcheck disable=SC1091
+	# shellcheck disable=SC1091 # TD-002: test fixtures are sourced from dynamic temporary paths.
 	source ./src/lib/core/json_state.sh
 	prefix=invalid_cached_state_case
 	json_var=$(json_state_namespace_var "${prefix}")
@@ -92,7 +93,7 @@ setup() {
 }
 
 @test "repaired fallback is reused after namespace reset" {
-	# shellcheck disable=SC1091
+	# shellcheck disable=SC1091 # TD-002: test fixtures are sourced from dynamic temporary paths.
 	source ./src/lib/core/json_state.sh
 	prefix=invalid_cache_reuse_case
 	json_var=$(json_state_namespace_var "${prefix}")
@@ -104,7 +105,7 @@ setup() {
 }
 
 @test "cache is used when namespace resets" {
-	# shellcheck disable=SC1091
+	# shellcheck disable=SC1091 # TD-002: test fixtures are sourced from dynamic temporary paths.
 	source ./src/lib/core/json_state.sh
 	prefix=cache_reuse_case
 	json_state_set_document "${prefix}" '{"cached":true}'
@@ -115,7 +116,7 @@ setup() {
 }
 
 @test "history append gracefully repairs malformed JSON" {
-	# shellcheck disable=SC1091
+	# shellcheck disable=SC1091 # TD-002: test fixtures are sourced from dynamic temporary paths.
 	source ./src/lib/core/json_state.sh
 	prefix=broken_history
 	json_var=$(json_state_namespace_var "${prefix}")

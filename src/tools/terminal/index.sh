@@ -158,7 +158,7 @@ terminal_expand_tilde() {
 		return 0
 	fi
 
-	# shellcheck disable=SC2088
+	# shellcheck disable=SC2088 # TD-008: terminal allowlist preserves literal tilde semantics for validation.
 	case "${s}" in
 	"~" | "~/"*)
 		printf '%s\n' "${HOME}${s:1}"

@@ -1,9 +1,11 @@
 #!/usr/bin/env bats
+# shellcheck shell=bash
+# Test coverage for rephrasing.sh.
 
 setup() {
 	unset -f chpwd _mise_hook 2>/dev/null || true
 	unset -f __zsh_like_cd cd 2>/dev/null || true
-	# shellcheck disable=SC2034
+	# shellcheck disable=SC2034 # TD-001: dynamic globals are intentionally consumed across sourced modules and tests.
 	chpwd_functions=()
 }
 
@@ -85,9 +87,9 @@ planner_fetch_search_context "original" || true
 SCRIPT
 
 	[ "$status" -eq 0 ]
-	# shellcheck disable=SC2126
+	# shellcheck disable=SC2126 # TD-005: count assertions intentionally use command substitution patterns.
 	first_section=$(printf '%s\n' "${output}" | grep -n "first topic" | wc -l)
-	# shellcheck disable=SC2126
+	# shellcheck disable=SC2126 # TD-005: count assertions intentionally use command substitution patterns.
 	second_section=$(printf '%s\n' "${output}" | grep -n "second topic" | wc -l)
 	[ "${first_section}" -ge 1 ]
 	[ "${second_section}" -ge 1 ]

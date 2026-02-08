@@ -1,4 +1,6 @@
 #!/usr/bin/env bats
+# shellcheck shell=bash
+# Test coverage for test_settings.sh.
 
 @test "settings persist across shells using cache" {
 	run bash -lc '

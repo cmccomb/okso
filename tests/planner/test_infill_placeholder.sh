@@ -1,4 +1,6 @@
 #!/usr/bin/env bats
+# shellcheck shell=bash
+# Test coverage for test_infill_placeholder.sh.
 
 @test "planner schema allows executor fill placeholder for numeric fields" {
 	run env -i PATH="$PATH" HOME="$HOME" VERBOSITY=0 bash --noprofile --norc <<'SCRIPT'

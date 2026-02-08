@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# shellcheck shell=bash
 #
 # Tests for path normalization and workspace boundary enforcement.
 #

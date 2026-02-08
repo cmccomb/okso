@@ -1,4 +1,6 @@
 #!/usr/bin/env bats
+# shellcheck shell=bash
+# Test coverage for workflows.sh.
 
 setup() {
 	unset -f chpwd _mise_hook 2>/dev/null || true

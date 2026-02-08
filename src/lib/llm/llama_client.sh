@@ -94,6 +94,27 @@ sanitize_llama_output() {
 	printf '%s' "${sanitized}"
 }
 
+llama_mktemp_file_with_retries() {
+	# Creates a temporary file path with short retry backoff to avoid rare
+	# collisions under heavily parallelized test runs.
+	# Arguments:
+	#   $1 - mktemp template (string)
+	# Returns:
+	#   Temporary file path on stdout.
+	local template attempts path
+	template="$1"
+	attempts=0
+	while ((attempts < 5)); do
+		if path="$(mktemp "${template}" 2>/dev/null)"; then
+			printf '%s' "${path}"
+			return 0
+		fi
+		attempts=$((attempts + 1))
+		sleep 0.02
+	done
+	return 1
+}
+
 llama_infer() {
 	# Runs llama.cpp with Hugging Face repository caching for inference.
 	# Arguments:
@@ -106,7 +127,7 @@ llama_infer() {
 	# Returns:
 	#   The generated text (string).
 	local prompt stop_string number_of_tokens schema_json repo_override file_override
-	local llama_bin schema_file schema_inline_limit schema_bytes schema_mode
+	local llama_bin schema_file schema_tmp_dir schema_inline_limit schema_bytes schema_mode
 	prompt="$1"
 	stop_string="${2:-}"
 	number_of_tokens="${3:-256}"
@@ -115,6 +136,7 @@ llama_infer() {
 	file_override="${6:-${EXECUTOR_MODEL_FILE:-}}"
 	llama_bin="${LLAMA_BIN:-llama-completion}"
 	schema_file=""
+	schema_tmp_dir=""
 	schema_inline_limit="${LLAMA_JSON_SCHEMA_INLINE_MAX_BYTES:-4096}"
 	schema_bytes=0
 	schema_mode="none"
@@ -126,11 +148,14 @@ llama_infer() {
 			schema_inline_limit=4096
 		fi
 		if ((schema_bytes > schema_inline_limit)); then
-			schema_file="$(mktemp "${TMPDIR:-/tmp}/okso_json_schema.XXXXXX.json")" || schema_file=""
-			if [[ -n "${schema_file}" ]]; then
+			schema_tmp_dir="$(mktemp -d "${TMPDIR:-/tmp}/okso_json_schema.XXXXXX" 2>/dev/null || true)"
+			if [[ -n "${schema_tmp_dir}" ]]; then
+				schema_file="${schema_tmp_dir}/schema.json"
 				if ! printf '%s' "${schema_json}" >"${schema_file}"; then
 					rm -f "${schema_file}"
+					rmdir "${schema_tmp_dir}" 2>/dev/null || true
 					schema_file=""
+					schema_tmp_dir=""
 				fi
 			fi
 		fi
@@ -244,7 +269,7 @@ llama_infer() {
 	# Append additional llama.cpp arguments when provided
 	if [[ -n "${LLAMA_EXTRA_ARGS:-}" ]]; then
 		local extra_args
-		# shellcheck disable=SC2206 # intended splitting into an array
+		# shellcheck disable=SC2206 # TD-007: LLAMA_EXTRA_ARGS intentionally word-splits into an argument array.
 		# Intentionally word-split to let callers pass raw flag lists via env.
 		extra_args=(${LLAMA_EXTRA_ARGS})
 		llama_args+=("${extra_args[@]}")
@@ -269,7 +294,17 @@ llama_infer() {
 	llama_arg_string=${llama_arg_string% }
 
 	# Create temporary file for stderr capture
-	stderr_file="$(mktemp)"
+	stderr_file="$(llama_mktemp_file_with_retries "${TMPDIR:-/tmp}/okso_llama_stderr.XXXXXX" || true)"
+	if [[ -z "${stderr_file}" ]]; then
+		log "ERROR" "failed to allocate temporary stderr file for llama inference" "tmpdir=${TMPDIR:-/tmp}"
+		if [[ -n "${schema_file}" ]]; then
+			rm -f "${schema_file}"
+		fi
+		if [[ -n "${schema_tmp_dir}" ]]; then
+			rmdir "${schema_tmp_dir}" 2>/dev/null || true
+		fi
+		return 1
+	fi
 
 	# Measure start time
 	start_time_ns=$(date +%s)
@@ -292,6 +327,9 @@ llama_infer() {
 		if [[ -n "${schema_file}" ]]; then
 			rm -f "${schema_file}"
 		fi
+		if [[ -n "${schema_tmp_dir}" ]]; then
+			rmdir "${schema_tmp_dir}" 2>/dev/null || true
+		fi
 		return "${exit_code}"
 	fi
 
@@ -302,6 +340,9 @@ llama_infer() {
 		rm -f "${stderr_file}"
 		if [[ -n "${schema_file}" ]]; then
 			rm -f "${schema_file}"
+		fi
+		if [[ -n "${schema_tmp_dir}" ]]; then
+			rmdir "${schema_tmp_dir}" 2>/dev/null || true
 		fi
 		return "${exit_code}"
 	fi
@@ -314,5 +355,8 @@ llama_infer() {
 	rm -f "${stderr_file}"
 	if [[ -n "${schema_file}" ]]; then
 		rm -f "${schema_file}"
+	fi
+	if [[ -n "${schema_tmp_dir}" ]]; then
+		rmdir "${schema_tmp_dir}" 2>/dev/null || true
 	fi
 }

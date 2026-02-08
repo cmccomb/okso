@@ -93,7 +93,7 @@ file_read_wrap_markdown_content() {
 	content="$1"
 	fence="$2"
 
-	# shellcheck disable=SC2016
+	# shellcheck disable=SC2016 # TD-006: literal template snippets intentionally keep unexpanded $ markers.
 	printf '```%s\n%s\n```\n' "${fence}" "${content}"
 }
 

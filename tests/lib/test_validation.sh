@@ -1,5 +1,6 @@
 #!/usr/bin/env bats
 # shellcheck shell=bash
+# Test coverage for test_validation.sh.
 
 @test "evaluate_final_answer_against_query does not post-validate constrained output" {
 	run env -i PATH="$PATH" HOME="$HOME" VERBOSITY=0 bash --noprofile --norc <<'SCRIPT'

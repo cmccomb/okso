@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck shell=bash
 # shellcheck shell=bash disable=SC2154,SC2178
 #
 # Runtime orchestration helpers for the okso assistant CLI.
@@ -244,7 +245,7 @@ prepare_environment_with_settings() {
 	# settings structure for downstream consumers.
 	capture_globals_into_settings "${settings_prefix}"
 }
-# shellcheck disable=SC2034
+# shellcheck disable=SC2034 # TD-001: dynamic globals are intentionally consumed across sourced modules and tests.
 render_plan_outputs() {
 	# Renders plan outputs for dry-run and plan-only modes.
 	# Arguments:

@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 # shellcheck shell=bash
-# shellcheck disable=SC2154,SC2016,SC2030,SC2031
+# shellcheck disable=SC2154,SC2016,SC2030,SC2031 # TD-009: Bats globals and literal heredoc content require grouped suppression in this harness.
 #
 # Tests for llama.cpp client helpers.
 #
@@ -37,6 +37,9 @@ setup() {
 	run env BASH_ENV= ENV= bash --noprofile --norc -c '
                 cd "$(git rev-parse --show-toplevel)" || exit 1
                 args_dir="$(mktemp -d)"
+                tmp_dir="$(mktemp -d)"
+                trap "rm -rf \"${tmp_dir}\"" EXIT
+                export TMPDIR="${tmp_dir}"
                 args_file="${args_dir}/args.txt"
                 mock_binary="${args_dir}/mock_llama.sh"
                 json_schema="${args_dir}/schema.json"

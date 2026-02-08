@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck shell=bash
 # Mock llama.cpp binary for schema-constrained tool relevance detection.
 # Arguments:
 #   --hf-repo <repo> (string): repository name (ignored)

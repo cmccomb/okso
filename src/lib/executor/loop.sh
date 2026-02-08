@@ -31,6 +31,8 @@ executor_loop() {
 	#   $2 - allowed tools (newline delimited)
 	#   $3 - planner plan entries as JSON array
 	#   $4 - plan outline text
+	# Returns:
+	#   0 when execution reaches a final answer without fatal errors; non-zero otherwise.
 	local user_query allowed_tools plan_entries plan_outline state_prefix plan_entry step_index
 	user_query="$1"
 	allowed_tools="$2"

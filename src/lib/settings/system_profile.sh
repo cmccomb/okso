@@ -26,7 +26,7 @@
 # Exit codes:
 #   Functions emit non-zero status on argument errors; detection helpers are best-effort.
 
-# shellcheck disable=SC2034
+# shellcheck disable=SC2034 # TD-001: dynamic globals are intentionally consumed across sourced modules and tests.
 SYSTEM_PROFILE_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 model_repo_for_size() {

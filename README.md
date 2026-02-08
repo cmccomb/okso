@@ -6,7 +6,7 @@
 `okso` is a command-line agent native to the modern macOS environment.
 It is designed to run all LLMs strictly locally via `llama.cpp`. 
 When a user sends a new query `okso` first identifies the general intent of the query, which is used to filter the available toolset.
-Next, a dedicated planner generates a structure dplan of action before passing it to an executor that runs each step in sequence.
+Next, a dedicated planner generates a structured plan of action before passing it to an executor that runs each step in sequence.
 A final validation step ensures that the output is safe and useful before returning it to the user. If not, the agent can re-plan and try again.
 
 Ultimately, this system is designed to be a robust, useful, local daily driver.
@@ -46,3 +46,16 @@ okso "can you rephrase this question more accurately? 'What is the capital of th
 
 For more detailed usage guidance, read the [documentation](http://cmccomb.com/okso).
 For maintainer, support, and roadmap details, see [Project](docs/project.md).
+
+## Maintainer quality checks
+
+Before merging, run:
+
+```bash
+find src scripts tests -type f \( -name '*.sh' -o -name 'okso' \) -print0 | xargs -0 shfmt -d
+bash ./scripts/ci/run-shellcheck.sh
+bash ./scripts/ci/run-bats.sh
+bash ./scripts/ci/check-docs.sh
+bash ./scripts/ci/audit-comments.sh
+bash ./scripts/ci/audit-consistency.sh
+```

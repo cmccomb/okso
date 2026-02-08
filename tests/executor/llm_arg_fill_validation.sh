@@ -1,4 +1,6 @@
 #!/usr/bin/env bats
+# shellcheck shell=bash
+# Test coverage for llm_arg_fill_validation.sh.
 
 @test "fill_missing_args_with_llm fails cleanly on invalid llama json" {
 	run env -i PATH="$PATH" HOME="$HOME" VERBOSITY=0 bash --noprofile --norc <<'SCRIPT'

@@ -1,4 +1,6 @@
 #!/usr/bin/env bats
+# shellcheck shell=bash
+# Test coverage for step_runner_failure.sh.
 
 @test "execute_planned_action marks replanning when tool observation exit_code is non-zero" {
 	run env -i PATH="$PATH" HOME="$HOME" VERBOSITY=0 bash --noprofile --norc <<'SCRIPT'

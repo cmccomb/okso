@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck shell=bash
 # Mock llama.cpp binary for deterministic test scoring.
 # Arguments:
 #   -m <path> (string): model path (ignored)

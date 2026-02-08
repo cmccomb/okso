@@ -1,4 +1,5 @@
 #!/usr/bin/env bats
+# shellcheck shell=bash
 #
 # Focused tests for Apple Calendar create tool helpers.
 #

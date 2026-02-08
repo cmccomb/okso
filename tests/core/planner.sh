@@ -1,11 +1,13 @@
 #!/usr/bin/env bats
+# shellcheck shell=bash
+# Test coverage for planner.sh.
 
 setup() {
 	unset -f chpwd _mise_hook 2>/dev/null || true
 	export VERBOSITY=0
 	export LLAMA_AVAILABLE=false
 	export TESTING_PASSTHROUGH=true
-	# shellcheck disable=SC2155
+	# shellcheck disable=SC2155 # TD-003: test setup keeps declaration-plus-assignment for concise fixtures.
 	export TOOL_REGISTRY_JSON=$(planner_registry_payload)
 }
 

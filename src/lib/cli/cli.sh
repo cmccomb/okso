@@ -44,8 +44,13 @@ show_version() {
 	render_cli_version
 }
 
-# shellcheck disable=SC2034
+# shellcheck disable=SC2034 # TD-001: dynamic globals are intentionally consumed across sourced modules and tests.
 parse_args() {
+	# Parses CLI flags and captures positional query content.
+	# Arguments:
+	#   $@ - raw CLI argument list
+	# Returns:
+	#   0 on success; exits on help/version; non-zero on invalid usage.
 	local positional
 	positional=()
 
@@ -87,7 +92,7 @@ parse_args() {
 			;;
 		--progress)
 			OKSO_PROGRESS=1
-			if ! [[ "${VERBOSITY:-0}" =~ ^[0-9]+$ ]] || ((${VERBOSITY} < 1)); then
+			if ! [[ "${VERBOSITY:-0}" =~ ^[0-9]+$ ]] || ((VERBOSITY < 1)); then
 				VERBOSITY=1
 			fi
 			shift
@@ -95,7 +100,7 @@ parse_args() {
 		--trace | --trace=1)
 			OKSO_PROGRESS=1
 			OKSO_TRACE=1
-			if ! [[ "${VERBOSITY:-0}" =~ ^[0-9]+$ ]] || ((${VERBOSITY} < 2)); then
+			if ! [[ "${VERBOSITY:-0}" =~ ^[0-9]+$ ]] || ((VERBOSITY < 2)); then
 				VERBOSITY=2
 			fi
 			shift

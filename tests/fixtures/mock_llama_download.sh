@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# shellcheck shell=bash
+# Test coverage for mock_llama_download.sh.
 set -euo pipefail
 
 model_path=""

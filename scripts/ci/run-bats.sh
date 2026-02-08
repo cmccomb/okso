@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
+# Run the full Bats test suite.
+# Usage: bash ./scripts/ci/run-bats.sh
 
 set -euo pipefail
 

@@ -1,4 +1,6 @@
 #!/usr/bin/env bats
+# shellcheck shell=bash
+# Test coverage for normalization.sh.
 
 setup() {
 	unset -f chpwd _mise_hook 2>/dev/null || true
@@ -11,8 +13,8 @@ JSON
 }
 
 @test "normalize_plan accepts top-level plan arrays" {
-	# shellcheck disable=SC2155
-	# shellcheck disable=SC2030
+	# shellcheck disable=SC2155 # TD-003: test setup keeps declaration-plus-assignment for concise fixtures.
+	# shellcheck disable=SC2030 # TD-004: tests intentionally assert subshell variable behavior.
 	export TOOL_REGISTRY_JSON=$(registry_payload)
 	run bash <<'SCRIPT'
 set -euo pipefail
@@ -30,9 +32,9 @@ SCRIPT
 }
 
 @test "normalize_plan enforces array shape from arguments" {
-	# shellcheck disable=SC2155
-	# shellcheck disable=SC2030
-	# shellcheck disable=SC2031
+	# shellcheck disable=SC2155 # TD-003: test setup keeps declaration-plus-assignment for concise fixtures.
+	# shellcheck disable=SC2030 # TD-004: tests intentionally assert subshell variable behavior.
+	# shellcheck disable=SC2031 # TD-004: tests intentionally assert subshell variable behavior.
 	export TOOL_REGISTRY_JSON=$(registry_payload)
 	run bash <<'SCRIPT'
 set -euo pipefail
@@ -45,8 +47,8 @@ SCRIPT
 
 @test "normalize_plan fails cleanly on empty output" {
 
-	# shellcheck disable=SC2031
-	# shellcheck disable=SC2155
+	# shellcheck disable=SC2031 # TD-004: tests intentionally assert subshell variable behavior.
+	# shellcheck disable=SC2155 # TD-003: test setup keeps declaration-plus-assignment for concise fixtures.
 	export TOOL_REGISTRY_JSON=$(registry_payload)
 	run bash <<'SCRIPT'
 set -euo pipefail

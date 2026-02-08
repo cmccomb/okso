@@ -38,7 +38,7 @@
 # library initialization, which can cause infinite chpwd invocations
 # in non-interactive contexts such as Bats tests.
 unset -f chpwd _mise_hook __zsh_like_cd cd 2>/dev/null || true
-# shellcheck disable=SC2034
+# shellcheck disable=SC2034 # TD-001: dynamic globals are intentionally consumed across sourced modules and tests.
 chpwd_functions=()
 
 PLANNING_LIB_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -122,7 +122,7 @@ planner_collect_tools() {
 	fi
 
 	# Reuse caller-provided TOOLS array when available.
-	# shellcheck disable=SC2153
+	# shellcheck disable=SC2153 # TD-011: planner reads TOOLS when provided by callers via sourced scope.
 	if [[ ${#catalog[@]} -eq 0 ]] && declare -p TOOLS >/dev/null 2>&1; then
 		local tools_decl
 		tools_decl="$(declare -p TOOLS 2>/dev/null || true)"

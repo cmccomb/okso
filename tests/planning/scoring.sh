@@ -1,8 +1,10 @@
 #!/usr/bin/env bats
+# shellcheck shell=bash
+# Test coverage for scoring.sh.
 
 setup() {
 	unset -f chpwd _mise_hook __zsh_like_cd cd 2>/dev/null || true
-	# shellcheck disable=SC2034
+	# shellcheck disable=SC2034 # TD-001: dynamic globals are intentionally consumed across sourced modules and tests.
 	chpwd_functions=()
 }
 

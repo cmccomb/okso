@@ -446,7 +446,7 @@ init_environment() {
 
 	# Platform detection
 	if [[ "$(uname -s)" == "Darwin" ]]; then
-		# shellcheck disable=SC2034
+		# shellcheck disable=SC2034 # TD-001: dynamic globals are intentionally consumed across sourced modules and tests.
 		IS_MACOS=true
 	fi
 

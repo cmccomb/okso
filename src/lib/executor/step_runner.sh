@@ -34,6 +34,8 @@ execute_planned_action() {
 	#   $1 - state prefix
 	#   $2 - step index
 	#   $3 - validated action JSON
+	# Returns:
+	#   0 on success; non-zero when execution fails and replanning is required.
 	local state_prefix step_index action_json tool args_json thought args_after_controls
 	local observation history_text web_fetch_snippets execution_status user_query plan_outline
 	local observation_exit_code observation_error
